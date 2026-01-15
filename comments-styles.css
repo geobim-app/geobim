@@ -1,0 +1,370 @@
+/* ===============================
+   COMMENTS MODULE STYLES
+   Add to the end of style.css
+   =============================== */
+
+/* Comment Mode Indicator */
+#commentModeIndicator {
+  background: rgba(90, 170, 204, 0.95);
+  border-color: #5ac;
+}
+
+#commentModeIndicator.active {
+  display: block;
+}
+
+/* Comment Section in Toolbar */
+.comments-section {
+  background: rgba(90, 170, 204, 0.1);
+  border: 2px solid #5ac;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+
+.comments-section-title {
+  color: #5ac;
+  font-size: 1em;
+  font-weight: bold;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(90, 170, 204, 0.3);
+}
+
+/* Comment Controls */
+.comment-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-btn {
+  width: 100%;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.comment-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.comment-btn:active {
+  transform: translateY(0);
+}
+
+#toggleCommentMode {
+  background: #5ac;
+  color: white;
+  font-weight: bold;
+}
+
+#toggleCommentMode.active {
+  background: #ff6600;
+  animation: commentPulse 2s infinite;
+}
+
+@keyframes commentPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(90, 170, 204, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(90, 170, 204, 0.8), 0 0 30px rgba(90, 170, 204, 0.4);
+  }
+}
+
+/* Comment Count Badge */
+.comment-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #e74c3c;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 3px 7px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Comments List */
+#commentsList {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+#commentsList::-webkit-scrollbar {
+  width: 6px;
+}
+
+#commentsList::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+#commentsList::-webkit-scrollbar-thumb {
+  background: rgba(90, 170, 204, 0.5);
+  border-radius: 3px;
+}
+
+#commentsList::-webkit-scrollbar-thumb:hover {
+  background: rgba(90, 170, 204, 0.8);
+}
+
+/* Individual Comment Item in List */
+.comment-list-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border-left: 3px solid #5ac;
+  transition: all 0.2s ease;
+}
+
+.comment-list-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-3px);
+}
+
+.comment-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.comment-list-title {
+  font-weight: bold;
+  color: #5ac;
+  font-size: 13px;
+  flex: 1;
+}
+
+.comment-list-controls {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.comment-list-item:hover .comment-list-controls {
+  opacity: 1;
+}
+
+.comment-list-btn {
+  min-height: 24px;
+  min-width: 24px;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.comment-list-btn:hover {
+  transform: scale(1.1);
+}
+
+.comment-list-btn.edit-btn:hover {
+  background: #2196f3;
+}
+
+.comment-list-btn.delete-btn:hover {
+  background: #e74c3c;
+}
+
+.comment-list-text {
+  font-size: 12px;
+  color: #ccc;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.comment-list-meta {
+  font-size: 10px;
+  color: #888;
+}
+
+/* Comment Dialog */
+#commentDialog {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+#commentDialog input,
+#commentDialog textarea,
+#commentDialog select {
+  font-family: inherit;
+}
+
+#commentDialog input:focus,
+#commentDialog textarea:focus,
+#commentDialog select:focus {
+  outline: none;
+  border-color: #5ac;
+  box-shadow: 0 0 0 2px rgba(90, 170, 204, 0.2);
+}
+
+/* Comment Info Box */
+.comment-info {
+  background: rgba(90, 170, 204, 0.1);
+  border-left: 3px solid #5ac;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.comment-info strong {
+  color: #5ac;
+}
+
+/* Modern InfoBox Styles for Comments */
+.modern-infobox {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 0;
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+
+.modern-infobox h3 {
+  color: #5ac;
+  font-size: 18px;
+  margin: 0;
+  font-weight: 600;
+  padding: 15px;
+  background: rgba(90, 170, 204, 0.1);
+  border-bottom: 2px solid rgba(90, 170, 204, 0.3);
+}
+
+/* Priority Indicators */
+.priority-high {
+  border-left-color: #e74c3c !important;
+}
+
+.priority-normal {
+  border-left-color: #5ac !important;
+}
+
+.priority-low {
+  border-left-color: #95a5a6 !important;
+}
+
+/* Responsive Design for Comments */
+@media (max-width: 768px) {
+  #commentDialog {
+    left: 10px !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    width: calc(100vw - 20px) !important;
+  }
+  
+  .comments-section {
+    margin-bottom: 10px;
+  }
+  
+  #commentsList {
+    max-height: 200px;
+  }
+}
+
+/* Animation for new comments notification */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.comment-notification {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Comment Filters (if needed later) */
+.comment-filters {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.comment-filter-btn {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.comment-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.comment-filter-btn.active {
+  background: #5ac;
+  color: white;
+  border-color: #5ac;
+}
+
+/* Empty State */
+.comments-empty-state {
+  text-align: center;
+  padding: 30px 20px;
+  color: #666;
+}
+
+.comments-empty-state svg {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+/* Loading State */
+.comments-loading {
+  text-align: center;
+  padding: 20px;
+  color: #5ac;
+}
+
+.comments-loading::after {
+  content: '...';
+  animation: loadingDots 1.5s infinite;
+}
+
+@keyframes loadingDots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
