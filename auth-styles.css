@@ -6,7 +6,7 @@
 #loginScreen {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: radial-gradient(ellipse at center, var(--bg-surface, #151921) 0%, var(--bg-base, #0E1117) 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -93,8 +93,8 @@
 }
 
 .login-field input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  border-color: var(--brand-teal, #6EECD8);
+  box-shadow: 0 0 0 3px rgba(110, 236, 216, 0.2);
 }
 
 .login-field input::placeholder {
@@ -122,8 +122,8 @@
 
 /* Login Button */
 .login-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
+  color: var(--bg-base, #0E1117);
   border: none;
   padding: 16px;
   border-radius: 8px;
@@ -135,12 +135,12 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4);
 }
 
 .login-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 20px rgba(110, 236, 216, 0.5);
 }
 
 .login-btn:active:not(:disabled) {
@@ -190,16 +190,16 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(102, 126, 234, 0.15);
+  background: rgba(110, 236, 216, 0.15);
   border-radius: 6px;
   margin-bottom: 12px;
   font-size: 12px;
-  color: #a5b4fc;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: var(--brand-teal, #6EECD8);
+  border: 1px solid rgba(110, 236, 216, 0.3);
 }
 
 #userBadge::before {
-  content: '👤';
+  content: '\1F464';
   font-size: 14px;
 }
 
@@ -238,20 +238,20 @@
     margin: 16px;
     border-radius: 12px;
   }
-  
+
   .login-header h1 {
     font-size: 20px;
   }
-  
+
   .login-icon {
     font-size: 40px;
   }
-  
+
   .login-field input {
     padding: 12px 14px;
     font-size: 14px;
   }
-  
+
   .login-btn {
     padding: 14px;
     font-size: 15px;
@@ -264,39 +264,39 @@
 
 @media (prefers-color-scheme: dark) {
   .login-container {
-    background: rgba(26, 32, 44, 0.98);
+    background: rgba(14, 17, 23, 0.98);
   }
-  
+
   .login-header h1 {
-    color: #e2e8f0;
+    color: var(--text-primary, #E2E8F0);
   }
-  
+
   .login-header p {
     color: #a0aec0;
   }
-  
+
   .login-field label {
-    color: #e2e8f0;
+    color: var(--text-primary, #E2E8F0);
   }
-  
+
   .login-field input {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.2);
-    color: #e2e8f0;
+    color: var(--text-primary, #E2E8F0);
   }
-  
+
   .login-field input:focus {
-    border-color: #667eea;
+    border-color: var(--brand-teal, #6EECD8);
   }
-  
+
   .login-footer {
     border-top-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .login-footer small {
     color: #718096;
   }
-  
+
   #loginError {
     background: rgba(254, 178, 178, 0.1);
     border-color: rgba(254, 178, 178, 0.3);

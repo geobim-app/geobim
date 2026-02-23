@@ -1,88 +1,95 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CESIUM | BIM Viewer - Lighting v4.0 (WITH LOGIN)</title>
-  
-  <!-- Favicon Fix -->
-  <link rel="icon" href="data:,">
-  
+  <title>geobim.app — Geospatial Intelligence</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- Privacy-friendly analytics by Plausible -->
+  <script async src="https://plausible.io/js/pa-l_LicZpu1DpGT201Nqezw.js"></script>
+  <script>
+    window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+    plausible.init()
+  </script>
+
   <!-- Cesium Library -->
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Widgets/widgets.css">
-  
-  <!-- Firebase SDK (with Auth!) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  
+
+  <!-- Firebase SDK (Compat for non-bundler usage) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <!-- Modern Styles -->
   <link rel="stylesheet" href="style.css">
-  
-  <!-- 🔐 Auth Styles (NEW!) -->
+
+  <!-- Auth Styles -->
   <link rel="stylesheet" href="auth-styles.css">
-  
+
   <!-- Z-Offset Styles -->
   <link rel="stylesheet" href="integrated-zoffset-styles.css">
-  
-  <!-- 🔥 Lighting v4.0 Styles -->
+
+  <!-- Lighting v4.0 Styles -->
   <link rel="stylesheet" href="lighting-styles.css">
-  
+
   <!-- Comments Styles -->
   <link rel="stylesheet" href="comments-styles.css">
+
+  <!-- Layer Manager Styles -->
+  <link rel="stylesheet" href="layer-manager-styles.css">
+
 </head>
 <body>
 
   <!-- ============================================
-       🔐 LOGIN SCREEN (Shows first!)
+       SPLASH SCREEN (Shows first!)
        ============================================ -->
-  <div id="loginScreen">
-    <div class="login-container">
-      <div class="login-header">
-        <span class="login-icon">🏗️</span>
-        <h1>CESIUM BIM Viewer</h1>
-        <p>Bitte melden Sie sich an</p>
-      </div>
-      
-      <form id="loginForm" class="login-form">
-        <div class="login-field">
-          <label for="loginEmail">E-Mail</label>
-          <input type="email" id="loginEmail" placeholder="ihre@email.de" required autocomplete="email">
+  <div id="splashScreen" class="splash-screen">
+    <div class="splash-content">
+      <div class="splash-hero">
+        <!-- Full logo (globe + wordmark) on the left -->
+        <img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="splash-logo-img">
+        <!-- Right side: info + button -->
+        <div class="splash-right">
+          <div class="splash-divider"></div>
+          <p class="splash-copyright">&copy; 2026 Christof Lorenz</p>
+          <p class="splash-license">Personal &amp; non-commercial use only.</p>
+          <p class="splash-contact">Contact: info@geobim.app</p>
+          <button id="enterDemoBtn" class="splash-button">Enter Demo</button>
+          <div class="splash-cta-section">
+            <p class="splash-cta">Want to use your own IFC/Revit models? <a href="mailto:info@geobim.app" class="splash-cta-link" onclick="if(typeof plausible!=='undefined')plausible('Contact Click')">Contact me</a></p>
+            <p class="splash-privacy">Privacy-friendly analytics (no cookies)</p>
+          </div>
         </div>
-        
-        <div class="login-field">
-          <label for="loginPassword">Passwort</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-        </div>
-        
-        <div id="loginError"></div>
-        
-        <button type="submit" id="loginBtn" class="login-btn">
-          <span id="loginSpinner"></span>
-          <span id="loginBtnText">Anmelden</span>
-        </button>
-      </form>
-      
-      <div class="login-footer">
-        <small>Zugang nur für autorisierte Benutzer</small>
       </div>
     </div>
   </div>
 
+  <!-- Login screen removed - Demo mode active -->
+
   <!-- ============================================
        MAIN APP (Hidden until logged in)
        ============================================ -->
-  
+
   <!-- Main Cesium Container -->
   <div id="cesiumContainer" style="display: none;"></div>
-  
+
+  <!-- Split-Screen Slider -->
+  <div id="splitSlider"></div>
+
+  <!-- Sidebar Toggle Button -->
+  <button id="sidebarToggle" class="sidebar-toggle at-edge" style="display: none;" title="Toggle sidebar (M)">☰</button>
+
   <!-- Modern Toolbar -->
-  <div id="toolbar" style="display: none;"></div>
-  
+  <div id="toolbar" class="collapsed" style="display: none;"></div>
+
   <!-- Custom Info Box -->
   <div id="infoBoxCustom"></div>
-  
+
   <!-- Drawing Mode Indicator -->
   <div id="modeIndicator" class="mode-indicator">
     ✏️ DRAWING MODE ACTIVE - Click map to add polygon points
@@ -105,46 +112,46 @@
 
   <!-- Comment Dialog -->
   <div id="commentDialog" style="position: absolute; display: none; background: rgba(26, 32, 44, 0.98); backdrop-filter: blur(10px); border-radius: 16px; padding: 24px; color: white; z-index: 200; box-shadow: 0 16px 48px rgba(0,0,0,0.6); min-width: 380px; max-width: 420px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-    <h4 style="margin-top: 0; margin-bottom: 20px; color: #667eea; font-size: 18px; font-weight: 700;" id="commentDialogTitle">New Comment</h4>
-    
+    <h4 style="margin-top: 0; margin-bottom: 20px; color: #6EECD8; font-size: 18px; font-weight: 700;" id="commentDialogTitle">New Comment</h4>
+
     <div style="margin-bottom: 16px;">
       <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Title *</label>
       <input type="text" id="commentTitleInput" placeholder="Comment title..." style="width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; box-sizing: border-box; font-size: 14px; transition: all 0.2s ease;">
     </div>
-    
+
     <div style="margin-bottom: 16px;">
       <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Comment *</label>
       <textarea id="commentTextInput" placeholder="Your comment..." style="width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; min-height: 120px; resize: vertical; box-sizing: border-box; font-size: 14px; font-family: inherit; transition: all 0.2s ease;"></textarea>
     </div>
-    
+
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
       <div>
         <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Category</label>
-        <select id="commentCategory" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; box-sizing: border-box; font-size: 14px;">
-          <option value="General">📋 General</option>
-          <option value="Architecture">🏛️ Architecture</option>
-          <option value="Structure">🗿 Structure</option>
-          <option value="MEP">⚡ MEP</option>
-          <option value="Issue">⚠️ Issue</option>
-          <option value="Question">❓ Question</option>
+        <select id="commentCategory" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #1a202c; color: white; box-sizing: border-box; font-size: 14px;">
+          <option value="General" style="background: #1a202c; color: white;">📋 General</option>
+          <option value="Architecture" style="background: #1a202c; color: white;">🏛️ Architecture</option>
+          <option value="Structure" style="background: #1a202c; color: white;">🗿 Structure</option>
+          <option value="MEP" style="background: #1a202c; color: white;">⚡ MEP</option>
+          <option value="Issue" style="background: #1a202c; color: white;">⚠️ Issue</option>
+          <option value="Question" style="background: #1a202c; color: white;">❓ Question</option>
         </select>
       </div>
-      
+
       <div>
         <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Priority</label>
-        <select id="commentPriority" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; box-sizing: border-box; font-size: 14px;">
-          <option value="Low">⚪ Low</option>
-          <option value="Normal" selected>🔵 Normal</option>
-          <option value="High">🔴 High</option>
+        <select id="commentPriority" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #1a202c; color: white; box-sizing: border-box; font-size: 14px;">
+          <option value="Low" style="background: #1a202c; color: white;">⚪ Low</option>
+          <option value="Normal" selected style="background: #1a202c; color: white;">🔵 Normal</option>
+          <option value="High" style="background: #1a202c; color: white;">🔴 High</option>
         </select>
       </div>
     </div>
-    
+
     <div style="display: flex; gap: 12px;">
       <button onclick="BimViewer.closeCommentDialog()" style="flex: 1; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s ease;">
         Cancel
       </button>
-      <button onclick="BimViewer.saveCommentFromDialog()" style="flex: 1; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3); transition: all 0.2s ease;">
+      <button onclick="BimViewer.saveCommentFromDialog()" style="flex: 1; background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%); color: #0E1117; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(110, 236, 216, 0.3); transition: all 0.2s ease;">
         Save Comment
       </button>
     </div>
@@ -155,31 +162,34 @@
     #commentDialog textarea:focus,
     #commentDialog select:focus {
       outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: #6EECD8;
+      box-shadow: 0 0 0 3px rgba(110, 236, 216, 0.1);
       background: rgba(255,255,255,0.08);
     }
-    
+
     #commentDialog button:hover {
       transform: translateY(-1px);
     }
-    
+
     #commentDialog button:active {
       transform: translateY(0);
     }
-    
+
     #commentDialog button:last-child:hover {
-      box-shadow: 0 6px 16px rgba(17, 153, 142, 0.4);
+      box-shadow: 0 6px 16px rgba(110, 236, 216, 0.4);
     }
   </style>
 
   <!-- ============================================
        JAVASCRIPT MODULES - LOAD ORDER IS CRITICAL!
        ============================================ -->
-  
-  <!-- 🔐 Auth Module (FIRST!) -->
+
+  <!-- Auth Module (FIRST!) -->
   <script src="auth.js"></script>
-  
+
+  <!-- Auth Gate - Email/Password login overlay (blocks app until authenticated) -->
+  <script src="auth-gate.js"></script>
+
   <!-- 1. Core Modules (Foundation) -->
   <script src="core.js"></script>
   <script src="features.js"></script>
@@ -187,183 +197,234 @@
   <script src="comments.js"></script>
   <script src="pointcloud.js"></script>
   <script src="measurement.js"></script>
-  
+
   <!-- 2. Enhanced Clipping Module -->
   <script src="clipping.js"></script>
-  
+
   <!-- 3. Z-Offset Module v2.0 -->
   <script src="z-offset.js"></script>
-  
+
+  <!-- 3.5. Layer Manager -->
+  <script src="layerManager.js"></script>
+
+
   <!-- ============================================
-       🔥 LIGHTING v4.0 - NEW SETUP
+       LIGHTING v4.0 - NEW SETUP
        ============================================ -->
-  
-  <!-- 4. 🔥 Lighting Module v4.0 (MUST be loaded FIRST!) -->
+
+  <!-- 4. Lighting Module v4.0 (MUST be loaded FIRST!) -->
   <script src="lighting.js"></script>
-  
-  <!-- 4.5. 🔥 NEW: Standalone Lighting UI (loads BEFORE ui.js) -->
+
+  <!-- 4.1. IBL Module (Image-Based Lighting) -->
+  <script src="ibl.js"></script>
+
+  <!-- 4.5. NEW: Standalone Lighting UI (loads BEFORE ui.js) -->
   <script src="ui-lighting-standalone.js"></script>
-  
+
   <!-- ============================================
        UI MODULES
        ============================================ -->
-  
+
   <!-- 5. UI Module v3.3 -->
   <script src="ui.js"></script>
-  
+
   <!-- 6. UI Extensions -->
   <script src="ui-comments-extension.js"></script>
   <script src="ui-clipping-extension.js"></script>
   <script src="ui-z-offset-extension.js"></script>
-  
-  <!-- 7. ⚠️ OLD Lighting UI Extension - NOT NEEDED ANYMORE (auskommentiert) -->
+
+  <!-- 7. OLD Lighting UI Extension - NOT NEEDED ANYMORE (commented out) -->
   <!-- <script src="ui-lighting-extension.js"></script> -->
-  
+
   <!-- 8. UI Helpers (final touches) -->
   <script src="ui-helpers-modern.js"></script>
-  
+
   <!-- ============================================
        INITIALIZATION SCRIPT
        ============================================ -->
   <script>
-    // ✅ Flag to track if viewer has been initialized
+    // Flag to track if viewer has been initialized
     let viewerInitialized = false;
-    
+    let splashDismissed = false;
+
+    // Splash screen handler - go directly to app (no login required)
+    document.getElementById('enterDemoBtn').addEventListener('click', function() {
+      // Track demo start with Plausible
+      if (typeof plausible !== 'undefined') {
+        plausible('Enter Demo');
+      }
+      document.getElementById('splashScreen').classList.add('hidden');
+      splashDismissed = true;
+      // Initialize auth (demo mode - no login)
+      if (typeof BimAuth !== 'undefined') {
+        BimAuth.init();
+      }
+    });
+
     window.addEventListener('load', function() {
-      console.log('🚀 Page loaded, waiting for authentication...');
-      
-      // Wait for auth and then initialize
+      console.log('Page loaded, waiting for splash dismissal and authentication...');
+
+      // Wait for splash dismissal and then initialize
       const initSystems = setInterval(function() {
-        // First check if user is logged in
-        if (!BimAuth || !BimAuth.isLoggedIn()) {
-          console.log('⏳ Waiting for login...');
+        // First check if splash was dismissed
+        if (!splashDismissed) {
           return;
         }
-        
-        // ✅ Check if Ion Token is available
+
+        // Check if auth is initialized (demo mode)
+        if (!BimAuth || !BimAuth.initialized) {
+          return;
+        }
+
+        // Check if Ion Token is available
         const ionToken = BimAuth.getIonToken();
         if (!ionToken) {
-          console.log('⏳ Waiting for Cesium Ion Token...');
+          console.log('Waiting for Cesium Ion Token...');
           return;
         }
-        
-        // ✅ Check if viewer already initialized
+
+        // Check if viewer already initialized
         if (viewerInitialized) {
           return;
         }
-        
-        console.log('✅ User authenticated and Ion Token available');
-        console.log('🚀 Initializing BIM Viewer...');
-        
-        // ✅ Apply Ion Token to Cesium BEFORE init
+
+        console.log('User authenticated and Ion Token available');
+        console.log('Initializing BIM Viewer...');
+
+        // Apply Ion Token to Cesium BEFORE init
         if (typeof Cesium !== 'undefined' && Cesium.Ion) {
           Cesium.Ion.defaultAccessToken = ionToken;
-          console.log('✅ Cesium Ion Token applied');
+          console.log('Cesium Ion Token applied');
         }
-        
-        // ✅ Initialize BimViewer
+
+        // Initialize BimViewer
         if (typeof BimViewer !== 'undefined' && typeof BimViewer.init === 'function') {
           viewerInitialized = true;
-          
+
           BimViewer.init().then(() => {
-            console.log('✅ BimViewer.init() completed');
-            
-            // ✅ Now initialize features (after viewer is ready)
+            console.log('BimViewer.init() completed');
+
+            // Apply PERFORMANCE preset on startup (no shadows)
+            if (typeof CONFIG !== 'undefined' && CONFIG.performance && CONFIG.performance.presets) {
+              BimViewer.applyPerformanceSettings(CONFIG.performance.presets.PERFORMANCE);
+              console.log('Started in PERFORMANCE mode (no shadows)');
+
+              // Update settings dropdown to reflect PERFORMANCE preset
+              const performanceSelect = document.getElementById('performancePreset');
+              if (performanceSelect) {
+                performanceSelect.value = 'PERFORMANCE';
+              }
+            }
+
+            // Now initialize features (after viewer is ready)
             if (typeof BimViewer.initFeatures === 'function') {
               BimViewer.initFeatures();
-              console.log('✅ Features initialized');
+              console.log('Features initialized');
             }
-            
-            // ✅ Initialize lighting system
+
+            // Initialize lighting system
             if (typeof BimViewer.initLighting === 'function' && !BimViewer.lighting) {
               BimViewer.initLighting();
-              console.log('✅ Lighting system initialized');
+              console.log('Lighting system initialized');
             }
-            
-            // ✅ Wait for first asset before initializing other systems
+
+            // Auto-load Ion assets
+            if (typeof BimViewerUI !== 'undefined' && typeof BimViewerUI.autoLoadIonAssets === 'function') {
+              BimViewerUI.autoLoadIonAssets();
+              console.log('Auto-loading Ion assets...');
+            }
+
+            // Wait for first asset before initializing other systems
             waitForAssetAndInitSystems();
-            
+
           }).catch(error => {
-            console.error('❌ BimViewer.init() failed:', error);
+            console.error('BimViewer.init() failed:', error);
             viewerInitialized = false;
           });
-          
+
           // Stop the interval - init started
           clearInterval(initSystems);
         }
-        
+
       }, 500);
     });
-    
-    // ✅ Wait for asset to load before initializing Firebase/Comments
+
+    // Wait for asset to load before initializing Firebase/Comments
     function waitForAssetAndInitSystems() {
-      console.log('⏳ Waiting for first asset to load...');
-      
+      console.log('Waiting for first asset to load...');
+
       const assetCheck = setInterval(function() {
         if (!BimViewer.viewer) {
           return;
         }
-        
+
         // Check if at least one asset is loaded
         if (BimViewer.loadedAssets && BimViewer.loadedAssets.size > 0) {
           clearInterval(assetCheck);
-          console.log('✅ Asset detected, initializing remaining systems...');
-          
+          console.log('Asset detected, initializing remaining systems...');
+
           initializeRemainingSystems();
         }
       }, 500);
-      
+
       // Also allow manual initialization after 5 seconds even without asset
       setTimeout(() => {
         if (BimViewer.viewer && !BimViewer.loadedAssets?.size) {
-          console.log('⏳ No asset loaded yet, but initializing systems anyway...');
+          console.log('No asset loaded yet, but initializing systems anyway...');
           initializeRemainingSystems();
         }
       }, 5000);
     }
-    
-    // ✅ Initialize Firebase, Comments, Hide Features, etc.
+
+    // Initialize Comments (localStorage), Hide Features, etc.
     function initializeRemainingSystems() {
       console.log('');
-      console.log('📋 INITIALIZING REMAINING SYSTEMS:');
-      
-      // Initialize Firebase (comments)
-      if (typeof BimViewer.initFirebase === 'function') {
-        if (BimViewer.initFirebase()) {
-          console.log('✅ Firebase Firestore initialized for comments');
-          const statusEl = document.getElementById('commentsListStatus');
-          if (statusEl) statusEl.textContent = 'Ready';
-        } else {
-          console.log('⚠️ Firebase Firestore initialization failed');
-          const initBtn = document.getElementById('initFirebaseBtn');
-          if (initBtn) initBtn.style.display = 'block';
-          const statusEl = document.getElementById('commentsListStatus');
-          if (statusEl) statusEl.textContent = 'Not initialized';
+      console.log('INITIALIZING REMAINING SYSTEMS:');
+
+      // Initialize Comments (Firestore - Demo Mode)
+      // Wait for anonymous auth to complete before initializing Firestore comments
+      function initComments() {
+        const authUser = BimAuth.getFirebaseUser();
+        if (!authUser) {
+          console.log('Waiting for anonymous auth...');
+          setTimeout(initComments, 500);
+          return;
+        }
+
+        if (typeof BimViewer.initFirebase === 'function') {
+          if (BimViewer.initFirebase()) {
+            console.log('Comments initialized (Firestore - Demo Mode)');
+            const statusEl = document.getElementById('commentsListStatus');
+            if (statusEl) statusEl.textContent = 'Ready';
+          } else {
+            console.log('Comments initialization deferred');
+            setTimeout(initComments, 1000);
+          }
         }
       }
-      
+      initComments();
+
       // Initialize comment click handler (if not already done in features)
       if (typeof BimViewer.initCommentClickHandler === 'function' && !BimViewer.comments?.clickHandlerInitialized) {
         BimViewer.initCommentClickHandler();
-        console.log('✅ Comment click handler initialized');
+        console.log('Comment click handler initialized');
       }
-      
+
       // Initialize hide features
       if (typeof BimViewer.initHideFeatures === 'function') {
         BimViewer.initHideFeatures();
-        console.log('✅ Hide features initialized');
+        console.log('Hide features initialized');
       }
-      
+
       // Initialize point cloud settings
       if (typeof BimViewer.initPointCloudSettings === 'function') {
         BimViewer.initPointCloudSettings();
-        console.log('✅ Point cloud settings initialized');
+        console.log('Point cloud settings initialized');
       }
-      
+
       console.log('');
-      console.log('🎉 All systems ready!');
-      console.log('🔐 LOGGED IN AS:', BimAuth.getCurrentUser()?.email);
-      console.log('🛰️ ION TOKEN:', BimAuth.getIonToken()?.substring(0, 20) + '...');
+      console.log('All systems ready!');
+      console.log('Demo Mode active - user:', BimAuth.getCurrentUser()?.email);
       console.log('');
     }
   </script>

@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - POINT CLOUD MODULE v1.0
 // Advanced Point Cloud Rendering Controls
@@ -66,19 +75,83 @@
   // Check if a tileset is a point cloud
   BimViewer.isPointCloudTileset = function(tileset) {
     if (!tileset) return false;
-    
-    // Check if tileset has point cloud style properties
-    if (tileset.pointCloudShading) return true;
-    
-    // Check root tile content type
-    if (tileset.root && tileset.root.content) {
-      const contentUri = tileset.root.content.uri || '';
-      if (contentUri.includes('.pnts') || contentUri.includes('pointcloud')) {
-        return true;
+
+    // Check if already marked as point cloud in asset data
+    if (this.loadedAssets) {
+      for (const [assetId, assetData] of this.loadedAssets) {
+        if (assetData.tileset === tileset && assetData.isPointCloud) {
+          return true;
+        }
       }
     }
-    
+
+    // Check tileset extras or asset metadata
+    try {
+      if (tileset.asset && tileset.asset.extras) {
+        const extras = tileset.asset.extras;
+        if (extras.ion && extras.ion.assetType === 'POINTCLOUD') {
+          return true;
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Check root tile content for .pnts URI (point cloud format)
+    const checkTileForPointCloud = (tile) => {
+      if (!tile) return false;
+      if (tile.content) {
+        const contentUri = tile.content.url || tile.content.uri || '';
+        if (contentUri.includes('.pnts') || contentUri.includes('pointcloud')) {
+          return true;
+        }
+        // If tile has features with IFC-like properties, it's NOT a point cloud
+        if (tile.content.featuresLength > 0) {
+          try {
+            const feature = tile.content.getFeature(0);
+            const props = feature.getPropertyIds();
+            const ifcIndicators = ['className', 'IfcEntity', 'IfcType', 'IFC_Type', 'element_type', 'categoryName'];
+            if (ifcIndicators.some(p => props.includes(p))) {
+              return false;
+            }
+          } catch (e) {
+            // Ignore
+          }
+        }
+      }
+      if (tile.children) {
+        for (const child of tile.children) {
+          const result = checkTileForPointCloud(child);
+          if (result === true || result === false) return result;
+        }
+      }
+      return null; // indeterminate
+    };
+
+    if (tileset.root) {
+      const result = checkTileForPointCloud(tileset.root);
+      if (result === true) return true;
+      if (result === false) return false;
+    }
+
+    // NOTE: tileset.pointCloudShading exists on ALL tilesets in CesiumJS 1.134
+    // so we do NOT use it as an indicator
+
     return false;
+  };
+
+  // Mark a tileset as point cloud in asset data
+  BimViewer.markAsPointCloud = function(assetId) {
+    const assetData = this.loadedAssets?.get(assetId.toString());
+    if (assetData) {
+      assetData.isPointCloud = true;
+      console.log(`☁️ Asset ${assetId} marked as point cloud`);
+
+      // Apply point cloud settings immediately
+      if (assetData.tileset && typeof this.applyPointCloudSettings === 'function') {
+        this.applyPointCloudSettings(assetData.tileset);
+      }
+    }
   };
 
   // Apply point cloud settings to a specific tileset
@@ -236,6 +309,12 @@
     this.applyPointCloudSettingsToAllTilesets();
     this.updateStatus(`EDL ${enabled ? 'enabled' : 'disabled'}`, 'success');
     console.log(`☁️ Eye Dome Lighting: ${enabled}`);
+
+    // Track point cloud usage with Plausible (only once per session)
+    if (typeof plausible !== 'undefined' && !this._pointCloudTracked) {
+      plausible('Feature Used', { props: { feature: 'Point Cloud' } });
+      this._pointCloudTracked = true;
+    }
   };
 
   // Update EDL Strength

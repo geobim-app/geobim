@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - UI COMMENTS EXTENSION v4.1 (RIGHT-CLICK ONLY)
 // Adds point/area toggle buttons with correct instructions
@@ -19,11 +28,11 @@
       <div class="modern-group">
         <div class="modern-label">Annotation Type</div>
         <div class="modern-btn-group">
-          <button id="annotationTypePoint" class="modern-btn modern-btn-small active" onclick="BimViewer.setAnnotationType('point')">
+          <button id="annotationTypePoint" class="modern-btn modern-btn-small active" onclick="BimViewer.setAnnotationType('point')" title="Click to place a comment marker">
             <span class="modern-btn-icon">💬</span>
             <span>Point</span>
           </button>
-          <button id="annotationTypeArea" class="modern-btn modern-btn-small" onclick="BimViewer.setAnnotationType('area')">
+          <button id="annotationTypeArea" class="modern-btn modern-btn-small" onclick="BimViewer.setAnnotationType('area')" title="Draw polygon to mark an area">
             <span class="modern-btn-icon">📐</span>
             <span>Area</span>
           </button>
@@ -45,7 +54,7 @@
       
       <div class="modern-group" style="margin-top: 8px;">
         <div class="modern-btn-group">
-          <button id="toggleAllCommentsBtn" class="modern-btn modern-btn-small" onclick="BimViewer.toggleAllCommentsVisibility()" title="Show/Hide all comments">
+          <button id="toggleAllCommentsBtn" class="modern-btn modern-btn-small" onclick="BimViewer.toggleAllCommentsVisibility()" title="Show/hide all comments">
             <span class="modern-btn-icon">👁️</span>
             <span>Hide All</span>
           </button>
@@ -95,8 +104,10 @@
     }
     
     .modern-btn-small.active {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+      background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
+      color: var(--bg-base, #0E1117) !important;
+      border-color: var(--brand-teal, #6EECD8) !important;
+      box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
       transform: translateY(-1px);
     }
     
@@ -111,39 +122,39 @@
     }
     
     .modern-btn-danger {
-      background: rgba(231, 76, 60, 0.2) !important;
-      color: #ff6b6b !important;
-      border: 1px solid rgba(231, 76, 60, 0.3) !important;
+      background: rgba(239, 68, 68, 0.15) !important;
+      color: #F87171 !important;
+      border: 1px solid rgba(239, 68, 68, 0.3) !important;
+      box-shadow: none !important;
     }
-    
+
     .modern-btn-danger:hover {
-      background: rgba(231, 76, 60, 0.3) !important;
-      color: #ff8787 !important;
-      border-color: rgba(231, 76, 60, 0.5) !important;
+      background: rgba(239, 68, 68, 0.25) !important;
+      border-color: rgba(239, 68, 68, 0.5) !important;
     }
     
     /* Modern Comment List Item */
     .modern-comment-item {
       background: rgba(255, 255, 255, 0.05);
-      border-left: 3px solid #667eea;
+      border-left: 3px solid #6EECD8;
       border-radius: 8px;
       padding: 12px;
       margin-bottom: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    
+
     .modern-comment-item:hover {
       background: rgba(255, 255, 255, 0.1);
       transform: translateX(-2px);
     }
-    
+
     .modern-comment-item.priority-high {
-      border-left-color: #ee0979;
+      border-left-color: #F87171;
     }
-    
+
     .modern-comment-item.priority-normal {
-      border-left-color: #667eea;
+      border-left-color: #6EECD8;
     }
     
     .modern-comment-item.priority-low {
@@ -200,7 +211,7 @@
     }
     
     .modern-comment-btn.edit-btn:hover {
-      background: #667eea;
+      background: #6EECD8;
     }
     
     .modern-comment-btn.delete-btn:hover {
@@ -227,7 +238,7 @@
     }
     
     .modern-comment-type {
-      background: rgba(102, 126, 234, 0.3);
+      background: rgba(110, 236, 216, 0.3);
       padding: 2px 6px;
       border-radius: 3px;
       font-weight: 600;
@@ -252,8 +263,8 @@
     }
     
     .modern-comment-priority.normal {
-      background: rgba(102, 126, 234, 0.2);
-      color: #a5b4fc;
+      background: rgba(110, 236, 216, 0.2);
+      color: #6EECD8;
     }
     
     .modern-comment-priority.low {
@@ -333,8 +344,8 @@
     
     /* Enhanced hints section */
     .modern-hint {
-      background: rgba(102, 126, 234, 0.1);
-      border-left: 3px solid #667eea;
+      background: rgba(110, 236, 216, 0.1);
+      border-left: 3px solid #6EECD8;
       padding: 10px;
       border-radius: 6px;
       font-size: 11px;

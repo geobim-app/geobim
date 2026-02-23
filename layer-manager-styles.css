@@ -1,0 +1,211 @@
+/**
+ * GEOBIM.APP - Layer Manager Styles
+ * © 2026 Christof Lorenz. All rights reserved.
+ */
+
+/* ===============================
+   BASEMAP & TERRAIN RADIO LIST
+   =============================== */
+
+.layer-basemap-list,
+.layer-terrain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layer-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+}
+
+.layer-radio-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #E2E8F0);
+}
+
+.layer-radio-item.active {
+  background: rgba(110, 236, 216, 0.15);
+  color: var(--brand-teal, #6EECD8);
+  font-weight: 600;
+}
+
+.layer-radio-item input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.layer-radio-item input[type="radio"]:checked {
+  border-color: var(--brand-teal, #6EECD8);
+}
+
+.layer-radio-item input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-teal, #6EECD8);
+}
+
+.layer-radio-label {
+  flex: 1;
+}
+
+/* ===============================
+   TERRAIN ITEM (radio + remove)
+   =============================== */
+
+.layer-terrain-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.layer-terrain-item .layer-radio-item {
+  flex: 1;
+}
+
+/* ===============================
+   OVERLAY ITEMS
+   =============================== */
+
+.layer-overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.layer-overlay-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.layer-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.layer-overlay-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #E2E8F0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.layer-overlay-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.layer-overlay-meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 6px;
+}
+
+.layer-overlay-alpha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.layer-overlay-alpha label {
+  flex-shrink: 0;
+}
+
+.layer-overlay-alpha input[type="range"] {
+  flex: 1;
+}
+
+.layer-alpha-value {
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ===============================
+   ACTION BUTTONS
+   =============================== */
+
+.layer-toggle-btn,
+.layer-remove-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.layer-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #E2E8F0);
+}
+
+.layer-toggle-btn.active {
+  color: var(--brand-teal, #6EECD8);
+}
+
+.layer-remove-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+/* ===============================
+   ADD OVERLAY INPUT GROUP
+   =============================== */
+
+.layer-add-overlay .modern-input {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+/* ===============================
+   EMPTY STATE
+   =============================== */
+
+.modern-empty-state {
+  text-align: center;
+  padding: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}

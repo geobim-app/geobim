@@ -1,15 +1,23 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
-// CESIUM BIM VIEWER - COMMENTS MODULE (v4.4 - FIREBASE FIX)
+// CESIUM BIM VIEWER - COMMENTS MODULE (v6.0 - FIRESTORE)
 // 3D Comment/Annotation System with Point & Area Support
 // NO LEFT-CLICK CONFLICT!
-// VERSION: 4.4 - FIXED: Never calls initializeApp - uses auth.js instance
+// VERSION: 6.0 - DEMO MODE: Uses Firestore (shared across all users)
 // ===============================
 'use strict';
 
 (function() {
-  
-  console.log('💬 Loading Comments module v4.4 (FIREBASE FIX)...');
-  console.log('✅ New functions available: toggleAllCommentsVisibility(), deleteAllComments()');
+
+  console.log('Loading Comments module v6.0 (FIRESTORE - Demo Mode)...');
 
   // =====================================
   // UTILITY FUNCTIONS
@@ -96,133 +104,129 @@
   };
 
   // =====================================
-  // FIREBASE INITIALIZATION (v4.4 FIXED)
+  // FIRESTORE COLLECTION
   // =====================================
-  
+
+  const FIRESTORE_COLLECTION = 'demo_comments';
+
+  // =====================================
+  // FIRESTORE INITIALIZATION (v6.0 DEMO)
+  // =====================================
+
   BimViewer.initFirebase = function() {
-    // ✅ FIX: Prüfen ob bereits initialisiert
     if (this.comments.initialized) {
-      console.log('💬 Comments Firebase already initialized');
+      console.log('Comments already initialized');
       return true;
     }
-    
-    if (typeof firebase === 'undefined') {
-      console.error('❌ Firebase SDK not loaded!');
-      this.updateStatus('Firebase SDK not loaded', 'error');
+
+    if (!this.viewer || !this.viewer.scene) {
+      console.log('Viewer not ready yet, deferring comments initialization...');
       return false;
     }
-    
+
     try {
-      // ✅ FIX v4.4: NIEMALS initializeApp aufrufen - auth.js macht das bereits!
-      if (firebase.apps.length === 0) {
-        console.error('❌ Firebase not initialized by auth module!');
-        this.updateStatus('Please login first', 'error');
+      const db = BimAuth.getFirebaseDb();
+      if (!db) {
+        console.error('Firebase not initialized');
         return false;
       }
-      
-      console.log('✅ Using existing Firebase instance from auth module');
-      
-      // ✅ Nur Firestore initialisieren
-      this.comments.db = firebase.firestore();
+
+      this.comments.db = db;
+      this.comments.collection = db.collection(FIRESTORE_COLLECTION);
       this.comments.initialized = true;
-      console.log('✅ Firestore ready for comments');
-      
-      // ✅ Listener starten
-      this.setupCommentsListener();
-      
-      // ✅ Click-Handler initialisieren (falls noch nicht geschehen)
+
+      console.log('Firestore comments initialized (Collection: ' + FIRESTORE_COLLECTION + ')');
+
+      // Load existing comments from Firestore
+      this.loadCommentsFromStorage();
+
+      // Initialize click handler if not already done
       if (!this.comments.clickHandlerInitialized) {
         this.initCommentClickHandler();
         this.comments.clickHandlerInitialized = true;
       }
-      
+
       return true;
-      
+
     } catch (error) {
-      console.error('❌ Firebase initialization error:', error);
-      this.updateStatus('Firebase initialization failed: ' + error.message, 'error');
+      console.error('Comments initialization error:', error);
+      this.updateStatus('Comments initialization failed: ' + error.message, 'error');
       return false;
     }
   };
 
   // =====================================
-  // FIREBASE LISTENERS
+  // FIRESTORE OPERATIONS
   // =====================================
-  
-  BimViewer.setupCommentsListener = function() {
-    if (!this.comments.initialized) {
-      console.warn('⚠️ Cannot setup listener - Firebase not initialized');
-      return;
-    }
-    
-    let isFirstLoad = true;
-    
-    this.comments.db.collection('bim_viewer_comments').onSnapshot((snapshot) => {
-      console.log('🔥 Comments snapshot received:', snapshot.size, 'comment(s)');
-      
-      const previousCount = this.comments.comments.length;
-      
-      this.viewer.entities.suspendEvents();
-      
+
+  BimViewer.loadCommentsFromStorage = async function() {
+    try {
+      const snapshot = await this.comments.collection
+        .orderBy('timestamp', 'desc')
+        .get();
+
+      console.log('Loading ' + snapshot.size + ' comment(s) from Firestore');
+
+      if (this.viewer) {
+        this.viewer.entities.suspendEvents();
+      }
+
       this.comments.comments = [];
+
       snapshot.forEach((doc) => {
         const comment = { id: doc.id, ...doc.data() };
         this.comments.comments.push(comment);
-        
-        if (!this.viewer.entities.getById(comment.id)) {
+
+        if (this.viewer && !this.viewer.entities.getById(comment.id)) {
           if (comment.type === 'area') {
             this.addAreaEntity(comment);
           } else {
             this.addCommentEntity(comment);
           }
-        } else {
-          const entity = this.viewer.entities.getById(comment.id);
-          if (entity && entity.description) {
-            entity.description = this.createCommentDescription(comment);
-          }
         }
       });
-      
-      this.viewer.entities.resumeEvents();
-      
+
+      if (this.viewer) {
+        this.viewer.entities.resumeEvents();
+      }
+
       this.updateCommentsList();
       this.updateCommentsCount();
-      
-      console.log(`📝 Loaded ${this.comments.comments.length} comment(s)`);
-      
-      if (!isFirstLoad && this.comments.comments.length > previousCount) {
-        const newCount = this.comments.comments.length - previousCount;
-        this.updateStatus(`🔔 ${newCount} new comment(s) from other users!`, 'success');
-      }
-      
-      isFirstLoad = false;
-      
-    }, (error) => {
-      console.error('❌ Error listening to comments:', error);
-      this.updateStatus('Error loading comments', 'error');
-    });
+
+      console.log('Loaded ' + this.comments.comments.length + ' comment(s)');
+
+    } catch (error) {
+      console.error('Error loading comments from Firestore:', error);
+      this.comments.comments = [];
+    }
+  };
+
+  BimViewer.saveCommentsToStorage = function() {
+    // No-op: Individual saves go directly to Firestore
+    console.log('Firestore mode: individual saves, no batch save needed');
   };
 
   // =====================================
-  // COMMENT CRUD OPERATIONS
+  // COMMENT CRUD OPERATIONS (Firestore)
   // =====================================
-  
+
   BimViewer.saveComment = async function(commentData) {
-    if (!this.comments.initialized) {
-      this.updateStatus('Firebase not initialized', 'error');
+    if (!this.comments.initialized || !this.comments.collection) {
+      this.updateStatus('Comments not initialized', 'error');
       return false;
     }
-    
+
     try {
       const sanitizedData = {
         title: sanitizeInput(commentData.title),
         text: sanitizeInput(commentData.text),
-        timestamp: commentData.timestamp,
+        timestamp: commentData.timestamp || new Date().toISOString(),
         category: commentData.category || 'General',
         priority: commentData.priority || 'Normal',
-        type: commentData.type || 'point'
+        type: commentData.type || 'point',
+        isUpdated: commentData.isUpdated || false
       };
-      
+
       if (commentData.type === 'area') {
         sanitizedData.areaPoints = commentData.areaPoints;
       } else {
@@ -230,15 +234,42 @@
         sanitizedData.lat = commentData.lat;
         sanitizedData.height = commentData.height;
       }
-      
-      await this.comments.db.collection('bim_viewer_comments')
-        .doc(commentData.id)
-        .set(sanitizedData);
-      
-      console.log('✅ Comment saved:', commentData.id);
+
+      // Check if updating existing comment
+      const existingIndex = this.comments.comments.findIndex(c => c.id === commentData.id);
+
+      if (existingIndex >= 0) {
+        // Update existing document
+        await this.comments.collection.doc(commentData.id).update(sanitizedData);
+        this.comments.comments[existingIndex] = { id: commentData.id, ...sanitizedData };
+      } else {
+        // Create new document — use Firestore auto-ID
+        const docRef = await this.comments.collection.add(sanitizedData);
+        const newComment = { id: docRef.id, ...sanitizedData };
+        this.comments.comments.push(newComment);
+
+        // Add entity to viewer with Firestore doc ID
+        if (newComment.type === 'area') {
+          this.addAreaEntity(newComment);
+        } else {
+          this.addCommentEntity(newComment);
+        }
+      }
+
+      this.updateCommentsList();
+      this.updateCommentsCount();
+
+      console.log('Comment saved to Firestore:', commentData.id || 'new');
+
+      // Track comments usage with Plausible (only once per session)
+      if (typeof plausible !== 'undefined' && !this._commentsTracked) {
+        plausible('Feature Used', { props: { feature: 'Comments' } });
+        this._commentsTracked = true;
+      }
+
       return true;
     } catch (error) {
-      console.error('❌ Error saving comment:', error);
+      console.error('Error saving comment:', error);
       this.updateStatus('Error saving comment: ' + error.message, 'error');
       return false;
     }
@@ -246,23 +277,30 @@
 
   BimViewer.deleteComment = async function(commentId) {
     if (!this.comments.initialized) {
-      this.updateStatus('Firebase not initialized', 'error');
+      this.updateStatus('Comments not initialized', 'error');
       return false;
     }
-    
+
     if (!confirm('Delete this comment?')) return false;
-    
+
     try {
-      await this.comments.db.collection('bim_viewer_comments')
-        .doc(commentId)
-        .delete();
-      
+      // Delete from Firestore
+      await this.comments.collection.doc(commentId).delete();
+
+      // Remove from local array
+      this.comments.comments = this.comments.comments.filter(c => c.id !== commentId);
+
+      // Remove entity from viewer
       this.viewer.entities.removeById(commentId);
-      console.log('✅ Comment deleted:', commentId);
+
+      this.updateCommentsList();
+      this.updateCommentsCount();
+
+      console.log('Comment deleted from Firestore:', commentId);
       this.updateStatus('Comment deleted', 'success');
       return true;
     } catch (error) {
-      console.error('❌ Error deleting comment:', error);
+      console.error('Error deleting comment:', error);
       this.updateStatus('Error deleting comment: ' + error.message, 'error');
       return false;
     }
@@ -298,48 +336,52 @@
   };
 
   // =====================================
-  // DELETE ALL COMMENTS
+  // DELETE ALL COMMENTS (Firestore batch)
   // =====================================
-  
+
   BimViewer.deleteAllComments = async function() {
     if (!this.comments.initialized) {
-      this.updateStatus('Firebase not initialized', 'error');
+      this.updateStatus('Comments not initialized', 'error');
       return false;
     }
-    
+
     if (!this.comments.comments || this.comments.comments.length === 0) {
       this.updateStatus('No comments to delete', 'warning');
       return false;
     }
-    
+
     const count = this.comments.comments.length;
-    
-    if (!confirm(`⚠️ Delete ALL ${count} comment(s)?\n\nThis action cannot be undone!`)) {
+
+    if (!confirm('Delete ALL ' + count + ' comment(s)?\n\nThis action cannot be undone!')) {
       return false;
     }
-    
+
     try {
       this.updateStatus('Deleting all comments...', 'loading');
-      
+
+      // Batch delete from Firestore
       const batch = this.comments.db.batch();
-      
       this.comments.comments.forEach(comment => {
-        const docRef = this.comments.db.collection('bim_viewer_comments').doc(comment.id);
-        batch.delete(docRef);
+        batch.delete(this.comments.collection.doc(comment.id));
       });
-      
       await batch.commit();
-      
+
+      // Remove all entities from viewer
       this.comments.comments.forEach(comment => {
         this.viewer.entities.removeById(comment.id);
       });
-      
-      console.log(`✅ All ${count} comments deleted`);
-      this.updateStatus(`All ${count} comment(s) deleted`, 'success');
+
+      this.comments.comments = [];
+
+      this.updateCommentsList();
+      this.updateCommentsCount();
+
+      console.log('All ' + count + ' comments deleted from Firestore');
+      this.updateStatus('All ' + count + ' comment(s) deleted', 'success');
       return true;
-      
+
     } catch (error) {
-      console.error('❌ Error deleting all comments:', error);
+      console.error('Error deleting all comments:', error);
       this.updateStatus('Error deleting comments: ' + error.message, 'error');
       return false;
     }
@@ -352,11 +394,11 @@
   BimViewer.addCommentEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#5ac',
+      'Normal': '#6EECD8',
       'Low': '#95a5a6'
     };
     
-    const color = priorityColors[comment.priority] || '#5ac';
+    const color = priorityColors[comment.priority] || '#6EECD8';
     
     const position = Cesium.Cartesian3.fromDegrees(
       comment.lon,
@@ -431,11 +473,11 @@
   BimViewer.addAreaEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#5ac',
+      'Normal': '#6EECD8',
       'Low': '#95a5a6'
     };
     
-    const color = priorityColors[comment.priority] || '#5ac';
+    const color = priorityColors[comment.priority] || '#6EECD8';
     const cesiumColor = Cesium.Color.fromCssColorString(color);
     
     const OFFSET_HEIGHT = 0.02;
@@ -524,7 +566,7 @@
     
     const priorityBadges = {
       'High': '<span style="background: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔴 HIGH</span>',
-      'Normal': '<span style="background: #5ac; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔵 NORMAL</span>',
+      'Normal': '<span style="background: #6EECD8; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔵 NORMAL</span>',
       'Low': '<span style="background: #95a5a6; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">⚪ LOW</span>'
     };
     
@@ -544,7 +586,7 @@
     let areaInfo = '';
     if (comment.type === 'area' && comment.areaPoints) {
       areaInfo = `
-        <div style="background: rgba(90, 170, 204, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
           <strong>📐 Area:</strong> ${comment.areaPoints.length} points
         </div>
       `;
@@ -552,7 +594,7 @@
     
     return `
       <div class="modern-infobox" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0; min-width: 300px;">
-        <h3 style="margin: 0; padding: 15px; background: rgba(90, 170, 204, 0.1); border-bottom: 2px solid rgba(90, 170, 204, 0.3); color: #5ac; font-size: 18px;">
+        <h3 style="margin: 0; padding: 15px; background: rgba(110, 236, 216, 0.1); border-bottom: 2px solid rgba(110, 236, 216, 0.3); color: #6EECD8; font-size: 18px;">
           ${typeEmoji} ${comment.title}
         </h3>
         
@@ -1053,10 +1095,10 @@
           
           const priorityColors = {
             'High': '#e74c3c',
-            'Normal': '#5ac',
+            'Normal': '#6EECD8',
             'Low': '#95a5a6'
           };
-          const color = priorityColors[priority] || '#5ac';
+          const color = priorityColors[priority] || '#6EECD8';
           
           if (updatedComment.type === 'area' && entity.polygon) {
             const cesiumColor = Cesium.Color.fromCssColorString(color);
@@ -1079,7 +1121,6 @@
       }
     } else {
       const comment = {
-        id: 'comment_' + Date.now(),
         title: title,
         text: text,
         timestamp: new Date().toISOString(),
@@ -1121,6 +1162,9 @@
     
     handler.setInputAction((click) => {
       if (!this.comments.isAddingComment) return;
+
+      // Don't process if measurement is active
+      if (this.measurement && this.measurement.active) return;
       
       try {
         const surfaceData = this.getAccurateSurfacePosition(click.position);
@@ -1209,18 +1253,12 @@
   // =====================================
   // INITIALIZATION
   // =====================================
-  
-  console.log('✅ Comments module loaded (v4.4 - FIREBASE FIX)');
+
+  console.log('Comments module loaded (v6.0 - FIRESTORE)');
   console.log('');
-  console.log('💡 NEW in v4.4:');
-  console.log('   ✅ FIXED: Never calls initializeApp - uses auth.js instance');
-  console.log('   ✅ Firebase is initialized AFTER successful login');
-  console.log('   ✅ No more duplicate-app errors');
-  console.log('');
-  console.log('⌨️  Keyboard shortcuts:');
-  console.log('   - C = Toggle point comment mode');
-  console.log('   - A = Toggle area annotation mode');
-  console.log('   - ENTER = Finish area (when >= 3 points)');
-  console.log('   - ESC = Cancel');
+  console.log('Demo Mode:');
+  console.log('   Comments stored in Firestore (shared across all users)');
+  console.log('   Collection: demo_comments');
+  console.log('   Auth: Anonymous');
 
 })();

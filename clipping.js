@@ -1,14 +1,23 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
-// CESIUM BIM VIEWER - ENHANCED CLIPPING MODULE v4.2
+// CESIUM BIM VIEWER - ENHANCED CLIPPING MODULE v4.3
 // Polygon-based clipping for Google 3D Tiles, OSM Buildings, and Terrain
 // RIGHT-CLICK to add points, DOUBLE RIGHT-CLICK or ENTER to finish (LEFT-CLICK stays free!)
-// v4.2: Fixed polygon plane (perPositionHeight) + visualization toggle
+// v4.3: Rectangle draw mode (2-click axis-aligned rectangle)
 // ===============================
 'use strict';
 
 (function() {
   
-  console.log('✂️ Loading Enhanced Clipping Module v4.2 (Polygon Plane Fix)...');
+  console.log('✂️ Loading Enhanced Clipping Module v4.3 (Rectangle Mode)...');
   
   // ===============================
   // STATE MANAGEMENT
@@ -16,15 +25,17 @@
   BimViewer.clipping = {
     polygons: [], // Array of polygon objects
     isDrawing: false,
+    drawMode: null, // 'polygon' or 'rectangle'
     currentPoints: [],
     drawHandler: null,
+    previewEntity: null, // Live rectangle preview entity
     entities: [], // Visual entities for polygons
     enabled: true,
     inverse: false,
     terrainOnly: false, // If true, only clip terrain, not buildings
     lastRightClickTime: 0, // For double-click detection
     visualizationVisible: true, // Toggle for showing/hiding polygon visualization
-    
+
     // ClippingPlaneCollections for different targets
     collections: {
       google3DTiles: null,
@@ -44,6 +55,7 @@
     }
     
     this.clipping.isDrawing = true;
+    this.clipping.drawMode = 'polygon';
     this.clipping.currentPoints = [];
     this.clipping.lastRightClickTime = 0; // For double-click detection
     
@@ -53,11 +65,11 @@
       btn.classList.add('active');
       btn.querySelector('span:last-child').textContent = 'Drawing...';
     }
-    
+
     const indicator = document.getElementById('modeIndicator');
     if (indicator) {
       indicator.classList.add('active');
-      indicator.textContent = '✏️ CLIPPING MODE - RIGHT-CLICK to add points, DOUBLE RIGHT-CLICK or ENTER to finish (min 3 points)';
+      indicator.textContent = '✏️ POLYGON MODE - RIGHT-CLICK to add points, DOUBLE RIGHT-CLICK or ENTER to finish (min 3 points)';
     }
     
     this.updateStatus('Clipping polygon mode active - RIGHT-CLICK to add points', 'loading');
@@ -188,32 +200,248 @@
   
   BimViewer.stopClippingDraw = function() {
     if (!this.clipping.isDrawing) return;
-    
+
+    const wasMode = this.clipping.drawMode;
     this.clipping.isDrawing = false;
+    this.clipping.drawMode = null;
     this.clipping.currentPoints = [];
-    
+
     // Clean up handler
     if (this.clipping.drawHandler) {
       this.clipping.drawHandler.destroy();
       this.clipping.drawHandler = null;
     }
-    
+
+    // Clean up rectangle preview entity
+    if (this.clipping.previewEntity) {
+      this.viewer.entities.remove(this.clipping.previewEntity);
+      this.clipping.previewEntity = null;
+    }
+
     // Update UI
     const btn = document.getElementById('startClippingDraw');
     if (btn) {
       btn.classList.remove('active');
-      btn.querySelector('span:last-child').textContent = 'Draw Polygon';
+      btn.querySelector('span:last-child').textContent = 'Polygon';
     }
-    
+
+    const rectBtn = document.getElementById('startClippingRect');
+    if (rectBtn) {
+      rectBtn.classList.remove('active');
+      rectBtn.querySelector('span:last-child').textContent = 'Rectangle';
+    }
+
     const indicator = document.getElementById('modeIndicator');
     if (indicator) {
       indicator.classList.remove('active');
     }
-    
-    this.updateStatus('Clipping polygon drawing stopped', 'success');
-    console.log('✂️ Stopped clipping polygon drawing');
+
+    this.updateStatus('Clipping drawing stopped', 'success');
+    console.log('✂️ Stopped clipping drawing (was: ' + wasMode + ')');
   };
   
+  // ===============================
+  // RECTANGLE DRAWING MODE
+  // ===============================
+
+  // Compute 4 rectangle corners from 3 points:
+  // P1, P2 define one edge; P3 defines the width (projected perpendicular to P1→P2)
+  // Returns [P1, P2, P2+perp, P1+perp]
+  BimViewer.computeRectangleCorners = function(p1, p2, p3) {
+    // Edge vector: P1 → P2
+    var edge = Cesium.Cartesian3.subtract(p2, p1, new Cesium.Cartesian3());
+    // Vector from P2 to P3
+    var w = Cesium.Cartesian3.subtract(p3, p2, new Cesium.Cartesian3());
+    // Project w onto edge to get the perpendicular component
+    var edgeLenSq = Cesium.Cartesian3.dot(edge, edge);
+    if (edgeLenSq < 1e-10) return [p1, p2, p3, p1]; // degenerate
+    var proj = Cesium.Cartesian3.multiplyByScalar(
+      edge, Cesium.Cartesian3.dot(w, edge) / edgeLenSq, new Cesium.Cartesian3()
+    );
+    var perp = Cesium.Cartesian3.subtract(w, proj, new Cesium.Cartesian3());
+
+    // 4 corners: P1, P2, P2+perp, P1+perp
+    var p3r = Cesium.Cartesian3.add(p2, perp, new Cesium.Cartesian3());
+    var p4r = Cesium.Cartesian3.add(p1, perp, new Cesium.Cartesian3());
+
+    return [p1, p2, p3r, p4r];
+  };
+
+  BimViewer.startClippingRectDraw = function() {
+    if (this.clipping.isDrawing) {
+      this.stopClippingDraw();
+    }
+
+    this.clipping.isDrawing = true;
+    this.clipping.drawMode = 'rectangle';
+    this.clipping.currentPoints = [];
+
+    // Update UI
+    var rectBtn = document.getElementById('startClippingRect');
+    if (rectBtn) {
+      rectBtn.classList.add('active');
+      rectBtn.querySelector('span:last-child').textContent = 'Drawing...';
+    }
+
+    var indicator = document.getElementById('modeIndicator');
+    if (indicator) {
+      indicator.classList.add('active');
+      indicator.textContent = '⬜ RECTANGLE MODE - RIGHT-CLICK 3 points: corner 1, corner 2 (edge), corner 3 (width)';
+    }
+
+    this.updateStatus('Rectangle mode - RIGHT-CLICK first corner', 'loading');
+    console.log('✂️ Started clipping rectangle drawing (3-point mode)');
+
+    var self = this;
+    var corner1 = null;
+    var corner2 = null;
+
+    // Create event handler
+    this.clipping.drawHandler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
+
+    // Helper to pick position from click
+    function pickPosition(position) {
+      var cartesian = self.viewer.scene.pickPosition(position);
+      if (!cartesian) {
+        var ray = self.viewer.camera.getPickRay(position);
+        cartesian = self.viewer.scene.globe.pick(ray, self.viewer.scene);
+      }
+      return cartesian;
+    }
+
+    // Helper to add a numbered point marker
+    function addMarker(cartesian, number) {
+      self.viewer.entities.add({
+        position: cartesian,
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.CYAN,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        },
+        label: {
+          text: String(number),
+          font: '14px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -15)
+        }
+      });
+    }
+
+    // RIGHT CLICK - Place corners
+    this.clipping.drawHandler.setInputAction(function(click) {
+      var cartesian = pickPosition(click.position);
+      if (!cartesian) {
+        self.updateStatus('Cannot place point - RIGHT-CLICK on the model or terrain', 'warning');
+        return;
+      }
+
+      if (!corner1) {
+        // First corner
+        corner1 = cartesian;
+        addMarker(cartesian, 1);
+        self.updateStatus('RIGHT-CLICK second corner to define the edge', 'loading');
+        console.log('✂️ Rectangle: corner 1 placed');
+
+      } else if (!corner2) {
+        // Second corner — defines the first edge
+        corner2 = cartesian;
+        addMarker(cartesian, 2);
+
+        // Draw dashed line for the first edge
+        self.viewer.entities.add({
+          polyline: {
+            positions: [corner1, corner2],
+            width: 3,
+            material: new Cesium.PolylineDashMaterialProperty({
+              color: Cesium.Color.CYAN,
+              dashLength: 16
+            }),
+            clampToGround: true
+          }
+        });
+
+        self.updateStatus('RIGHT-CLICK to set rectangle width', 'loading');
+        console.log('✂️ Rectangle: corner 2 placed, edge defined');
+
+      } else {
+        // Third click — defines the width direction
+        var corners = self.computeRectangleCorners(corner1, corner2, cartesian);
+        self.clipping.currentPoints = corners;
+        console.log('✂️ Rectangle: corner 3 placed, finishing with 4 corners');
+        self.finishClippingPolygon();
+      }
+    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+    // MOUSE MOVE - Live preview
+    this.clipping.drawHandler.setInputAction(function(movement) {
+      // Preview the edge line after corner1, preview the rectangle after corner2
+      if (!corner1) return;
+
+      var cartesian = pickPosition(movement.endPosition);
+      if (!cartesian) return;
+
+      if (!corner2) {
+        // After first point: show edge preview line
+        if (!self.clipping.previewEntity) {
+          self.clipping.previewEntity = self.viewer.entities.add({
+            polyline: {
+              positions: new Cesium.CallbackProperty(function() {
+                return [corner1, cartesian];
+              }, false),
+              width: 2,
+              material: new Cesium.PolylineDashMaterialProperty({
+                color: Cesium.Color.CYAN.withAlpha(0.5),
+                dashLength: 12
+              }),
+              clampToGround: true
+            }
+          });
+        }
+
+        // Update line endpoint
+        var currentPos = cartesian;
+        self.clipping.previewEntity.polyline.positions = new Cesium.CallbackProperty(function() {
+          return [corner1, currentPos];
+        }, false);
+
+      } else {
+        // After second point: show rectangle preview
+        var corners = self.computeRectangleCorners(corner1, corner2, cartesian);
+
+        if (self.clipping.previewEntity && self.clipping.previewEntity.polyline) {
+          // Switch from line preview to polygon preview
+          self.viewer.entities.remove(self.clipping.previewEntity);
+          self.clipping.previewEntity = null;
+        }
+
+        if (!self.clipping.previewEntity) {
+          self.clipping.previewEntity = self.viewer.entities.add({
+            polygon: {
+              hierarchy: new Cesium.CallbackProperty(function() {
+                return new Cesium.PolygonHierarchy(corners);
+              }, false),
+              material: Cesium.Color.CYAN.withAlpha(0.15),
+              outline: true,
+              outlineColor: Cesium.Color.CYAN,
+              outlineWidth: 2,
+              perPositionHeight: true
+            }
+          });
+        }
+
+        var currentCorners = corners;
+        self.clipping.previewEntity.polygon.hierarchy = new Cesium.CallbackProperty(function() {
+          return new Cesium.PolygonHierarchy(currentCorners);
+        }, false);
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  };
+
   // ===============================
   // CLIPPING POLYGON GENERATION (Cesium ClippingPolygon API)
   // ===============================
@@ -287,14 +515,14 @@
   
   BimViewer.applyClipping = function() {
     console.log('✂️ Applying clipping to all targets...');
-    
+
     const collection = this.createClippingPolygonCollection();
-    
+
     if (!collection) {
       console.log('⚠️ No clipping collection to apply');
       return;
     }
-    
+
     // Apply to Google 3D Tiles
     if (this.googleTiles.tileset && this.googleTiles.enabled) {
       if (!this.clipping.terrainOnly) {
@@ -305,13 +533,18 @@
         // Terrain-only mode: disable existing clipping
         this.googleTiles.tileset.clippingPolygons.enabled = false;
       }
+
+      // Ensure globe stays hidden so terrain/imagery doesn't bleed through clip voids
+      this.viewer.scene.globe.show = false;
+      this.viewer.imageryLayers.removeAll();
+      this.viewer.scene.backgroundColor = Cesium.Color.BLACK;
     }
-    
+
     // Apply to OSM Buildings
     if (this.osmBuildings.tileset && this.osmBuildings.enabled) {
       if (!this.clipping.terrainOnly) {
         console.log('✂️ Applying clipping to OSM Buildings');
-        
+
         // OSM Buildings need their own collection
         const osmCollection = this.createClippingPolygonCollection();
         this.osmBuildings.tileset.clippingPolygons = osmCollection;
@@ -321,17 +554,24 @@
         this.osmBuildings.tileset.clippingPolygons.enabled = false;
       }
     }
-    
-    // Apply to terrain (globe)
-    if (this.viewer.scene.globe) {
+
+    // Apply to terrain (globe) — skip when Google 3D Tiles are active (globe is hidden)
+    // and skip in split mode so left side stays unclipped
+    if (this.viewer.scene.globe && !this.splitMode && !this.googleTiles.enabled) {
       console.log('✂️ Applying clipping to Terrain');
-      
+
       // Terrain needs its own collection
       const terrainCollection = this.createClippingPolygonCollection();
       this.viewer.scene.globe.clippingPolygons = terrainCollection;
       this.clipping.collections.terrain = terrainCollection;
+    } else if (this.viewer.scene.globe && (this.splitMode || this.googleTiles.enabled)) {
+      console.log(`✂️ Skipping terrain clipping (${this.googleTiles.enabled ? 'Google 3D Tiles active' : 'split mode — left side stays clean'})`);
+      // Disable any existing terrain clipping
+      if (this.viewer.scene.globe.clippingPolygons) {
+        this.viewer.scene.globe.clippingPolygons.enabled = false;
+      }
     }
-    
+
     this.updateStatus(`Clipping applied to ${this.getActiveTargetCount()} target(s)`, 'success');
   };
   
@@ -379,29 +619,40 @@
   
   BimViewer.toggleClippingVisualization = function() {
     this.clipping.visualizationVisible = !this.clipping.visualizationVisible;
-    
+
     const btn = document.getElementById('toggleClippingVisualization');
     const icon = btn?.querySelector('.modern-btn-icon');
     const text = btn?.querySelector('span:last-child');
-    
-    // Toggle visibility of all polygon entities
+    const visible = this.clipping.visualizationVisible;
+
+    // Toggle visibility of tracked polygon entities
     this.clipping.entities.forEach(entity => {
-      entity.show = this.clipping.visualizationVisible;
+      entity.show = visible;
     });
-    
-    if (this.clipping.visualizationVisible) {
+
+    // Toggle visibility of drawing artifacts (cyan points, polylines, labels)
+    this.viewer.entities.values.forEach(entity => {
+      if (entity.point?.color?.equals?.(Cesium.Color.CYAN) ||
+          entity.point?.color?.getValue?.(Cesium.JulianDate.now())?.equals(Cesium.Color.CYAN) ||
+          entity.polyline?.material?.color?.equals?.(Cesium.Color.CYAN) ||
+          entity.polyline?.material?.color?.getValue?.(Cesium.JulianDate.now())?.equals(Cesium.Color.CYAN)) {
+        entity.show = visible;
+      }
+    });
+
+    if (visible) {
       btn?.classList.add('active');
       if (icon) icon.textContent = '👁️';
-      if (text) text.textContent = 'Show Fill';
+      if (text) text.textContent = 'Visible';
       this.updateStatus('Clipping visualization shown', 'success');
     } else {
       btn?.classList.remove('active');
       if (icon) icon.textContent = '👁️‍🗨️';
-      if (text) text.textContent = 'Hide Fill';
+      if (text) text.textContent = 'Hidden';
       this.updateStatus('Clipping visualization hidden (clipping still active)', 'success');
     }
-    
-    console.log(`👁️ Clipping visualization ${this.clipping.visualizationVisible ? 'visible' : 'hidden'}`);
+
+    console.log(`👁️ Clipping visualization ${visible ? 'visible' : 'hidden'}`);
   };
   
   BimViewer.toggleInverseClipping = function() {
@@ -591,23 +842,39 @@
   
   BimViewer.clearAllClipping = function() {
     console.log('✂️ Clearing all clipping polygons...');
-    
-    // Remove all entities
+
+    // Remove tracked polygon entities
     this.clipping.entities.forEach(entity => {
       this.viewer.entities.remove(entity);
     });
-    
+
+    // Remove orphaned drawing artifacts (cyan points, polylines, labels)
+    const orphans = [];
+    this.viewer.entities.values.forEach(entity => {
+      if (entity.point?.color?.getValue?.(Cesium.JulianDate.now())?.equals(Cesium.Color.CYAN) ||
+          entity.point?.color?.equals?.(Cesium.Color.CYAN) ||
+          entity.polyline?.material?.color?.getValue?.(Cesium.JulianDate.now())?.equals(Cesium.Color.CYAN) ||
+          entity.polyline?.material?.color?.equals?.(Cesium.Color.CYAN)) {
+        orphans.push(entity);
+      }
+    });
+    orphans.forEach(entity => this.viewer.entities.remove(entity));
+    if (orphans.length > 0) {
+      console.log('✂️ Removed', orphans.length, 'orphaned drawing artifacts');
+    }
+
     // Clear arrays
     this.clipping.polygons = [];
     this.clipping.entities = [];
-    
+    this.clipping.currentPoints = [];
+
     // Disable clipping
     this.disableAllClipping();
-    
+
     // Update UI
     this.updateClippingPolygonList();
     this.updateClippingPolygonCount();
-    
+
     this.updateStatus('All clipping polygons cleared', 'success');
     console.log('✂️ All clipping polygons cleared');
   };
@@ -676,13 +943,16 @@
     
     const key = event.key.toLowerCase();
     
-    // P = Toggle clipping draw mode
+    // P = Toggle clipping polygon draw mode
     if (key === 'p' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
-      
-      if (BimViewer.clipping.isDrawing) {
+
+      if (BimViewer.clipping.isDrawing && BimViewer.clipping.drawMode === 'polygon') {
         BimViewer.stopClippingDraw();
       } else {
+        // startClippingDraw checks isDrawing internally; for rectangle→polygon switch
+        // we need to stop first
+        if (BimViewer.clipping.isDrawing) BimViewer.stopClippingDraw();
         BimViewer.startClippingDraw();
       }
     }
@@ -695,24 +965,35 @@
       BimViewer.finishClippingPolygon();
     }
     
-    // ESC = Cancel drawing
+    // ESC = Cancel drawing (polygon or rectangle)
     if (key === 'escape' && BimViewer.clipping.isDrawing) {
       event.preventDefault();
-      
+
       // Remove temporary points
       BimViewer.clipping.currentPoints = [];
-      
-      // Remove temporary visual elements
+
+      // Remove temporary visual elements (cyan points and polylines)
       const entitiesToRemove = [];
       BimViewer.viewer.entities.values.forEach(entity => {
-        if (entity.point?.color?.equals(Cesium.Color.CYAN) || 
+        if (entity.point?.color?.equals(Cesium.Color.CYAN) ||
             entity.polyline?.material?.color?.equals(Cesium.Color.CYAN)) {
           entitiesToRemove.push(entity);
         }
       });
       entitiesToRemove.forEach(entity => BimViewer.viewer.entities.remove(entity));
-      
+
       BimViewer.stopClippingDraw();
+    }
+
+    // R = Toggle rectangle draw mode
+    if (key === 'r' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+      event.preventDefault();
+
+      if (BimViewer.clipping.isDrawing && BimViewer.clipping.drawMode === 'rectangle') {
+        BimViewer.stopClippingDraw();
+      } else {
+        BimViewer.startClippingRectDraw();
+      }
     }
     
     // DELETE = Remove last polygon
@@ -740,17 +1021,15 @@
   // INITIALIZATION
   // ===============================
   
-  console.log('✅ Enhanced Clipping module loaded v4.2 (STABLE)');
+  console.log('✅ Enhanced Clipping module loaded v4.3 (Rectangle mode)');
   console.log('💡 Usage:');
   console.log('   - Press P to start/stop drawing clipping polygons');
-  console.log('   - RIGHT-CLICK to add points');
-  console.log('   - DOUBLE RIGHT-CLICK or ENTER to finish');
+  console.log('   - Press R to start/stop drawing clipping rectangles');
+  console.log('   - RIGHT-CLICK to add points / place corners');
+  console.log('   - DOUBLE RIGHT-CLICK or ENTER to finish polygon');
   console.log('   - Press V to toggle visualization (show/hide cyan filling)');
   console.log('   - Press F to flip polygon orientation (if clipping is wrong)');
   console.log('   - Press ESC to cancel drawing');
   console.log('   - Press DELETE to remove last polygon');
-  console.log('   - LEFT-CLICK stays free for IFC Feature Selection!');
-  console.log('🎯 v4.2: Polygon lies on terrain plane (perPositionHeight)');
-  console.log('👁️ v4.2: Toggle visualization with V key or "Show/Hide Fill" button');
   
 })();

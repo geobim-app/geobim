@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - Z-OFFSET UI EXTENSION v2.0
 // OPTIONAL: Legacy global Z-offset functionality

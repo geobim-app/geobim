@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - CORE MODULE (v3.3.2 - Dynamic Ion Token)
 // Main viewer initialization and asset management
@@ -158,6 +167,103 @@ const IFC_ENTITIES = [
 console.log('✅ Config and IFC_ENTITIES loaded');
 
 // ===============================
+// REVIT CATEGORY DEFINITIONS (English)
+// ===============================
+const REVIT_CATEGORIES = [
+  // Structure
+  { category: 'Walls', displayName: 'Walls', color: '#B0B0B0', group: 'structure' },
+  { category: 'Structural Walls', displayName: 'Structural Walls', color: '#A0A0A0', group: 'structure' },
+  { category: 'Structural Columns', displayName: 'Structural Columns', color: '#808080', group: 'structure' },
+  { category: 'Structural Framing', displayName: 'Structural Framing', color: '#696969', group: 'structure' },
+  { category: 'Structural Foundations', displayName: 'Foundations', color: '#654321', group: 'structure' },
+  { category: 'Floors', displayName: 'Floors', color: '#C0C0C0', group: 'structure' },
+  { category: 'Roofs', displayName: 'Roofs', color: '#8B4513', group: 'structure' },
+  { category: 'Columns', displayName: 'Columns', color: '#707070', group: 'structure' },
+  // Interior
+  { category: 'Doors', displayName: 'Doors', color: '#DEB887', group: 'interior' },
+  { category: 'Windows', displayName: 'Windows', color: '#87CEEB', group: 'interior' },
+  { category: 'Stairs', displayName: 'Stairs', color: '#D2691E', group: 'interior' },
+  { category: 'Railings', displayName: 'Railings', color: '#A9A9A9', group: 'interior' },
+  { category: 'Ramps', displayName: 'Ramps', color: '#CD853F', group: 'interior' },
+  { category: 'Curtain Walls', displayName: 'Curtain Walls', color: '#B0E0E6', group: 'interior' },
+  { category: 'Curtain Panels', displayName: 'Curtain Panels', color: '#ADD8E6', group: 'interior' },
+  { category: 'Ceilings', displayName: 'Ceilings', color: '#F5F5DC', group: 'interior' },
+  { category: 'Floors', displayName: 'Floors', color: '#D2B48C', group: 'interior' },
+  // MEP
+  { category: 'Pipes', displayName: 'Pipes', color: '#4169E1', group: 'mep' },
+  { category: 'Pipe Fittings', displayName: 'Pipe Fittings', color: '#1E90FF', group: 'mep' },
+  { category: 'Ducts', displayName: 'Ducts', color: '#87CEFA', group: 'mep' },
+  { category: 'Duct Fittings', displayName: 'Duct Fittings', color: '#00BFFF', group: 'mep' },
+  { category: 'Cable Trays', displayName: 'Cable Trays', color: '#FFD700', group: 'mep' },
+  { category: 'Conduits', displayName: 'Conduits', color: '#FFA500', group: 'mep' },
+  { category: 'Lighting Fixtures', displayName: 'Lighting Fixtures', color: '#FFFF00', group: 'mep' },
+  { category: 'Mechanical Equipment', displayName: 'Mechanical Equipment', color: '#20B2AA', group: 'mep' },
+  { category: 'Plumbing Fixtures', displayName: 'Plumbing Fixtures', color: '#5F9EA0', group: 'mep' },
+  { category: 'Sprinklers', displayName: 'Sprinklers', color: '#FF6347', group: 'mep' },
+  { category: 'Electrical Equipment', displayName: 'Electrical Equipment', color: '#FFD700', group: 'mep' },
+  // Other
+  { category: 'Furniture', displayName: 'Furniture', color: '#8B4513', group: 'other' },
+  { category: 'Casework', displayName: 'Casework', color: '#A0522D', group: 'other' },
+  { category: 'Generic Models', displayName: 'Generic Models', color: '#A9A9A9', group: 'other' },
+  { category: 'Specialty Equipment', displayName: 'Specialty Equipment', color: '#778899', group: 'other' },
+  { category: 'Rooms', displayName: 'Rooms', color: '#E0E0E0', group: 'other' },
+  { category: 'Topography', displayName: 'Topography', color: '#90EE90', group: 'other' },
+  { category: 'Parking', displayName: 'Parking', color: '#808080', group: 'other' },
+  { category: 'Planting', displayName: 'Planting', color: '#228B22', group: 'other' }
+];
+
+// German to English category mapping
+const CATEGORY_DE_TO_EN = {
+  // Structure
+  'Wände': 'Walls',
+  'Tragende Wände': 'Structural Walls',
+  'Tragwerksstützen': 'Structural Columns',
+  'Skelettbau': 'Structural Framing',
+  'Tragwerksfundamente': 'Structural Foundations',
+  'Geschossdecken': 'Floors',
+  'Dächer': 'Roofs',
+  'Stützen': 'Columns',
+  // Interior
+  'Türen': 'Doors',
+  'Fenster': 'Windows',
+  'Treppen': 'Stairs',
+  'Geländer': 'Railings',
+  'Rampen': 'Ramps',
+  'Vorhangfassaden': 'Curtain Walls',
+  'Vorhangfassadenpaneele': 'Curtain Panels',
+  'Decken': 'Ceilings',
+  'Böden': 'Floors',
+  // MEP
+  'Rohre': 'Pipes',
+  'Rohrformteile': 'Pipe Fittings',
+  'Luftkanäle': 'Ducts',
+  'Luftkanalformteile': 'Duct Fittings',
+  'Kabeltrassen': 'Cable Trays',
+  'Kabelkanäle': 'Conduits',
+  'Beleuchtungskörper': 'Lighting Fixtures',
+  'HLS-Bauteile': 'Mechanical Equipment',
+  'Sanitärinstallationen': 'Plumbing Fixtures',
+  'Sprinkler': 'Sprinklers',
+  'Elektroinstallationen': 'Electrical Equipment',
+  // Other
+  'Möbel': 'Furniture',
+  'Einbauteile': 'Casework',
+  'Allgemeine Modelle': 'Generic Models',
+  'Spezialausstattung': 'Specialty Equipment',
+  'Räume': 'Rooms',
+  'Topografie': 'Topography',
+  'Parkplätze': 'Parking',
+  'Bepflanzung': 'Planting'
+};
+
+// Helper function to map German category to English
+function mapCategoryToEnglish(category) {
+  return CATEGORY_DE_TO_EN[category] || category;
+}
+
+console.log('✅ REVIT_CATEGORIES (English) loaded with German mapping');
+
+// ===============================
 // MAIN BIM VIEWER OBJECT
 // ===============================
 const BimViewer = {
@@ -176,7 +282,9 @@ const BimViewer = {
   googleTiles: {
     tileset: null,
     enabled: false,
-    isLoading: false
+    isLoading: false,
+    savedBasemapId: null,       // stores basemap ID before Google Tiles removes imagery
+    savedTerrainProvider: null  // stores terrain provider before swap to ellipsoid
   },
   
   osmBuildings: {
@@ -200,7 +308,12 @@ const BimViewer = {
     enabledEntities: new Set(),
     allEntities: new Set()
   },
-  
+
+  revitFilter: {
+    enabledCategories: new Set(),
+    allCategories: new Set()
+  },
+
   performance: {
     fps: 0,
     lastFrameTime: 0
@@ -208,6 +321,14 @@ const BimViewer = {
   
   selectedFeature: undefined,
   selectedOriginalColor: new Cesium.Color(),
+
+  // Silhouette
+  silhouette: {
+    enabled: false,
+    stage: null,
+    color: Cesium.Color.YELLOW,
+    strength: 0.025
+  },
   
   globeTransparency: {
     enabled: false,
@@ -217,6 +338,8 @@ const BimViewer = {
   undergroundMode: {
     enabled: false
   },
+
+  splitMode: false,
 
   async init() {
     console.log('🚀 Initializing BIM Viewer v3.3.2 (Dynamic Ion Token)...');
@@ -238,13 +361,14 @@ const BimViewer = {
       
       this.viewer = new Cesium.Viewer('cesiumContainer', {
         terrain: Cesium.Terrain.fromWorldTerrain(),
-        baseLayerPicker: true,
+        baseLayer: false,   // LayerManager handles basemap
+        baseLayerPicker: false,
         geocoder: true,
         homeButton: true,
-        sceneModePicker: true,
-        navigationHelpButton: true,
+        sceneModePicker: false,
+        navigationHelpButton: false,
         animation: false,
-        timeline: true,
+        timeline: true,  // Keep for shadow simulation
         fullscreenButton: true,
         vrButton: false,
         infoBox: false,
@@ -289,17 +413,17 @@ const BimViewer = {
       this.terrain.current = 'worldTerrain';
       this.terrain.ellipsoid = new Cesium.EllipsoidTerrainProvider();
       
-      try {
-        console.log('📷 Loading Bing Aerial Maps...');
-        const bingImagery = await Cesium.IonImageryProvider.fromAssetId(2);
-        this.viewer.imageryLayers.addImageryProvider(bingImagery);
-        console.log('✅ Bing Aerial Maps added successfully');
-      } catch (error) {
-        console.warn('⚠️ Could not load Bing Maps:', error.message);
+      // Initialize Layer Manager (handles basemap, terrain & overlay management)
+      if (typeof LayerManager !== 'undefined') {
+        await LayerManager.init(this.viewer);
+        console.log('✅ Layer Manager initialized (default basemap: Bing Aerial)');
+      } else {
+        // Fallback if LayerManager not loaded
+        console.warn('⚠️ LayerManager not found, loading Bing Aerial directly');
         try {
-          const imageryProvider = await Cesium.IonImageryProvider.fromAssetId(CONFIG.cesium.IMAGERY_ASSET_ID);
-          this.viewer.imageryLayers.addImageryProvider(imageryProvider);
-        } catch (fallbackError) {
+          const bingImagery = await Cesium.IonImageryProvider.fromAssetId(2);
+          this.viewer.imageryLayers.addImageryProvider(bingImagery);
+        } catch (error) {
           console.warn('⚠️ Using OSM imagery as fallback');
           this.viewer.imageryLayers.addImageryProvider(
             new Cesium.OpenStreetMapImageryProvider({
@@ -310,7 +434,8 @@ const BimViewer = {
       }
 
       const scene = this.viewer.scene;
-      
+
+      scene.postProcessStages.tonemapper = Cesium.Tonemapper.PBR_NEUTRAL;
       scene.globe.show = true;
       scene.globe.enableLighting = true;
       scene.globe.depthTestAgainstTerrain = true;
@@ -332,8 +457,12 @@ const BimViewer = {
       }, 1000);
       
       this.initIFCFilter();
+      this.initRevitFilter();
       this.initCamera();
       this.initZOffset();
+      if (typeof this.initIBL === 'function') {
+        this.initIBL();
+      }
 
       console.log('✅ BIM Viewer initialized successfully');
       this.updateStatus('BIM Viewer ready', 'success');
@@ -369,24 +498,91 @@ const BimViewer = {
         this.googleTiles.isLoading = true;
         this.updateStatus('Loading Google 3D Tiles...', 'loading');
         
-        const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.cesium.GOOGLE_3D_TILES_ASSET_ID);
+        const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.cesium.GOOGLE_3D_TILES_ASSET_ID, {
+          maximumScreenSpaceError: 8,
+          // FIX: tile seam artifact reduction — lower memory cap prevents tile eviction causing gaps
+          maximumMemoryUsage: 512,
+          // FIX: tile seam artifact reduction — skipLevelOfDetail causes black cracks between tiles
+          skipLevelOfDetail: false,
+          // FIX: tile seam artifact reduction — restored to default (needed when skipLOD=false)
+          baseScreenSpaceError: 1024,
+          skipScreenSpaceErrorFactor: 12,
+          skipLevels: 1,
+          immediatelyLoadDesiredLevelOfDetail: true,
+          loadSiblings: false,
+          cullWithChildrenBounds: true,
+          cullRequestsWhileMoving: true,
+          cullRequestsWhileMovingMultiplier: 8,
+          preloadWhenHidden: true,
+          preloadFlightDestinations: true,
+          // FIX: tile seam artifact reduction — prioritize fully loaded leaf tiles
+          preferLeaves: true,
+          // FIX: tile seam artifact reduction — prevent interior geometry gaps
+          backFaceCulling: false,
+          dynamicScreenSpaceError: true,
+          dynamicScreenSpaceErrorDensity: 0.00028,
+          dynamicScreenSpaceErrorFactor: 4.0,
+          dynamicScreenSpaceErrorHeightFalloff: 0.25,
+          foveatedScreenSpaceError: true,
+          foveatedConeSize: 0.2,
+          foveatedMinimumScreenSpaceErrorRelaxation: 0,
+          foveatedInterpolationCallback: Cesium.Math.lerp,
+          foveatedTimeDelay: 0.2
+        });
         this.viewer.scene.primitives.add(tileset);
         this.enableTilesetLighting(tileset);
-        
+
+        // Disable shadows on Google tiles for performance (user can toggle globally)
+        tileset.shadows = Cesium.ShadowMode.DISABLED;
+
+        // Scene-level optimizations for Google 3D Tiles streaming
+        const scene = this.viewer.scene;
+        scene.globe.tileCacheSize = 1000;
+        // FIX: tile seam artifact reduction — fog accentuates tile boundary visibility
+        scene.fog.enabled = false;
+        // FIX: tile seam artifact reduction — preload ancestors/siblings to fill gaps
+        scene.globe.preloadAncestors = true;
+        scene.globe.preloadSiblings = true;
+
         this.googleTiles.tileset = tileset;
         this.googleTiles.enabled = true;
         this.googleTiles.isLoading = false;
-        
+
+        // Hide globe completely — Google 3D Tiles replace terrain
         this.viewer.scene.globe.show = false;
-        
+        // Save current terrain provider, then replace with flat ellipsoid so no terrain bleeds through
+        this.googleTiles.savedTerrainProvider = this.viewer.terrainProvider;
+        this.viewer.terrainProvider = this.terrain.ellipsoid;
+        // Dark background behind clipped areas (instead of terrain bleed-through)
+        this.viewer.scene.backgroundColor = Cesium.Color.BLACK;
+
+        // Remove base imagery layers — they compete for bandwidth and are invisible under Google tiles
+        if (typeof LayerManager !== 'undefined' && LayerManager.activeBasemap) {
+          this.googleTiles.savedBasemapId = LayerManager.activeBasemap;
+          LayerManager.switchBasemap('none');
+          this.viewer.imageryLayers.removeAll(); // hard remove, LayerManager alone doesn't clear viewer.imageryLayers
+        } else {
+          // Fallback: remove all imagery directly
+          this.googleTiles.savedBasemapId = null;
+          this.viewer.imageryLayers.removeAll();
+        }
+
         if (this.osmBuildings.tileset) {
           this.osmBuildings.tileset.show = false;
           this.osmBuildings.enabled = false;
         }
         
+        // If split mode is active, set RIGHT and create left copy
+        if (this.splitMode) {
+          tileset.splitDirection = Cesium.SplitDirection.RIGHT;
+          if (window.BimViewerUI && typeof BimViewerUI.createGoogleTilesLeftCopy === 'function') {
+            BimViewerUI.createGoogleTilesLeftCopy();
+          }
+        }
+
         console.log('✅ Google 3D Tiles loaded');
         this.updateStatus('Google 3D Tiles enabled', 'success');
-        
+
       } catch (error) {
         console.error('❌ Failed to load Google 3D Tiles:', error);
         this.googleTiles.isLoading = false;
@@ -395,21 +591,65 @@ const BimViewer = {
     } else {
       this.googleTiles.enabled = !this.googleTiles.enabled;
       this.googleTiles.tileset.show = this.googleTiles.enabled;
-      
+
       if (this.googleTiles.enabled) {
         this.viewer.scene.globe.show = false;
+        // Save current terrain provider, then replace with flat ellipsoid
+        this.googleTiles.savedTerrainProvider = this.viewer.terrainProvider;
+        this.viewer.terrainProvider = this.terrain.ellipsoid;
+        this.viewer.scene.backgroundColor = Cesium.Color.BLACK;
+        // Remove base imagery layers — they compete for bandwidth under Google tiles
+        if (typeof LayerManager !== 'undefined' && LayerManager.activeBasemap) {
+          this.googleTiles.savedBasemapId = LayerManager.activeBasemap;
+          LayerManager.switchBasemap('none');
+          this.viewer.imageryLayers.removeAll(); // hard remove, LayerManager alone doesn't clear viewer.imageryLayers
+        } else if (this.viewer.imageryLayers.length > 0) {
+          this.googleTiles.savedBasemapId = null;
+          this.viewer.imageryLayers.removeAll();
+        }
         if (this.osmBuildings.tileset) {
           this.osmBuildings.tileset.show = false;
           this.osmBuildings.enabled = false;
         }
+        // If split mode is active, set RIGHT and create left copy
+        if (this.splitMode) {
+          this.googleTiles.tileset.splitDirection = Cesium.SplitDirection.RIGHT;
+          if (window.BimViewerUI && typeof BimViewerUI.createGoogleTilesLeftCopy === 'function') {
+            BimViewerUI.createGoogleTilesLeftCopy();
+          }
+        }
       } else {
         this.viewer.scene.globe.show = true;
+        // Restore saved terrain provider (World Terrain)
+        if (this.googleTiles.savedTerrainProvider) {
+          this.viewer.terrainProvider = this.googleTiles.savedTerrainProvider;
+          this.googleTiles.savedTerrainProvider = null;
+        }
+        // Restore default sky background when Google tiles disabled
+        this.viewer.scene.backgroundColor = Cesium.Color.clone(Cesium.Color.BLACK);
+        this.viewer.scene.backgroundColor.alpha = 0;
+        // Restore fog to default when Google tiles disabled
+        this.viewer.scene.fog.enabled = false;
+        // Restore base imagery layers
+        if (typeof LayerManager !== 'undefined' && this.googleTiles.savedBasemapId) {
+          LayerManager.switchBasemap(this.googleTiles.savedBasemapId);
+          this.googleTiles.savedBasemapId = null;
+        } else if (this.viewer.imageryLayers.length === 0) {
+          // Fallback: re-add OSM imagery
+          this.viewer.imageryLayers.addImageryProvider(
+            new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' })
+          );
+        }
         if (this.osmBuildings.tileset) {
           this.osmBuildings.tileset.show = true;
           this.osmBuildings.enabled = true;
         }
+        // Remove left copy when disabling
+        if (window.BimViewerUI && typeof BimViewerUI.removeGoogleTilesLeftCopy === 'function') {
+          BimViewerUI.removeGoogleTilesLeftCopy();
+        }
       }
-      
+
       this.updateStatus(`Google 3D Tiles ${this.googleTiles.enabled ? 'enabled' : 'disabled'}`, 'success');
     }
   },
@@ -452,9 +692,15 @@ const BimViewer = {
 
   async fetchAvailableAssets() {
     try {
-      // ✅ Use token from auth.js
       const ionToken = BimAuth.getIonToken();
-      const response = await fetch(`https://api.cesium.com/v1/assets?access_token=${ionToken}`);
+      const response = await fetch('https://api.cesium.com/v1/assets', {
+        headers: {
+          'Authorization': `Bearer ${ionToken}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
       this.availableAssets = data.items || [];
       return this.availableAssets;
@@ -509,20 +755,67 @@ const BimViewer = {
         type: '3DTILES',
         ifcPropertyName: undefined
       };
-      
+
       this.loadedAssets.set(assetId.toString(), assetData);
-      await tileset.readyPromise;
+
+      // If split mode is active, show asset only on right side
+      if (this.splitMode) {
+        tileset.splitDirection = Cesium.SplitDirection.RIGHT;
+      }
+
+      // Apply IBL to newly loaded tileset
+      if (this.ibl && typeof this.applyIBLToTileset === 'function') {
+        this.applyIBLToTileset(tileset);
+      }
+
+      // flyTo FIRST so Cesium starts streaming tiles (tiles won't load until camera sees them)
+      if (!this.firstAssetLoaded) {
+        this.firstAssetLoaded = true;
+        await this.viewer.flyTo(tileset, { duration: 1.0 });
+      }
+
+      // Poll for tile content (readyPromise is deprecated in CesiumJS 1.134)
+      const hasTileContent = (tile) => {
+        if (tile.content && tile.content.featuresLength > 0) return true;
+        if (tile.children) {
+          for (const child of tile.children) {
+            if (hasTileContent(child)) return true;
+          }
+        }
+        return false;
+      };
+
+      const pollStart = Date.now();
+      const pollMax = 6000;
+      const pollInterval = 100;
+      while (Date.now() - pollStart < pollMax) {
+        if (tileset.root && hasTileContent(tileset.root)) break;
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      }
+
+      const elapsed = Date.now() - pollStart;
+      if (tileset.root && hasTileContent(tileset.root)) {
+        console.log(`✅ Asset ${assetId}: Tile content loaded (${elapsed}ms) — applying IFC filter`);
+      } else {
+        console.warn(`⚠️ Asset ${assetId}: Tile content timeout after 6s — proceeding anyway`);
+      }
+
+      // Check if this is a point cloud AFTER tile content is available (detection needs content)
+      if (typeof this.isPointCloudTileset === 'function') {
+        if (this.isPointCloudTileset(tileset)) {
+          assetData.isPointCloud = true;
+          console.log(`☁️ Asset ${assetId} detected as point cloud`);
+
+          if (typeof this.applyPointCloudSettings === 'function') {
+            this.applyPointCloudSettings(tileset);
+          }
+        }
+      }
 
       if (typeof this.applyIFCFilter === 'function') {
         await this.applyIFCFilter();
       }
-      
-      if (typeof this.isPointCloudTileset === 'function' && typeof this.applyPointCloudSettings === 'function') {
-        if (this.isPointCloudTileset(tileset)) {
-          this.applyPointCloudSettings(tileset);
-        }
-      }
-      
+
       if (typeof BimViewer.updateZOffsetAssetsList === 'function') {
         setTimeout(() => BimViewer.updateZOffsetAssetsList(), 100);
       }
@@ -530,33 +823,39 @@ const BimViewer = {
       if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
         BimViewerUI.createAssetControls(assetId);
       }
-      
-      if (!this.firstAssetLoaded) {
-        this.firstAssetLoaded = true;
-        await this.viewer.flyTo(tileset);
-      }
-      
+
       this.updateStatus(`Asset loaded: ${assetData.name}`, 'success');
-      
-      this.viewer.scene.globe.show = true;
+
+      // Track asset load with Plausible
+      if (typeof plausible !== 'undefined') {
+        plausible('Asset Loaded', { props: { assetName: assetData.name, assetId: assetId.toString() } });
+      }
+
+      // Restore globe only if Google 3D Tiles are NOT active (they replace the globe)
+      if (!this.googleTiles.enabled) {
+        this.viewer.scene.globe.show = true;
+      }
       this.viewer.scene.skyBox.show = true;
       this.viewer.scene.skyAtmosphere.show = true;
-      
-      setTimeout(async () => {
-        try {
-          if (typeof this.detectIFCProperties === 'function') {
-            const detectedProp = await this.detectIFCProperties(assetData.tileset);
-            if (detectedProp) {
-              assetData.ifcPropertyName = detectedProp;
-              if (typeof this.applyIFCFilter === 'function') {
-                await this.applyIFCFilter();
+
+      // Safety retry: only if initial detection failed (no redundant poll — tiles should be loaded by now)
+      if (!assetData.ifcPropertyName) {
+        setTimeout(async () => {
+          try {
+            if (typeof this.detectIFCProperties === 'function') {
+              const detectedProp = await this.detectIFCProperties(assetData.tileset);
+              if (detectedProp) {
+                assetData.ifcPropertyName = detectedProp;
+                if (typeof this.applyIFCFilter === 'function') {
+                  await this.applyIFCFilter();
+                }
               }
             }
+          } catch (detectError) {
+            console.error(`❌ Detection failed for asset ${assetId}:`, detectError);
           }
-        } catch (detectError) {
-          console.error(`❌ Detection failed for asset ${assetId}:`, detectError);
-        }
-      }, 3000);
+        }, 1500);
+      }
       
     } catch (error) {
       console.error('Failed to load asset:', error);
@@ -592,8 +891,7 @@ const BimViewer = {
       tileset.colorBlendMode = Cesium.Cesium3DTileColorBlendMode.REPLACE;
       this.viewer.scene.primitives.add(tileset);
       this.enableTilesetLighting(tileset);
-      
-      await tileset.readyPromise;
+      // Note: tileset from ITwinData.createTilesetFromIModelId() is already ready - no readyPromise needed
       
       const assetData = {
         id: assetKey,
@@ -606,7 +904,7 @@ const BimViewer = {
         shareKey: shareKey,
         ifcPropertyName: undefined
       };
-      
+
       this.loadedAssets.set(assetKey, assetData);
       
       if (typeof BimViewer.updateZOffsetAssetsList === 'function') {
@@ -621,18 +919,21 @@ const BimViewer = {
       if (typeof this.applyIFCFilter === 'function') {
         setTimeout(() => this.applyIFCFilter(), 1000);
       }
-      
+
       if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
         BimViewerUI.createAssetControls(assetKey);
       }
-      
+
       if (!this.firstAssetLoaded) {
         this.firstAssetLoaded = true;
       }
       
       this.updateStatus(`✅ iTwin Model loaded`, 'success');
-      
-      this.viewer.scene.globe.show = true;
+
+      // Restore globe only if Google 3D Tiles are NOT active (they replace the globe)
+      if (!this.googleTiles.enabled) {
+        this.viewer.scene.globe.show = true;
+      }
       this.viewer.scene.skyBox.show = true;
       this.viewer.scene.skyAtmosphere.show = true;
       
@@ -701,10 +1002,20 @@ const BimViewer = {
     if (!assetData) return;
 
     assetData.opacity = parseFloat(opacity);
-    
+
     const valueEl = document.getElementById(`opacityValue_${assetId}`);
     if (valueEl) valueEl.textContent = Math.round(opacity * 100) + '%';
-    
+
+    // For point clouds, preserve RGB colors - opacity handled differently
+    if (assetData.isPointCloud && assetData.tileset) {
+      // Keep original RGB colors for point clouds
+      // Opacity changes are not fully supported for point clouds to preserve colors
+      assetData.tileset.style = undefined;
+      console.log(`☁️ Point cloud ${assetId}: RGB colors preserved (opacity slider limited for point clouds)`);
+      return;
+    }
+
+    // For non-point-clouds, use IFC filter
     if (typeof this.applyIFCFilter === 'function') {
       this.applyIFCFilter();
     }
@@ -717,6 +1028,13 @@ const BimViewer = {
     });
   },
 
+  initRevitFilter() {
+    REVIT_CATEGORIES.forEach(cat => {
+      this.revitFilter.allCategories.add(cat.category);
+      this.revitFilter.enabledCategories.add(cat.category);
+    });
+  },
+
   applyPerformanceSettings(settings) {
     const scene = this.viewer.scene;
     scene.postProcessStages.fxaa.enabled = settings.enableFXAA;
@@ -725,6 +1043,24 @@ const BimViewer = {
     scene.globe.enableLighting = settings.enableLighting;
     scene.skyAtmosphere.show = settings.enableAtmosphere;
     scene.shadowMap.enabled = settings.enableShadows;
+
+    // Ambient Occlusion
+    const ao = scene.postProcessStages.ambientOcclusion;
+    if (ao) {
+      ao.enabled = !!settings.enableSSAO;
+      // Update UI toggle state
+      const aoBtn = document.getElementById('toggleAO');
+      const aoControls = document.getElementById('aoControls');
+      if (aoBtn) {
+        aoBtn.classList.toggle('active', ao.enabled);
+        aoBtn.innerHTML = ao.enabled
+          ? '<span class="modern-btn-icon">🌑</span><span>SSAO ON</span>'
+          : '<span class="modern-btn-icon">🌑</span><span>Enable SSAO</span>';
+      }
+      if (aoControls) {
+        aoControls.style.display = ao.enabled ? 'block' : 'none';
+      }
+    }
   },
 
   toggleGlobeTransparency() {
@@ -793,13 +1129,10 @@ const BimViewer = {
 
   enableTilesetLighting(tileset) {
     if (!tileset) return;
-    
+
     try {
-      if (tileset.imageBasedLighting) {
-        tileset.imageBasedLighting.enabled = true;
-        tileset.imageBasedLighting.luminanceAtZenith = 0.5;
-      }
-      
+      // IBL is now handled by ibl.js via imageBasedLightingFactor
+      // (.enabled and .luminanceAtZenith were removed in CesiumJS 1.123)
       if (this.lighting?.enabled) {
         tileset.shadows = Cesium.ShadowMode.ENABLED;
       }
@@ -829,7 +1162,10 @@ const BimViewer = {
   fixGlobeVisibility() {
     console.log('🔧 Fixing globe visibility...');
     const scene = this.viewer.scene;
-    
+
+    // Don't restore globe if Google 3D Tiles are active (they replace the globe)
+    if (this.googleTiles.enabled) return;
+
     scene.globe.show = true;
     scene.skyBox.show = true;
     scene.skyAtmosphere.show = true;
@@ -856,6 +1192,9 @@ const BimViewer = {
 window.BimViewer = BimViewer;
 window.CONFIG = CONFIG;
 window.IFC_ENTITIES = IFC_ENTITIES;
+window.REVIT_CATEGORIES = REVIT_CATEGORIES;
+window.CATEGORY_DE_TO_EN = CATEGORY_DE_TO_EN;
+window.mapCategoryToEnglish = mapCategoryToEnglish;
 
 console.log('✅ BimViewer object created (v3.3.2 - Dynamic Ion Token)');
 

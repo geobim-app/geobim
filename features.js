@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - FEATURES MODULE (FIXED IFC FILTER v2.6)
 // Drawing, Clipping, Saved Views, IFC Filtering with className Support
@@ -215,26 +224,32 @@
   // ✅ FIXED IFC FILTERING - v2.5 with className Support
   // ===============================
   
-  // ✅ ENHANCED: Detect IFC Properties with extra wait time
+  // ✅ Detect IFC Properties with tile content polling
   BimViewer.detectIFCProperties = async function(tileset) {
     console.log('🔍 Detecting IFC properties in tileset...');
-    
-    // Wait for tileset
-    try {
-      await tileset.readyPromise;
-      
-      // 🔧 FIX: Extra wait for tiles to load (CRITICAL!)
-      console.log('⏳ Waiting 2 seconds for tiles to load...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-    } catch (error) {
-      console.warn('⚠️ Tileset ready promise failed:', error);
+
+    // Short safety poll in case tiles aren't loaded yet (core.js should have already waited)
+    const hasTileContent = (tile) => {
+      if (tile.content && tile.content.featuresLength > 0) return true;
+      if (tile.children) {
+        for (const child of tile.children) {
+          if (hasTileContent(child)) return true;
+        }
+      }
+      return false;
+    };
+
+    if (tileset.root && !hasTileContent(tileset.root)) {
+      const pollStart = Date.now();
+      while (Date.now() - pollStart < 2000) {
+        if (hasTileContent(tileset.root)) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
-    
-    // 🔧 FIX: className at first position - most common for IFC
+
     const possiblePropertyNames = [
       'className',        // Most common for IFC exports
-      'IfcEntity', 
+      'IfcEntity',
       'element_type',
       'IfcType',
       'IFC_Type',
@@ -244,22 +259,22 @@
       'ifcType',
       'entityType'
     ];
-    
+
     const checkTileRecursive = (tile, depth = 0) => {
       if (depth > 5) return null;
-      
+
       if (tile.content && tile.content.featuresLength > 0) {
         const featuresToCheck = Math.min(tile.content.featuresLength, 20);
-        
+
         for (let i = 0; i < featuresToCheck; i++) {
           try {
             const feature = tile.content.getFeature(i);
             const propertyIds = feature.getPropertyIds();
-            
+
             if (i === 0) {
               console.log(`📋 First feature properties (${propertyIds.length}):`, propertyIds);
             }
-            
+
             for (const propName of possiblePropertyNames) {
               if (propertyIds.includes(propName)) {
                 const value = feature.getProperty(propName);
@@ -272,19 +287,19 @@
           }
         }
       }
-      
+
       if (tile.children && tile.children.length > 0) {
         for (const child of tile.children) {
           const found = checkTileRecursive(child, depth + 1);
           if (found) return found;
         }
       }
-      
+
       return null;
     };
-    
+
     const foundProperty = checkTileRecursive(tileset.root);
-    
+
     if (foundProperty) {
       console.log(`🎯 IFC Property detected: "${foundProperty}"`);
       return foundProperty;
@@ -293,36 +308,46 @@
       return null;
     }
   };
-  
-  // ✅ ENHANCED: Apply IFC filter with better error handling
+
+  // ✅ Apply IFC filter (matches working v2.6 OR-logic pattern)
   BimViewer.applyIFCFilter = async function() {
-    console.log('🎨 ============================================');
     console.log('🎨 Applying IFC Filter...');
     console.log(`🎨 Enabled entities: ${this.ifcFilter.enabledEntities.size}/${this.ifcFilter.allEntities.size}`);
-    
+
+    // Track IFC filter usage with Plausible (only once per session)
+    if (typeof plausible !== 'undefined' && !this._ifcFilterTracked) {
+      plausible('Feature Used', { props: { feature: 'IFC Filter' } });
+      this._ifcFilterTracked = true;
+    }
+
     if (this.loadedAssets.size === 0) {
       console.warn('⚠️ No assets loaded, cannot apply IFC filter');
       return;
     }
-    
+
     let filteredCount = 0;
     let assetsWithIFC = 0;
-    
+
     for (const [assetId, assetData] of this.loadedAssets) {
       const tileset = assetData.tileset;
-      
+
       if (!tileset) {
         console.warn(`⚠️ Asset ${assetId}: No tileset`);
         continue;
       }
-      
+
+      // Skip point clouds - preserve their RGB colors
+      if (assetData.isPointCloud || (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(tileset))) {
+        console.log(`☁️ Asset ${assetId}: Point cloud - skipping IFC filter`);
+        continue;
+      }
+
       try {
         const opacity = assetData.opacity || 1.0;
-        
-        // ✅ Detect IFC property name if not already detected
+
+        // Detect IFC property name if not already detected (inline, with 2s wait)
         if (assetData.ifcPropertyName === undefined) {
           console.log(`🔍 Asset ${assetId}: Detecting IFC properties...`);
-          
           try {
             assetData.ifcPropertyName = await this.detectIFCProperties(tileset);
             console.log(`📋 Asset ${assetId}: IFC property = ${assetData.ifcPropertyName || 'NONE'}`);
@@ -331,10 +356,10 @@
             assetData.ifcPropertyName = null;
           }
         }
-        
+
         const ifcPropertyName = assetData.ifcPropertyName;
-        
-        // No IFC properties found
+
+        // No IFC properties found - apply simple white style
         if (!ifcPropertyName) {
           console.log(`📋 Asset ${assetId}: No IFC properties - applying simple style`);
           tileset.style = new Cesium.Cesium3DTileStyle({
@@ -343,18 +368,15 @@
           });
           continue;
         }
-        
+
         assetsWithIFC++;
-        console.log(`📋 Asset ${assetId}: Has IFC properties - building filter...`);
-        
-        // Build show conditions
+
+        // Build show conditions: OR of all ENABLED entities
         const showConditions = [];
         this.ifcFilter.enabledEntities.forEach(entity => {
           showConditions.push(`\${${ifcPropertyName}} === '${entity}'`);
         });
-        
-        console.log(`📋 Asset ${assetId}: Show conditions count: ${showConditions.length}`);
-        
+
         // Build color conditions
         const colorConditions = [];
         IFC_ENTITIES.forEach(entityInfo => {
@@ -366,56 +388,46 @@
             ]);
           }
         });
-        
+
         // Default color for unmatched entities
         colorConditions.push(["true", `color('white', ${opacity})`]);
-        
-        console.log(`📋 Asset ${assetId}: Color conditions count: ${colorConditions.length}`);
 
         // Apply style
         if (showConditions.length > 0) {
-          const styleConfig = {
+          tileset.style = new Cesium.Cesium3DTileStyle({
             show: showConditions.join(' || '),
             color: { conditions: colorConditions }
-          };
-          
-          console.log(`📋 Asset ${assetId}: Applying style...`);
-          console.log('Style show expression:', styleConfig.show);
-          
-          tileset.style = new Cesium.Cesium3DTileStyle(styleConfig);
-          
-          filteredCount++;
-          console.log(`✅ Asset ${assetId}: Filter applied successfully`);
-        } else {
-          // All entities disabled
-          console.log(`🚫 Asset ${assetId}: All entities disabled - hiding tileset`);
-          tileset.style = new Cesium.Cesium3DTileStyle({
-            show: false
           });
+          filteredCount++;
+          console.log(`✅ Asset ${assetId}: IFC filter applied`);
+        } else {
+          // All entities disabled - hide everything
+          tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
+          console.log(`🚫 Asset ${assetId}: All entities disabled - hidden`);
         }
-        
+
       } catch (error) {
         console.error(`❌ Asset ${assetId}: Error applying IFC filter:`, error);
-        console.error('Error stack:', error.stack);
-        
-        // Fallback to simple style
         try {
           const opacity = assetData.opacity || 1.0;
           tileset.style = new Cesium.Cesium3DTileStyle({
             color: `color('white', ${opacity})`,
             show: true
           });
-          console.log(`✅ Asset ${assetId}: Applied fallback style`);
         } catch (fallbackError) {
-          console.error(`❌ Asset ${assetId}: Even fallback failed:`, fallbackError);
+          console.error(`❌ Asset ${assetId}: Fallback also failed:`, fallbackError);
         }
       }
     }
-    
+
     console.log(`✅ IFC Filter complete: ${filteredCount} assets filtered, ${assetsWithIFC} with IFC properties`);
-    console.log('🎨 ============================================');
-    
+
     this.updateEntityCounts();
+
+    // Re-apply individually hidden features after style changes
+    if (typeof this.reapplyHiddenFeatures === 'function') {
+      this.reapplyHiddenFeatures();
+    }
   };
 
   // ✅ Manual IFC Property Override
@@ -425,10 +437,10 @@
       console.error(`❌ Asset ${assetId} not found`);
       return false;
     }
-    
+
     console.log(`🔧 Manually setting IFC property for asset ${assetId}: "${propertyName}"`);
     assetData.ifcPropertyName = propertyName;
-    
+
     // Apply filter immediately
     this.applyIFCFilter();
     return true;
@@ -457,14 +469,173 @@
   BimViewer.updateEntityCounts = function() {
     const activeCount = this.ifcFilter.enabledEntities.size;
     const totalCount = this.ifcFilter.allEntities.size;
-    
+
     const activeCountElement = document.getElementById('activeEntityCount');
     const totalCountElement = document.getElementById('totalEntityCount');
-    
+
     if (activeCountElement) activeCountElement.textContent = activeCount;
     if (totalCountElement) totalCountElement.textContent = totalCount;
-    
+
     console.log(`📊 Entity counts updated: ${activeCount}/${totalCount} active`);
+  };
+
+  // ===============================
+  // REVIT CATEGORY FILTER
+  // ===============================
+
+  // Build reverse mapping (English to German)
+  const CATEGORY_EN_TO_DE = {};
+  if (typeof CATEGORY_DE_TO_EN !== 'undefined') {
+    Object.entries(CATEGORY_DE_TO_EN).forEach(([de, en]) => {
+      if (!CATEGORY_EN_TO_DE[en]) {
+        CATEGORY_EN_TO_DE[en] = [];
+      }
+      CATEGORY_EN_TO_DE[en].push(de);
+    });
+  }
+
+  // Get all variants (English + German) for a category
+  function getCategoryVariants(englishCategory) {
+    const variants = [englishCategory];
+    if (CATEGORY_EN_TO_DE[englishCategory]) {
+      variants.push(...CATEGORY_EN_TO_DE[englishCategory]);
+    }
+    return variants;
+  }
+
+  // ✅ Apply Revit filter (matches working v2.6 OR-logic pattern)
+  BimViewer.applyRevitFilter = async function() {
+    console.log('🏢 Applying Revit Category Filter...');
+    console.log(`🏢 Enabled categories: ${this.revitFilter.enabledCategories.size}/${this.revitFilter.allCategories.size}`);
+
+    if (this.loadedAssets.size === 0) {
+      console.warn('⚠️ No assets loaded, cannot apply Revit filter');
+      return;
+    }
+
+    let filteredCount = 0;
+    let assetsWithCategory = 0;
+
+    for (const [assetId, assetData] of this.loadedAssets) {
+      const tileset = assetData.tileset;
+      if (!tileset) continue;
+
+      // Skip point clouds - preserve their RGB colors
+      if (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(tileset)) {
+        continue;
+      }
+
+      // Detect Category property name
+      const categoryPropertyName = assetData.categoryPropertyName || this.detectCategoryProperty(tileset);
+
+      if (!categoryPropertyName) {
+        console.log(`⚠️ Asset ${assetId}: No Category property found`);
+        continue;
+      }
+
+      assetData.categoryPropertyName = categoryPropertyName;
+      assetsWithCategory++;
+
+      const opacity = assetData.opacity !== undefined ? assetData.opacity : 1.0;
+
+      try {
+        // Build show conditions: OR of all ENABLED categories (EN + DE variants)
+        const showConditions = [];
+        this.revitFilter.enabledCategories.forEach(category => {
+          const variants = getCategoryVariants(category);
+          variants.forEach(variant => {
+            showConditions.push(`\${${categoryPropertyName}} === '${variant}'`);
+          });
+        });
+
+        // Build color conditions (include both English and German variants)
+        const colorConditions = [];
+        REVIT_CATEGORIES.forEach(catInfo => {
+          if (this.revitFilter.enabledCategories.has(catInfo.category)) {
+            const variants = getCategoryVariants(catInfo.category);
+            variants.forEach(variant => {
+              colorConditions.push([
+                `\${${categoryPropertyName}} === '${variant}'`,
+                `color('${catInfo.color}', ${opacity})`
+              ]);
+            });
+          }
+        });
+
+        // Default color for unmatched categories
+        colorConditions.push(["true", `color('white', ${opacity})`]);
+
+        // Apply style
+        tileset.style = new Cesium.Cesium3DTileStyle({
+          show: showConditions.length > 0 ? showConditions.join(' || ') : 'true',
+          color: { conditions: colorConditions }
+        });
+
+        filteredCount++;
+        console.log(`✅ Asset ${assetId}: Revit filter applied (${showConditions.length} conditions, EN+DE)`);
+
+      } catch (error) {
+        console.error(`❌ Failed to apply Revit filter to asset ${assetId}:`, error);
+      }
+    }
+
+    console.log(`🏢 Revit filter complete: ${filteredCount}/${assetsWithCategory} assets`);
+
+    // Re-apply individually hidden features after style changes
+    if (typeof this.reapplyHiddenFeatures === 'function') {
+      this.reapplyHiddenFeatures();
+    }
+  };
+
+  // Detect Category property in tileset
+  BimViewer.detectCategoryProperty = function(tileset) {
+    // Use categoryName as the primary property for Revit filter
+    return 'categoryName';
+  };
+
+  // Toggle Revit category
+  BimViewer.toggleRevitCategory = function(categoryName) {
+    if (this.revitFilter.enabledCategories.has(categoryName)) {
+      this.revitFilter.enabledCategories.delete(categoryName);
+    } else {
+      this.revitFilter.enabledCategories.add(categoryName);
+    }
+
+    if (typeof this.applyRevitFilter === 'function') {
+      this.applyRevitFilter();
+    }
+  };
+
+  // Select all Revit categories
+  BimViewer.selectAllRevitCategories = function() {
+    REVIT_CATEGORIES.forEach(cat => {
+      this.revitFilter.enabledCategories.add(cat.category);
+    });
+
+    if (typeof this.updateRevitFilterUI === 'function') {
+      this.updateRevitFilterUI();
+    }
+
+    if (typeof this.applyRevitFilter === 'function') {
+      this.applyRevitFilter();
+    }
+
+    this.updateStatus('All Revit categories selected', 'success');
+  };
+
+  // Deselect all Revit categories
+  BimViewer.deselectAllRevitCategories = function() {
+    this.revitFilter.enabledCategories.clear();
+
+    if (typeof this.updateRevitFilterUI === 'function') {
+      this.updateRevitFilterUI();
+    }
+
+    if (typeof this.applyRevitFilter === 'function') {
+      this.applyRevitFilter();
+    }
+
+    this.updateStatus('All Revit categories deselected', 'success');
   };
 
   // ===============================
@@ -476,11 +647,14 @@
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     
     handler.setInputAction((movement) => {
-      // Skip if in measurement mode
+      // Skip if in measurement mode or measurement panel is open
       if (this.isMeasuring && this.isMeasuring()) {
         return;
       }
-      
+      if (this.isMeasurementPanelOpen && this.isMeasurementPanelOpen()) {
+        return;
+      }
+
       // Handle drawing mode
       if (this.drawing.active) {
         const cartesian = this.viewer.scene.pickPosition(movement.position);
@@ -535,8 +709,12 @@
       if (this.selectedFeature) {
         try {
           this.selectedFeature.color = this.selectedOriginalColor;
+          // Remove silhouette from previous feature
+          if (this.silhouette.enabled) {
+            this.selectedFeature.silhouetteSize = 0.0;
+          }
         } catch (error) {
-          console.warn('⚠️ Could not reset previous feature color:', error.message);
+          console.warn('⚠️ Could not reset previous feature:', error.message);
         }
         this.selectedFeature = undefined;
       }
@@ -546,13 +724,20 @@
 
       if (picked && picked instanceof Cesium.Cesium3DTileFeature) {
         console.log('🎯 Feature picked:', picked);
-        
+
         this.selectedFeature = picked;
-        
+
         // Highlight the feature
         try {
           Cesium.Color.clone(picked.color, this.selectedOriginalColor);
           picked.color = Cesium.Color.LIME;
+
+          // Apply silhouette outline if enabled
+          if (this.silhouette.enabled && this.silhouette.stage) {
+            picked.silhouetteColor = this.silhouette.color;
+            picked.silhouetteSize = this.silhouette.strength;
+          }
+
           console.log('✅ Feature highlighted');
         } catch (error) {
           console.warn('⚠️ Could not change feature color:', error.message);
@@ -636,7 +821,7 @@
     
     console.log(`📋 Element type: ${isOSMBuilding ? 'OSM Building' : 'IFC Element'}`);
     
-    let html = '<span class="close-btn" onclick="this.parentNode.innerHTML=\'\'; this.parentNode.className=\'\';">&times;</span>';
+    let html = '<span class="close-btn" onclick="var p=this.parentNode; p.className=\'\'; p.innerHTML=\'\';">&times;</span>';
     
     html += '<table class="bim-property-table">';
     html += '<tr class="bim-header-row">';
@@ -846,6 +1031,70 @@
   };
 
   // ===============================
+  // SILHOUETTE POST-PROCESS STAGE
+  // ===============================
+  BimViewer.initSilhouette = function() {
+    const scene = this.viewer.scene;
+
+    // Check browser/GPU support
+    if (!Cesium.PostProcessStageLibrary.isSilhouetteSupported(scene)) {
+      console.warn('⚠️ Silhouette not supported on this device');
+      this.silhouette.supported = false;
+      return false;
+    }
+
+    this.silhouette.supported = true;
+
+    // Create silhouette stage
+    const silhouetteStage = Cesium.PostProcessStageLibrary.createSilhouetteStage();
+    silhouetteStage.enabled = false;
+
+    // Set default uniforms
+    silhouetteStage.uniforms.color = this.silhouette.color;
+    silhouetteStage.uniforms.length = this.silhouette.strength;
+
+    scene.postProcessStages.add(silhouetteStage);
+    this.silhouette.stage = silhouetteStage;
+
+    console.log('✅ Silhouette post-process stage initialized');
+    return true;
+  };
+
+  BimViewer.enableSilhouette = function(enabled) {
+    if (!this.silhouette.stage) return;
+    this.silhouette.enabled = enabled;
+    this.silhouette.stage.enabled = enabled;
+
+    // Re-apply silhouette to currently selected feature
+    if (enabled && this.selectedFeature) {
+      this.selectedFeature.silhouetteColor = this.silhouette.color;
+      this.selectedFeature.silhouetteSize = this.silhouette.strength;
+    }
+  };
+
+  BimViewer.setSilhouetteColor = function(color) {
+    this.silhouette.color = color;
+    if (this.silhouette.stage) {
+      this.silhouette.stage.uniforms.color = color;
+    }
+    // Update currently selected feature
+    if (this.selectedFeature && this.silhouette.enabled) {
+      this.selectedFeature.silhouetteColor = color;
+    }
+  };
+
+  BimViewer.setSilhouetteStrength = function(strength) {
+    this.silhouette.strength = strength;
+    if (this.silhouette.stage) {
+      this.silhouette.stage.uniforms.length = strength;
+    }
+    // Update currently selected feature
+    if (this.selectedFeature && this.silhouette.enabled) {
+      this.selectedFeature.silhouetteSize = strength;
+    }
+  };
+
+  // ===============================
   // INITIALIZATION
   // ===============================
   BimViewer.initFeatures = function() {
@@ -853,9 +1102,10 @@
       console.warn('⚠️ initFeatures called but viewer not ready yet');
       return false;
     }
-    
+
     console.log('🚀 Initializing features...');
     this.initClickHandler();
+    this.initSilhouette();
     this.updateSavedViewsList();
     console.log('✅ Features initialized');
     console.log('💡 TIP: Use BimViewer.testIFCFilter() in console to test IFC filtering');

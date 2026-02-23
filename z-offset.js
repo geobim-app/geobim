@@ -1,11 +1,20 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - Z-OFFSET MODULE v6.0 (OPTION A - Relative to Original)
 // Simple offset relative to original position (no terrain calculations)
-// ✅ +10m = 10 meters ABOVE original position
-// ✅ 0m = Back to ORIGINAL position (reset)
-// ✅ -5m = 5 meters BELOW original position
-// ✅ NO X/Y shift - uses fromRadians for perfect vertical direction
-// ✅ Super simple - no terrain sampling needed
+// +10m = 10 meters ABOVE original position
+// 0m = Back to ORIGINAL position (reset)
+// -5m = 5 meters BELOW original position
+// NO X/Y shift - uses fromRadians for perfect vertical direction
+// Super simple - no terrain sampling needed
 // ===============================
 'use strict';
 

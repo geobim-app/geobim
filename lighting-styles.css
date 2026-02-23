@@ -3,7 +3,7 @@
    Styles for dynamic lighting, time controls, and ambient modes
    =============================== */
 
-/* 🔥 NEW: Ambient Light Mode Grid */
+/* Ambient Light Mode Grid */
 .ambient-mode-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -37,9 +37,10 @@
 }
 
 .ambient-mode-btn.active {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  border-color: rgba(245, 87, 108, 0.8);
-  box-shadow: 0 4px 16px rgba(245, 87, 108, 0.4);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
+  border-color: rgba(110, 236, 216, 0.8);
+  color: var(--bg-base, #0E1117);
+  box-shadow: 0 4px 16px rgba(110, 236, 216, 0.4);
   transform: translateY(-2px) scale(1.05);
 }
 
@@ -60,16 +61,19 @@
 .ambient-mode-btn[data-mode="realistic"].active {
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
   border-color: rgba(52, 73, 94, 0.8);
+  color: white;
 }
 
 .ambient-mode-btn[data-mode="soft"].active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: rgba(102, 126, 234, 0.8);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
+  border-color: rgba(110, 236, 216, 0.8);
+  color: var(--bg-base, #0E1117);
 }
 
 .ambient-mode-btn[data-mode="balanced"].active {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  border-color: rgba(245, 87, 108, 0.8);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
+  border-color: rgba(110, 236, 216, 0.8);
+  color: var(--bg-base, #0E1117);
 }
 
 .ambient-mode-btn[data-mode="bright"].active {
@@ -105,9 +109,10 @@
 }
 
 .modern-time-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: rgba(102, 126, 234, 0.5);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
+  border-color: rgba(110, 236, 216, 0.5);
+  color: var(--bg-base, #0E1117);
+  box-shadow: 0 4px 12px rgba(110, 236, 216, 0.3);
 }
 
 .modern-time-btn:active {
@@ -130,7 +135,7 @@
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -144,7 +149,7 @@
 .modern-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -173,17 +178,17 @@
 
 @keyframes lightingPulse {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(245, 87, 108, 0.5);
+    box-shadow: 0 0 10px rgba(110, 236, 216, 0.5);
   }
   50% {
-    box-shadow: 0 0 20px rgba(245, 87, 108, 0.8), 0 0 30px rgba(245, 87, 108, 0.4);
+    box-shadow: 0 0 20px rgba(110, 236, 216, 0.8), 0 0 30px rgba(110, 236, 216, 0.4);
   }
 }
 
 /* Enhanced hint box */
 .modern-hint {
-  background: rgba(102, 126, 234, 0.1);
-  border-left: 3px solid #667eea;
+  background: rgba(110, 236, 216, 0.1);
+  border-left: 3px solid var(--brand-teal, #6EECD8);
   padding: 10px;
   border-radius: 6px;
   font-size: 11px;
@@ -192,7 +197,7 @@
 }
 
 .modern-hint strong {
-  color: #a5b4fc;
+  color: var(--brand-teal, #6EECD8);
   font-weight: 600;
 }
 
@@ -214,8 +219,9 @@
 }
 
 .modern-btn-small.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+  background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
+  color: var(--bg-base, #0E1117) !important;
+  box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
   transform: translateY(-1px);
 }
 
@@ -251,7 +257,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4caf50;
+  background: var(--success, #4ADE80);
   animation: statusPulse 2s infinite;
 }
 
@@ -270,23 +276,23 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
-  
+
   .ambient-mode-btn {
     padding: 10px 6px;
   }
-  
+
   .ambient-icon {
     font-size: 20px;
   }
-  
+
   .ambient-label {
     font-size: 10px;
   }
-  
+
   .modern-time-presets {
     gap: 4px;
   }
-  
+
   .modern-time-btn {
     padding: 6px 8px;
     font-size: 11px;
@@ -299,11 +305,11 @@
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .ambient-mode-btn:hover {
     background: rgba(255, 255, 255, 0.1);
   }
-  
+
   .modern-time-btn {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
@@ -346,7 +352,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #667eea;
+  border-top-color: var(--brand-teal, #6EECD8);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

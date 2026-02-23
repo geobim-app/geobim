@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - CLIPPING UI EXTENSION v3.0
 // Modern UI for enhanced clipping functionality
@@ -17,21 +26,39 @@
   BimViewerUI.getDrawingContent = function() {
     return `
       <div class="modern-group">
+        <button id="toggleMeasurement" class="modern-btn modern-btn-secondary" onclick="BimViewer.toggleMeasurementPanel()" title="Open measurement tools">
+          <span class="modern-btn-icon">📏</span>
+          <span>Measurement Tools</span>
+        </button>
+      </div>
+
+      <div class="modern-divider">
+        <span class="modern-divider-text">Clipping</span>
+      </div>
+
+      <div class="modern-group">
         <div class="modern-label">
           Clipping Polygons
           <span id="clippingPolygonCount" class="modern-badge" style="display: none;">0</span>
         </div>
-        
-        <button id="startClippingDraw" class="modern-btn modern-btn-primary">
-          <span class="modern-btn-icon">✏️</span>
-          <span>Draw Polygon</span>
-        </button>
-        
+
+        <div class="modern-btn-group">
+          <button id="startClippingDraw" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click to draw clipping polygon">
+            <span class="modern-btn-icon">✏️</span>
+            <span>Polygon</span>
+          </button>
+          <button id="startClippingRect" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click 3 points: 2 corners define edge, 3rd sets width">
+            <span class="modern-btn-icon">⬜</span>
+            <span>Rectangle</span>
+          </button>
+        </div>
+
         <div class="modern-hint" style="margin-top: 8px;">
-          <strong>🖱️ RIGHT-CLICK</strong> Add point<br>
+          <strong>🖱️ RIGHT-CLICK</strong> Add point / place corner<br>
           <strong>🖱️ DOUBLE RIGHT-CLICK</strong> Finish polygon<br>
           <strong>⌨️ ENTER</strong> Also finishes polygon<br>
-          <strong>⌨️ P</strong> Start/Stop drawing<br>
+          <strong>⌨️ P</strong> Start/Stop polygon drawing<br>
+          <strong>⌨️ R</strong> Start/Stop rectangle drawing<br>
           <strong>⌨️ ESC</strong> Cancel drawing<br>
           <strong>⌨️ DEL</strong> Remove last polygon<br>
           <strong>✅ LEFT-CLICK stays free</strong> for element info!
@@ -46,7 +73,7 @@
             <span class="modern-btn-icon">✅</span>
             <span>Enabled</span>
           </button>
-          <button id="toggleInverseClipping" class="modern-btn modern-btn-small">
+          <button id="toggleInverseClipping" class="modern-btn modern-btn-small" title="Flip inside/outside">
             <span class="modern-btn-icon">➡️</span>
             <span>Normal</span>
           </button>
@@ -55,9 +82,9 @@
         <div class="modern-btn-group" style="margin-top: 8px;">
           <button id="toggleClippingVisualization" class="modern-btn modern-btn-small active">
             <span class="modern-btn-icon">👁️</span>
-            <span>Show Fill</span>
+            <span>Visible</span>
           </button>
-          <button id="toggleTerrainClipping" class="modern-btn modern-btn-small">
+          <button id="toggleTerrainClipping" class="modern-btn modern-btn-small" title="Include/exclude terrain in clipping">
             <span class="modern-btn-icon">🏙️</span>
             <span>Buildings Only</span>
           </button>
@@ -68,7 +95,7 @@
         <div class="modern-label">Actions</div>
         
         <div class="modern-btn-group">
-          <button id="removeLastPolygon" class="modern-btn modern-btn-small modern-btn-warning">
+          <button id="removeLastPolygon" class="modern-btn modern-btn-small modern-btn-secondary">
             <span class="modern-btn-icon">⬅️</span>
             <span>Remove Last</span>
           </button>
@@ -103,6 +130,20 @@
         BimViewer.stopClippingDraw();
       } else {
         BimViewer.startClippingDraw();
+        if (typeof plausible !== 'undefined') {
+          plausible('Feature Used', { props: { feature: 'Clipping' } });
+        }
+      }
+    });
+
+    document.getElementById('startClippingRect')?.addEventListener('click', () => {
+      if (BimViewer.clipping.isDrawing && BimViewer.clipping.drawMode === 'rectangle') {
+        BimViewer.stopClippingDraw();
+      } else {
+        BimViewer.startClippingRectDraw();
+        if (typeof plausible !== 'undefined') {
+          plausible('Feature Used', { props: { feature: 'Clipping Rectangle' } });
+        }
       }
     });
     
@@ -200,19 +241,19 @@
     
     /* Warning button style */
     .modern-btn-warning {
-      background: rgba(255, 165, 0, 0.2) !important;
-      color: #ffa500 !important;
-      border: 1px solid rgba(255, 165, 0, 0.3) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: var(--text-primary, #E2E8F0) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
-    
+
     .modern-btn-warning:hover {
-      background: rgba(255, 165, 0, 0.3) !important;
-      color: #ffb733 !important;
-      border-color: rgba(255, 165, 0, 0.5) !important;
+      background: rgba(255, 255, 255, 0.15) !important;
+      border-color: rgba(255, 255, 255, 0.3) !important;
     }
     
     /* Active drawing button animation */
-    #startClippingDraw.active {
+    #startClippingDraw.active,
+    #startClippingRect.active {
       animation: clippingPulse 2s infinite;
     }
     

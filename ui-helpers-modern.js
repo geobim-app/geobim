@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - MODERN UI HELPERS v4.0 (AREA ANNOTATIONS)
 // Helper functions to update lists in modern style
@@ -244,7 +253,7 @@ BimViewer.toggleIFCEntity = function(entityName) {
   } else {
     this.ifcFilter.enabledEntities.add(entityName);
   }
-  
+
   if (typeof this.applyIFCFilter === 'function') {
     this.applyIFCFilter();
   }
@@ -257,26 +266,89 @@ BimViewer.selectAllIFCTypes = function() {
   IFC_ENTITIES.forEach(entity => {
     this.ifcFilter.enabledEntities.add(entity.entity);
   });
-  
+
   this.updateIFCFilterUI();
-  
+
   if (typeof this.applyIFCFilter === 'function') {
     this.applyIFCFilter();
   }
-  
+
   this.updateStatus('All IFC types selected', 'success');
 };
 
 BimViewer.deselectAllIFCTypes = function() {
   this.ifcFilter.enabledEntities.clear();
-  
+
   this.updateIFCFilterUI();
-  
+
   if (typeof this.applyIFCFilter === 'function') {
     this.applyIFCFilter();
   }
-  
+
   this.updateStatus('All IFC types deselected', 'success');
+};
+
+// ===============================
+// REVIT FILTER LIST UPDATE (Modern Style)
+// ===============================
+BimViewer.updateRevitFilterUI = function() {
+  const container = document.getElementById('revitFiltersList');
+  if (!container) return;
+
+  // Check if REVIT_CATEGORIES and revitFilter are available
+  if (typeof REVIT_CATEGORIES === 'undefined') {
+    console.warn('⚠️ REVIT_CATEGORIES not available yet');
+    return;
+  }
+
+  if (!this.revitFilter || !this.revitFilter.enabledCategories) {
+    console.warn('⚠️ revitFilter not initialized yet');
+    return;
+  }
+
+  // Group Revit categories by group
+  const groups = {
+    structure: { title: '🏗️ Structure', categories: [] },
+    interior: { title: '🚪 Interior', categories: [] },
+    mep: { title: '⚡ MEP', categories: [] },
+    other: { title: '📦 Other', categories: [] }
+  };
+
+  REVIT_CATEGORIES.forEach(cat => {
+    const group = cat.group || 'other';
+    if (groups[group]) {
+      groups[group].categories.push(cat);
+    }
+  });
+
+  let html = '';
+
+  Object.entries(groups).forEach(([key, group]) => {
+    if (group.categories.length === 0) return;
+
+    html += `<div class="modern-ifc-category">`;
+    html += `<div class="modern-ifc-category-title">${group.title}</div>`;
+
+    group.categories.forEach(cat => {
+      const isChecked = this.revitFilter.enabledCategories.has(cat.category);
+
+      html += `
+        <label class="modern-ifc-item">
+          <input type="checkbox"
+                 class="modern-ifc-checkbox"
+                 data-category="${cat.category}"
+                 ${isChecked ? 'checked' : ''}
+                 onchange="BimViewer.toggleRevitCategory('${cat.category}')">
+          <div class="modern-ifc-color" style="background: ${cat.color};"></div>
+          <span class="modern-ifc-name">${cat.displayName}</span>
+        </label>
+      `;
+    });
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
 };
 
 // ===============================
@@ -328,19 +400,40 @@ BimViewer.flyToComment = function(commentId) {
 };
 
 // ===============================
-// INITIALIZE IFC FILTER UI ON LOAD
+// INITIALIZE FILTER UIs ON LOAD
 // ===============================
 (function() {
-  // Wait for viewer to be ready
+  let ifcInitialized = false;
+  let revitInitialized = false;
+
+  // Wait for viewer and UI to be ready
   const checkViewer = setInterval(() => {
-    if (typeof BimViewer !== 'undefined' && BimViewer.viewer && document.getElementById('ifcFiltersList')) {
-      clearInterval(checkViewer);
-      
-      // Initialize IFC filter UI
-      if (typeof BimViewer.updateIFCFilterUI === 'function') {
+    const viewerReady = typeof BimViewer !== 'undefined' && BimViewer.viewer;
+
+    // Initialize IFC filter UI
+    if (!ifcInitialized && viewerReady) {
+      const ifcContainer = document.getElementById('ifcFiltersList');
+      if (ifcContainer && typeof BimViewer.updateIFCFilterUI === 'function') {
         BimViewer.updateIFCFilterUI();
+        ifcInitialized = true;
         console.log('✅ IFC Filter UI initialized');
       }
+    }
+
+    // Initialize Revit filter UI
+    if (!revitInitialized && viewerReady && typeof REVIT_CATEGORIES !== 'undefined') {
+      const revitContainer = document.getElementById('revitFiltersList');
+      const revitFilterReady = BimViewer.revitFilter && BimViewer.revitFilter.enabledCategories;
+      if (revitContainer && revitFilterReady && typeof BimViewer.updateRevitFilterUI === 'function') {
+        BimViewer.updateRevitFilterUI();
+        revitInitialized = true;
+        console.log('✅ Revit Filter UI initialized');
+      }
+    }
+
+    // Stop checking once both are initialized
+    if (ifcInitialized && revitInitialized) {
+      clearInterval(checkViewer);
     }
   }, 200);
 })();

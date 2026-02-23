@@ -1,3 +1,12 @@
+/**
+ * GEOBIM.APP - Geospatial BIM Viewer
+ * © 2026 Christof Lorenz. All rights reserved.
+ *
+ * License: Personal and non-commercial use only.
+ * Commercial use requires written permission.
+ * Contact: info@geobim.app
+ */
+
 // ===============================
 // CESIUM BIM VIEWER - HIDE FEATURES MODULE (COMPLETE v2.2)
 // Click to hide individual BIM elements/features
@@ -191,6 +200,30 @@
     } else {
       badge.style.display = 'none';
     }
+  };
+
+  // Re-apply hidden state after style changes (e.g. IFC/Revit filter)
+  // CesiumJS applies styles lazily during the next render pass, so we also
+  // schedule a second pass via requestAnimationFrame.
+  BimViewer.reapplyHiddenFeatures = function() {
+    if (this.hiddenFeatures.features.size === 0) return;
+
+    const apply = () => {
+      this.hiddenFeatures.features.forEach((hiddenData) => {
+        try {
+          hiddenData.feature.show = false;
+        } catch (error) {
+          // Feature may have been unloaded
+        }
+      });
+    };
+
+    // Apply immediately
+    apply();
+    // Re-apply after CesiumJS processes the style in the next render pass
+    requestAnimationFrame(apply);
+
+    console.log(`🙈 Re-applied hidden state to ${this.hiddenFeatures.features.size} feature(s)`);
   };
 
   // Get current hide mode state

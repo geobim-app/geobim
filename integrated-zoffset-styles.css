@@ -1,15 +1,14 @@
 /* ===============================
    INTEGRATED Z-OFFSET CONTROLS STYLES
-   Add to your style.css or load separately
    =============================== */
 
 /* Asset Item with Z-Offset Controls */
 .modern-asset-zoffset {
   margin-top: 12px;
   padding: 12px;
-  background: rgba(142, 68, 173, 0.08);
+  background: rgba(110, 236, 216, 0.08);
   border-radius: 8px;
-  border: 1px solid rgba(142, 68, 173, 0.2);
+  border: 1px solid rgba(110, 236, 216, 0.2);
 }
 
 .zoffset-label-row {
@@ -32,7 +31,7 @@
   text-align: center;
 }
 
-/* Z-Offset Slider with Gradient (Compact -5m to +5m range) */
+/* Z-Offset Slider with Gradient (DO NOT CHANGE - functional color mapping) */
 .zoffset-slider {
   width: 100%;
   height: 6px;
@@ -42,7 +41,7 @@
   appearance: none;
   cursor: pointer;
   margin-bottom: 12px;
-  background: linear-gradient(to right, 
+  background: linear-gradient(to right,
     #f44336 0%,      /* Red at -5m */
     #ff9800 25%,     /* Orange */
     #4caf50 50%,     /* Green at 0m */
@@ -53,7 +52,7 @@
 }
 
 .zoffset-slider:hover {
-  box-shadow: 0 2px 8px rgba(142, 68, 173, 0.4);
+  box-shadow: 0 2px 8px rgba(110, 236, 216, 0.4);
 }
 
 /* Slider Thumb - WebKit */
@@ -63,7 +62,7 @@
   width: 20px;
   height: 20px;
   background: #ffffff;
-  border: 3px solid #8e44ad;
+  border: 3px solid var(--brand-teal, #6EECD8);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
@@ -72,11 +71,11 @@
 
 .zoffset-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 12px rgba(142, 68, 173, 0.8);
+  box-shadow: 0 0 12px rgba(110, 236, 216, 0.8);
 }
 
 .zoffset-slider::-webkit-slider-thumb:active {
-  background: #8e44ad;
+  background: var(--brand-teal, #6EECD8);
   transform: scale(1.3);
 }
 
@@ -85,7 +84,7 @@
   width: 20px;
   height: 20px;
   background: #ffffff;
-  border: 3px solid #8e44ad;
+  border: 3px solid var(--brand-teal, #6EECD8);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
@@ -95,11 +94,11 @@
 
 .zoffset-slider::-moz-range-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 12px rgba(142, 68, 173, 0.8);
+  box-shadow: 0 0 12px rgba(110, 236, 216, 0.8);
 }
 
 .zoffset-slider::-moz-range-thumb:active {
-  background: #8e44ad;
+  background: var(--brand-teal, #6EECD8);
   transform: scale(1.3);
 }
 
@@ -114,8 +113,8 @@
 .zoffset-input-box {
   flex: 1;
   background: rgba(0, 0, 0, 0.3);
-  color: #e2e8f0;
-  border: 1px solid rgba(142, 68, 173, 0.3);
+  color: var(--text-primary, #E2E8F0);
+  border: 1px solid rgba(110, 236, 216, 0.3);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 13px;
@@ -127,21 +126,21 @@
 }
 
 .zoffset-input-box:hover {
-  border-color: rgba(142, 68, 173, 0.5);
+  border-color: rgba(110, 236, 216, 0.5);
   background: rgba(0, 0, 0, 0.4);
 }
 
 .zoffset-input-box:focus {
-  border-color: #8e44ad;
+  border-color: var(--brand-teal, #6EECD8);
   background: rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.2);
+  box-shadow: 0 0 0 3px rgba(110, 236, 216, 0.2);
 }
 
 /* Reset Button */
 .zoffset-reset-btn {
-  background: rgba(142, 68, 173, 0.2);
-  color: #bb86fc;
-  border: 1px solid rgba(142, 68, 173, 0.3);
+  background: rgba(110, 236, 216, 0.2);
+  color: var(--brand-teal, #6EECD8);
+  border: 1px solid rgba(110, 236, 216, 0.3);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 16px;
@@ -155,21 +154,20 @@
 }
 
 .zoffset-reset-btn:hover {
-  background: rgba(142, 68, 173, 0.35);
-  border-color: rgba(142, 68, 173, 0.5);
+  background: rgba(110, 236, 216, 0.35);
+  border-color: rgba(110, 236, 216, 0.5);
   transform: rotate(180deg);
-  color: #d4b0fc;
 }
 
 .zoffset-reset-btn:active {
-  background: rgba(142, 68, 173, 0.5);
+  background: rgba(110, 236, 216, 0.5);
   transform: rotate(180deg) scale(0.95);
 }
 
 /* Asset Item Enhancement */
 .modern-asset-item {
   background: rgba(0, 0, 0, 0.3);
-  border-left: 3px solid rgba(102, 126, 234, 0.5);
+  border-left: 3px solid rgba(110, 236, 216, 0.5);
   border-radius: 8px;
   padding: 14px;
   margin-bottom: 12px;
@@ -179,7 +177,7 @@
 
 .modern-asset-item:hover {
   background: rgba(0, 0, 0, 0.4);
-  border-left-color: rgba(102, 126, 234, 0.8);
+  border-left-color: rgba(110, 236, 216, 0.8);
   transform: translateX(-3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
@@ -203,7 +201,7 @@
 .modern-asset-name {
   font-weight: 600;
   font-size: 14px;
-  color: #e2e8f0;
+  color: var(--text-primary, #E2E8F0);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -250,7 +248,7 @@
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  background: #667eea;
+  background: var(--brand-teal, #6EECD8);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -259,7 +257,7 @@
 .modern-asset-opacity .modern-slider-small::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #667eea;
+  background: var(--brand-teal, #6EECD8);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -279,21 +277,21 @@
   .zoffset-input-row {
     gap: 6px;
   }
-  
+
   .zoffset-input-box {
     padding: 6px 10px;
     font-size: 12px;
   }
-  
+
   .zoffset-reset-btn {
     padding: 6px 10px;
     min-width: 36px;
   }
-  
+
   .modern-asset-item {
     padding: 12px;
   }
-  
+
   .modern-asset-name {
     font-size: 13px;
   }
@@ -305,7 +303,7 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
   50% {
-    box-shadow: 0 2px 8px rgba(142, 68, 173, 0.6);
+    box-shadow: 0 2px 8px rgba(110, 236, 216, 0.6);
   }
 }
 
@@ -340,12 +338,12 @@
 }
 
 .modern-assets-list::-webkit-scrollbar-thumb {
-  background: rgba(142, 68, 173, 0.5);
+  background: rgba(110, 236, 216, 0.5);
   border-radius: 4px;
 }
 
 .modern-assets-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(142, 68, 173, 0.7);
+  background: rgba(110, 236, 216, 0.7);
 }
 
 /* Icon Buttons */
