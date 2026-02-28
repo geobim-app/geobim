@@ -46,7 +46,7 @@
             '<div class="splash-feature"><div class="splash-feature-icon">💬</div><span class="splash-feature-label">Comments</span></div>' +
           '</div>' +
           '<p class="splash-copyright">&copy; 2026 Christof Lorenz</p>' +
-          '<p class="splash-license">Personal &amp; non-commercial use only.</p>' +
+          '<p class="splash-license">Licensed under BSL 1.1.</p>' +
           '<p class="splash-contact">Contact: info@geobim.app</p>' +
           '<button id="enterDemoBtn" class="splash-button">Enter Demo</button>' +
           '<div class="splash-cta-section">' +
