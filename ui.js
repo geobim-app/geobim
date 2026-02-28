@@ -14,11 +14,11 @@
 // ===============================
 'use strict';
 
-// Demo asset IDs allowed in the asset selector (Cesium Ion)
-const DEMO_ASSET_IDS = new Set([
-  4476749, 4463435, 4458809, 4458784, 4456625, 4456366, 4452138, 4450806,
-  4446753, 4446752, 4446751, 4427396, 4422193, 4422185, 4422182,
-  4422180, 4422178, 4422174, 4422171
+// Valid asset IDs for the Asset Manager selector (curated from Ion account)
+const VALID_ASSET_IDS = new Set([
+  4483046, 4476749, 4458809, 4452138, 4450806,
+  4446752, 4446751, 4428272, 4427396, 4422193,
+  4422185, 4422182, 4422180, 4422178, 4422174, 4422171
 ]);
 
 const BimViewerUI = {
@@ -980,11 +980,14 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         btn.disabled = true;
         
         // Call the fetchAvailableAssets function from core.js
-        const assets = await BimViewer.fetchAvailableAssets();
-        
+        const allAssets = await BimViewer.fetchAvailableAssets();
+        const assets = allAssets.filter(asset =>
+          VALID_ASSET_IDS.has(asset.id)
+        );
+
         // Clear and populate selector
         selector.innerHTML = '<option value="">-- Select an asset --</option>';
-        
+
         assets.forEach(asset => {
           const option = document.createElement('option');
           option.value = asset.id;
@@ -1698,10 +1701,12 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       // Fetch assets from Ion account
       const allAssets = await BimViewer.fetchAvailableAssets();
 
-      // Only show allowed demo assets
-      const assets = allAssets.filter(asset => DEMO_ASSET_IDS.has(asset.id));
+      // Show all assets except terrain/imagery (Layer Manager) and OSM/Google (dedicated toggles)
+      const assets = allAssets.filter(asset =>
+        VALID_ASSET_IDS.has(asset.id)
+      );
 
-      console.log(`Loaded ${assets.length} demo assets (from ${allAssets.length} total)`);
+      console.log(`Loaded ${assets.length} assets (from ${allAssets.length} total, excluded terrain/imagery/OSM/Google)`);
 
       // Hide loading, show selector
       if (loadingEl) loadingEl.style.display = 'none';
@@ -1718,7 +1723,7 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         selector.appendChild(option);
       });
 
-      console.log(`${assets.length} demo assets available in selector`);
+      console.log(`${assets.length} assets available in selector`);
       BimViewer.updateStatus(`${assets.length} assets available`, 'success');
 
     } catch (error) {

@@ -20,14 +20,8 @@
   // =====================================
   // FIREBASE INITIALIZATION
   // =====================================
-  const firebaseApp = firebase.initializeApp({
-    apiKey: "AIzaSyAL409coGn10I8afll2aae5vuvog_qVWZA",
-    authDomain: "publictwin-ad6c7.firebaseapp.com",
-    projectId: "publictwin-ad6c7",
-    storageBucket: "publictwin-ad6c7.firebasestorage.app",
-    messagingSenderId: "151464184627",
-    appId: "1:151464184627:web:4de03973466ef510eecc46"
-  });
+  const firebaseConfig = GEOBIM_CONFIG.firebase;
+  const firebaseApp = firebase.initializeApp(firebaseConfig);
   const firebaseAuth = firebase.auth();
   const firebaseDb = firebase.firestore();
 
