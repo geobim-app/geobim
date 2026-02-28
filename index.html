@@ -39,6 +39,9 @@
   <!-- Lighting v4.0 Styles -->
   <link rel="stylesheet" href="lighting-styles.css">
 
+  <!-- Splash Screen Styles -->
+  <link rel="stylesheet" href="splash-screen.css">
+
   <!-- Comments Styles -->
   <link rel="stylesheet" href="comments-styles.css">
 
@@ -48,33 +51,7 @@
 </head>
 <body>
 
-  <!-- ============================================
-       SPLASH SCREEN (Shows first!)
-       ============================================ -->
-  <div id="splashScreen" class="splash-screen">
-    <div class="splash-content">
-      <div class="splash-hero">
-        <!-- Full logo (globe + wordmark) on the left -->
-        <img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="splash-logo-img">
-        <!-- Right side: info + button -->
-        <div class="splash-right">
-          <div class="splash-divider"></div>
-          <p class="splash-copyright">&copy; 2026 Christof Lorenz</p>
-          <p class="splash-license">Personal &amp; non-commercial use only.</p>
-          <p class="splash-contact">Contact: info@geobim.app</p>
-          <button id="enterDemoBtn" class="splash-button">Enter Demo</button>
-          <div class="splash-cta-section">
-            <p class="splash-cta">Want to use your own IFC/Revit models? <a href="mailto:info@geobim.app" class="splash-cta-link" onclick="if(typeof plausible!=='undefined')plausible('Contact Click')">Contact me</a></p>
-            <p class="splash-privacy">Privacy-friendly analytics (no cookies)</p>
-          </div>
-          <p style="font-size: 0.75rem; color: #888; margin-top: 1rem;">
-            &copy; 2026 Christof Lorenz &mdash; Licensed under BSL 1.1 &mdash; Non-commercial use, research &amp; education permitted.<br>
-            Commercial use requires written permission. <a href="mailto:info@geobim.app">info@geobim.app</a>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Splash Screen (created dynamically by splash-screen.js) -->
 
   <!-- Login screen removed - Demo mode active -->
 
@@ -191,7 +168,10 @@
        JAVASCRIPT MODULES - LOAD ORDER IS CRITICAL!
        ============================================ -->
 
-  <!-- Auth Module (FIRST!) -->
+  <!-- Splash Screen (before auth) -->
+  <script src="splash-screen.js"></script>
+
+  <!-- Auth Module -->
   <script src="auth.js"></script>
 
   <!-- Auth Gate - Email/Password login overlay (blocks app until authenticated) -->
@@ -252,29 +232,14 @@
   <script>
     // Flag to track if viewer has been initialized
     let viewerInitialized = false;
-    let splashDismissed = false;
-
-    // Splash screen handler - go directly to app (no login required)
-    document.getElementById('enterDemoBtn').addEventListener('click', function() {
-      // Track demo start with Plausible
-      if (typeof plausible !== 'undefined') {
-        plausible('Enter Demo');
-      }
-      document.getElementById('splashScreen').classList.add('hidden');
-      splashDismissed = true;
-      // Initialize auth (demo mode - no login)
-      if (typeof BimAuth !== 'undefined') {
-        BimAuth.init();
-      }
-    });
 
     window.addEventListener('load', function() {
       console.log('Page loaded, waiting for splash dismissal and authentication...');
 
       // Wait for splash dismissal and then initialize
       const initSystems = setInterval(function() {
-        // First check if splash was dismissed
-        if (!splashDismissed) {
+        // First check if splash was dismissed (set by splash-screen.js)
+        if (!window._splashDismissed) {
           return;
         }
 

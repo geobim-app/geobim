@@ -11,7 +11,7 @@
 | Demo Mode | Auto-applies demo Cesium Ion token without login. Anonymous Firestore access for shared comments. | `auth.js` |
 | Email/Password Login | Optional Firebase auth gate overlay. Persistent sessions, logout support. | `auth-gate.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
-| Splash Screen | Branded landing page with "Enter Demo" button, copyright, license, and contact info. | `index.html` |
+| Splash Screen | Branded landing page with tagline, feature highlights and "Enter Demo" button — shown once per session before login | `splash-screen.js`, `splash-screen.css` |
 | Plausible Analytics | Privacy-friendly tracking (no cookies). Events: Enter Demo, Asset Loaded, Feature Used, Contact Click. | `index.html`, various |
 
 ---

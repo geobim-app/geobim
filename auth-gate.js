@@ -56,6 +56,9 @@
     '.ag-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}';
 
   document.head.appendChild(style);
+
+  // Start hidden — splash screen shows first, auth gate appears after splash is dismissed
+  overlay.classList.add('ag-hidden');
   document.body.prepend(overlay);
 
   // =====================================
@@ -104,20 +107,32 @@
       window.BimAuth.authenticatedUser = user;
     }
 
-    // Kick off the existing app flow: dismiss splash and init
-    var enterBtn = document.getElementById('enterDemoBtn');
-    if (enterBtn && !window._authGateAppStarted) {
-      window._authGateAppStarted = true;
-      enterBtn.click();
+    // Mark auth gate as passed
+    window._authGatePassed = true;
+
+    // Initialize demo auth (sets Ion token, shows app)
+    if (typeof BimAuth !== 'undefined' && !BimAuth.initialized) {
+      BimAuth.init();
     }
   }
 
   /**
    * Called when there is no authenticated user.
-   * Shows the overlay and blocks the app.
+   * Only show login overlay after splash has been dismissed.
    */
   function onUnauthenticated() {
-    overlay.classList.remove('ag-hidden');
+    // Wait for splash to be dismissed before showing login
+    if (!window._splashDismissed) {
+      // Poll until splash is dismissed
+      var waitForSplash = setInterval(function() {
+        if (window._splashDismissed) {
+          clearInterval(waitForSplash);
+          overlay.classList.remove('ag-hidden');
+        }
+      }, 200);
+    } else {
+      overlay.classList.remove('ag-hidden');
+    }
     window._authGateAppStarted = false;
     // Reset form
     if (emailInput) emailInput.value = '';

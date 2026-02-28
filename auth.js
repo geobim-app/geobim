@@ -150,14 +150,13 @@
       firebaseAuth.signOut();
       this.clearIonToken();
       this.hideApp();
-      // Show splash screen again
-      const splash = document.getElementById('splashScreen');
-      if (splash) {
-        splash.classList.remove('hidden');
-      }
+      // Clear splash session flag so it shows again on reload
+      sessionStorage.removeItem('geoBIM_splashShown');
       this.initialized = false;
       this.currentUser = null;
-      console.log('Logged out - showing splash screen');
+      window._splashDismissed = false;
+      console.log('Logged out - reloading to show splash screen');
+      location.reload();
     }
   };
 

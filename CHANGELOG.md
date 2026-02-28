@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-01
+
+### Added
+- Splash screen as separate IIFE module (`splash-screen.js`, `splash-screen.css`)
+- New splash content: tagline "BIM x GIS = Geospatial Intelligence", description, and 4 feature icons (3D Tiles, Measure, Clipping, Comments)
+- SessionStorage-based "show once per session" logic
+- Smooth fade-out transition with DOM removal on dismiss
+
+### Changed
+- Splash screen now displays **before** Firebase auth gate (splash first, login second)
+- Auth gate starts hidden and only appears after splash is dismissed
+- Logout clears session flag and reloads page (instead of re-showing inline splash)
+- Moved inline splash HTML from `index.html` and CSS from `style.css` into dedicated files
+
 ## [1.0.0] - 2026-03-01
 
 ### Added
