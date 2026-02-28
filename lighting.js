@@ -93,30 +93,45 @@
       
       // STEP 2.5: 🔥 NEW - Enable shadows for dramatic effect
       this.viewer.scene.shadowMap.enabled = true;
-      this.viewer.scene.shadowMap.darkness = 0.4; // More visible shadows
+      this.viewer.scene.shadowMap.darkness = 0.4;
       this.viewer.scene.shadowMap.softShadows = true;
-      this.viewer.scene.shadowMap.size = 2048; // Higher quality
+      this.viewer.scene.shadowMap.size = 2048;
+      this.viewer.scene.shadowMap.normalOffset = true;
+      this.viewer.scene.shadowMap.maximumDistance = 200.0;
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
-      console.log('  ✅ Shadow system enabled (darkness: 0.4)');
+      console.log('  ✅ Shadow system enabled (size: 2048, maxDist: 200m, normalOffset: true)');
       
       // STEP 3: 🔥 CRITICAL - Reload terrain with vertex normals
       this.reloadTerrainWithLighting();
       
       // STEP 4: Set initial time if not set
       if (!this.lighting.currentTime) {
-        this.setTime('2024-06-21T14:00:00');
+        this.setTime('2024-06-21T10:00:00');
       }
-      
-      // STEP 5: Update all tilesets
+
+      // STEP 5: Increase sun intensity for dynamic lighting
+      if (typeof this.setSunIntensity === 'function') {
+        this.setSunIntensity(0.85);
+      }
+
+      // STEP 6: Update all tilesets
       setTimeout(() => {
         this.updateAssetLighting();
         this.updateAllTilesets();
         console.log('  ✅ All tilesets updated');
       }, 1000);
-      
+
+      // STEP 7: Re-apply IBL after lighting settles (ibl.js owns imageBasedLightingFactor)
+      setTimeout(() => {
+        if (typeof BimViewer.applyIBLToAll === 'function') {
+          BimViewer.applyIBLToAll();
+          console.log('  ✅ IBL re-applied after lighting enable');
+        }
+      }, 1500);
+
       console.log('🌅 Dynamic lighting ENABLED');
       console.log(`   🌑 Shadows: ENABLED`);
-      
+
       this.updateStatus('Dynamic lighting enabled with shadows', 'success');
       
       return true;
@@ -135,7 +150,12 @@
       this.viewer.scene.shadowMap.enabled = false;
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.DISABLED;
       console.log('  ✅ Shadows disabled');
-      
+
+      // Restore default sun intensity
+      if (typeof this.setSunIntensity === 'function') {
+        this.setSunIntensity(0.75);
+      }
+
       // Reset tilesets to bright mode
       this.loadedAssets?.forEach((asset) => {
         if (asset.tileset) {
@@ -151,6 +171,14 @@
         }
       }
       
+      // Re-apply IBL so ibl.js restores its imageBasedLightingFactor values
+      setTimeout(() => {
+        if (typeof BimViewer.applyIBLToAll === 'function') {
+          BimViewer.applyIBLToAll();
+          console.log('  ✅ IBL re-applied after lighting disable');
+        }
+      }, 500);
+
       console.log('🌑 Dynamic lighting DISABLED');
       this.updateStatus('Dynamic lighting disabled', 'success');
       
@@ -225,7 +253,7 @@
       'dawn': '2024-06-21T06:00:00',
       'morning': '2024-06-21T09:00:00',
       'noon': '2024-06-21T12:00:00',
-      'afternoon': '2024-06-21T15:00:00',
+      'afternoon': '2024-06-21T13:00:00',
       'sunset': '2024-06-21T18:00:00',
       'dusk': '2024-06-21T19:30:00',
       'night': '2024-06-21T23:00:00',
@@ -272,67 +300,22 @@
       
       // Try to apply settings
       try {
+        // NOTE: imageBasedLightingFactor is owned by ibl.js — lighting.js only manages shadows
         switch(mode) {
           case 'realistic':
-            // DRAMATIC: Disable IBL completely for pure sun lighting
-            tileset.imageBasedLighting.enabled = false;
-            
-            // Enable shadows for dramatic effect (if supported)
-            if (tileset.shadows !== undefined) {
-              tileset.shadows = Cesium.ShadowMode.ENABLED;
-            }
-            
-            console.log(`  🌙 Applied REALISTIC mode (IBL OFF, Shadows ON)`);
-            break;
-            
           case 'soft':
-            // Subtle ambient with low luminance
-            tileset.imageBasedLighting.enabled = true;
-            tileset.imageBasedLighting.luminanceAtZenith = 0.02; // More dramatic (was 0.05)
-            
-            // Add specular environment if available
-            if (tileset.imageBasedLighting.specularEnvironmentMaps !== undefined) {
-              try {
-                tileset.imageBasedLighting.specularEnvironmentMaps = new Cesium.Resource({
-                  url: 'https://cesium.com/downloads/cesiumjs/releases/1.134/Build/Cesium/Assets/IAM/EnvironmentMap/EnvironmentMap.ktx2'
-                });
-              } catch (e) {
-                // Ignore if can't set
-              }
-            }
-            
-            // Enable shadows
-            if (tileset.shadows !== undefined) {
-              tileset.shadows = Cesium.ShadowMode.ENABLED;
-            }
-            
-            console.log(`  🌆 Applied SOFT mode (luminance: 0.02, Shadows ON)`);
-            break;
-            
           case 'balanced':
-            // Balanced ambient lighting
-            tileset.imageBasedLighting.enabled = true;
-            tileset.imageBasedLighting.luminanceAtZenith = 0.1; // More dramatic (was 0.15)
-            
-            // Enable shadows
             if (tileset.shadows !== undefined) {
               tileset.shadows = Cesium.ShadowMode.ENABLED;
             }
-            
-            console.log(`  🌃 Applied BALANCED mode (luminance: 0.1, Shadows ON)`);
+            console.log(`  🌙 Applied ${mode} mode (Shadows ON)`);
             break;
-            
+
           case 'bright':
-            // Full ambient for no lighting effect
-            tileset.imageBasedLighting.enabled = true;
-            tileset.imageBasedLighting.luminanceAtZenith = 0.8; // Much brighter (was 0.5)
-            
-            // Disable shadows for bright mode
             if (tileset.shadows !== undefined) {
               tileset.shadows = Cesium.ShadowMode.DISABLED;
             }
-            
-            console.log(`  💡 Applied BRIGHT mode (luminance: 0.8, Shadows OFF)`);
+            console.log(`  💡 Applied BRIGHT mode (Shadows OFF)`);
             break;
         }
         

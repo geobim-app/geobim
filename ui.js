@@ -16,7 +16,7 @@
 
 // Demo asset IDs allowed in the asset selector (Cesium Ion)
 const DEMO_ASSET_IDS = new Set([
-  4463435, 4458809, 4458784, 4456625, 4456366, 4452138, 4450806,
+  4476749, 4463435, 4458809, 4458784, 4456625, 4456366, 4452138, 4450806,
   4446753, 4446752, 4446751, 4427396, 4422193, 4422185, 4422182,
   4422180, 4422178, 4422174, 4422171
 ]);
@@ -141,6 +141,32 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       <div class="modern-group">
         <div class="modern-label">Basemap</div>
         <div id="basemapList" class="layer-basemap-list">
+        </div>
+      </div>
+
+      <div class="modern-divider">
+        <span class="modern-divider-text">3D Layers</span>
+      </div>
+
+      <div class="modern-group">
+        <button id="toggleOSMBuildings" class="modern-toggle-btn active">
+          <span class="modern-btn-icon">🏙️</span>
+          <span>OSM Buildings</span>
+        </button>
+        <button id="toggleGoogle3DTiles" class="modern-toggle-btn">
+          <span class="modern-btn-icon">🌍</span>
+          <span>Google 3D Tiles</span>
+        </button>
+        <div id="googleTilesQualityRow" class="modern-btn-group-3" style="margin-top: 6px; display: none;">
+          <button class="modern-btn modern-btn-small google-tiles-preset-btn active" data-preset="performance" onclick="BimViewer.setGoogleTilesQuality('performance')">
+            <span>Speed</span>
+          </button>
+          <button class="modern-btn modern-btn-small google-tiles-preset-btn" data-preset="balanced" onclick="BimViewer.setGoogleTilesQuality('balanced')">
+            <span>Balanced</span>
+          </button>
+          <button class="modern-btn modern-btn-small google-tiles-preset-btn" data-preset="quality" onclick="BimViewer.setGoogleTilesQuality('quality')">
+            <span>Quality</span>
+          </button>
         </div>
       </div>
 
@@ -617,40 +643,50 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
 
     try {
       const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.cesium.GOOGLE_3D_TILES_ASSET_ID, {
-        maximumScreenSpaceError: 8,
-        // FIX: tile seam artifact reduction — lower memory cap prevents tile eviction causing gaps
-        maximumMemoryUsage: 512,
-        // FIX: tile seam artifact reduction — skipLevelOfDetail causes black cracks between tiles
-        skipLevelOfDetail: false,
-        // FIX: tile seam artifact reduction — restored to default (needed when skipLOD=false)
+        maximumScreenSpaceError: 16,
+        skipLevelOfDetail: true,
         baseScreenSpaceError: 1024,
-        skipScreenSpaceErrorFactor: 12,
+        skipScreenSpaceErrorFactor: 16,
         skipLevels: 1,
-        immediatelyLoadDesiredLevelOfDetail: true,
-        loadSiblings: false,
+        immediatelyLoadDesiredLevelOfDetail: false,
+        loadSiblings: true,
         cullWithChildrenBounds: true,
         cullRequestsWhileMoving: true,
-        cullRequestsWhileMovingMultiplier: 8,
+        cullRequestsWhileMovingMultiplier: 60,
         preloadWhenHidden: true,
         preloadFlightDestinations: true,
-        // FIX: tile seam artifact reduction — prioritize fully loaded leaf tiles
-        preferLeaves: true,
-        // FIX: tile seam artifact reduction — prevent interior geometry gaps
-        backFaceCulling: false,
+        preferLeaves: false,
+        backFaceCulling: true,
+        maximumMemoryUsage: 4096,
         dynamicScreenSpaceError: true,
         dynamicScreenSpaceErrorDensity: 0.00028,
         dynamicScreenSpaceErrorFactor: 4.0,
         dynamicScreenSpaceErrorHeightFalloff: 0.25,
         foveatedScreenSpaceError: true,
-        foveatedConeSize: 0.2,
+        foveatedConeSize: 0.1,
         foveatedMinimumScreenSpaceErrorRelaxation: 0,
         foveatedInterpolationCallback: Cesium.Math.lerp,
-        foveatedTimeDelay: 0.2
+        foveatedTimeDelay: 0.2,
+        cacheBytes: 2147483648,
+        maximumCacheOverflowBytes: 536870912
       });
 
       tileset.splitDirection = Cesium.SplitDirection.LEFT;
       BimViewer.viewer.scene.primitives.add(tileset);
       BimViewer.enableTilesetLighting(tileset);
+
+      // Apply active preset to left copy
+      const preset = BimViewer.googleTilesPresets[BimViewer.googleTiles.activePreset];
+      if (preset) {
+        tileset.maximumScreenSpaceError = preset.maximumScreenSpaceError;
+        tileset.skipLevelOfDetail = preset.skipLevelOfDetail;
+        tileset.maximumMemoryUsage = preset.maximumMemoryUsage;
+        tileset.backFaceCulling = preset.backFaceCulling;
+        tileset.preferLeaves = preset.preferLeaves;
+        tileset.cullRequestsWhileMovingMultiplier = preset.cullRequestsWhileMovingMultiplier;
+        tileset.foveatedConeSize = preset.foveatedConeSize;
+      }
+
       BimViewer.googleTiles.leftTileset = tileset;
       console.log('✅ Google 3D Tiles LEFT copy created (unclipped)');
     } catch (error) {
@@ -746,18 +782,6 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
           <option value="QUALITY">💎 Quality</option>
           <option value="ULTRA">🌟 Ultra</option>
         </select>
-      </div>
-
-      <div class="modern-group">
-        <div class="modern-label">Base Layers</div>
-        <button id="toggleOSMBuildings" class="modern-toggle-btn active">
-          <span class="modern-btn-icon">🏙️</span>
-          <span>OSM Buildings</span>
-        </button>
-        <button id="toggleGoogle3DTiles" class="modern-toggle-btn">
-          <span class="modern-btn-icon">🌍</span>
-          <span>Google 3D Tiles</span>
-        </button>
       </div>
 
       <div class="modern-group">
@@ -864,6 +888,10 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         <button id="toggleIBL" class="modern-toggle-btn active">
           <span class="modern-btn-icon">🌅</span>
           <span>IBL Enabled</span>
+        </button>
+        <button id="toggleIBLMode" class="modern-toggle-btn" onclick="BimViewer.setIBLMode(BimViewer.ibl.mode === 'dynamic' ? 'static' : 'dynamic')">
+          <span class="modern-btn-icon">🔄</span>
+          <span>Dynamic</span>
         </button>
 
         <div id="iblControls" style="margin-top: 8px;">
@@ -1142,6 +1170,12 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       BimViewer.toggleGoogle3DTiles();
       e.target.classList.toggle('active');
 
+      // Show/hide quality preset row
+      const qualityRow = document.getElementById('googleTilesQualityRow');
+      if (qualityRow) {
+        qualityRow.style.display = BimViewer.googleTiles.enabled ? 'grid' : 'none';
+      }
+
       // Track Google 3D Tiles usage with Plausible
       if (typeof plausible !== 'undefined' && e.target.classList.contains('active')) {
         plausible('Feature Used', { props: { feature: 'Google 3D Tiles' } });
@@ -1417,6 +1451,13 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       }
       if (iblControls) {
         iblControls.style.display = BimViewer.ibl.enabled ? 'block' : 'none';
+      }
+      // Restore mode button state
+      const modeBtn = document.getElementById('toggleIBLMode');
+      if (modeBtn) {
+        const modeLabel = modeBtn.querySelector('span:last-child');
+        if (modeLabel) modeLabel.textContent = BimViewer.ibl.mode === 'static' ? 'Static KTX2' : 'Dynamic';
+        modeBtn.classList.toggle('active', BimViewer.ibl.mode === 'static');
       }
       const diffSlider = document.getElementById('iblDiffuseSlider');
       const specSlider = document.getElementById('iblSpecularSlider');

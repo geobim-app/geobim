@@ -57,9 +57,11 @@ const CONFIG = {
         cullRequestsWhileMoving: true,
         preloadWhenHidden: false,
         preloadFlightDestinations: false,
-        dynamicScreenSpaceError: false
+        dynamicScreenSpaceError: false,
+        shadowMaxDistance: 150.0,
+        shadowBias: 0.005
       },
-      
+
       BALANCED: {
         name: 'Balanced',
         screenSpaceError: 3,
@@ -77,9 +79,11 @@ const CONFIG = {
         cullRequestsWhileMoving: false,
         preloadWhenHidden: true,
         preloadFlightDestinations: false,
-        dynamicScreenSpaceError: true
+        dynamicScreenSpaceError: true,
+        shadowMaxDistance: 300.0,
+        shadowBias: 0.003
       },
-      
+
       QUALITY: {
         name: 'Quality',
         screenSpaceError: 1.5,
@@ -97,9 +101,18 @@ const CONFIG = {
         cullRequestsWhileMoving: false,
         preloadWhenHidden: true,
         preloadFlightDestinations: true,
-        dynamicScreenSpaceError: true
+        dynamicScreenSpaceError: true,
+        ssaoIntensity: 8.8,
+        ssaoBias: 0.26,
+        ssaoLengthCap: 0.07,
+        ssaoDirections: 16,
+        ssaoStepSize: 2.0,
+        ssaoFrustumLength: 1000.0,
+        ssaoBlurStepSize: 0.86,
+        shadowMaxDistance: 500.0,
+        shadowBias: 0.002
       },
-      
+
       ULTRA: {
         name: 'Ultra',
         screenSpaceError: 1.0,
@@ -120,7 +133,16 @@ const CONFIG = {
         dynamicScreenSpaceError: true,
         dynamicScreenSpaceErrorDensity: 0.00278,
         dynamicScreenSpaceErrorFactor: 4.0,
-        dynamicScreenSpaceErrorHeightFalloff: 0.25
+        dynamicScreenSpaceErrorHeightFalloff: 0.25,
+        ssaoIntensity: 8.8,
+        ssaoBias: 0.24,
+        ssaoLengthCap: 0.07,
+        ssaoDirections: 16,
+        ssaoStepSize: 2.0,
+        ssaoFrustumLength: 1000.0,
+        ssaoBlurStepSize: 0.72,
+        shadowMaxDistance: 400.0,
+        shadowBias: 0.001
       }
     }
   }
@@ -284,7 +306,43 @@ const BimViewer = {
     enabled: false,
     isLoading: false,
     savedBasemapId: null,       // stores basemap ID before Google Tiles removes imagery
-    savedTerrainProvider: null  // stores terrain provider before swap to ellipsoid
+    savedTerrainProvider: null, // stores terrain provider before swap to ellipsoid
+    activePreset: 'performance' // current quality preset: performance | balanced | quality
+  },
+
+  // Google 3D Tiles quality presets
+  // Each setting is tuned to balance loading speed vs. tile seam artifacts
+  googleTilesPresets: {
+    performance: {
+      name: 'Performance',
+      maximumScreenSpaceError: 16,
+      skipLevelOfDetail: true,
+      maximumMemoryUsage: 4096,
+      backFaceCulling: true,
+      preferLeaves: false,
+      cullRequestsWhileMovingMultiplier: 60,
+      foveatedConeSize: 0.1
+    },
+    balanced: {
+      name: 'Balanced',
+      maximumScreenSpaceError: 12,
+      skipLevelOfDetail: true,
+      maximumMemoryUsage: 4096,
+      backFaceCulling: false,
+      preferLeaves: false,
+      cullRequestsWhileMovingMultiplier: 30,
+      foveatedConeSize: 0.2
+    },
+    quality: {
+      name: 'Quality',
+      maximumScreenSpaceError: 8,
+      skipLevelOfDetail: false,
+      maximumMemoryUsage: 2048,
+      backFaceCulling: false,
+      preferLeaves: true,
+      cullRequestsWhileMovingMultiplier: 10,
+      foveatedConeSize: 0.3
+    }
   },
   
   osmBuildings: {
@@ -436,6 +494,41 @@ const BimViewer = {
       const scene = this.viewer.scene;
 
       scene.postProcessStages.tonemapper = Cesium.Tonemapper.PBR_NEUTRAL;
+
+      // Pre-load SSAO with optimized BIM defaults (Quality preset values)
+      const ao = scene.postProcessStages.ambientOcclusion;
+      if (ao) {
+        ao.uniforms.intensity = 8.8;
+        ao.uniforms.bias = 0.26;
+        ao.uniforms.lengthCap = 0.07;
+        ao.uniforms.directions = 16;
+        ao.uniforms.stepSize = 2.0;
+        ao.uniforms.frustumLength = 1000.0;
+        ao.uniforms.blurStepSize = 0.86;
+      }
+
+      // Reduce sun intensity to prevent overexposed white BIM surfaces
+      scene.light = new Cesium.SunLight({
+        intensity: 0.75
+      });
+      console.log('✅ Sun intensity set to 0.75 (reduced from default 1.0)');
+
+      // Shadow quality defaults
+      scene.shadowMap.normalOffset = true;
+      scene.shadowMap.softShadows = true;
+      scene.shadowMap.maximumDistance = 200.0;
+      console.log('✅ Shadow quality configured (normalOffset, softShadows, maxDist: 200m)');
+
+      // Helper to adjust sun intensity (called by lighting.js)
+      this.setSunIntensity = function(intensity) {
+        if (scene.light instanceof Cesium.SunLight) {
+          scene.light.intensity = intensity;
+        } else {
+          scene.light = new Cesium.SunLight({ intensity: intensity });
+        }
+        console.log('☀️ Sun intensity set to', intensity);
+      };
+
       scene.globe.show = true;
       scene.globe.enableLighting = true;
       scene.globe.depthTestAgainstTerrain = true;
@@ -463,6 +556,9 @@ const BimViewer = {
       if (typeof this.initIBL === 'function') {
         this.initIBL();
       }
+
+      // Set initial performance settings reference (PERFORMANCE preset is default)
+      this._currentPerformanceSettings = CONFIG.performance.presets.PERFORMANCE;
 
       console.log('✅ BIM Viewer initialized successfully');
       this.updateStatus('BIM Viewer ready', 'success');
@@ -499,54 +595,79 @@ const BimViewer = {
         this.updateStatus('Loading Google 3D Tiles...', 'loading');
         
         const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(CONFIG.cesium.GOOGLE_3D_TILES_ASSET_ID, {
-          maximumScreenSpaceError: 8,
-          // FIX: tile seam artifact reduction — lower memory cap prevents tile eviction causing gaps
-          maximumMemoryUsage: 512,
-          // FIX: tile seam artifact reduction — skipLevelOfDetail causes black cracks between tiles
-          skipLevelOfDetail: false,
-          // FIX: tile seam artifact reduction — restored to default (needed when skipLOD=false)
+          maximumScreenSpaceError: 16,
+          skipLevelOfDetail: true,
           baseScreenSpaceError: 1024,
-          skipScreenSpaceErrorFactor: 12,
+          skipScreenSpaceErrorFactor: 16,
           skipLevels: 1,
-          immediatelyLoadDesiredLevelOfDetail: true,
-          loadSiblings: false,
+          immediatelyLoadDesiredLevelOfDetail: false,
+          loadSiblings: true,
           cullWithChildrenBounds: true,
           cullRequestsWhileMoving: true,
-          cullRequestsWhileMovingMultiplier: 8,
+          cullRequestsWhileMovingMultiplier: 60,
           preloadWhenHidden: true,
           preloadFlightDestinations: true,
-          // FIX: tile seam artifact reduction — prioritize fully loaded leaf tiles
-          preferLeaves: true,
-          // FIX: tile seam artifact reduction — prevent interior geometry gaps
-          backFaceCulling: false,
+          preferLeaves: false,
+          backFaceCulling: true,
+          maximumMemoryUsage: 4096,
           dynamicScreenSpaceError: true,
           dynamicScreenSpaceErrorDensity: 0.00028,
           dynamicScreenSpaceErrorFactor: 4.0,
           dynamicScreenSpaceErrorHeightFalloff: 0.25,
           foveatedScreenSpaceError: true,
-          foveatedConeSize: 0.2,
+          foveatedConeSize: 0.1,
           foveatedMinimumScreenSpaceErrorRelaxation: 0,
           foveatedInterpolationCallback: Cesium.Math.lerp,
-          foveatedTimeDelay: 0.2
+          foveatedTimeDelay: 0.2,
+          cacheBytes: 2147483648,
+          maximumCacheOverflowBytes: 536870912
         });
         this.viewer.scene.primitives.add(tileset);
         this.enableTilesetLighting(tileset);
 
-        // Disable shadows on Google tiles for performance (user can toggle globally)
+        // Disable shadows on Google tiles for performance
         tileset.shadows = Cesium.ShadowMode.DISABLED;
 
-        // Scene-level optimizations for Google 3D Tiles streaming
+        // Scene-level seam-fix settings
         const scene = this.viewer.scene;
         scene.globe.tileCacheSize = 1000;
-        // FIX: tile seam artifact reduction — fog accentuates tile boundary visibility
+        // Seam-fix: fog accentuates tile boundary visibility
         scene.fog.enabled = false;
-        // FIX: tile seam artifact reduction — preload ancestors/siblings to fill gaps
+        // Seam-fix: preload surrounding tiles to fill gaps at edges
         scene.globe.preloadAncestors = true;
         scene.globe.preloadSiblings = true;
+        // Seam-fix: disable render throttling so tiles refine without delay
+        scene.maximumRenderTimeChange = Infinity;
+
+        // Fix environmentMapManager position — must be set to a real world coordinate
+        const self = this;
+        const emm = tileset.environmentMapManager;
+        if (emm) {
+          // Use camera position as the env map sampling point
+          emm.position = this.viewer.camera.positionWC.clone();
+          emm.enabled = true;
+          console.log('✅ [EnvMap] position set to camera:', emm.position);
+
+          // Keep envMap position synced with camera on each render
+          this.viewer.scene.postRender.addEventListener(() => {
+            if (self.googleTiles.enabled && self.googleTiles.tileset) {
+              const em = self.googleTiles.tileset.environmentMapManager;
+              if (em && em.enabled) {
+                em.position = self.viewer.camera.positionWC;
+              }
+            }
+          });
+          this.viewer.scene.requestRender();
+        }
 
         this.googleTiles.tileset = tileset;
         this.googleTiles.enabled = true;
         this.googleTiles.isLoading = false;
+
+        // Apply IBL settings to Google Tiles
+        if (this.ibl && typeof this.applyIBLToTileset === 'function') {
+          this.applyIBLToTileset(tileset);
+        }
 
         // Hide globe completely — Google 3D Tiles replace terrain
         this.viewer.scene.globe.show = false;
@@ -654,6 +775,56 @@ const BimViewer = {
     }
   },
 
+  // Switch Google 3D Tiles quality preset at runtime
+  setGoogleTilesQuality(preset) {
+    const config = this.googleTilesPresets[preset];
+    if (!config) {
+      console.error('Unknown Google Tiles preset:', preset);
+      return;
+    }
+
+    this.googleTiles.activePreset = preset;
+
+    // Apply to main tileset
+    const tileset = this.googleTiles.tileset;
+    if (tileset) {
+      tileset.maximumScreenSpaceError = config.maximumScreenSpaceError;
+      tileset.skipLevelOfDetail = config.skipLevelOfDetail;
+      tileset.maximumMemoryUsage = config.maximumMemoryUsage;
+      tileset.backFaceCulling = config.backFaceCulling;
+      tileset.preferLeaves = config.preferLeaves;
+      tileset.cullRequestsWhileMovingMultiplier = config.cullRequestsWhileMovingMultiplier;
+      tileset.foveatedConeSize = config.foveatedConeSize;
+    }
+
+    // Apply to left split copy if it exists
+    const leftTileset = this.googleTiles.leftTileset;
+    if (leftTileset) {
+      leftTileset.maximumScreenSpaceError = config.maximumScreenSpaceError;
+      leftTileset.skipLevelOfDetail = config.skipLevelOfDetail;
+      leftTileset.maximumMemoryUsage = config.maximumMemoryUsage;
+      leftTileset.backFaceCulling = config.backFaceCulling;
+      leftTileset.preferLeaves = config.preferLeaves;
+      leftTileset.cullRequestsWhileMovingMultiplier = config.cullRequestsWhileMovingMultiplier;
+      leftTileset.foveatedConeSize = config.foveatedConeSize;
+    }
+
+    // Scene-level settings that reduce seam visibility
+    const scene = this.viewer.scene;
+    scene.fog.enabled = false;
+    scene.globe.preloadAncestors = true;
+    scene.globe.preloadSiblings = true;
+    scene.maximumRenderTimeChange = Infinity;
+
+    // Update UI button state
+    document.querySelectorAll('.google-tiles-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === preset);
+    });
+
+    console.log(`🌍 Google 3D Tiles quality: ${config.name}`);
+    this.updateStatus(`Google 3D Tiles: ${config.name}`, 'success');
+  },
+
   async toggleOSMBuildings() {
     if (this.osmBuildings.isLoading) return;
 
@@ -745,7 +916,12 @@ const BimViewer = {
 
       this.viewer.scene.primitives.add(tileset);
       this.enableTilesetLighting(tileset);
-      
+
+      // Apply current performance preset to newly loaded tileset
+      if (this._currentPerformanceSettings) {
+        this.applySettingsToTileset(tileset, this._currentPerformanceSettings);
+      }
+
       const assetData = {
         id: assetId,
         name: assetName || `Asset ${assetId}`,
@@ -772,6 +948,11 @@ const BimViewer = {
       if (!this.firstAssetLoaded) {
         this.firstAssetLoaded = true;
         await this.viewer.flyTo(tileset, { duration: 1.0 });
+      }
+
+      // Re-apply IBL after flyTo — bounding sphere is now populated with correct position
+      if (this.ibl && typeof this.applyIBLToTileset === 'function') {
+        this.applyIBLToTileset(tileset);
       }
 
       // Poll for tile content (readyPromise is deprecated in CesiumJS 1.134)
@@ -891,8 +1072,14 @@ const BimViewer = {
       tileset.colorBlendMode = Cesium.Cesium3DTileColorBlendMode.REPLACE;
       this.viewer.scene.primitives.add(tileset);
       this.enableTilesetLighting(tileset);
+
+      // Apply current performance preset to newly loaded tileset
+      if (this._currentPerformanceSettings) {
+        this.applySettingsToTileset(tileset, this._currentPerformanceSettings);
+      }
+
       // Note: tileset from ITwinData.createTilesetFromIModelId() is already ready - no readyPromise needed
-      
+
       const assetData = {
         id: assetKey,
         name: modelName || `🏗️ iTwin Model`,
@@ -1035,6 +1222,42 @@ const BimViewer = {
     });
   },
 
+  applySettingsToTileset(tileset, settings) {
+    if (!tileset || tileset.isDestroyed()) return;
+
+    // Detect Google 3D Tiles — skipLevelOfDetail must stay false to avoid
+    // visual artifacts (black cracks/lines between tile boundaries)
+    const isGoogle = this.googleTiles &&
+      (tileset === this.googleTiles.tileset || tileset === this.googleTiles.leftTileset);
+
+    try {
+      if (settings.screenSpaceError !== undefined)
+        tileset.maximumScreenSpaceError = settings.screenSpaceError;
+      if (settings.memoryUsage !== undefined)
+        tileset.maximumCacheSize = settings.memoryUsage;
+      if (settings.cullRequestsWhileMoving !== undefined)
+        tileset.cullRequestsWhileMoving = settings.cullRequestsWhileMoving;
+      if (settings.preloadWhenHidden !== undefined)
+        tileset.preloadWhenHidden = settings.preloadWhenHidden;
+      if (settings.preloadFlightDestinations !== undefined)
+        tileset.preloadFlightDestinations = settings.preloadFlightDestinations;
+      if (settings.dynamicScreenSpaceError !== undefined)
+        tileset.dynamicScreenSpaceError = settings.dynamicScreenSpaceError;
+
+      // skipLevelOfDetail: NEVER set to true for Google 3D Tiles
+      // (causes black cracks/lines between tile boundaries — known CesiumJS artifact)
+      if (settings.skipLevelOfDetail !== undefined && !isGoogle) {
+        tileset.skipLevelOfDetail = settings.skipLevelOfDetail;
+      }
+
+      if (isGoogle) {
+        console.log('ℹ️ Google 3D Tiles: skipLevelOfDetail protected (stays false)');
+      }
+    } catch (e) {
+      // Read-only tileset — skip silently
+    }
+  },
+
   applyPerformanceSettings(settings) {
     const scene = this.viewer.scene;
     scene.postProcessStages.fxaa.enabled = settings.enableFXAA;
@@ -1043,11 +1266,33 @@ const BimViewer = {
     scene.globe.enableLighting = settings.enableLighting;
     scene.skyAtmosphere.show = settings.enableAtmosphere;
     scene.shadowMap.enabled = settings.enableShadows;
+    if (settings.shadowMaxDistance) {
+      scene.shadowMap.maximumDistance = settings.shadowMaxDistance;
+    }
+    if (settings.enableShadows) {
+      scene.shadowMap.normalOffset = true;
+      scene.shadowMap.softShadows = true;
+      scene.shadowMap.bias = settings.shadowBias || 0.001;
+    }
+
+    // Re-apply IBL after performance settings change
+    if (typeof BimViewer.applyIBLToAll === 'function') {
+      setTimeout(() => BimViewer.applyIBLToAll(), 100);
+    }
 
     // Ambient Occlusion
     const ao = scene.postProcessStages.ambientOcclusion;
     if (ao) {
       ao.enabled = !!settings.enableSSAO;
+      if (ao.enabled && settings.ssaoIntensity !== undefined) {
+        ao.uniforms.intensity = settings.ssaoIntensity;
+        ao.uniforms.bias = settings.ssaoBias;
+        ao.uniforms.lengthCap = settings.ssaoLengthCap;
+        ao.uniforms.directions = settings.ssaoDirections;
+        ao.uniforms.stepSize = settings.ssaoStepSize;
+        ao.uniforms.frustumLength = settings.ssaoFrustumLength;
+        ao.uniforms.blurStepSize = settings.ssaoBlurStepSize;
+      }
       // Update UI toggle state
       const aoBtn = document.getElementById('toggleAO');
       const aoControls = document.getElementById('aoControls');
@@ -1061,6 +1306,32 @@ const BimViewer = {
         aoControls.style.display = ao.enabled ? 'block' : 'none';
       }
     }
+
+    // Apply tileset-level settings to all currently loaded tilesets
+    if (this.loadedAssets) {
+      this.loadedAssets.forEach((asset) => {
+        if (asset.tileset) this.applySettingsToTileset(asset.tileset, settings);
+      });
+    }
+
+    // Apply to all scene primitives (Google 3D Tiles, OSM Buildings, etc.)
+    const primitives = scene.primitives;
+    for (let i = 0; i < primitives.length; i++) {
+      const prim = primitives.get(i);
+      if (prim instanceof Cesium.Cesium3DTileset) {
+        this.applySettingsToTileset(prim, settings);
+      }
+    }
+
+    // Store current settings so newly loaded tilesets can be configured on load
+    this._currentPerformanceSettings = settings;
+
+    console.log('✅ Tileset-level settings applied to all primitives:', {
+      screenSpaceError: settings.screenSpaceError,
+      skipLevelOfDetail: settings.skipLevelOfDetail,
+      dynamicScreenSpaceError: settings.dynamicScreenSpaceError,
+      memoryUsage: settings.memoryUsage
+    });
   },
 
   toggleGlobeTransparency() {

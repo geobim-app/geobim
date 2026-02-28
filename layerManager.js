@@ -130,6 +130,11 @@
 
       try {
         const provider = await target.providerFactory();
+        // Guard: if Google 3D Tiles activated while provider was loading, don't add imagery
+        if (BimViewer.googleTiles && BimViewer.googleTiles.enabled) {
+          console.log('Basemap load skipped — Google 3D Tiles active');
+          return;
+        }
         // Add at index 0 (bottom of imagery stack)
         target.layer = this.viewer.imageryLayers.addImageryProvider(provider, 0);
         target.active = true;

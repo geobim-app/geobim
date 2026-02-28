@@ -169,20 +169,20 @@
     
     this.clipping.polygons.push(polygon);
     
-    // Create visual polygon entity
+    // Create visual polygon entity — NO classification (causes flicker on streaming 3D tiles)
+    // Uses perPositionHeight to render as independent 3D geometry above the surface
     const polygonEntity = this.viewer.entities.add({
-      id: `clipping_polygon_${polygon.id}`, // ID for easy reference
+      id: `clipping_polygon_${polygon.id}`,
       polygon: {
         hierarchy: new Cesium.PolygonHierarchy(polygon.points),
         material: Cesium.Color.CYAN.withAlpha(0.3),
         outline: true,
         outlineColor: Cesium.Color.CYAN,
         outlineWidth: 3,
-        perPositionHeight: true, // Follow the points exactly (terrain-fitted)
-        classificationType: Cesium.ClassificationType.BOTH
+        perPositionHeight: true
       }
     });
-    
+
     this.clipping.entities.push(polygonEntity);
     
     // Apply clipping
@@ -580,7 +580,7 @@
     
     if (this.googleTiles.tileset && this.googleTiles.enabled && !this.clipping.terrainOnly) count++;
     if (this.osmBuildings.tileset && this.osmBuildings.enabled && !this.clipping.terrainOnly) count++;
-    if (this.viewer.scene.globe) count++;
+    if (this.viewer.scene.globe && !this.googleTiles.enabled && !this.splitMode) count++;
     
     return count;
   };
@@ -785,7 +785,7 @@
     
     // Remove last polygon
     this.clipping.polygons.pop();
-    
+
     // Remove last entity
     const lastEntity = this.clipping.entities.pop();
     if (lastEntity) {
@@ -817,7 +817,7 @@
     
     // Remove polygon
     this.clipping.polygons.splice(index, 1);
-    
+
     // Remove entity
     const entity = this.clipping.entities[index];
     if (entity) {
