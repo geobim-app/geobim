@@ -1,10 +1,5 @@
-# Backups & Archives
 *.zip
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Editor
 .vscode/
 *.log
