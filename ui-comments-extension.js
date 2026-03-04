@@ -29,15 +29,22 @@
   BimViewerUI.getCommentsContent = function() {
     return `
       <div class="modern-group">
-        <div class="modern-label">Annotation Type</div>
-        <div class="modern-btn-group">
-          <button id="annotationTypePoint" class="modern-btn modern-btn-small active" onclick="BimViewer.setAnnotationType('point')" title="Click to place a comment marker">
-            <span class="modern-btn-icon">💬</span>
-            <span>Point</span>
+        <div class="modern-label">Type</div>
+        <div class="modern-btn-group annotation-type-grid">
+          <button id="annotationTypePoint" class="modern-btn modern-btn-icon-only active" onclick="BimViewer.setAnnotationType('point')" title="Point — right-click to place">
+            📍
           </button>
-          <button id="annotationTypeArea" class="modern-btn modern-btn-small" onclick="BimViewer.setAnnotationType('area')" title="Draw polygon to mark an area">
-            <span class="modern-btn-icon">📐</span>
-            <span>Area</span>
+          <button id="annotationTypeCircle" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('circle')" title="Circle — right-click center, then radius">
+            ⭕
+          </button>
+          <button id="annotationTypePolyline" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('polyline')" title="Polyline — right-click 2+ points, ENTER to finish">
+            〰️
+          </button>
+          <button id="annotationTypeRectangle" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('rectangle')" title="Rectangle — right-click 2 opposite corners">
+            ▭
+          </button>
+          <button id="annotationTypeArea" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('area')" title="Area — right-click 3+ points, ENTER to finish">
+            ⬡
           </button>
         </div>
       </div>
@@ -69,19 +76,20 @@
       </div>
       
       <div class="modern-hint">
-        <strong>💬 Point:</strong> RIGHT-CLICK once → Dialog opens<br>
-        <strong>📐 Area:</strong> RIGHT-CLICK 3+ times → ENTER to finish<br>
-        <strong>✅ LEFT-CLICK stays free</strong> for element info!<br>
-        <br>
+        <strong>📍 Point:</strong> RIGHT-CLICK once<br>
+        <strong>⭕ Circle:</strong> RIGHT-CLICK center, then edge<br>
+        <strong>〰️ Polyline:</strong> RIGHT-CLICK 2+ pts → ENTER<br>
+        <strong>▭ Rectangle:</strong> RIGHT-CLICK 2 opposite corners<br>
+        <strong>⬡ Area:</strong> RIGHT-CLICK 3+ pts → ENTER<br>
         Shortcuts: <strong>C</strong> Point • <strong>A</strong> Area • <strong>ENTER</strong> Finish • <strong>ESC</strong> Cancel
       </div>
       
-      <div class="modern-label" style="margin-top: 12px;">
-        Recent Comments
-        <span id="commentsListStatus" class="modern-status">Loading...</span>
-      </div>
-      <div id="commentsList" class="modern-comments-list">
-        <div class="modern-empty-state">Initializing...</div>
+      <div class="modern-group" style="margin-top: 8px;">
+        <button class="modern-btn modern-btn-small" onclick="BimViewer.toggleCommentsPanel()" title="Show/hide Recent Annotations panel">
+          <span class="modern-btn-icon">📋</span>
+          <span>Recent Annotations</span>
+          <span id="commentsListStatus" class="modern-status" style="margin-left: auto;">Loading...</span>
+        </button>
       </div>
     `;
   };
@@ -96,16 +104,54 @@
       gap: 8px;
       margin-bottom: 8px;
     }
-    
+
+    .modern-btn-group.annotation-type-grid {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .modern-btn-icon-only {
+      width: 40px !important;
+      height: 40px !important;
+      padding: 0 !important;
+      font-size: 20px !important;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      line-height: 1;
+    }
+
+    .modern-btn-icon-only.active {
+      background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
+      color: var(--bg-base, #0E1117) !important;
+      border-color: var(--brand-teal, #6EECD8) !important;
+      box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
+      transform: translateY(-1px);
+    }
+
+    .modern-btn-icon-only:not(.active) {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .modern-btn-icon-only:not(.active):hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
     .modern-btn-small {
       padding: 8px 12px !important;
       font-size: 13px !important;
     }
-    
+
     .modern-btn-small .modern-btn-icon {
       font-size: 16px;
     }
-    
+
     .modern-btn-small.active {
       background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
       color: var(--bg-base, #0E1117) !important;
@@ -113,12 +159,12 @@
       box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
       transform: translateY(-1px);
     }
-    
+
     .modern-btn-small:not(.active) {
       background: rgba(255, 255, 255, 0.08) !important;
       color: rgba(255, 255, 255, 0.6);
     }
-    
+
     .modern-btn-small:not(.active):hover {
       background: rgba(255, 255, 255, 0.12) !important;
       color: rgba(255, 255, 255, 0.9);
@@ -167,6 +213,20 @@
     .modern-comment-item.type-area {
       border-left-width: 4px;
       border-left-style: dashed;
+    }
+
+    .modern-comment-item.type-circle {
+      border-left-width: 4px;
+      border-left-style: dotted;
+    }
+
+    .modern-comment-item.type-polyline {
+      border-left-width: 4px;
+      border-left-style: double;
+    }
+
+    .modern-comment-item.type-rectangle {
+      border-left-width: 4px;
     }
     
     .modern-comment-header {

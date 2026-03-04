@@ -24,7 +24,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **IFC & Revit Filtering** — Show/hide by entity class or category with color-coded visualization
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools
 - **Clipping** — Polygon and rectangle section planes for buildings and terrain
-- **Annotations** — Point and area comments with Firestore persistence
+- **Annotations** — 5 types (point, circle, polyline, rectangle, area) with author tracking and Firestore persistence
 - **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), SSAO, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
 - **Saved Views** — Capture and restore camera positions with scene state
@@ -89,7 +89,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views |
 | `hideFeatures.js` | Click-to-hide individual BIM elements |
-| `comments.js` | Point and area annotations with Firestore persistence |
+| `comments.js` | 5 annotation types (point, circle, polyline, rectangle, area) with Firestore persistence |
 | `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
 | `clipping.js` | Polygon and rectangle clipping masks |
 | `pointcloud.js` | Point cloud detection, Eye Dome Lighting, color modes |

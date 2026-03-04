@@ -19,9 +19,166 @@
 // Add to BimViewer object - override existing list update functions
 
 // ===============================
+// FLOATING COMMENTS PANEL
+// ===============================
+BimViewer.createCommentsPanel = function() {
+  if (document.getElementById('floatingCommentsPanel')) return;
+
+  const panel = document.createElement('div');
+  panel.id = 'floatingCommentsPanel';
+  panel.innerHTML = `
+    <div id="commentsPanelHeader" class="floating-panel-header">
+      <span class="floating-panel-title">💬 Recent Annotations</span>
+      <div class="floating-panel-controls">
+        <button class="floating-panel-btn" onclick="BimViewer.toggleCommentsPanelCollapse()" title="Collapse">−</button>
+        <button class="floating-panel-btn" onclick="BimViewer.toggleCommentsPanel()" title="Close">✕</button>
+      </div>
+    </div>
+    <div id="commentsPanelBody" class="floating-panel-body">
+      <div id="commentsList" class="floating-comments-list">
+        <div class="modern-empty-state">Loading...</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  // Make draggable
+  this.makeFloatingPanelDraggable(panel, panel.querySelector('#commentsPanelHeader'));
+};
+
+BimViewer.toggleCommentsPanel = function() {
+  let panel = document.getElementById('floatingCommentsPanel');
+  if (!panel) {
+    this.createCommentsPanel();
+    panel = document.getElementById('floatingCommentsPanel');
+    this.updateCommentsList();
+    panel.classList.add('visible');
+  } else {
+    panel.classList.toggle('visible');
+  }
+};
+
+BimViewer.toggleCommentsPanelCollapse = function() {
+  const body = document.getElementById('commentsPanelBody');
+  const btn = document.querySelector('#floatingCommentsPanel .floating-panel-btn');
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  btn.textContent = body.classList.contains('collapsed') ? '+' : '−';
+};
+
+BimViewer.makeFloatingPanelDraggable = function(panel, handle) {
+  let isDragging = false, startX, startY, startLeft, startTop;
+
+  handle.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = panel.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    panel.style.transition = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    panel.style.left = (startLeft + dx) + 'px';
+    panel.style.top = (startTop + dy) + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      panel.style.transition = '';
+    }
+  });
+};
+
+// ===============================
+// INFOBOX FLOATING PANEL CONTROLS
+// ===============================
+BimViewer.closeInfoBox = function() {
+  const panel = document.getElementById('infoBoxPanel');
+  if (panel) panel.classList.remove('visible');
+  const infoBox = document.getElementById('infoBoxCustom');
+  if (infoBox) infoBox.innerHTML = '';
+};
+
+BimViewer.toggleInfoBoxCollapse = function() {
+  const body = document.getElementById('infoBoxBody');
+  const btn = document.getElementById('infoBoxCollapseBtn');
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  if (btn) btn.textContent = body.classList.contains('collapsed') ? '+' : '−';
+};
+
+// ===============================
+// FLOATING LOADED ASSETS PANEL
+// ===============================
+BimViewer.createLoadedAssetsPanel = function() {
+  if (document.getElementById('floatingAssetsPanel')) return;
+
+  const panel = document.createElement('div');
+  panel.id = 'floatingAssetsPanel';
+  panel.innerHTML = `
+    <div id="assetsPanelHeader" class="floating-panel-header">
+      <span class="floating-panel-title">📦 Loaded Assets</span>
+      <div class="floating-panel-controls">
+        <button class="floating-panel-btn" onclick="BimViewer.toggleAssetsPanelCollapse()" title="Collapse">−</button>
+        <button class="floating-panel-btn" onclick="BimViewer.toggleLoadedAssetsPanel()" title="Close">✕</button>
+      </div>
+    </div>
+    <div id="assetsPanelBody" class="floating-panel-body">
+      <div id="loadedAssetsList" class="floating-assets-list">
+        <div class="modern-empty-state">No assets loaded yet</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  this.makeFloatingPanelDraggable(panel, panel.querySelector('#assetsPanelHeader'));
+};
+
+BimViewer.toggleLoadedAssetsPanel = function() {
+  this.createLoadedAssetsPanel();
+  var panel = document.getElementById('floatingAssetsPanel');
+  if (!panel) {
+    console.error('Failed to create floatingAssetsPanel');
+    return;
+  }
+  panel.classList.toggle('visible');
+  this.updateLoadedAssetsCount();
+};
+
+BimViewer.toggleAssetsPanelCollapse = function() {
+  const body = document.getElementById('assetsPanelBody');
+  const btn = document.querySelector('#floatingAssetsPanel .floating-panel-btn');
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  btn.textContent = body.classList.contains('collapsed') ? '+' : '−';
+};
+
+BimViewer.updateLoadedAssetsCount = function() {
+  const countEl = document.getElementById('loadedAssetsCount');
+  const count = this.loadedAssets ? this.loadedAssets.size : 0;
+  if (countEl) {
+    countEl.textContent = count > 0 ? count + ' assets' : '0';
+  }
+};
+
+// ===============================
 // COMMENTS LIST UPDATE (Modern Style with Area Support)
 // ===============================
 BimViewer.updateCommentsList = function() {
+  // Ensure floating panel exists
+  if (!document.getElementById('floatingCommentsPanel')) {
+    this.createCommentsPanel();
+  }
   const container = document.getElementById('commentsList');
   if (!container) return;
   
@@ -39,7 +196,8 @@ BimViewer.updateCommentsList = function() {
   
   sortedComments.forEach(comment => {
     const priorityClass = comment.priority ? comment.priority.toLowerCase() : 'normal';
-    const typeClass = comment.type === 'area' ? 'type-area' : 'type-point';
+    const typeClasses = { 'point': 'type-point', 'circle': 'type-circle', 'polyline': 'type-polyline', 'rectangle': 'type-rectangle', 'area': 'type-area' };
+    const typeClass = typeClasses[comment.type] || 'type-point';
     const timeLabel = comment.isUpdated ? 'Updated' : 'Created';
     const timestamp = new Date(comment.timestamp);
     const timeStr = timestamp.toLocaleString('de-DE', { 
@@ -55,8 +213,10 @@ BimViewer.updateCommentsList = function() {
       : comment.text;
     
     // Type emoji and label
-    const typeEmoji = comment.type === 'area' ? '📐' : '💬';
-    const typeLabel = comment.type === 'area' ? 'Area' : 'Point';
+    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'rectangle': '▭', 'area': '⬡' };
+    const typeLabelsMap = { 'point': 'Point', 'circle': 'Circle', 'polyline': 'Polyline', 'rectangle': 'Rectangle', 'area': 'Area' };
+    const typeEmoji = typeEmojis[comment.type] || '📍';
+    const typeLabel = typeLabelsMap[comment.type] || 'Point';
     
     html += `
       <div class="modern-comment-item priority-${priorityClass} ${typeClass}" onclick="BimViewer.flyToComment('${comment.id}')">
@@ -80,6 +240,7 @@ BimViewer.updateCommentsList = function() {
           <span class="modern-comment-type">${typeLabel}</span>
           <span class="modern-comment-category">${comment.category || 'General'}</span>
           <span class="modern-comment-priority ${priorityClass}">${comment.priority || 'Normal'}</span>
+          ${comment.author ? '<span>' + comment.author + '</span>' : ''}
           <span>${timeStr}</span>
         </div>
       </div>
@@ -94,15 +255,21 @@ BimViewer.updateCommentsList = function() {
 // ===============================
 BimViewer.updateCommentsCount = function() {
   const badge = document.getElementById('commentsCount');
-  if (!badge) return;
-  
   const count = this.comments && this.comments.comments ? this.comments.comments.length : 0;
-  
-  if (count > 0) {
-    badge.textContent = count;
-    badge.style.display = 'inline-flex';
-  } else {
-    badge.style.display = 'none';
+
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Update status in sidebar button
+  const statusEl = document.getElementById('commentsListStatus');
+  if (statusEl) {
+    statusEl.textContent = count > 0 ? count + ' comments' : 'Ready';
   }
 };
 
@@ -366,29 +533,67 @@ BimViewer.flyToComment = function(commentId) {
   
   const comment = this.comments.comments.find(c => c.id === commentId);
   
-  if (comment && comment.type === 'area') {
-    // For area annotations, fly to the center of the polygon
-    const positions = comment.areaPoints.map(point => 
+  if (comment && comment.type === 'rectangle') {
+    // For rectangle annotations, fly to the center of the 2 corners
+    const c1 = comment.corner1;
+    const c2 = comment.corner2;
+    const centerLon = (c1.lon + c2.lon) / 2;
+    const centerLat = (c1.lat + c2.lat) / 2;
+    const centerHeight = (c1.height + c2.height) / 2;
+    const center = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, centerHeight);
+
+    // Estimate size from corner distance
+    const p1 = Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, c1.height);
+    const p2 = Cesium.Cartesian3.fromDegrees(c2.lon, c2.lat, c2.height);
+    const diagonal = Cesium.Cartesian3.distance(p1, p2);
+    const distance = diagonal * 2;
+
+    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, diagonal / 2), {
+      duration: 2.0,
+      offset: new Cesium.HeadingPitchRange(0, -0.5, distance)
+    });
+
+    setTimeout(() => {
+      this.viewer.selectedEntity = entity;
+      this.updateStatus('Viewing rectangle annotation', 'success');
+    }, 2100);
+
+  } else if (comment && (comment.type === 'area' || comment.type === 'polyline')) {
+    // For area/polyline annotations, fly to the center of the points
+    const positions = comment.areaPoints.map(point =>
       Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.height)
     );
-    
+
     const boundingSphere = Cesium.BoundingSphere.fromPoints(positions);
-    const center = boundingSphere.center;
-    
+
     // Calculate appropriate distance based on bounding sphere radius
     const distance = boundingSphere.radius * 3;
-    
+
     this.viewer.camera.flyToBoundingSphere(boundingSphere, {
       duration: 2.0,
       offset: new Cesium.HeadingPitchRange(0, -0.5, distance)
     });
-    
+
     // Select the entity
     setTimeout(() => {
       this.viewer.selectedEntity = entity;
-      this.updateStatus('Viewing area annotation', 'success');
+      this.updateStatus('Viewing ' + comment.type + ' annotation', 'success');
     }, 2100);
-    
+
+  } else if (comment && comment.type === 'circle') {
+    const center = Cesium.Cartesian3.fromDegrees(comment.centerLon, comment.centerLat, comment.centerHeight);
+    const distance = comment.radius * 3;
+
+    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, comment.radius), {
+      duration: 2.0,
+      offset: new Cesium.HeadingPitchRange(0, -0.5, distance)
+    });
+
+    setTimeout(() => {
+      this.viewer.selectedEntity = entity;
+      this.updateStatus('Viewing circle annotation', 'success');
+    }, 2100);
+
   } else {
     // For point comments, fly to the point
     this.viewer.flyTo(entity, {

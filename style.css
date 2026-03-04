@@ -1002,25 +1002,30 @@ body {
 /* ===============================
    INFOBOX - COMPLETE WITH FIX
    =============================== */
-#infoBoxCustom {
-  position: absolute;
+/* InfoBox Floating Panel */
+#infoBoxPanel {
+  position: fixed;
   top: 20px;
   right: 20px;
-  max-width: 400px;
+  width: 400px;
   max-height: 70vh;
   background: var(--bg-overlay);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   border-radius: 12px;
-  padding: 0;
-  overflow-y: auto;
-  z-index: 100;
+  z-index: 200;
   display: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: translateX(20px);
 }
 
-/* FIX: Make InfoBox visible when it has content */
-#infoBoxCustom:not(:empty) {
-  display: block !important;
+#infoBoxPanel.visible {
+  display: flex;
+  opacity: 1;
+  transform: translateX(0);
   animation: slideInRight 0.3s ease-out;
 }
 
@@ -1035,39 +1040,34 @@ body {
   }
 }
 
-#infoBoxCustom::-webkit-scrollbar {
-  width: 6px;
+#infoBoxPanel #infoBoxBody {
+  overflow-y: auto;
+  max-height: calc(70vh - 48px);
+  padding: 0;
+  transition: max-height 0.2s ease;
 }
 
-#infoBoxCustom::-webkit-scrollbar-thumb {
+#infoBoxPanel #infoBoxBody.collapsed {
+  max-height: 0;
+  overflow: hidden;
+}
+
+#infoBoxPanel #infoBoxBody::-webkit-scrollbar {
+  width: 4px;
+}
+
+#infoBoxPanel #infoBoxBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
-/* Close button */
+#infoBoxCustom {
+  padding: 0;
+}
+
+/* Close button (legacy, hidden - now in header) */
 #infoBoxCustom .close-btn {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #999;
-  cursor: pointer;
-  z-index: 1000;
-  line-height: 20px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-#infoBoxCustom .close-btn:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-  transform: rotate(90deg);
+  display: none;
 }
 
 /* BIM Property Table */
@@ -1147,15 +1147,15 @@ body {
 }
 
 /* InfoBox size variations */
-#infoBoxCustom.compact {
+#infoBoxPanel.compact {
   max-height: 40vh;
 }
 
-#infoBoxCustom.medium {
+#infoBoxPanel.medium {
   max-height: 55vh;
 }
 
-#infoBoxCustom.large {
+#infoBoxPanel.large {
   max-height: 70vh;
 }
 
@@ -1181,8 +1181,8 @@ body {
     left: 10px;
   }
 
-  #infoBoxCustom {
-    max-width: calc(100vw - 40px);
+  #infoBoxPanel {
+    width: calc(100vw - 40px);
     right: 20px;
   }
 }
@@ -1376,4 +1376,155 @@ body {
 
 #splitSlider.visible {
   display: block;
+}
+
+/* ===============================
+   FLOATING COMMENTS PANEL
+   =============================== */
+#floatingCommentsPanel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  max-height: 420px;
+  background: var(--bg-overlay, rgba(14, 17, 23, 0.92));
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 200;
+  font-size: 13px;
+  color: var(--text-primary, #e2e8f0);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+#floatingCommentsPanel.visible {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.floating-panel-header:active {
+  cursor: grabbing;
+}
+
+.floating-panel-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--brand-teal, #6EECD8);
+}
+
+.floating-panel-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.floating-panel-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.floating-panel-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.floating-panel-body {
+  overflow-y: auto;
+  max-height: 360px;
+  padding: 8px;
+  transition: max-height 0.2s ease;
+}
+
+.floating-panel-body.collapsed {
+  max-height: 0;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.floating-panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.floating-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.floating-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Floating Loaded Assets Panel */
+#floatingAssetsPanel {
+  position: fixed;
+  bottom: 20px;
+  left: 360px;
+  width: 340px;
+  max-height: 500px;
+  background: var(--bg-overlay, rgba(14, 17, 23, 0.92));
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  z-index: 200;
+  font-size: 13px;
+  color: var(--text-primary, #e2e8f0);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#floatingAssetsPanel.visible {
+  display: flex;
+}
+
+.floating-assets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  #floatingCommentsPanel {
+    width: calc(100vw - 20px);
+    right: 10px;
+    bottom: 10px;
+    max-height: 300px;
+  }
+
+  #floatingAssetsPanel {
+    width: calc(100vw - 20px);
+    left: 10px;
+    bottom: 10px;
+    max-height: 350px;
+  }
 }

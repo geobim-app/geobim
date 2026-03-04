@@ -19,6 +19,7 @@
 
 // Valid asset IDs for the Asset Manager selector (curated from Ion account)
 const VALID_ASSET_IDS = new Set([
+  4496917, 4495857,
   4483046, 4476749, 4458809, 4452138, 4450806,
   4446752, 4446751, 4428272, 4427396, 4422193,
   4422185, 4422182, 4422180, 4422178, 4422174, 4422171
@@ -59,7 +60,8 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('layers', '🗺️', 'Layer Manager', this.getLayerManagerContent()));
     toolbar.appendChild(this.createSection('pointcloud', '☁️', 'Point Cloud Settings', this.getPointCloudContent()));
     toolbar.appendChild(this.createSection('drawing', '📏', 'Measure & Clip', this.getDrawingContent()));
-    toolbar.appendChild(this.createSection('comments', '💬', 'Comments', this.getCommentsContent()));
+    toolbar.appendChild(this.createSection('comments', '💬', 'Annotations', this.getCommentsContent()));
+    toolbar.appendChild(this.createSection('inspection', '🔍', 'Inspection', typeof GEOBIM_INSPECTION !== 'undefined' ? GEOBIM_INSPECTION.getSummaryContent() : ''));
     toolbar.appendChild(this.createSection('visibility', '👁️', 'Visibility', this.getVisibilityContent()));
     toolbar.appendChild(this.createSection('ifc', '🏗️', 'IFC Filter', this.getIFCContent()));
     toolbar.appendChild(this.createSection('revit', '🏢', 'Revit Filter', this.getRevitContent()));
@@ -128,12 +130,12 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         <button id="loadIonAssets" style="display: none;"></button>
       </div>
 
-      <div class="modern-divider">
-        <span class="modern-divider-text">Loaded Assets</span>
-      </div>
-
-      <div id="loadedAssetsList" class="modern-assets-list">
-        <div class="modern-empty-state">No assets loaded yet</div>
+      <div class="modern-group" style="margin-top: 8px;">
+        <button class="modern-btn modern-btn-small" onclick="BimViewer.toggleLoadedAssetsPanel()" title="Show/hide Loaded Assets panel">
+          <span class="modern-btn-icon">📦</span>
+          <span>Loaded Assets</span>
+          <span id="loadedAssetsCount" class="modern-status" style="margin-left: auto;">0</span>
+        </button>
       </div>
     `;
   },
@@ -420,13 +422,13 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         <strong>RIGHT-CLICK</strong> on 3D model to place comment<br>
         <strong>LEFT-CLICK</strong> for element info • <strong>C</strong> to toggle • <strong>ESC</strong> to cancel
       </div>
-      
-      <div class="modern-label" style="margin-top: 12px;">
-        Recent Comments
-        <span id="commentsListStatus" class="modern-status">Loading...</span>
-      </div>
-      <div id="commentsList" class="modern-comments-list">
-        <div class="modern-empty-state">Initializing...</div>
+
+      <div class="modern-group" style="margin-top: 8px;">
+        <button class="modern-btn modern-btn-small" onclick="BimViewer.toggleCommentsPanel()" title="Show/hide Recent Annotations panel">
+          <span class="modern-btn-icon">📋</span>
+          <span>Recent Annotations</span>
+          <span id="commentsListStatus" class="modern-status" style="margin-left: auto;">Loading...</span>
+        </button>
       </div>
     `;
   },
@@ -1481,11 +1483,26 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
 
   // ⭐ NEW: Create asset control WITH INTEGRATED Z-OFFSET
   createAssetControls(assetId) {
-    const container = document.getElementById('loadedAssetsList');
-    if (!container) return;
+    // Ensure floating panel exists
+    if (typeof BimViewer.createLoadedAssetsPanel === 'function') {
+      BimViewer.createLoadedAssetsPanel();
+    }
+    let container = document.getElementById('loadedAssetsList');
+    if (!container) {
+      // Fallback: create panel inline if helper not ready
+      console.warn('loadedAssetsList not found, creating fallback');
+      const fallback = document.createElement('div');
+      fallback.id = 'loadedAssetsList';
+      document.body.appendChild(fallback);
+      container = fallback;
+    }
 
     const assetData = BimViewer.loadedAssets.get(assetId.toString());
     if (!assetData) return;
+
+    // Clear empty state placeholder
+    const emptyState = container.querySelector('.modern-empty-state');
+    if (emptyState) emptyState.remove();
 
     const assetDiv = document.createElement('div');
     assetDiv.id = `asset_${assetId}`;
@@ -1560,6 +1577,18 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
     `;
 
     container.appendChild(assetDiv);
+
+    // Update count and auto-show panel
+    if (typeof BimViewer.updateLoadedAssetsCount === 'function') {
+      BimViewer.updateLoadedAssetsCount();
+    }
+    const assetsPanel = document.getElementById('floatingAssetsPanel');
+    if (assetsPanel) {
+      assetsPanel.classList.add('visible');
+      console.log('📦 Loaded Assets panel shown');
+    } else {
+      console.warn('📦 floatingAssetsPanel not found in DOM');
+    }
   },
 
   // ⭐ NEW: Update asset Z-Offset (with debouncing)

@@ -95,15 +95,21 @@
 
 | Feature | Description | Files |
 |---|---|---|
+| 5 Annotation Types | Point (📍), Circle (⭕), Polyline (〰️), Rectangle (▭), Area (⬡) — icon-only toolbar | `comments.js`, `ui-comments-extension.js` |
 | Point Comments | Right-click to place annotation with title, text, category, and priority. SVG billboard marker. | `comments.js` |
+| Circle Annotations | Right-click center, then edge to set radius. EllipseGraphics with 3D tile classification. | `comments.js` |
+| Polyline Annotations | Right-click 2+ points, ENTER to finish. PolylineGraphics rendered on top of tiles. | `comments.js` |
+| Rectangle Annotations | Right-click 2 opposite corners. PolygonGraphics with 3D tile classification. | `comments.js` |
 | Area Annotations | Right-click 3+ points to draw polygon annotation with fill, outline, and center label. Calculates area. | `comments.js` |
 | Categories | General, Architecture, Structure, MEP, Issue, Question. | `comments.js` |
 | Priorities | Low, Normal, High (color-coded markers). | `comments.js` |
+| Author Tracking | Comments store author name and email from Firebase authenticated user. | `comments.js`, `auth-gate.js` |
 | Firestore Persistence | CRUD operations on shared Firestore collection. Real-time sync across users. | `comments.js` |
-| Comment Fly-To | Click comment in list to fly camera to annotation location. | `comments.js` |
+| Comment Fly-To | Click comment in list to fly camera to annotation location (type-aware). | `comments.js`, `ui-helpers-modern.js` |
 | Edit & Delete | Edit existing comments via dialog. Delete individual or all comments. | `comments.js` |
 | Visibility Toggle | Show/hide all comments at once. | `comments.js` |
-| Comment Dialog | Modal with title, text, category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html` |
+| Comment Dialog | Modal with title, text (optional), category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html` |
+| Floating Assets Panel | Draggable, minimizable panel for loaded assets (undocked from sidebar). | `ui-helpers-modern.js`, `style.css` |
 
 ---
 
@@ -203,7 +209,7 @@
 | 2 | 🗺️ | Layer Manager | Basemap switcher, terrain picker, OSM/Google toggles |
 | 3 | ☁️ | Point Cloud | EDL, point size, color mode, presets |
 | 4 | 📏 | Measure & Clip | Measurement tools, clipping polygon/rectangle, controls |
-| 5 | 💬 | Comments | Comment/area toggle, visibility, recent list |
+| 5 | 💬 | Annotations | 5 type selectors, visibility, recent annotations list |
 | 6 | 👁️ | Visibility | Hide mode toggle, hidden elements list |
 | 7 | 🏗️ | IFC Filter | Entity checkboxes with select all/none |
 | 8 | 🏢 | Revit Filter | Category checkboxes with select all/none |
@@ -265,7 +271,7 @@
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views, silhouette |
 | `hideFeatures.js` | Click-to-hide individual elements with undo |
-| `comments.js` | Point and area annotations with Firestore CRUD |
+| `comments.js` | 5 annotation types (point, circle, polyline, rectangle, area) with Firestore CRUD |
 | `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
 | `clipping.js` | Polygon and rectangle clipping masks |
 | `pointcloud.js` | Point cloud detection, EDL, color modes, rendering presets |
@@ -283,4 +289,4 @@
 
 ---
 
-*Generated from codebase analysis — 2026-02-28*
+*Generated from codebase analysis — 2026-03-04*

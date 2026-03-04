@@ -1165,7 +1165,17 @@ const BimViewer = {
     
     const assetDiv = document.getElementById(`asset_${assetId}`);
     if (assetDiv) assetDiv.remove();
-    
+
+    if (typeof this.updateLoadedAssetsCount === 'function') {
+      this.updateLoadedAssetsCount();
+    }
+
+    // Show empty state if no assets left
+    if (this.loadedAssets.size === 0) {
+      const container = document.getElementById('loadedAssetsList');
+      if (container) container.innerHTML = '<div class="modern-empty-state">No assets loaded yet</div>';
+    }
+
     this.updateStatus(`Asset unloaded`, 'success');
   },
 

@@ -41,12 +41,20 @@
     db: null,
     initialized: false,
     isAddingComment: false,
-    annotationType: 'point', // 'point' or 'area'
+    annotationType: 'point', // 'point' | 'circle' | 'polyline' | 'rectangle' | 'area'
     editingComment: null,
     previewEntity: null,
     currentPosition: null,
     currentSurfaceNormal: null,
-    // Area annotation state
+    // Circle annotation state
+    circleCenter: null,
+    circleCenterEntity: null,
+    circlePreviewEntity: null,
+    // Rectangle annotation state
+    rectCorner1: null,
+    rectCorner1Entity: null,
+    rectPreviewEntity: null,
+    // Area/polyline annotation state
     areaPoints: [],
     areaPreviewEntities: [],
     areaPolygonEntity: null,
@@ -183,6 +191,12 @@
         if (this.viewer && !this.viewer.entities.getById(comment.id)) {
           if (comment.type === 'area') {
             this.addAreaEntity(comment);
+          } else if (comment.type === 'circle') {
+            this.addCircleEntity(comment);
+          } else if (comment.type === 'rectangle') {
+            this.addRectangleEntity(comment);
+          } else if (comment.type === 'polyline') {
+            this.addPolylineEntity(comment);
           } else {
             this.addCommentEntity(comment);
           }
@@ -220,6 +234,8 @@
     }
 
     try {
+      const user = (typeof BimAuth !== 'undefined' && BimAuth.currentUser) || {};
+
       const sanitizedData = {
         title: sanitizeInput(commentData.title),
         text: sanitizeInput(commentData.text),
@@ -227,11 +243,21 @@
         category: commentData.category || 'General',
         priority: commentData.priority || 'Normal',
         type: commentData.type || 'point',
-        isUpdated: commentData.isUpdated || false
+        isUpdated: commentData.isUpdated || false,
+        author: commentData.author || user.displayName || user.email || 'Unknown',
+        authorEmail: commentData.authorEmail || user.email || ''
       };
 
-      if (commentData.type === 'area') {
+      if (commentData.type === 'area' || commentData.type === 'polyline') {
         sanitizedData.areaPoints = commentData.areaPoints;
+      } else if (commentData.type === 'rectangle') {
+        sanitizedData.corner1 = commentData.corner1;
+        sanitizedData.corner2 = commentData.corner2;
+      } else if (commentData.type === 'circle') {
+        sanitizedData.centerLon = commentData.centerLon;
+        sanitizedData.centerLat = commentData.centerLat;
+        sanitizedData.centerHeight = commentData.centerHeight;
+        sanitizedData.radius = commentData.radius;
       } else {
         sanitizedData.lon = commentData.lon;
         sanitizedData.lat = commentData.lat;
@@ -254,6 +280,12 @@
         // Add entity to viewer with Firestore doc ID
         if (newComment.type === 'area') {
           this.addAreaEntity(newComment);
+        } else if (newComment.type === 'circle') {
+          this.addCircleEntity(newComment);
+        } else if (newComment.type === 'rectangle') {
+          this.addRectangleEntity(newComment);
+        } else if (newComment.type === 'polyline') {
+          this.addPolylineEntity(newComment);
         } else {
           this.addCommentEntity(newComment);
         }
@@ -441,31 +473,33 @@
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE,
-        scaleByDistance: new Cesium.NearFarScalar(10, 1.0, 500, 0.3)
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.2),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100)
       },
-      
+
       label: {
-        text: comment.title,
-        font: 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        text: this.buildLabelText(comment),
+        font: 'bold 14px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 4,
+        outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -60),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         heightReference: Cesium.HeightReference.CLAMP_TO_3D_TILE,
         scale: 1.0,
-        scaleByDistance: new Cesium.NearFarScalar(10, 1.4, 500, 0.6),
-        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(10, 1.0, 500, 0.6),
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.2, 100, 0.4),
+        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
         showBackground: true,
         backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
-        backgroundPadding: new Cesium.Cartesian2(14, 8)
+        backgroundPadding: new Cesium.Cartesian2(10, 6)
       },
-      
+
       description: this.createCommentDescription(comment)
     });
-    
+
     console.log(`📍 Point comment entity added: ${comment.title}`);
   };
 
@@ -483,7 +517,7 @@
     const color = priorityColors[comment.priority] || '#6EECD8';
     const cesiumColor = Cesium.Color.fromCssColorString(color);
     
-    const OFFSET_HEIGHT = 0.02;
+    const OFFSET_HEIGHT = 0.15;
     
     const positions = comment.areaPoints.map(point => {
       const cartographic = Cesium.Cartographic.fromDegrees(point.lon, point.lat, point.height + OFFSET_HEIGHT);
@@ -500,33 +534,228 @@
         outline: true,
         outlineColor: cesiumColor,
         outlineWidth: 3,
-        perPositionHeight: true
+        perPositionHeight: true,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
       },
       
       position: centerCart,
       
       label: {
-        text: `📐 ${comment.title}`,
-        font: 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        text: this.buildLabelText(comment),
+        font: 'bold 14px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 4,
+        outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         verticalOrigin: Cesium.VerticalOrigin.CENTER,
         pixelOffset: new Cesium.Cartesian2(0, 0),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         scale: 1.0,
-        scaleByDistance: new Cesium.NearFarScalar(10, 1.5, 500, 0.6),
-        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(10, 1.0, 500, 0.6),
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
+        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
         backgroundColor: cesiumColor.withAlpha(0.9),
-        backgroundPadding: new Cesium.Cartesian2(14, 8),
+        backgroundPadding: new Cesium.Cartesian2(10, 6),
         showBackground: true
       },
-      
+
       description: this.createCommentDescription(comment)
     });
-    
-    console.log(`📐 Area annotation entity added: ${comment.title} (${comment.areaPoints.length} points)`);
+
+    console.log(`⬡ Area annotation entity added: ${comment.title} (${comment.areaPoints.length} points)`);
+  };
+
+  // =====================================
+  // CIRCLE ANNOTATION ENTITY
+  // =====================================
+
+  BimViewer.addCircleEntity = function(comment) {
+    const priorityColors = {
+      'High': '#e74c3c',
+      'Normal': '#6EECD8',
+      'Low': '#95a5a6'
+    };
+
+    const color = priorityColors[comment.priority] || '#6EECD8';
+    const cesiumColor = Cesium.Color.fromCssColorString(color);
+
+    const position = Cesium.Cartesian3.fromDegrees(
+      comment.centerLon,
+      comment.centerLat,
+      comment.centerHeight
+    );
+
+    this.viewer.entities.add({
+      id: comment.id,
+      position: position,
+
+      ellipse: {
+        semiMajorAxis: comment.radius,
+        semiMinorAxis: comment.radius,
+        material: cesiumColor.withAlpha(0.4),
+        outline: true,
+        outlineColor: cesiumColor,
+        outlineWidth: 3,
+        height: comment.centerHeight + 0.15,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
+      },
+
+      label: {
+        text: this.buildLabelText(comment),
+        font: 'bold 14px sans-serif',
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        pixelOffset: new Cesium.Cartesian2(0, 0),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scale: 1.0,
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
+        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
+        backgroundColor: cesiumColor.withAlpha(0.9),
+        backgroundPadding: new Cesium.Cartesian2(10, 6),
+        showBackground: true
+      },
+
+      description: this.createCommentDescription(comment)
+    });
+
+    console.log(`⭕ Circle annotation entity added: ${comment.title} (radius: ${comment.radius.toFixed(1)}m)`);
+  };
+
+  // =====================================
+  // RECTANGLE ANNOTATION ENTITY
+  // =====================================
+
+  BimViewer.addRectangleEntity = function(comment) {
+    const priorityColors = {
+      'High': '#e74c3c',
+      'Normal': '#6EECD8',
+      'Low': '#95a5a6'
+    };
+
+    const color = priorityColors[comment.priority] || '#6EECD8';
+    const cesiumColor = Cesium.Color.fromCssColorString(color);
+
+    const c1 = comment.corner1;
+    const c2 = comment.corner2;
+    const OFFSET_HEIGHT = 0.15;
+    const avgHeight = ((c1.height + c2.height) / 2) + OFFSET_HEIGHT;
+
+    const positions = [
+      Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, avgHeight),
+      Cesium.Cartesian3.fromDegrees(c2.lon, c1.lat, avgHeight),
+      Cesium.Cartesian3.fromDegrees(c2.lon, c2.lat, avgHeight),
+      Cesium.Cartesian3.fromDegrees(c1.lon, c2.lat, avgHeight)
+    ];
+
+    const centerPos = Cesium.Cartesian3.fromDegrees(
+      (c1.lon + c2.lon) / 2,
+      (c1.lat + c2.lat) / 2,
+      avgHeight
+    );
+
+    this.viewer.entities.add({
+      id: comment.id,
+      polygon: {
+        hierarchy: positions,
+        material: cesiumColor.withAlpha(0.4),
+        outline: true,
+        outlineColor: cesiumColor,
+        outlineWidth: 3,
+        perPositionHeight: true,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
+      },
+
+      position: centerPos,
+
+      label: {
+        text: this.buildLabelText(comment),
+        font: 'bold 14px sans-serif',
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        pixelOffset: new Cesium.Cartesian2(0, 0),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scale: 1.0,
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
+        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
+        backgroundColor: cesiumColor.withAlpha(0.9),
+        backgroundPadding: new Cesium.Cartesian2(10, 6),
+        showBackground: true
+      },
+
+      description: this.createCommentDescription(comment)
+    });
+
+    console.log(`▭ Rectangle annotation entity added: ${comment.title}`);
+  };
+
+  // =====================================
+  // POLYLINE ANNOTATION ENTITY
+  // =====================================
+
+  BimViewer.addPolylineEntity = function(comment) {
+    const priorityColors = {
+      'High': '#e74c3c',
+      'Normal': '#6EECD8',
+      'Low': '#95a5a6'
+    };
+
+    const color = priorityColors[comment.priority] || '#6EECD8';
+    const cesiumColor = Cesium.Color.fromCssColorString(color);
+
+    const OFFSET_HEIGHT = 0.15;
+
+    const positions = comment.areaPoints.map(point => {
+      const cartographic = Cesium.Cartographic.fromDegrees(point.lon, point.lat, point.height + OFFSET_HEIGHT);
+      return Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
+    });
+
+    // Label at midpoint of polyline
+    const midIndex = Math.floor(positions.length / 2);
+    const centerPos = positions[midIndex];
+
+    this.viewer.entities.add({
+      id: comment.id,
+      polyline: {
+        positions: positions,
+        width: 4,
+        material: cesiumColor,
+        clampToGround: false,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      },
+
+      position: centerPos,
+
+      label: {
+        text: this.buildLabelText(comment),
+        font: 'bold 14px sans-serif',
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scale: 1.0,
+        scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
+        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
+        backgroundColor: cesiumColor.withAlpha(0.9),
+        backgroundPadding: new Cesium.Cartesian2(10, 6),
+        showBackground: true
+      },
+
+      description: this.createCommentDescription(comment)
+    });
+
+    console.log(`〰️ Polyline annotation entity added: ${comment.title} (${comment.areaPoints.length} points)`);
   };
 
   // =====================================
@@ -564,8 +793,10 @@
 
   BimViewer.createCommentDescription = function(comment) {
     const timeLabel = comment.isUpdated ? 'Updated' : 'Created';
-    const typeEmoji = comment.type === 'area' ? '📐' : '💬';
-    const typeLabel = comment.type === 'area' ? 'Area Annotation' : 'Point Comment';
+    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'rectangle': '▭', 'area': '⬡' };
+    const typeLabels = { 'point': 'Point Comment', 'circle': 'Circle Annotation', 'polyline': 'Polyline Annotation', 'rectangle': 'Rectangle Annotation', 'area': 'Area Annotation' };
+    const typeEmoji = typeEmojis[comment.type] || '📍';
+    const typeLabel = typeLabels[comment.type] || 'Point Comment';
     
     const priorityBadges = {
       'High': '<span style="background: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔴 HIGH</span>',
@@ -590,7 +821,28 @@
     if (comment.type === 'area' && comment.areaPoints) {
       areaInfo = `
         <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
-          <strong>📐 Area:</strong> ${comment.areaPoints.length} points
+          <strong>⬡ Area:</strong> ${comment.areaPoints.length} points
+        </div>
+      `;
+    } else if (comment.type === 'circle' && comment.radius) {
+      areaInfo = `
+        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+          <strong>⭕ Circle:</strong> radius ${comment.radius.toFixed(1)} m
+        </div>
+      `;
+    } else if (comment.type === 'rectangle' && comment.corner1 && comment.corner2) {
+      const c1Cart = Cesium.Cartesian3.fromDegrees(comment.corner1.lon, comment.corner1.lat, comment.corner1.height);
+      const c2Cart = Cesium.Cartesian3.fromDegrees(comment.corner2.lon, comment.corner2.lat, comment.corner2.height);
+      const diag = Cesium.Cartesian3.distance(c1Cart, c2Cart);
+      areaInfo = `
+        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+          <strong>▭ Rectangle:</strong> ${diag.toFixed(1)} m diagonal
+        </div>
+      `;
+    } else if (comment.type === 'polyline' && comment.areaPoints) {
+      areaInfo = `
+        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+          <strong>〰️ Polyline:</strong> ${comment.areaPoints.length} points
         </div>
       `;
     }
@@ -620,6 +872,7 @@
           </div>
           
           <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 10px;">
+            ${comment.author ? '<strong>By:</strong> ' + comment.author + '<br>' : ''}
             ${timeLabel}: ${new Date(comment.timestamp).toLocaleString('de-DE')}
           </div>
           
@@ -636,6 +889,20 @@
         </div>
       </div>
     `;
+  };
+
+  // =====================================
+  // BUILD LABEL TEXT (ALL FIELDS)
+  // =====================================
+
+  BimViewer.buildLabelText = function(comment) {
+    const typePrefixes = { 'point': '', 'circle': '⭕ ', 'polyline': '〰️ ', 'rectangle': '▭ ', 'area': '⬡ ' };
+    const typePrefix = typePrefixes[comment.type] || '';
+    let lines = [typePrefix + comment.title];
+    if (comment.timestamp) {
+      lines.push(new Date(comment.timestamp).toLocaleString('de-DE'));
+    }
+    return lines.join('\n');
   };
 
   // =====================================
@@ -680,10 +947,10 @@
       },
       label: {
         text: 'New Comment Location',
-        font: 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        font: 'bold 14px sans-serif',
         fillColor: Cesium.Color.YELLOW,
         outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 4,
+        outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -70),
@@ -694,7 +961,7 @@
         pixelOffsetScaleByDistance: new Cesium.NearFarScalar(10, 1.0, 500, 0.6),
         showBackground: true,
         backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
-        backgroundPadding: new Cesium.Cartesian2(14, 8)
+        backgroundPadding: new Cesium.Cartesian2(10, 6)
       }
     });
   };
@@ -711,7 +978,7 @@
   // =====================================
   
   BimViewer.addAreaPoint = function(lon, lat, height) {
-    const OFFSET_HEIGHT = 0.02;
+    const OFFSET_HEIGHT = 0.15;
     
     this.comments.areaPoints.push({ lon, lat, height });
     
@@ -730,30 +997,38 @@
       },
       label: {
         text: `${this.comments.areaPoints.length}`,
-        font: 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        font: 'bold 14px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 4,
+        outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -25),
+        pixelOffset: new Cesium.Cartesian2(0, -20),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         scale: 1.0,
         scaleByDistance: new Cesium.NearFarScalar(10, 1.4, 500, 0.7),
         pixelOffsetScaleByDistance: new Cesium.NearFarScalar(10, 1.0, 500, 0.7),
         showBackground: true,
         backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
-        backgroundPadding: new Cesium.Cartesian2(10, 6)
+        backgroundPadding: new Cesium.Cartesian2(8, 4)
       }
     });
     
     this.comments.areaPreviewEntities.push(pointEntity);
     
-    if (this.comments.areaPoints.length >= 3) {
-      this.updateAreaPolygonPreview();
-      this.showAreaFinishButton();
+    if (this.comments.annotationType === 'polyline') {
+      if (this.comments.areaPoints.length >= 2) {
+        this.updatePolylinePreview();
+        this.showAreaFinishButton();
+      }
+    } else {
+      if (this.comments.areaPoints.length >= 3) {
+        this.updateAreaPolygonPreview();
+        this.showAreaFinishButton();
+      }
     }
-    
-    console.log(`📐 Area point ${this.comments.areaPoints.length} added`);
+
+    const typeEmoji = this.comments.annotationType === 'polyline' ? '〰️' : '📐';
+    console.log(`${typeEmoji} Point ${this.comments.areaPoints.length} added`);
   };
 
   BimViewer.updateAreaPolygonPreview = function() {
@@ -761,7 +1036,7 @@
       this.viewer.entities.remove(this.comments.areaPolygonEntity);
     }
     
-    const OFFSET_HEIGHT = 0.02;
+    const OFFSET_HEIGHT = 0.15;
     
     const positions = this.comments.areaPoints.map(point => {
       const cartographic = Cesium.Cartographic.fromDegrees(point.lon, point.lat, point.height + OFFSET_HEIGHT);
@@ -775,7 +1050,8 @@
         outline: true,
         outlineColor: Cesium.Color.YELLOW,
         outlineWidth: 3,
-        perPositionHeight: true
+        perPositionHeight: true,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
       }
     });
     
@@ -807,9 +1083,11 @@
       transition: all 0.3s ease;
       animation: bounceIn 0.5s ease;
     `;
-    button.innerHTML = `✅ Finish Area (${this.comments.areaPoints.length} points)<br><small style="font-weight: normal; opacity: 0.9;">or press ENTER</small>`;
-    
-    button.onclick = () => this.finishAreaAnnotation();
+    const isPolyline = this.comments.annotationType === 'polyline';
+    const finishLabel = isPolyline ? 'Finish Polyline' : 'Finish Area';
+    button.innerHTML = `✅ ${finishLabel} (${this.comments.areaPoints.length} points)<br><small style="font-weight: normal; opacity: 0.9;">or press ENTER</small>`;
+
+    button.onclick = () => isPolyline ? this.finishPolylineAnnotation() : this.finishAreaAnnotation();
     
     button.onmouseenter = function() {
       this.style.transform = 'translateY(-3px) scale(1.05)';
@@ -861,6 +1139,223 @@
     console.log('📐 Area preview cleared');
   };
 
+  // =====================================
+  // CIRCLE ANNOTATION DRAWING
+  // =====================================
+
+  BimViewer.addCircleCenter = function(lon, lat, height) {
+    this.comments.circleCenter = { lon, lat, height };
+
+    // Show center marker
+    const position = Cesium.Cartesian3.fromDegrees(lon, lat, height);
+    this.comments.circleCenterEntity = this.viewer.entities.add({
+      position: position,
+      point: {
+        pixelSize: 14,
+        color: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new Cesium.NearFarScalar(10, 1.5, 500, 0.5)
+      },
+      label: {
+        text: 'Center',
+        font: 'bold 14px sans-serif',
+        fillColor: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        showBackground: true,
+        backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
+        backgroundPadding: new Cesium.Cartesian2(8, 4)
+      }
+    });
+
+    console.log('⭕ Circle center set');
+  };
+
+  BimViewer.finishCircleAnnotation = function(edgeLon, edgeLat, edgeHeight) {
+    const center = this.comments.circleCenter;
+    const centerCart = Cesium.Cartesian3.fromDegrees(center.lon, center.lat, center.height);
+    const edgeCart = Cesium.Cartesian3.fromDegrees(edgeLon, edgeLat, edgeHeight);
+    const radius = Cesium.Cartesian3.distance(centerCart, edgeCart);
+
+    if (radius < 0.1) {
+      this.updateStatus('⚠️ Circle too small! Click further from center.', 'error');
+      return;
+    }
+
+    // Show circle preview
+    this.comments.circlePreviewEntity = this.viewer.entities.add({
+      position: centerCart,
+      ellipse: {
+        semiMajorAxis: radius,
+        semiMinorAxis: radius,
+        material: Cesium.Color.YELLOW.withAlpha(0.4),
+        outline: true,
+        outlineColor: Cesium.Color.YELLOW,
+        outlineWidth: 3,
+        height: center.height + 0.15,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
+      }
+    });
+
+    // Store radius in state for saveCommentFromDialog
+    this.comments.circleRadius = radius;
+
+    this.openCommentDialog(null, false, false);
+
+    console.log(`⭕ Circle radius: ${radius.toFixed(1)}m`);
+  };
+
+  BimViewer.clearCirclePreview = function() {
+    if (this.comments.circleCenterEntity) {
+      this.viewer.entities.remove(this.comments.circleCenterEntity);
+      this.comments.circleCenterEntity = null;
+    }
+    if (this.comments.circlePreviewEntity) {
+      this.viewer.entities.remove(this.comments.circlePreviewEntity);
+      this.comments.circlePreviewEntity = null;
+    }
+    this.comments.circleCenter = null;
+    this.comments.circleRadius = null;
+    console.log('⭕ Circle preview cleared');
+  };
+
+  // =====================================
+  // RECTANGLE ANNOTATION DRAWING
+  // =====================================
+
+  BimViewer.addRectCorner1 = function(lon, lat, height) {
+    this.comments.rectCorner1 = { lon, lat, height };
+
+    const position = Cesium.Cartesian3.fromDegrees(lon, lat, height);
+    this.comments.rectCorner1Entity = this.viewer.entities.add({
+      position: position,
+      point: {
+        pixelSize: 14,
+        color: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new Cesium.NearFarScalar(10, 1.5, 500, 0.5)
+      },
+      label: {
+        text: 'Corner 1',
+        font: 'bold 14px sans-serif',
+        fillColor: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        showBackground: true,
+        backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
+        backgroundPadding: new Cesium.Cartesian2(8, 4)
+      }
+    });
+
+    console.log('▭ Rectangle corner 1 set');
+  };
+
+  BimViewer.finishRectangleAnnotation = function(lon2, lat2, height2) {
+    const c1 = this.comments.rectCorner1;
+    const OFFSET_HEIGHT = 0.15;
+    const avgHeight = ((c1.height + height2) / 2) + OFFSET_HEIGHT;
+
+    // Check if rectangle is too small
+    const corner1Cart = Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, c1.height);
+    const corner2Cart = Cesium.Cartesian3.fromDegrees(lon2, lat2, height2);
+    const dist = Cesium.Cartesian3.distance(corner1Cart, corner2Cart);
+
+    if (dist < 0.1) {
+      this.updateStatus('⚠️ Rectangle too small! Click further from first corner.', 'error');
+      return;
+    }
+
+    // Store corner2 in state
+    this.comments.rectCorner2 = { lon: lon2, lat: lat2, height: height2 };
+
+    // Show rectangle preview
+    const positions = [
+      Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, avgHeight),
+      Cesium.Cartesian3.fromDegrees(lon2, c1.lat, avgHeight),
+      Cesium.Cartesian3.fromDegrees(lon2, lat2, avgHeight),
+      Cesium.Cartesian3.fromDegrees(c1.lon, lat2, avgHeight)
+    ];
+
+    this.comments.rectPreviewEntity = this.viewer.entities.add({
+      polygon: {
+        hierarchy: positions,
+        material: Cesium.Color.YELLOW.withAlpha(0.4),
+        outline: true,
+        outlineColor: Cesium.Color.YELLOW,
+        outlineWidth: 3,
+        perPositionHeight: true,
+        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
+      }
+    });
+
+    this.openCommentDialog(null, false, false);
+
+    console.log(`▭ Rectangle defined (${dist.toFixed(1)}m diagonal)`);
+  };
+
+  BimViewer.clearRectanglePreview = function() {
+    if (this.comments.rectCorner1Entity) {
+      this.viewer.entities.remove(this.comments.rectCorner1Entity);
+      this.comments.rectCorner1Entity = null;
+    }
+    if (this.comments.rectPreviewEntity) {
+      this.viewer.entities.remove(this.comments.rectPreviewEntity);
+      this.comments.rectPreviewEntity = null;
+    }
+    this.comments.rectCorner1 = null;
+    this.comments.rectCorner2 = null;
+    console.log('▭ Rectangle preview cleared');
+  };
+
+  // =====================================
+  // POLYLINE ANNOTATION DRAWING
+  // =====================================
+
+  BimViewer.updatePolylinePreview = function() {
+    if (this.comments.areaPolygonEntity) {
+      this.viewer.entities.remove(this.comments.areaPolygonEntity);
+    }
+
+    const OFFSET_HEIGHT = 0.15;
+
+    const positions = this.comments.areaPoints.map(point => {
+      const cartographic = Cesium.Cartographic.fromDegrees(point.lon, point.lat, point.height + OFFSET_HEIGHT);
+      return Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
+    });
+
+    this.comments.areaPolygonEntity = this.viewer.entities.add({
+      polyline: {
+        positions: positions,
+        width: 4,
+        material: Cesium.Color.YELLOW,
+        clampToGround: false,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+
+    console.log('〰️ Polyline preview updated');
+  };
+
+  BimViewer.finishPolylineAnnotation = function() {
+    if (this.comments.areaPoints.length < 2) {
+      this.updateStatus('⚠️ Polyline needs at least 2 points!', 'error');
+      return;
+    }
+
+    this.hideAreaFinishButton();
+    this.openCommentDialog(null, false, false);
+  };
+
   BimViewer.finishAreaAnnotation = function() {
     if (this.comments.areaPoints.length < 3) {
       this.updateStatus('⚠️ Area needs at least 3 points!', 'error');
@@ -875,7 +1370,7 @@
   // COMMENT DIALOG
   // =====================================
   
-  BimViewer.openCommentDialog = function(screenPosition, isEdit = false, isArea = false) {
+  BimViewer.openCommentDialog = function(screenPosition, isEdit = false, isArea = false, dialogType = null) {
     const dialog = document.getElementById('commentDialog');
     const title = document.getElementById('commentDialogTitle');
     const titleInput = document.getElementById('commentTitleInput');
@@ -888,14 +1383,35 @@
       return;
     }
     
+    const currentType = dialogType || this.comments.annotationType;
+
     if (isEdit && this.comments.editingComment) {
       title.textContent = 'Edit Comment';
       titleInput.value = this.comments.editingComment.title;
       textInput.value = this.comments.editingComment.text;
       categorySelect.value = this.comments.editingComment.category || 'General';
       prioritySelect.value = this.comments.editingComment.priority || 'Normal';
-    } else if (isArea) {
+    } else if (isArea || currentType === 'area') {
       title.textContent = `New Area Annotation (${this.comments.areaPoints.length} points)`;
+      titleInput.value = '';
+      textInput.value = '';
+      categorySelect.value = 'Issue';
+      prioritySelect.value = 'Normal';
+    } else if (currentType === 'circle') {
+      const r = this.comments.circleRadius;
+      title.textContent = `New Circle Annotation (r=${r ? r.toFixed(1) + 'm' : '?'})`;
+      titleInput.value = '';
+      textInput.value = '';
+      categorySelect.value = 'Issue';
+      prioritySelect.value = 'Normal';
+    } else if (currentType === 'polyline') {
+      title.textContent = `New Polyline Annotation (${this.comments.areaPoints.length} points)`;
+      titleInput.value = '';
+      textInput.value = '';
+      categorySelect.value = 'Issue';
+      prioritySelect.value = 'Normal';
+    } else if (currentType === 'rectangle') {
+      title.textContent = 'New Rectangle Annotation';
       titleInput.value = '';
       textInput.value = '';
       categorySelect.value = 'Issue';
@@ -911,24 +1427,39 @@
     if (screenPosition) {
       dialog.style.left = Math.min(screenPosition.x + 10, window.innerWidth - 450) + 'px';
       dialog.style.top = Math.min(screenPosition.y + 10, window.innerHeight - 400) + 'px';
+      dialog.style.transform = 'none';
     } else {
       dialog.style.left = '50%';
       dialog.style.top = '50%';
       dialog.style.transform = 'translate(-50%, -50%)';
     }
-    
+
     dialog.style.display = 'block';
     titleInput.focus();
+
+    // Init draggable once
+    if (!dialog._draggable) {
+      dialog._draggable = true;
+      const handle = document.getElementById('commentDialogHeader');
+      if (handle && typeof this.makeFloatingPanelDraggable === 'function') {
+        this.makeFloatingPanelDraggable(dialog, handle);
+      }
+    }
   };
 
   BimViewer.closeCommentDialog = function() {
     const dialog = document.getElementById('commentDialog');
     if (dialog) {
       dialog.style.display = 'none';
+      dialog.style.transform = 'none';
+      dialog.style.right = 'auto';
+      dialog.style.bottom = 'auto';
     }
-    
+
     this.removePreviewMarker();
     this.clearAreaPreview();
+    this.clearCirclePreview();
+    this.clearRectanglePreview();
     this.comments.editingComment = null;
     this.comments.currentPosition = null;
     this.comments.currentSurfaceNormal = null;
@@ -956,23 +1487,32 @@
       
       if (indicator) {
         indicator.classList.add('active');
-        
-        if (this.comments.annotationType === 'area') {
-          indicator.textContent = '📐 AREA MODE - RIGHT-CLICK to add points (min. 3), then press ENTER or click "Finish Area"';
-        } else {
-          indicator.textContent = '💬 POINT MODE - RIGHT-CLICK on 3D model to place comment';
-        }
+
+        const indicatorTexts = {
+          'point': '📍 POINT MODE - RIGHT-CLICK on 3D model to place comment',
+          'circle': '⭕ CIRCLE MODE - RIGHT-CLICK center, then RIGHT-CLICK edge',
+          'polyline': '〰️ POLYLINE MODE - RIGHT-CLICK to add points (min. 2), then ENTER',
+          'rectangle': '▭ RECTANGLE MODE - RIGHT-CLICK 2 opposite corners',
+          'area': '⬡ AREA MODE - RIGHT-CLICK to add points (min. 3), then ENTER'
+        };
+        indicator.textContent = indicatorTexts[this.comments.annotationType] || indicatorTexts['point'];
       }
-      
-      const modeText = this.comments.annotationType === 'area' 
-        ? 'RIGHT-CLICK to add area points (min. 3)...' 
-        : 'RIGHT-CLICK on the 3D model to place a comment...';
+
+      const modeTexts = {
+        'point': 'RIGHT-CLICK on the 3D model to place a comment...',
+        'circle': 'RIGHT-CLICK to set circle center...',
+        'polyline': 'RIGHT-CLICK to add polyline points (min. 2)...',
+        'rectangle': 'RIGHT-CLICK to set first corner...',
+        'area': 'RIGHT-CLICK to add area points (min. 3)...'
+      };
+      const modeText = modeTexts[this.comments.annotationType] || modeTexts['point'];
       
       this.updateStatus(modeText, 'warning');
     } else {
       if (toggleBtn) {
         toggleBtn.classList.remove('active');
-        toggleBtn.innerHTML = this.comments.annotationType === 'area' ? '📐 Add Area' : '💬 Add Comment';
+        const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'rectangle': '▭ Add Rectangle', 'area': '⬡ Add Area' };
+        toggleBtn.innerHTML = btnLabels[this.comments.annotationType] || '📍 Add Comment';
       }
       
       if (indicator) {
@@ -989,34 +1529,35 @@
   
   BimViewer.setAnnotationType = function(type) {
     this.comments.annotationType = type;
-    
-    const pointBtn = document.getElementById('annotationTypePoint');
-    const areaBtn = document.getElementById('annotationTypeArea');
-    
-    if (pointBtn && areaBtn) {
-      if (type === 'point') {
-        pointBtn.classList.add('active');
-        areaBtn.classList.remove('active');
-      } else {
-        pointBtn.classList.remove('active');
-        areaBtn.classList.add('active');
-      }
-    }
-    
+
+    const allBtnIds = ['annotationTypePoint', 'annotationTypeCircle', 'annotationTypePolyline', 'annotationTypeArea'];
+    allBtnIds.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.remove('active');
+    });
+
+    const activeId = 'annotationType' + type.charAt(0).toUpperCase() + type.slice(1);
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) activeBtn.classList.add('active');
+
     const toggleBtn = document.getElementById('toggleCommentMode');
     if (toggleBtn && !this.comments.isAddingComment) {
-      toggleBtn.innerHTML = type === 'area' ? '📐 Add Area' : '💬 Add Comment';
+      const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'rectangle': '▭ Add Rectangle', 'area': '⬡ Add Area' };
+      toggleBtn.innerHTML = btnLabels[type] || '📍 Add Comment';
     }
-    
+
     const indicator = document.getElementById('commentModeIndicator');
     if (indicator && this.comments.isAddingComment) {
-      if (type === 'area') {
-        indicator.textContent = '📐 AREA MODE - RIGHT-CLICK to add points (min. 3), then press ENTER or click "Finish Area"';
-      } else {
-        indicator.textContent = '💬 POINT MODE - RIGHT-CLICK on 3D model to place comment';
-      }
+      const indicatorTexts = {
+        'point': '📍 POINT MODE - RIGHT-CLICK on 3D model to place comment',
+        'circle': '⭕ CIRCLE MODE - RIGHT-CLICK center, then RIGHT-CLICK edge',
+        'polyline': '〰️ POLYLINE MODE - RIGHT-CLICK to add points (min. 2), then ENTER',
+        'rectangle': '▭ RECTANGLE MODE - RIGHT-CLICK 2 opposite corners',
+        'area': '⬡ AREA MODE - RIGHT-CLICK to add points (min. 3), then ENTER'
+      };
+      indicator.textContent = indicatorTexts[type] || indicatorTexts['point'];
     }
-    
+
     console.log(`📝 Annotation type set to: ${type}`);
   };
 
@@ -1057,21 +1598,38 @@
     const category = document.getElementById('commentCategory').value;
     const priority = document.getElementById('commentPriority').value;
     
-    if (!title || !text) {
-      alert('Please fill in both title and comment text!');
+    if (!title) {
+      alert('Please fill in the title!');
       return;
     }
     
-    const isArea = this.comments.areaPoints.length >= 3;
-    
-    if (!isArea && !this.comments.currentPosition) {
-      alert('No position selected!');
-      return;
-    }
-    
-    if (isArea && this.comments.areaPoints.length < 3) {
-      alert('Area needs at least 3 points!');
-      return;
+    const currentType = this.comments.annotationType;
+    const isArea = currentType === 'area' && this.comments.areaPoints.length >= 3;
+    const isCircle = currentType === 'circle' && this.comments.circleCenter && this.comments.circleRadius;
+    const isPolyline = currentType === 'polyline' && this.comments.areaPoints.length >= 2;
+    const isRectangle = currentType === 'rectangle' && this.comments.rectCorner1 && this.comments.rectCorner2;
+
+    if (!this.comments.editingComment) {
+      if (currentType === 'area' && this.comments.areaPoints.length < 3) {
+        alert('Area needs at least 3 points!');
+        return;
+      }
+      if (currentType === 'polyline' && this.comments.areaPoints.length < 2) {
+        alert('Polyline needs at least 2 points!');
+        return;
+      }
+      if (currentType === 'circle' && (!this.comments.circleCenter || !this.comments.circleRadius)) {
+        alert('Circle needs center and radius!');
+        return;
+      }
+      if (currentType === 'rectangle' && (!this.comments.rectCorner1 || !this.comments.rectCorner2)) {
+        alert('Rectangle needs 2 corners!');
+        return;
+      }
+      if (currentType === 'point' && !this.comments.currentPosition) {
+        alert('No position selected!');
+        return;
+      }
     }
     
     if (this.comments.editingComment) {
@@ -1092,7 +1650,7 @@
         const entity = this.viewer.entities.getById(this.comments.editingComment.id);
         if (entity) {
           if (entity.label) {
-            entity.label.text = updatedComment.type === 'area' ? `📐 ${title}` : title;
+            entity.label.text = this.buildLabelText(updatedComment);
           }
           entity.description = this.createCommentDescription(updatedComment);
           
@@ -1119,10 +1677,18 @@
         
         this.removePreviewMarker();
         this.clearAreaPreview();
+        this.clearCirclePreview();
+        this.clearRectanglePreview();
         this.closeCommentDialog();
         this.updateStatus('Comment updated!', 'success');
       }
     } else {
+      let commentType = 'point';
+      if (isArea) commentType = 'area';
+      else if (isCircle) commentType = 'circle';
+      else if (isPolyline) commentType = 'polyline';
+      else if (isRectangle) commentType = 'rectangle';
+
       const comment = {
         title: title,
         text: text,
@@ -1130,25 +1696,36 @@
         category: category,
         priority: priority,
         isUpdated: false,
-        type: isArea ? 'area' : 'point'
+        type: commentType
       };
-      
-      if (isArea) {
+
+      if (isArea || isPolyline) {
         comment.areaPoints = this.comments.areaPoints;
+      } else if (isCircle) {
+        comment.centerLon = this.comments.circleCenter.lon;
+        comment.centerLat = this.comments.circleCenter.lat;
+        comment.centerHeight = this.comments.circleCenter.height;
+        comment.radius = this.comments.circleRadius;
+      } else if (isRectangle) {
+        comment.corner1 = this.comments.rectCorner1;
+        comment.corner2 = this.comments.rectCorner2;
       } else {
         comment.lon = this.comments.currentPosition.lon;
         comment.lat = this.comments.currentPosition.lat;
         comment.height = this.comments.currentPosition.height;
       }
-      
+
       this.updateStatus('Saving comment...', 'loading');
       const success = await this.saveComment(comment);
-      
+
       if (success) {
         this.removePreviewMarker();
         this.clearAreaPreview();
+        this.clearCirclePreview();
+        this.clearRectanglePreview();
         this.closeCommentDialog();
-        const typeLabel = isArea ? 'Area annotation' : 'Comment';
+        const typeLabels = { 'point': 'Comment', 'circle': 'Circle annotation', 'polyline': 'Polyline annotation', 'rectangle': 'Rectangle annotation', 'area': 'Area annotation' };
+        const typeLabel = typeLabels[commentType] || 'Comment';
         this.updateStatus(`${typeLabel} "${title}" saved!`, 'success');
       }
     }
@@ -1182,24 +1759,42 @@
         const lat = Cesium.Math.toDegrees(cartographic.latitude);
         const height = cartographic.height;
         
-        if (this.comments.annotationType === 'area') {
+        if (this.comments.annotationType === 'area' || this.comments.annotationType === 'polyline') {
           this.addAreaPoint(lon, lat, height);
-          
+
           const pointCount = this.comments.areaPoints.length;
-          if (pointCount < 3) {
-            this.updateStatus(`Point ${pointCount} added - Need ${3 - pointCount} more (min. 3)`, 'success');
+          const isPolyline = this.comments.annotationType === 'polyline';
+          const minPoints = isPolyline ? 2 : 3;
+          const typeName = isPolyline ? 'polyline' : 'area';
+
+          if (pointCount < minPoints) {
+            this.updateStatus(`Point ${pointCount} added - Need ${minPoints - pointCount} more (min. ${minPoints})`, 'success');
           } else {
-            this.updateStatus(`Point ${pointCount} added - Press ENTER or click "Finish Area" button`, 'success');
+            this.updateStatus(`Point ${pointCount} added - Press ENTER or click "Finish" button`, 'success');
+          }
+        } else if (this.comments.annotationType === 'circle') {
+          if (!this.comments.circleCenter) {
+            this.addCircleCenter(lon, lat, height);
+            this.updateStatus('⭕ Center set — now RIGHT-CLICK on the edge to set radius', 'success');
+          } else {
+            this.finishCircleAnnotation(lon, lat, height);
+          }
+        } else if (this.comments.annotationType === 'rectangle') {
+          if (!this.comments.rectCorner1) {
+            this.addRectCorner1(lon, lat, height);
+            this.updateStatus('▭ Corner 1 set — now RIGHT-CLICK the opposite corner', 'success');
+          } else {
+            this.finishRectangleAnnotation(lon, lat, height);
           }
         } else {
           this.comments.currentPosition = { lon, lat, height };
           this.comments.currentSurfaceNormal = surfaceData.normal;
-          
+
           this.createPreviewMarker(lon, lat, height);
           this.openCommentDialog(click.position);
-          
-          const surfaceInfo = surfaceData.type === '3D_TILESET' 
-            ? 'on 3D model surface' 
+
+          const surfaceInfo = surfaceData.type === '3D_TILESET'
+            ? 'on 3D model surface'
             : 'on terrain';
           this.updateStatus(`📍 Comment placed ${surfaceInfo}`, 'success');
         }
@@ -1236,16 +1831,29 @@
       }
     }
     
-    if (key === 'enter' && BimViewer.comments.annotationType === 'area' && BimViewer.comments.areaPoints.length >= 3) {
-      event.preventDefault();
-      BimViewer.finishAreaAnnotation();
+    if (key === 'enter') {
+      if (BimViewer.comments.annotationType === 'area' && BimViewer.comments.areaPoints.length >= 3) {
+        event.preventDefault();
+        BimViewer.finishAreaAnnotation();
+      } else if (BimViewer.comments.annotationType === 'polyline' && BimViewer.comments.areaPoints.length >= 2) {
+        event.preventDefault();
+        BimViewer.finishPolylineAnnotation();
+      }
     }
-    
+
     if (key === 'escape') {
       event.preventDefault();
       if (BimViewer.comments.areaPoints.length > 0) {
         BimViewer.clearAreaPreview();
-        BimViewer.updateStatus('Area annotation cancelled', 'warning');
+        BimViewer.updateStatus('Annotation cancelled', 'warning');
+      }
+      if (BimViewer.comments.circleCenter) {
+        BimViewer.clearCirclePreview();
+        BimViewer.updateStatus('Circle annotation cancelled', 'warning');
+      }
+      if (BimViewer.comments.rectCorner1) {
+        BimViewer.clearRectanglePreview();
+        BimViewer.updateStatus('Rectangle annotation cancelled', 'warning');
       }
       if (BimViewer.comments.isAddingComment) {
         BimViewer.closeCommentDialog();

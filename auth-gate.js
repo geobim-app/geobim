@@ -28,6 +28,7 @@
       '<input id="agPassword" class="ag-input" type="password" placeholder="Password" autocomplete="current-password" />' +
       '<div id="agError" class="ag-error"></div>' +
       '<button id="agSubmit" class="ag-btn">Sign In</button>' +
+      '<div class="ag-gdpr">Your email address will be visible to other users on comments you create.</div>' +
     '</div>';
 
   // =====================================
@@ -53,7 +54,8 @@
     'font-weight:700;cursor:pointer;transition:box-shadow .2s,transform .2s}' +
     '.ag-btn:hover{box-shadow:0 6px 16px rgba(110,236,216,.35);transform:translateY(-1px)}' +
     '.ag-btn:active{transform:translateY(0)}' +
-    '.ag-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}';
+    '.ag-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}' +
+    '.ag-gdpr{color:rgba(255,255,255,.4);font-size:11px;margin-top:16px;line-height:1.5}';
 
   document.head.appendChild(style);
 
@@ -105,6 +107,10 @@
     // Expose the authenticated user on BimAuth if it exists
     if (window.BimAuth) {
       window.BimAuth.authenticatedUser = user;
+      window.BimAuth.currentUser = {
+        email: user.email || 'demo@geobim.app',
+        displayName: user.displayName || user.email || 'Demo User'
+      };
     }
 
     // Mark auth gate as passed

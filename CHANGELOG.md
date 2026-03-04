@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-03-04
+
+### Added
+- **5 annotation types**: Point (📍), Circle (⭕), Polyline (〰️), Rectangle (▭), Area (⬡) — up from 2
+- Circle annotations: right-click center, then edge to set radius (EllipseGraphics with classification)
+- Polyline annotations: right-click 2+ points, ENTER to finish (PolylineGraphics with depth test disabled)
+- Rectangle annotations: right-click 2 opposite corners (PolygonGraphics with classification)
+- Icon-only annotation type toolbar (5-column grid, 40px buttons with tooltips)
+- Author tracking on comments using Firebase authenticated user (name + email)
+- GDPR transparency notice on login screen ("Your email address will be visible to others")
+- Floating, draggable, minimizable Loaded Assets panel (undocked from sidebar)
+- Inspection module (`inspection.js`)
+
+### Changed
+- Renamed sidebar section "Comments" → "Annotations", "Annotation Type" → "Type"
+- Renamed "Recent Comments" → "Recent Annotations" in floating panel
+- Comment text field is no longer mandatory (only title required)
+- Annotation label font reduced from 22–28px to 14px sans-serif for proper fitting in label boxes
+- Area/circle/rectangle entities use `classificationType: CESIUM_3D_TILE` to render on tiles (not terrain)
+- Polyline entities use `disableDepthTestDistance: Number.POSITIVE_INFINITY` to always render on top
+- Loaded Assets controls moved from sidebar inline list to floating panel with collapse/drag support
+
+### Fixed
+- Annotation geometry projecting through 3D tiles onto underlying terrain
+- Polyline corridors sinking into tile surfaces (switched from CorridorGraphics to PolylineGraphics)
+- Label text/numbers overflowing background boxes
+- Auth init overwriting authenticated Firebase user with demo user
+- Comment text asterisk implying mandatory field
+
 ## [1.0.1] - 2026-03-01
 
 ### Added

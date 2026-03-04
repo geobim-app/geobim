@@ -68,8 +68,10 @@
           console.error('Anonymous auth failed:', error);
         });
 
-      // Set demo user
-      this.currentUser = { email: 'demo@geobim.app', displayName: 'Demo User' };
+      // Set demo user only if not already set by auth-gate
+      if (!this.currentUser) {
+        this.currentUser = { email: 'demo@geobim.app', displayName: 'Demo User' };
+      }
 
       // Auto-apply demo token and show app
       this.checkIonToken();

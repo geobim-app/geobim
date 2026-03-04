@@ -779,19 +779,11 @@
         console.log('❌ No feature picked');
         
         // Clear info box
-        const infoBox = document.getElementById('infoBoxCustom');
-        if (infoBox) {
-          infoBox.innerHTML = '';
-          infoBox.className = '';
-        }
+        BimViewer.closeInfoBox();
       }
     } catch (error) {
       console.error('❌ Error in click handler:', error);
-      const infoBox = document.getElementById('infoBoxCustom');
-      if (infoBox) {
-        infoBox.innerHTML = '';
-        infoBox.className = '';
-      }
+      BimViewer.closeInfoBox();
       this.updateStatus('Error during element selection', 'error');
     }
   };
@@ -824,7 +816,7 @@
     
     console.log(`📋 Element type: ${isOSMBuilding ? 'OSM Building' : 'IFC Element'}`);
     
-    let html = '<span class="close-btn" onclick="var p=this.parentNode; p.className=\'\'; p.innerHTML=\'\';">&times;</span>';
+    let html = '';
     
     html += '<table class="bim-property-table">';
     html += '<tr class="bim-header-row">';
@@ -1005,16 +997,38 @@
     html += '</table>';
     
     infoBox.innerHTML = html;
-    
-    infoBox.className = '';
-    if (totalPropertyCount <= 10) {
-      infoBox.classList.add('compact');
-    } else if (totalPropertyCount <= 20) {
-      infoBox.classList.add('medium');
-    } else {
-      infoBox.classList.add('large');
+
+    // Show floating panel and apply size class
+    const panel = document.getElementById('infoBoxPanel');
+    if (panel) {
+      panel.className = 'visible';
+      if (totalPropertyCount <= 10) {
+        panel.classList.add('compact');
+      } else if (totalPropertyCount <= 20) {
+        panel.classList.add('medium');
+      } else {
+        panel.classList.add('large');
+      }
+
+      // Update title
+      const titleEl = document.getElementById('infoBoxPanelTitle');
+      if (titleEl) {
+        titleEl.textContent = isOSMBuilding ? '🏢 OSM Building' : '🏷️ Element Properties';
+      }
+
+      // Ensure body is expanded
+      const body = document.getElementById('infoBoxBody');
+      if (body) body.classList.remove('collapsed');
+      const btn = document.getElementById('infoBoxCollapseBtn');
+      if (btn) btn.textContent = '−';
+
+      // Init draggable once
+      if (!panel._draggable && typeof this.makeFloatingPanelDraggable === 'function') {
+        panel._draggable = true;
+        this.makeFloatingPanelDraggable(panel, document.getElementById('infoBoxHeader'));
+      }
     }
-    
+
     const elementType = isOSMBuilding ? 'OSM Building' : 'IFC Element';
     console.log(`✅ ${elementType} - Total properties displayed: ${totalPropertyCount} (${Object.keys(properties).length} available)`);
   };

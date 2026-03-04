@@ -99,14 +99,13 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-/* Comments List */
+/* Comments List (inside floating panel) */
 #commentsList {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-top: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 8px;
+  overflow-y: visible;
+  margin-top: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
 }
 
 #commentsList::-webkit-scrollbar {
