@@ -196,7 +196,7 @@ BimViewer.updateCommentsList = function() {
   
   sortedComments.forEach(comment => {
     const priorityClass = comment.priority ? comment.priority.toLowerCase() : 'normal';
-    const typeClasses = { 'point': 'type-point', 'circle': 'type-circle', 'polyline': 'type-polyline', 'rectangle': 'type-rectangle', 'area': 'type-area' };
+    const typeClasses = { 'point': 'type-point', 'circle': 'type-circle', 'polyline': 'type-polyline', 'area': 'type-area' };
     const typeClass = typeClasses[comment.type] || 'type-point';
     const timeLabel = comment.isUpdated ? 'Updated' : 'Created';
     const timestamp = new Date(comment.timestamp);
@@ -213,8 +213,8 @@ BimViewer.updateCommentsList = function() {
       : comment.text;
     
     // Type emoji and label
-    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'rectangle': '▭', 'area': '⬡' };
-    const typeLabelsMap = { 'point': 'Point', 'circle': 'Circle', 'polyline': 'Polyline', 'rectangle': 'Rectangle', 'area': 'Area' };
+    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'area': '⬡' };
+    const typeLabelsMap = { 'point': 'Point', 'circle': 'Circle', 'polyline': 'Polyline', 'area': 'Area' };
     const typeEmoji = typeEmojis[comment.type] || '📍';
     const typeLabel = typeLabelsMap[comment.type] || 'Point';
     
@@ -533,32 +533,7 @@ BimViewer.flyToComment = function(commentId) {
   
   const comment = this.comments.comments.find(c => c.id === commentId);
   
-  if (comment && comment.type === 'rectangle') {
-    // For rectangle annotations, fly to the center of the 2 corners
-    const c1 = comment.corner1;
-    const c2 = comment.corner2;
-    const centerLon = (c1.lon + c2.lon) / 2;
-    const centerLat = (c1.lat + c2.lat) / 2;
-    const centerHeight = (c1.height + c2.height) / 2;
-    const center = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, centerHeight);
-
-    // Estimate size from corner distance
-    const p1 = Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, c1.height);
-    const p2 = Cesium.Cartesian3.fromDegrees(c2.lon, c2.lat, c2.height);
-    const diagonal = Cesium.Cartesian3.distance(p1, p2);
-    const distance = diagonal * 2;
-
-    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, diagonal / 2), {
-      duration: 2.0,
-      offset: new Cesium.HeadingPitchRange(0, -0.5, distance)
-    });
-
-    setTimeout(() => {
-      this.viewer.selectedEntity = entity;
-      this.updateStatus('Viewing rectangle annotation', 'success');
-    }, 2100);
-
-  } else if (comment && (comment.type === 'area' || comment.type === 'polyline')) {
+  if (comment && (comment.type === 'area' || comment.type === 'polyline')) {
     // For area/polyline annotations, fly to the center of the points
     const positions = comment.areaPoints.map(point =>
       Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.height)

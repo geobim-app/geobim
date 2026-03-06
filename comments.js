@@ -41,7 +41,7 @@
     db: null,
     initialized: false,
     isAddingComment: false,
-    annotationType: 'point', // 'point' | 'circle' | 'polyline' | 'rectangle' | 'area'
+    annotationType: 'point', // 'point' | 'circle' | 'polyline' | 'area'
     editingComment: null,
     previewEntity: null,
     currentPosition: null,
@@ -50,10 +50,6 @@
     circleCenter: null,
     circleCenterEntity: null,
     circlePreviewEntity: null,
-    // Rectangle annotation state
-    rectCorner1: null,
-    rectCorner1Entity: null,
-    rectPreviewEntity: null,
     // Area/polyline annotation state
     areaPoints: [],
     areaPreviewEntities: [],
@@ -193,8 +189,6 @@
             this.addAreaEntity(comment);
           } else if (comment.type === 'circle') {
             this.addCircleEntity(comment);
-          } else if (comment.type === 'rectangle') {
-            this.addRectangleEntity(comment);
           } else if (comment.type === 'polyline') {
             this.addPolylineEntity(comment);
           } else {
@@ -250,9 +244,6 @@
 
       if (commentData.type === 'area' || commentData.type === 'polyline') {
         sanitizedData.areaPoints = commentData.areaPoints;
-      } else if (commentData.type === 'rectangle') {
-        sanitizedData.corner1 = commentData.corner1;
-        sanitizedData.corner2 = commentData.corner2;
       } else if (commentData.type === 'circle') {
         sanitizedData.centerLon = commentData.centerLon;
         sanitizedData.centerLat = commentData.centerLat;
@@ -282,8 +273,6 @@
           this.addAreaEntity(newComment);
         } else if (newComment.type === 'circle') {
           this.addCircleEntity(newComment);
-        } else if (newComment.type === 'rectangle') {
-          this.addRectangleEntity(newComment);
         } else if (newComment.type === 'polyline') {
           this.addPolylineEntity(newComment);
         } else {
@@ -626,77 +615,6 @@
   };
 
   // =====================================
-  // RECTANGLE ANNOTATION ENTITY
-  // =====================================
-
-  BimViewer.addRectangleEntity = function(comment) {
-    const priorityColors = {
-      'High': '#e74c3c',
-      'Normal': '#6EECD8',
-      'Low': '#95a5a6'
-    };
-
-    const color = priorityColors[comment.priority] || '#6EECD8';
-    const cesiumColor = Cesium.Color.fromCssColorString(color);
-
-    const c1 = comment.corner1;
-    const c2 = comment.corner2;
-    const OFFSET_HEIGHT = 0.15;
-    const avgHeight = ((c1.height + c2.height) / 2) + OFFSET_HEIGHT;
-
-    const positions = [
-      Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, avgHeight),
-      Cesium.Cartesian3.fromDegrees(c2.lon, c1.lat, avgHeight),
-      Cesium.Cartesian3.fromDegrees(c2.lon, c2.lat, avgHeight),
-      Cesium.Cartesian3.fromDegrees(c1.lon, c2.lat, avgHeight)
-    ];
-
-    const centerPos = Cesium.Cartesian3.fromDegrees(
-      (c1.lon + c2.lon) / 2,
-      (c1.lat + c2.lat) / 2,
-      avgHeight
-    );
-
-    this.viewer.entities.add({
-      id: comment.id,
-      polygon: {
-        hierarchy: positions,
-        material: cesiumColor.withAlpha(0.4),
-        outline: true,
-        outlineColor: cesiumColor,
-        outlineWidth: 3,
-        perPositionHeight: true,
-        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
-      },
-
-      position: centerPos,
-
-      label: {
-        text: this.buildLabelText(comment),
-        font: 'bold 14px sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.CENTER,
-        pixelOffset: new Cesium.Cartesian2(0, 0),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scale: 1.0,
-        scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
-        pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
-        backgroundColor: cesiumColor.withAlpha(0.9),
-        backgroundPadding: new Cesium.Cartesian2(10, 6),
-        showBackground: true
-      },
-
-      description: this.createCommentDescription(comment)
-    });
-
-    console.log(`▭ Rectangle annotation entity added: ${comment.title}`);
-  };
-
-  // =====================================
   // POLYLINE ANNOTATION ENTITY
   // =====================================
 
@@ -793,8 +711,8 @@
 
   BimViewer.createCommentDescription = function(comment) {
     const timeLabel = comment.isUpdated ? 'Updated' : 'Created';
-    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'rectangle': '▭', 'area': '⬡' };
-    const typeLabels = { 'point': 'Point Comment', 'circle': 'Circle Annotation', 'polyline': 'Polyline Annotation', 'rectangle': 'Rectangle Annotation', 'area': 'Area Annotation' };
+    const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'area': '⬡' };
+    const typeLabels = { 'point': 'Point Comment', 'circle': 'Circle Annotation', 'polyline': 'Polyline Annotation', 'area': 'Area Annotation' };
     const typeEmoji = typeEmojis[comment.type] || '📍';
     const typeLabel = typeLabels[comment.type] || 'Point Comment';
     
@@ -828,15 +746,6 @@
       areaInfo = `
         <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
           <strong>⭕ Circle:</strong> radius ${comment.radius.toFixed(1)} m
-        </div>
-      `;
-    } else if (comment.type === 'rectangle' && comment.corner1 && comment.corner2) {
-      const c1Cart = Cesium.Cartesian3.fromDegrees(comment.corner1.lon, comment.corner1.lat, comment.corner1.height);
-      const c2Cart = Cesium.Cartesian3.fromDegrees(comment.corner2.lon, comment.corner2.lat, comment.corner2.height);
-      const diag = Cesium.Cartesian3.distance(c1Cart, c2Cart);
-      areaInfo = `
-        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
-          <strong>▭ Rectangle:</strong> ${diag.toFixed(1)} m diagonal
         </div>
       `;
     } else if (comment.type === 'polyline' && comment.areaPoints) {
@@ -896,7 +805,7 @@
   // =====================================
 
   BimViewer.buildLabelText = function(comment) {
-    const typePrefixes = { 'point': '', 'circle': '⭕ ', 'polyline': '〰️ ', 'rectangle': '▭ ', 'area': '⬡ ' };
+    const typePrefixes = { 'point': '', 'circle': '⭕ ', 'polyline': '〰️ ', 'area': '⬡ ' };
     const typePrefix = typePrefixes[comment.type] || '';
     let lines = [typePrefix + comment.title];
     if (comment.timestamp) {
@@ -1225,99 +1134,6 @@
   };
 
   // =====================================
-  // RECTANGLE ANNOTATION DRAWING
-  // =====================================
-
-  BimViewer.addRectCorner1 = function(lon, lat, height) {
-    this.comments.rectCorner1 = { lon, lat, height };
-
-    const position = Cesium.Cartesian3.fromDegrees(lon, lat, height);
-    this.comments.rectCorner1Entity = this.viewer.entities.add({
-      position: position,
-      point: {
-        pixelSize: 14,
-        color: Cesium.Color.YELLOW,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scaleByDistance: new Cesium.NearFarScalar(10, 1.5, 500, 0.5)
-      },
-      label: {
-        text: 'Corner 1',
-        font: 'bold 14px sans-serif',
-        fillColor: Cesium.Color.YELLOW,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -20),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        showBackground: true,
-        backgroundColor: new Cesium.Color(0, 0, 0, 0.85),
-        backgroundPadding: new Cesium.Cartesian2(8, 4)
-      }
-    });
-
-    console.log('▭ Rectangle corner 1 set');
-  };
-
-  BimViewer.finishRectangleAnnotation = function(lon2, lat2, height2) {
-    const c1 = this.comments.rectCorner1;
-    const OFFSET_HEIGHT = 0.15;
-    const avgHeight = ((c1.height + height2) / 2) + OFFSET_HEIGHT;
-
-    // Check if rectangle is too small
-    const corner1Cart = Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, c1.height);
-    const corner2Cart = Cesium.Cartesian3.fromDegrees(lon2, lat2, height2);
-    const dist = Cesium.Cartesian3.distance(corner1Cart, corner2Cart);
-
-    if (dist < 0.1) {
-      this.updateStatus('⚠️ Rectangle too small! Click further from first corner.', 'error');
-      return;
-    }
-
-    // Store corner2 in state
-    this.comments.rectCorner2 = { lon: lon2, lat: lat2, height: height2 };
-
-    // Show rectangle preview
-    const positions = [
-      Cesium.Cartesian3.fromDegrees(c1.lon, c1.lat, avgHeight),
-      Cesium.Cartesian3.fromDegrees(lon2, c1.lat, avgHeight),
-      Cesium.Cartesian3.fromDegrees(lon2, lat2, avgHeight),
-      Cesium.Cartesian3.fromDegrees(c1.lon, lat2, avgHeight)
-    ];
-
-    this.comments.rectPreviewEntity = this.viewer.entities.add({
-      polygon: {
-        hierarchy: positions,
-        material: Cesium.Color.YELLOW.withAlpha(0.4),
-        outline: true,
-        outlineColor: Cesium.Color.YELLOW,
-        outlineWidth: 3,
-        perPositionHeight: true,
-        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
-      }
-    });
-
-    this.openCommentDialog(null, false, false);
-
-    console.log(`▭ Rectangle defined (${dist.toFixed(1)}m diagonal)`);
-  };
-
-  BimViewer.clearRectanglePreview = function() {
-    if (this.comments.rectCorner1Entity) {
-      this.viewer.entities.remove(this.comments.rectCorner1Entity);
-      this.comments.rectCorner1Entity = null;
-    }
-    if (this.comments.rectPreviewEntity) {
-      this.viewer.entities.remove(this.comments.rectPreviewEntity);
-      this.comments.rectPreviewEntity = null;
-    }
-    this.comments.rectCorner1 = null;
-    this.comments.rectCorner2 = null;
-    console.log('▭ Rectangle preview cleared');
-  };
-
-  // =====================================
   // POLYLINE ANNOTATION DRAWING
   // =====================================
 
@@ -1410,12 +1226,6 @@
       textInput.value = '';
       categorySelect.value = 'Issue';
       prioritySelect.value = 'Normal';
-    } else if (currentType === 'rectangle') {
-      title.textContent = 'New Rectangle Annotation';
-      titleInput.value = '';
-      textInput.value = '';
-      categorySelect.value = 'Issue';
-      prioritySelect.value = 'Normal';
     } else {
       title.textContent = 'New Point Comment';
       titleInput.value = '';
@@ -1459,7 +1269,6 @@
     this.removePreviewMarker();
     this.clearAreaPreview();
     this.clearCirclePreview();
-    this.clearRectanglePreview();
     this.comments.editingComment = null;
     this.comments.currentPosition = null;
     this.comments.currentSurfaceNormal = null;
@@ -1492,7 +1301,6 @@
           'point': '📍 POINT MODE - RIGHT-CLICK on 3D model to place comment',
           'circle': '⭕ CIRCLE MODE - RIGHT-CLICK center, then RIGHT-CLICK edge',
           'polyline': '〰️ POLYLINE MODE - RIGHT-CLICK to add points (min. 2), then ENTER',
-          'rectangle': '▭ RECTANGLE MODE - RIGHT-CLICK 2 opposite corners',
           'area': '⬡ AREA MODE - RIGHT-CLICK to add points (min. 3), then ENTER'
         };
         indicator.textContent = indicatorTexts[this.comments.annotationType] || indicatorTexts['point'];
@@ -1502,7 +1310,6 @@
         'point': 'RIGHT-CLICK on the 3D model to place a comment...',
         'circle': 'RIGHT-CLICK to set circle center...',
         'polyline': 'RIGHT-CLICK to add polyline points (min. 2)...',
-        'rectangle': 'RIGHT-CLICK to set first corner...',
         'area': 'RIGHT-CLICK to add area points (min. 3)...'
       };
       const modeText = modeTexts[this.comments.annotationType] || modeTexts['point'];
@@ -1511,7 +1318,7 @@
     } else {
       if (toggleBtn) {
         toggleBtn.classList.remove('active');
-        const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'rectangle': '▭ Add Rectangle', 'area': '⬡ Add Area' };
+        const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'area': '⬡ Add Area' };
         toggleBtn.innerHTML = btnLabels[this.comments.annotationType] || '📍 Add Comment';
       }
       
@@ -1542,7 +1349,7 @@
 
     const toggleBtn = document.getElementById('toggleCommentMode');
     if (toggleBtn && !this.comments.isAddingComment) {
-      const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'rectangle': '▭ Add Rectangle', 'area': '⬡ Add Area' };
+      const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'area': '⬡ Add Area' };
       toggleBtn.innerHTML = btnLabels[type] || '📍 Add Comment';
     }
 
@@ -1552,7 +1359,6 @@
         'point': '📍 POINT MODE - RIGHT-CLICK on 3D model to place comment',
         'circle': '⭕ CIRCLE MODE - RIGHT-CLICK center, then RIGHT-CLICK edge',
         'polyline': '〰️ POLYLINE MODE - RIGHT-CLICK to add points (min. 2), then ENTER',
-        'rectangle': '▭ RECTANGLE MODE - RIGHT-CLICK 2 opposite corners',
         'area': '⬡ AREA MODE - RIGHT-CLICK to add points (min. 3), then ENTER'
       };
       indicator.textContent = indicatorTexts[type] || indicatorTexts['point'];
@@ -1607,7 +1413,6 @@
     const isArea = currentType === 'area' && this.comments.areaPoints.length >= 3;
     const isCircle = currentType === 'circle' && this.comments.circleCenter && this.comments.circleRadius;
     const isPolyline = currentType === 'polyline' && this.comments.areaPoints.length >= 2;
-    const isRectangle = currentType === 'rectangle' && this.comments.rectCorner1 && this.comments.rectCorner2;
 
     if (!this.comments.editingComment) {
       if (currentType === 'area' && this.comments.areaPoints.length < 3) {
@@ -1620,10 +1425,6 @@
       }
       if (currentType === 'circle' && (!this.comments.circleCenter || !this.comments.circleRadius)) {
         alert('Circle needs center and radius!');
-        return;
-      }
-      if (currentType === 'rectangle' && (!this.comments.rectCorner1 || !this.comments.rectCorner2)) {
-        alert('Rectangle needs 2 corners!');
         return;
       }
       if (currentType === 'point' && !this.comments.currentPosition) {
@@ -1678,7 +1479,6 @@
         this.removePreviewMarker();
         this.clearAreaPreview();
         this.clearCirclePreview();
-        this.clearRectanglePreview();
         this.closeCommentDialog();
         this.updateStatus('Comment updated!', 'success');
       }
@@ -1687,7 +1487,6 @@
       if (isArea) commentType = 'area';
       else if (isCircle) commentType = 'circle';
       else if (isPolyline) commentType = 'polyline';
-      else if (isRectangle) commentType = 'rectangle';
 
       const comment = {
         title: title,
@@ -1706,9 +1505,6 @@
         comment.centerLat = this.comments.circleCenter.lat;
         comment.centerHeight = this.comments.circleCenter.height;
         comment.radius = this.comments.circleRadius;
-      } else if (isRectangle) {
-        comment.corner1 = this.comments.rectCorner1;
-        comment.corner2 = this.comments.rectCorner2;
       } else {
         comment.lon = this.comments.currentPosition.lon;
         comment.lat = this.comments.currentPosition.lat;
@@ -1722,9 +1518,8 @@
         this.removePreviewMarker();
         this.clearAreaPreview();
         this.clearCirclePreview();
-        this.clearRectanglePreview();
         this.closeCommentDialog();
-        const typeLabels = { 'point': 'Comment', 'circle': 'Circle annotation', 'polyline': 'Polyline annotation', 'rectangle': 'Rectangle annotation', 'area': 'Area annotation' };
+        const typeLabels = { 'point': 'Comment', 'circle': 'Circle annotation', 'polyline': 'Polyline annotation', 'area': 'Area annotation' };
         const typeLabel = typeLabels[commentType] || 'Comment';
         this.updateStatus(`${typeLabel} "${title}" saved!`, 'success');
       }
@@ -1778,13 +1573,6 @@
             this.updateStatus('⭕ Center set — now RIGHT-CLICK on the edge to set radius', 'success');
           } else {
             this.finishCircleAnnotation(lon, lat, height);
-          }
-        } else if (this.comments.annotationType === 'rectangle') {
-          if (!this.comments.rectCorner1) {
-            this.addRectCorner1(lon, lat, height);
-            this.updateStatus('▭ Corner 1 set — now RIGHT-CLICK the opposite corner', 'success');
-          } else {
-            this.finishRectangleAnnotation(lon, lat, height);
           }
         } else {
           this.comments.currentPosition = { lon, lat, height };
@@ -1850,10 +1638,6 @@
       if (BimViewer.comments.circleCenter) {
         BimViewer.clearCirclePreview();
         BimViewer.updateStatus('Circle annotation cancelled', 'warning');
-      }
-      if (BimViewer.comments.rectCorner1) {
-        BimViewer.clearRectanglePreview();
-        BimViewer.updateStatus('Rectangle annotation cancelled', 'warning');
       }
       if (BimViewer.comments.isAddingComment) {
         BimViewer.closeCommentDialog();

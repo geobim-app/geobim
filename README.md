@@ -24,7 +24,8 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **IFC & Revit Filtering** — Show/hide by entity class or category with color-coded visualization
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools
 - **Clipping** — Polygon and rectangle section planes for buildings and terrain
-- **Annotations** — 5 types (point, circle, polyline, rectangle, area) with author tracking and Firestore persistence
+- **Annotations** — Point and area comments with Firestore persistence
+- **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
 - **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), SSAO, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
 - **Saved Views** — Capture and restore camera positions with scene state
@@ -52,8 +53,8 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/geobim-app.git
-   cd geobim-app
+   git clone https://github.com/geobim-app/geobim.git
+   cd geobim
    ```
 
 2. Create your configuration file:
@@ -89,7 +90,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views |
 | `hideFeatures.js` | Click-to-hide individual BIM elements |
-| `comments.js` | 5 annotation types (point, circle, polyline, rectangle, area) with Firestore persistence |
+| `comments.js` | Point and area annotations with Firestore persistence |
 | `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
 | `clipping.js` | Polygon and rectangle clipping masks |
 | `pointcloud.js` | Point cloud detection, Eye Dome Lighting, color modes |
@@ -99,8 +100,38 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Collapsible sidebar toolbar with 12 sections |
 | `ui-helpers-modern.js` | List rendering helpers for UI components |
+| `sensorthings.js` | OGC SensorThings API module — live bridge monitoring with MQTT and damage detection |
 | `auth.js` | Demo mode authentication and Ion token management |
 | `config.js` | Firebase credentials (gitignored) |
+
+---
+
+## Data Sources & References
+
+The bridge monitoring module (`sensorthings.js`) simulates a structural health monitoring (SHM) scenario based on real sensor typologies used in civil engineering practice.
+
+### Sensor Types
+
+| Sensor | Observed Property | Threshold |
+|---|---|---|
+| Accelerometer (MEMS) | Vertical Acceleration (g) | \|a\| > 0.08 g |
+| Inclinometer (biaxial) | Inclination Angle (deg) | \|angle\| > 0.25 deg |
+| Thermocouple (Type K) | Temperature (°C) | — |
+| Strain Gauge (foil) | Strain (microstrain) | < -65 µε |
+
+### OGC SensorThings API
+
+Live sensor data is served via [FROST-Server](https://github.com/FraunhoferIOSB/FROST-Server) (Fraunhofer IOSB), an open-source implementation of the [OGC SensorThings API Part 1: Sensing (v1.1)](https://docs.ogc.org/is/18-088/18-088.html). Data is consumed via REST and MQTT over WebSocket.
+
+### Academic Reference
+
+The SHM scenario draws on sensor configurations described in:
+
+> Retze, U. (2012). *Bauwerksüberwachung mit faseroptischen Sensoren und Dehnungsmessstreifen.* Dissertation, Technische Universität München. [mediaTUM](https://mediatum.ub.tum.de/1108138)
+
+### INSPIRE & API4INSPIRE
+
+The SensorThings API is one of the download services recommended by the [INSPIRE Maintenance and Implementation Group](https://inspire.ec.europa.eu/) for environmental monitoring data (INSPIRE theme EF — Environmental Monitoring Facilities). The [API4INSPIRE](https://datacoveeu.github.io/API4INSPIRE/) project provides guidance on deploying STA as an INSPIRE-compliant download service.
 
 ---
 

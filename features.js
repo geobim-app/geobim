@@ -281,8 +281,12 @@
             for (const propName of possiblePropertyNames) {
               if (propertyIds.includes(propName)) {
                 const value = feature.getProperty(propName);
-                console.log(`✅ Found IFC property: "${propName}" = "${value}"`);
-                return propName;
+                // Validate that the value looks like an IFC entity name (starts with "Ifc")
+                if (typeof value === 'string' && value.startsWith('Ifc')) {
+                  console.log(`✅ Found IFC property: "${propName}" = "${value}"`);
+                  return propName;
+                }
+                console.log(`⚠️ Property "${propName}" found but value "${value}" doesn't look like IFC — skipping`);
               }
             }
           } catch (error) {
@@ -311,6 +315,9 @@
       return null;
     }
   };
+
+  // Default IFC property name (Cesium Ion IFC tiler uses 'className')
+  var IFC_DEFAULT_PROPERTY = 'className';
 
   // ✅ Apply IFC filter (matches working v2.6 OR-logic pattern)
   BimViewer.applyIFCFilter = async function() {
@@ -345,40 +352,44 @@
         continue;
       }
 
+      // Skip assets positively identified as Revit (have categoryName property)
+      if (assetData.categoryPropertyName === 'categoryName') {
+        console.log(`🏢 Asset ${assetId}: Revit asset - skipping IFC filter`);
+        continue;
+      }
+
       try {
         const opacity = assetData.opacity || 1.0;
 
-        // Detect IFC property name if not already detected (inline, with 2s wait)
-        if (assetData.ifcPropertyName === undefined) {
+        // Detect IFC property name if not yet successfully detected
+        if (!assetData.ifcPropertyName) {
           console.log(`🔍 Asset ${assetId}: Detecting IFC properties...`);
           try {
-            assetData.ifcPropertyName = await this.detectIFCProperties(tileset);
-            console.log(`📋 Asset ${assetId}: IFC property = ${assetData.ifcPropertyName || 'NONE'}`);
+            const detected = await this.detectIFCProperties(tileset);
+            if (detected) {
+              assetData.ifcPropertyName = detected;
+            }
+            console.log(`📋 Asset ${assetId}: IFC property = ${assetData.ifcPropertyName || 'NONE (using default: ' + IFC_DEFAULT_PROPERTY + ')'}`);
           } catch (detectError) {
             console.error(`❌ Asset ${assetId}: IFC detection failed:`, detectError);
-            assetData.ifcPropertyName = null;
           }
         }
 
-        const ifcPropertyName = assetData.ifcPropertyName;
-
-        // No IFC properties found - apply simple white style
-        if (!ifcPropertyName) {
-          console.log(`📋 Asset ${assetId}: No IFC properties - applying simple style`);
-          tileset.style = new Cesium.Cesium3DTileStyle({
-            color: `color('white', ${opacity})`,
-            show: true
-          });
-          continue;
-        }
+        // Use detected property or fall back to default
+        const ifcPropertyName = assetData.ifcPropertyName || IFC_DEFAULT_PROPERTY;
 
         assetsWithIFC++;
 
+        // All entities enabled — show everything with color coding (no restrictive show filter)
+        const allEnabled = this.ifcFilter.enabledEntities.size === this.ifcFilter.allEntities.size;
+
         // Build show conditions: OR of all ENABLED entities
         const showConditions = [];
-        this.ifcFilter.enabledEntities.forEach(entity => {
-          showConditions.push(`\${${ifcPropertyName}} === '${entity}'`);
-        });
+        if (!allEnabled) {
+          this.ifcFilter.enabledEntities.forEach(entity => {
+            showConditions.push(`\${${ifcPropertyName}} === '${entity}'`);
+          });
+        }
 
         // Build color conditions
         const colorConditions = [];
@@ -396,13 +407,21 @@
         colorConditions.push(["true", `color('white', ${opacity})`]);
 
         // Apply style
-        if (showConditions.length > 0) {
+        if (allEnabled) {
+          // All types selected — show everything, just apply colors
+          tileset.style = new Cesium.Cesium3DTileStyle({
+            show: true,
+            color: { conditions: colorConditions }
+          });
+          filteredCount++;
+          console.log(`✅ Asset ${assetId}: IFC filter applied (all types — show all)`);
+        } else if (showConditions.length > 0) {
           tileset.style = new Cesium.Cesium3DTileStyle({
             show: showConditions.join(' || '),
             color: { conditions: colorConditions }
           });
           filteredCount++;
-          console.log(`✅ Asset ${assetId}: IFC filter applied`);
+          console.log(`✅ Asset ${assetId}: IFC filter applied (${showConditions.length} types shown)`);
         } else {
           // All entities disabled - hide everything
           tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
@@ -528,7 +547,12 @@
         continue;
       }
 
-      // Detect Category property name
+      // Skip assets positively identified as IFC (have className property)
+      if (assetData.ifcPropertyName) {
+        continue;
+      }
+
+      // Detect Category property name (only returns 'categoryName' if the property actually exists in tile content)
       const categoryPropertyName = assetData.categoryPropertyName || this.detectCategoryProperty(tileset);
 
       if (!categoryPropertyName) {
@@ -590,10 +614,28 @@
     }
   };
 
-  // Detect Category property in tileset
+  // Detect Category property in tileset (only returns if the property actually exists)
   BimViewer.detectCategoryProperty = function(tileset) {
-    // Use categoryName as the primary property for Revit filter
-    return 'categoryName';
+    if (!tileset || !tileset.root) return null;
+
+    const checkTile = (tile, depth) => {
+      if (depth > 5) return false;
+      if (tile.content && tile.content.featuresLength > 0) {
+        try {
+          const feature = tile.content.getFeature(0);
+          const props = feature.getPropertyIds();
+          if (props.includes('categoryName')) return true;
+        } catch (e) { /* ignore */ }
+      }
+      if (tile.children) {
+        for (const child of tile.children) {
+          if (checkTile(child, depth + 1)) return true;
+        }
+      }
+      return false;
+    };
+
+    return checkTile(tileset.root, 0) ? 'categoryName' : null;
   };
 
   // Toggle Revit category

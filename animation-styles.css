@@ -1,0 +1,132 @@
+/**
+ * GEOBIM.APP - Animation Manager Styles
+ * © 2026 Christof Lorenz. All rights reserved.
+ */
+
+/* ===============================
+   PLAYBACK CONTROLS
+   =============================== */
+
+.anim-playback-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.anim-playback-row .modern-btn {
+  flex: 1;
+  padding: 8px 6px;
+  font-size: 13px;
+}
+
+/* ===============================
+   SPEED CONTROL
+   =============================== */
+
+.anim-speed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.anim-speed-row label {
+  flex-shrink: 0;
+}
+
+.anim-speed-row select {
+  flex: 1;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 12px;
+  outline: none;
+}
+
+.anim-speed-row select:focus {
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+.anim-speed-row select option {
+  background: #1a202c;
+  color: #e2e8f0;
+}
+
+/* ===============================
+   LOADED CZML LIST
+   =============================== */
+
+.anim-czml-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anim-czml-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.anim-czml-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.anim-czml-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.anim-czml-item-actions button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.anim-czml-item-actions button:hover {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+/* ===============================
+   STATUS INDICATOR
+   =============================== */
+
+.anim-status {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.anim-status.playing {
+  color: #4caf50;
+}
+
+.anim-status.paused {
+  color: #ff9800;
+}

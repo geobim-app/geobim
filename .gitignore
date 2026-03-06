@@ -1,4 +1,5 @@
 *.zip
+*.7z
 config.js
 .DS_Store
 Thumbs.db
@@ -6,5 +7,10 @@ Thumbs.db
 *.log
 logo/
 .claude/
-.claude/
-logo/
+backup/
+1076/
+docs/
+cesium/
+cesium_sdk/
+model/
+assets/

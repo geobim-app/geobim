@@ -11,7 +11,7 @@
 | Demo Mode | Auto-applies demo Cesium Ion token without login. Anonymous Firestore access for shared comments. | `auth.js` |
 | Email/Password Login | Optional Firebase auth gate overlay. Persistent sessions, logout support. | `auth-gate.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
-| Splash Screen | Branded landing page with tagline, feature highlights and "Enter Demo" button — shown once per session before login | `splash-screen.js`, `splash-screen.css` |
+| Splash Screen | Branded landing page with "Enter Demo" button, copyright, license, and contact info. | `index.html` |
 | Plausible Analytics | Privacy-friendly tracking (no cookies). Events: Enter Demo, Asset Loaded, Feature Used, Contact Click. | `index.html`, various |
 
 ---
@@ -48,7 +48,7 @@
 | Feature | Description | Files |
 |---|---|---|
 | IFC Entity Filter | Filter 3D Tiles by 31 IFC entity classes (IfcWall, IfcDoor, IfcColumn, etc.) with color-coded visualization. OR-logic show conditions. | `features.js`, `core.js` |
-| IFC Auto-Detection | Auto-detect IFC property name (className, IfcEntity, etc.) from tile content. Inline detection with caching. | `features.js`, `core.js` |
+| IFC Auto-Detection | Auto-detect IFC property name (className, IfcEntity, etc.) from tile content with value validation. Falls back to `className` if detection fails. | `features.js`, `core.js` |
 | Revit Category Filter | Filter by 34+ Revit categories with English/German name mapping (e.g., "Wände" → "Walls"). | `features.js`, `core.js` |
 | Select/Deselect All | Bulk toggle all IFC entities or Revit categories on/off. | `features.js` |
 | Manual Property Override | Override auto-detected IFC property name per asset via dropdown. | `features.js` |
@@ -95,21 +95,15 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| 5 Annotation Types | Point (📍), Circle (⭕), Polyline (〰️), Rectangle (▭), Area (⬡) — icon-only toolbar | `comments.js`, `ui-comments-extension.js` |
 | Point Comments | Right-click to place annotation with title, text, category, and priority. SVG billboard marker. | `comments.js` |
-| Circle Annotations | Right-click center, then edge to set radius. EllipseGraphics with 3D tile classification. | `comments.js` |
-| Polyline Annotations | Right-click 2+ points, ENTER to finish. PolylineGraphics rendered on top of tiles. | `comments.js` |
-| Rectangle Annotations | Right-click 2 opposite corners. PolygonGraphics with 3D tile classification. | `comments.js` |
 | Area Annotations | Right-click 3+ points to draw polygon annotation with fill, outline, and center label. Calculates area. | `comments.js` |
 | Categories | General, Architecture, Structure, MEP, Issue, Question. | `comments.js` |
 | Priorities | Low, Normal, High (color-coded markers). | `comments.js` |
-| Author Tracking | Comments store author name and email from Firebase authenticated user. | `comments.js`, `auth-gate.js` |
 | Firestore Persistence | CRUD operations on shared Firestore collection. Real-time sync across users. | `comments.js` |
-| Comment Fly-To | Click comment in list to fly camera to annotation location (type-aware). | `comments.js`, `ui-helpers-modern.js` |
+| Comment Fly-To | Click comment in list to fly camera to annotation location. | `comments.js` |
 | Edit & Delete | Edit existing comments via dialog. Delete individual or all comments. | `comments.js` |
 | Visibility Toggle | Show/hide all comments at once. | `comments.js` |
-| Comment Dialog | Modal with title, text (optional), category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html` |
-| Floating Assets Panel | Draggable, minimizable panel for loaded assets (undocked from sidebar). | `ui-helpers-modern.js`, `style.css` |
+| Comment Dialog | Modal with title, text, category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html` |
 
 ---
 
@@ -209,7 +203,7 @@
 | 2 | 🗺️ | Layer Manager | Basemap switcher, terrain picker, OSM/Google toggles |
 | 3 | ☁️ | Point Cloud | EDL, point size, color mode, presets |
 | 4 | 📏 | Measure & Clip | Measurement tools, clipping polygon/rectangle, controls |
-| 5 | 💬 | Annotations | 5 type selectors, visibility, recent annotations list |
+| 5 | 💬 | Comments | Comment/area toggle, visibility, recent list |
 | 6 | 👁️ | Visibility | Hide mode toggle, hidden elements list |
 | 7 | 🏗️ | IFC Filter | Entity checkboxes with select all/none |
 | 8 | 🏢 | Revit Filter | Category checkboxes with select all/none |
@@ -260,6 +254,20 @@
 
 ---
 
+## 19. OGC SensorThings API (Live Monitoring)
+
+| Feature | Description | Files |
+|---|---|---|
+| FROST-Server Integration | REST + MQTT connection to OGC SensorThings API v1.1 via FROST-Server. | `sensorthings.js` |
+| Live MQTT Updates | Real-time observation streaming via WebSocket (`wss://`). Auto-reconnect with polling fallback. | `sensorthings.js` |
+| Floating Billboard | Anchored to Cesium Ion 3D Tileset with draggable panel showing parameter table. | `sensorthings.js` |
+| Sparkline Charts | Inline SVG trend charts per datastream with configurable history depth. | `sensorthings.js` |
+| Damage Event Detection | Threshold-based anomaly detection (acceleration, inclination, strain) with animated fly-out panel. | `sensorthings.js` |
+| Damage Trigger Button | In-panel button to trigger server-side damage simulation event. | `sensorthings.js`, `api/damage-trigger.php` |
+| Red Alert Sparklines | Sparkline colors switch to red during active damage events, restored on dismiss. | `sensorthings.js` |
+
+---
+
 ## Module Reference
 
 | File | Purpose |
@@ -271,7 +279,7 @@
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views, silhouette |
 | `hideFeatures.js` | Click-to-hide individual elements with undo |
-| `comments.js` | 5 annotation types (point, circle, polyline, rectangle, area) with Firestore CRUD |
+| `comments.js` | Point and area annotations with Firestore CRUD |
 | `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
 | `clipping.js` | Polygon and rectangle clipping masks |
 | `pointcloud.js` | Point cloud detection, EDL, color modes, rendering presets |
@@ -280,6 +288,7 @@
 | `lighting.js` | Dynamic shadows, atmosphere, time-based sun positioning |
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Main toolbar with 12 collapsible sections, event handlers, asset UI |
+| `sensorthings.js` | OGC SensorThings API module — live MQTT monitoring, sparklines, damage detection |
 | `ui-helpers-modern.js` | List rendering helpers for comments, hidden features, assets, saved views |
 | `ui-comments-extension.js` | Comments section UI controls |
 | `ui-clipping-extension.js` | Clipping section UI controls |
@@ -289,4 +298,4 @@
 
 ---
 
-*Generated from codebase analysis — 2026-03-04*
+*Generated from codebase analysis — 2026-02-28*

@@ -40,9 +40,6 @@
           <button id="annotationTypePolyline" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('polyline')" title="Polyline — right-click 2+ points, ENTER to finish">
             〰️
           </button>
-          <button id="annotationTypeRectangle" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('rectangle')" title="Rectangle — right-click 2 opposite corners">
-            ▭
-          </button>
           <button id="annotationTypeArea" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('area')" title="Area — right-click 3+ points, ENTER to finish">
             ⬡
           </button>
@@ -79,7 +76,6 @@
         <strong>📍 Point:</strong> RIGHT-CLICK once<br>
         <strong>⭕ Circle:</strong> RIGHT-CLICK center, then edge<br>
         <strong>〰️ Polyline:</strong> RIGHT-CLICK 2+ pts → ENTER<br>
-        <strong>▭ Rectangle:</strong> RIGHT-CLICK 2 opposite corners<br>
         <strong>⬡ Area:</strong> RIGHT-CLICK 3+ pts → ENTER<br>
         Shortcuts: <strong>C</strong> Point • <strong>A</strong> Area • <strong>ENTER</strong> Finish • <strong>ESC</strong> Cancel
       </div>
@@ -106,7 +102,7 @@
     }
 
     .modern-btn-group.annotation-type-grid {
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
     }
 
@@ -223,10 +219,6 @@
     .modern-comment-item.type-polyline {
       border-left-width: 4px;
       border-left-style: double;
-    }
-
-    .modern-comment-item.type-rectangle {
-      border-left-width: 4px;
     }
     
     .modern-comment-header {
