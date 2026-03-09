@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-03-09
+
+### Added
+
+#### IoT Live Module — Pegelonline Water Level Monitoring
+- Pegelonline API integration for real-time water level, water temperature, and air temperature
+- Color-coded threshold indicators (green/yellow/red) for water level alerts
+- Standalone CesiumJS billboard markers with auto-refresh (5-minute interval)
+
+#### EGM96 Geoid Module
+- EGM96 geoid undulation lookup for coordinate picker
+- Converts WGS84 ellipsoidal heights to orthometric (above sea level) heights
+- 1-degree resolution geoid grid (`data/egm96-1deg.json`)
+
+#### Authentication
+- "Forgot password?" link with Firebase password reset email flow
+
+#### Asset Management
+- Added asset ID 4510773 to curated Ion whitelist
+
+### Fixed
+
+#### SensorThings — Damage Detection
+- Fixed damage threshold matching failing because property names were translated to English but thresholds only matched German keywords — added English equivalents for all thresholds, explanations, color mappings, sparkline history depths, and priority order
+- Fixed polling fallback (`fetchData`) not checking damage thresholds — damage detection now works in both MQTT and polling modes
+
 ## [1.2.0] - 2026-03-06
 
 ### Added

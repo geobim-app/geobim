@@ -558,6 +558,17 @@
 
       this.addPointMarker(cartesian, Cesium.Color.ORANGE);
 
+      // Geoid undulation lookup
+      var geoidInfo = (typeof GEOBIM_GEOID !== 'undefined') ? GEOBIM_GEOID.toOrthometric(height, lat, lon) : null;
+      var undulationHtml = '';
+      if (geoidInfo) {
+        undulationHtml =
+          '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">' +
+            '📐 Geoid undulation (N): <strong>' + geoidInfo.undulation.toFixed(2) + ' m</strong><br>' +
+            '🏛️ Height above sea level: <strong>' + geoidInfo.orthometric.toFixed(2) + ' m</strong>' +
+          '</div>';
+      }
+
       const resultHtml = `
         <div style="text-align: left; font-size: 11px; line-height: 1.7;">
           <div style="color: #fa709a; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
@@ -571,6 +582,7 @@
               🏔️ Terrain height: <strong>${terrainHeight.toFixed(2)} m</strong><br>
               ⛰️ Above terrain: <strong>${(height - terrainHeight).toFixed(2)} m</strong>
             </div>
+            ${undulationHtml}
           </div>
           <button onclick="navigator.clipboard.writeText('${lat.toFixed(7)}, ${lon.toFixed(7)}')" style="
             margin-top: 8px; padding: 6px 12px; width: 100%;

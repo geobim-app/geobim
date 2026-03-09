@@ -32,17 +32,21 @@ window.GEOBIM_SENSORTHINGS = (function() {
   var DAMAGE_TRIGGER_URL = '/api/damage-trigger.php';
   var DAMAGE_SPARKLINE_COLOR = '#FF4444'; // red during damage events
 
-  // Color mapping by dominant observed property keyword
+  // Color mapping by dominant observed property keyword (German + English)
   var PROPERTY_COLORS = {
     'Beschleunigung': { css: '#FF8C00', cesium: Cesium.Color.fromCssColorString('#FF8C00') },
+    'Acceleration':   { css: '#FF8C00', cesium: Cesium.Color.fromCssColorString('#FF8C00') },
     'Neigung':        { css: '#FF4444', cesium: Cesium.Color.fromCssColorString('#FF4444') },
+    'Inclination':    { css: '#FF4444', cesium: Cesium.Color.fromCssColorString('#FF4444') },
     'Temperatur':     { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') },
-    'Dehnung':        { css: '#9B59B6', cesium: Cesium.Color.fromCssColorString('#9B59B6') }
+    'Temperature':    { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') },
+    'Dehnung':        { css: '#9B59B6', cesium: Cesium.Color.fromCssColorString('#9B59B6') },
+    'Strain':         { css: '#9B59B6', cesium: Cesium.Color.fromCssColorString('#9B59B6') }
   };
   var DEFAULT_COLOR = { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') };
 
-  // Property priority for dominant color (first match wins)
-  var PRIORITY_ORDER = ['Beschleunigung', 'Neigung', 'Temperatur', 'Dehnung'];
+  // Property priority for dominant color (first match wins, German + English)
+  var PRIORITY_ORDER = ['Beschleunigung', 'Acceleration', 'Neigung', 'Inclination', 'Temperatur', 'Temperature', 'Dehnung', 'Strain'];
 
   // German → English translation for display names
   var NAME_TRANSLATIONS = {
@@ -62,17 +66,23 @@ window.GEOBIM_SENSORTHINGS = (function() {
   // STATE
   // =====================================
 
-  // Damage thresholds by ObservedProperty keyword
+  // Damage thresholds by ObservedProperty keyword (matched against both German and English names)
   var DAMAGE_THRESHOLDS = {
     'Beschleunigung': { check: function(v) { return Math.abs(v) > 0.08; }, label: 'Acceleration' },
+    'Acceleration':   { check: function(v) { return Math.abs(v) > 0.08; }, label: 'Acceleration' },
     'Neigung':        { check: function(v) { return Math.abs(v) > 0.25; }, label: 'Inclination' },
-    'Dehnung':        { check: function(v) { return v < -65; },           label: 'Strain' }
+    'Inclination':    { check: function(v) { return Math.abs(v) > 0.25; }, label: 'Inclination' },
+    'Dehnung':        { check: function(v) { return v < -65; },           label: 'Strain' },
+    'Strain':         { check: function(v) { return v < -65; },           label: 'Strain' }
   };
 
   var DAMAGE_EXPLANATIONS = {
     'Beschleunigung': 'Vertical acceleration exceeded safe threshold (|a| > 0.08 g). Possible resonance or impact event detected.',
+    'Acceleration':   'Vertical acceleration exceeded safe threshold (|a| > 0.08 g). Possible resonance or impact event detected.',
     'Neigung': 'Inclination angle exceeded safe threshold (|angle| > 0.25 deg). Possible structural tilt or foundation movement.',
-    'Dehnung': 'Strain dropped below critical threshold (< -65 microstrain). Possible excessive compression in main girder.'
+    'Inclination': 'Inclination angle exceeded safe threshold (|angle| > 0.25 deg). Possible structural tilt or foundation movement.',
+    'Dehnung': 'Strain dropped below critical threshold (< -65 microstrain). Possible excessive compression in main girder.',
+    'Strain': 'Strain dropped below critical threshold (< -65 microstrain). Possible excessive compression in main girder.'
   };
 
   var DAMAGE_AUTO_DISMISS_MS = 180000; // 180 seconds
@@ -137,10 +147,10 @@ window.GEOBIM_SENSORTHINGS = (function() {
   }
 
   function getHistoryDepth(dsName) {
-    if (dsName.indexOf('Beschleunigung') !== -1) return 30;
-    if (dsName.indexOf('Neigung') !== -1) return 60;
-    if (dsName.indexOf('Temperatur') !== -1) return 120;
-    if (dsName.indexOf('Dehnung') !== -1) return 60;
+    if (dsName.indexOf('Beschleunigung') !== -1 || dsName.indexOf('Acceleration') !== -1) return 30;
+    if (dsName.indexOf('Neigung') !== -1 || dsName.indexOf('Inclination') !== -1) return 60;
+    if (dsName.indexOf('Temperatur') !== -1 || dsName.indexOf('Temperature') !== -1) return 120;
+    if (dsName.indexOf('Dehnung') !== -1 || dsName.indexOf('Strain') !== -1) return 60;
     return 30;
   }
 
@@ -685,6 +695,14 @@ window.GEOBIM_SENSORTHINGS = (function() {
         var stations = parseThings(json);
         for (var i = 0; i < stations.length; i++) {
           createOrUpdateEntity(stations[i]);
+          // Check damage thresholds on polled data
+          var dsList = stations[i].datastreams;
+          for (var j = 0; j < dsList.length; j++) {
+            var ds = dsList[j];
+            if (ds.value !== null) {
+              checkDamageThreshold(ds.propertyName, ds.value, ds.datastreamName, ds.unitSymbol);
+            }
+          }
         }
         console.log('STA: Updated ' + stations.length + ' stations');
       })

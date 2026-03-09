@@ -26,6 +26,8 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Clipping** — Polygon and rectangle section planes for buildings and terrain
 - **Annotations** — Point and area comments with Firestore persistence
 - **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
+- **IoT Live Module** — Real-time water level monitoring via Pegelonline with threshold alerts
+- **Geoid Module** — EGM96 undulation lookup for orthometric height display in coordinate picker
 - **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), SSAO, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
 - **Saved Views** — Capture and restore camera positions with scene state
@@ -101,6 +103,8 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `ui.js` | Collapsible sidebar toolbar with 12 sections |
 | `ui-helpers-modern.js` | List rendering helpers for UI components |
 | `sensorthings.js` | OGC SensorThings API module — live bridge monitoring with MQTT and damage detection |
+| `iot.js` | Pegelonline IoT live module — water level and temperature markers |
+| `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
 | `auth.js` | Demo mode authentication and Ion token management |
 | `config.js` | Firebase credentials (gitignored) |
 
@@ -127,7 +131,14 @@ Live sensor data is served via [FROST-Server](https://github.com/FraunhoferIOSB/
 
 The SHM scenario draws on sensor configurations described in:
 
-> Retze, U. (2012). *Bauwerksüberwachung mit faseroptischen Sensoren und Dehnungsmessstreifen.* Dissertation, Technische Universität München. [mediaTUM](https://mediatum.ub.tum.de/1108138)
+> Retze, U. *Beispielhafte Untersuchung zum Einsatz von Monitoringmethoden an einer Brücke.* Dissertation, Universität der Bundeswehr München, Institut für Konstruktiven Ingenieurbau. [athene-forschung](https://athene-forschung.unibw.de/doc/85913/85913.pdf)
+
+### 3D Model
+
+The bridge Reality Mesh was generated from UAV photogrammetry by the Geomatics Research Group at KU Leuven:
+
+- Sketchfab model: [skfb.ly/oVzUQ](https://skfb.ly/oVzUQ)
+- Project: [UAS-Assisted Bridge Inspections](https://iiw.kuleuven.be/onderzoek/geomatics/uas-assisted-bridge-inspections)
 
 ### INSPIRE & API4INSPIRE
 

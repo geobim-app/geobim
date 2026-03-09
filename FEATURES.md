@@ -262,9 +262,30 @@
 | Live MQTT Updates | Real-time observation streaming via WebSocket (`wss://`). Auto-reconnect with polling fallback. | `sensorthings.js` |
 | Floating Billboard | Anchored to Cesium Ion 3D Tileset with draggable panel showing parameter table. | `sensorthings.js` |
 | Sparkline Charts | Inline SVG trend charts per datastream with configurable history depth. | `sensorthings.js` |
-| Damage Event Detection | Threshold-based anomaly detection (acceleration, inclination, strain) with animated fly-out panel. | `sensorthings.js` |
+| Damage Event Detection | Threshold-based anomaly detection (acceleration, inclination, strain) with animated fly-out panel. Bilingual matching (German + English property names). | `sensorthings.js` |
 | Damage Trigger Button | In-panel button to trigger server-side damage simulation event. | `sensorthings.js`, `api/damage-trigger.php` |
 | Red Alert Sparklines | Sparkline colors switch to red during active damage events, restored on dismiss. | `sensorthings.js` |
+| Polling Damage Detection | Damage thresholds checked on polled data (fallback when MQTT unavailable). | `sensorthings.js` |
+
+---
+
+## 20. IoT Live Module — Pegelonline
+
+| Feature | Description | Files |
+|---|---|---|
+| Water Level Monitoring | Real-time water level data from Pegelonline API (Pegel Deggendorf). | `iot.js` |
+| Threshold Indicators | Color-coded water level alerts: green (< 200 cm), yellow (200–349 cm), red (≥ 350 cm). | `iot.js` |
+| Multi-Parameter | Water level, water temperature, and air temperature in a single billboard. | `iot.js` |
+| Auto-Refresh | 5-minute polling interval with standalone CesiumJS markers. | `iot.js` |
+
+---
+
+## 21. EGM96 Geoid Module
+
+| Feature | Description | Files |
+|---|---|---|
+| Geoid Undulation Lookup | Converts WGS84 ellipsoidal heights to orthometric heights using EGM96 grid. | `geoid.js`, `data/egm96-1deg.json` |
+| Coordinate Picker Integration | Shows geoid undulation and height above sea level in coordinate picker results. | `measurement.js`, `geoid.js` |
 
 ---
 
@@ -289,6 +310,8 @@
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Main toolbar with 12 collapsible sections, event handlers, asset UI |
 | `sensorthings.js` | OGC SensorThings API module — live MQTT monitoring, sparklines, damage detection |
+| `iot.js` | Pegelonline IoT live module — water level, temperature markers |
+| `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
 | `ui-helpers-modern.js` | List rendering helpers for comments, hidden features, assets, saved views |
 | `ui-comments-extension.js` | Comments section UI controls |
 | `ui-clipping-extension.js` | Clipping section UI controls |
@@ -298,4 +321,4 @@
 
 ---
 
-*Generated from codebase analysis — 2026-02-28*
+*Generated from codebase analysis — 2026-03-09*

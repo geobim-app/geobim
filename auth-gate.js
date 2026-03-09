@@ -28,6 +28,8 @@
       '<input id="agPassword" class="ag-input" type="password" placeholder="Password" autocomplete="current-password" />' +
       '<div id="agError" class="ag-error"></div>' +
       '<button id="agSubmit" class="ag-btn">Sign In</button>' +
+      '<a id="agForgot" href="#" class="ag-forgot">Forgot password?</a>' +
+      '<div id="agForgotMsg" class="ag-forgot-msg"></div>' +
       '<div class="ag-gdpr">Your email address will be visible to other users on comments you create.</div>' +
     '</div>';
 
@@ -55,6 +57,11 @@
     '.ag-btn:hover{box-shadow:0 6px 16px rgba(110,236,216,.35);transform:translateY(-1px)}' +
     '.ag-btn:active{transform:translateY(0)}' +
     '.ag-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}' +
+    '.ag-forgot{color:#6EECD8;font-size:13px;display:inline-block;margin-top:12px;text-decoration:none;' +
+    'transition:opacity .2s;cursor:pointer}' +
+    '.ag-forgot:hover{opacity:.8;text-decoration:underline}' +
+    '.ag-forgot-msg{color:#6EECD8;font-size:13px;min-height:18px;margin-top:8px}' +
+    '.ag-forgot-msg.ag-msg-error{color:#ff6b6b}' +
     '.ag-gdpr{color:rgba(255,255,255,.4);font-size:11px;margin-top:16px;line-height:1.5}';
 
   document.head.appendChild(style);
@@ -92,6 +99,31 @@
   submitBtn.addEventListener('click', doLogin);
   emailInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') passInput.focus(); });
   passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+
+  // Forgot password
+  var forgotLink = document.getElementById('agForgot');
+  var forgotMsg = document.getElementById('agForgotMsg');
+
+  forgotLink.addEventListener('click', function(e) {
+    e.preventDefault();
+    var email = emailInput.value.trim();
+    if (!email) {
+      forgotMsg.className = 'ag-forgot-msg ag-msg-error';
+      forgotMsg.textContent = 'Please enter your email address first.';
+      return;
+    }
+    forgotMsg.className = 'ag-forgot-msg';
+    forgotMsg.textContent = 'Sending\u2026';
+    firebaseAuth.sendPasswordResetEmail(email)
+      .then(function() {
+        forgotMsg.className = 'ag-forgot-msg';
+        forgotMsg.textContent = 'Reset link sent to ' + email;
+      })
+      .catch(function() {
+        forgotMsg.className = 'ag-forgot-msg ag-msg-error';
+        forgotMsg.textContent = 'Could not send reset email. Check the address.';
+      });
+  });
 
   // =====================================
   // SESSION PERSISTENCE & GATE CONTROL

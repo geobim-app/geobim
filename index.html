@@ -247,6 +247,7 @@
   <script src="comments.js"></script>
   <script src="inspection.js"></script>
   <script src="pointcloud.js"></script>
+  <script src="geoid.js"></script>
   <script src="measurement.js"></script>
 
   <!-- 2. Enhanced Clipping Module -->
@@ -357,6 +358,11 @@
               if (performanceSelect) {
                 performanceSelect.value = 'PERFORMANCE';
               }
+            }
+
+            // Load EGM96 geoid grid for coordinate picker
+            if (typeof GEOBIM_GEOID !== 'undefined') {
+              GEOBIM_GEOID.load();
             }
 
             // Now initialize features (after viewer is ready)
