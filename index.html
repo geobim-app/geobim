@@ -48,6 +48,9 @@
   <!-- Layer Manager Styles -->
   <link rel="stylesheet" href="layer-manager-styles.css">
 
+  <!-- About & Feedback Styles -->
+  <link rel="stylesheet" href="about-feedback-styles.css">
+
 </head>
 <body>
 
@@ -246,6 +249,7 @@
   <script src="hideFeatures.js"></script>
   <script src="comments.js"></script>
   <script src="inspection.js"></script>
+  <script src="geoid_terrain.js"></script>
   <script src="pointcloud.js"></script>
   <script src="geoid.js"></script>
   <script src="measurement.js"></script>
@@ -291,7 +295,14 @@
   <!-- 8. UI Helpers (final touches) -->
   <script src="ui-helpers-modern.js"></script>
 
-  <!-- 9. IoT Live Sensors -->
+  <!-- 9. About & Feedback -->
+  <script src="about-feedback.js"></script>
+
+  <!-- 9.5. BCF Export (requires JSZip) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="bcf-export.js"></script>
+
+  <!-- 10. IoT Live Sensors -->
   <script src="iot.js"></script>
 
   <!-- 10. OGC SensorThings API -->

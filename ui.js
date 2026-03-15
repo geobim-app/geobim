@@ -69,6 +69,7 @@ toolbar.appendChild(this.createSection('split', '↔️', 'Split View', this.get
 toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getViewsContent()));
     toolbar.appendChild(this.createSection('lighting', '☀️', 'Lighting', this.getLightingContent()));
     toolbar.appendChild(this.createSection('settings', '⚙️', 'Settings', this.getSettingsContent()));
+    toolbar.appendChild(this.createSection('about', 'ℹ️', 'About & Help', this.getAboutContent()));
   },
 
   // Create header
@@ -219,6 +220,55 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
 
       <div class="modern-hint">
         Imagery overlays render on top of the basemap. Use alpha slider to blend.
+      </div>
+
+      <div class="modern-divider">
+        <span class="modern-divider-text">OGC Services (WMS / WMTS / WFS)</span>
+      </div>
+
+      <div class="modern-group">
+        <div class="layer-add-overlay">
+          <div style="display: flex; gap: 6px;">
+            <input id="wmsUrl" type="text" class="modern-input" placeholder="WMS / WMTS / WFS Service URL">
+            <button id="wmsDiscoverBtn" class="modern-btn modern-btn-primary" style="white-space: nowrap;" title="Discover layers">
+              <span class="modern-btn-icon">🔍</span>
+            </button>
+          </div>
+        </div>
+        <div id="wmsLayerPicker" style="display: none; margin-top: 8px;">
+          <div id="wmsLayerPickerStatus" class="modern-empty-state">Discovering layers...</div>
+          <div id="wmsLayerPickerList" style="max-height: 200px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <div id="wmsLayersList" class="layer-overlay-list">
+        <div class="modern-empty-state">No OGC service layers</div>
+      </div>
+
+      <div class="modern-hint">
+        Paste a GetCapabilities URL or base service URL. WMS/WMTS (imagery) and WFS (vector features) are auto-discovered.
+      </div>
+
+      <div class="modern-divider">
+        <span class="modern-divider-text">Geoid</span>
+      </div>
+
+      <div class="modern-group">
+        <button id="toggleGeoidTerrain" class="modern-toggle-btn" onclick="if(typeof GEOBIM_GEOID_TERRAIN!=='undefined' && typeof BimViewer!=='undefined'){GEOBIM_GEOID_TERRAIN.toggle(BimViewer.viewer)}">
+          <span class="modern-btn-icon">🌐</span>
+          <span>Geoid Terrain</span>
+        </button>
+      </div>
+
+      <div class="modern-divider">
+        <span class="modern-divider-text">Bathymetry</span>
+      </div>
+
+      <div class="modern-group">
+        <button id="toggleBathymetry" class="modern-toggle-btn" onclick="if(typeof GEOBIM_BATHYMETRY!=='undefined' && typeof BimViewer!=='undefined'){GEOBIM_BATHYMETRY.toggle(BimViewer.viewer)}">
+          <span class="modern-btn-icon">🌊</span>
+          <span>Bathymetry</span>
+        </button>
       </div>
     `;
   },
@@ -777,6 +827,25 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
   },
 
   // Settings content
+  getAboutContent() {
+    return `
+      <div class="modern-group">
+        <button class="modern-btn modern-btn-primary" onclick="BimViewer.showAboutDialog()">
+          <span class="modern-btn-icon">ℹ️</span>
+          <span>About geobim.app</span>
+        </button>
+        <button class="modern-btn modern-btn-secondary" onclick="BimViewer.showAboutDialog(); setTimeout(() => { const t = document.querySelector('.about-tab[data-tab=\\'shortcuts\\']'); if(t) t.click(); }, 100);">
+          <span class="modern-btn-icon">⌨️</span>
+          <span>Keyboard Shortcuts</span>
+        </button>
+        <button class="modern-btn modern-btn-secondary" onclick="BimViewer.showAboutDialog(); setTimeout(() => { const t = document.querySelector('.about-tab[data-tab=\\'feedback\\']'); if(t) t.click(); }, 100);">
+          <span class="modern-btn-icon">💬</span>
+          <span>Send Feedback</span>
+        </button>
+      </div>
+    `;
+  },
+
   getSettingsContent() {
     return `
       <div class="modern-group">
@@ -1418,6 +1487,55 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       if (slider && typeof LayerManager !== 'undefined') {
         const alpha = parseFloat(slider.value);
         LayerManager.setOverlayAlpha(slider.dataset.alphaOverlay, alpha);
+        const valueEl = slider.closest('.layer-overlay-alpha')?.querySelector('.layer-alpha-value');
+        if (valueEl) valueEl.textContent = alpha.toFixed(2);
+      }
+    });
+
+    // WMS/WMTS discover button
+    document.getElementById('wmsDiscoverBtn')?.addEventListener('click', () => {
+      const urlInput = document.getElementById('wmsUrl');
+      const url = urlInput?.value.trim();
+      if (!url) {
+        BimViewer.updateStatus('Please enter a WMS/WMTS/WFS service URL', 'error');
+        return;
+      }
+      if (typeof LayerManager !== 'undefined') {
+        LayerManager.discoverWmsLayers(url);
+      }
+    });
+
+    // WMS layer picker — add layer on click (delegated)
+    document.getElementById('wmsLayerPickerList')?.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-wms-add-layer]');
+      if (item && typeof LayerManager !== 'undefined') {
+        LayerManager.addDiscoveredWmsLayer(item.dataset.wmsAddLayer);
+      }
+    });
+
+    // WMS layers list actions (delegated)
+    document.getElementById('wmsLayersList')?.addEventListener('click', (e) => {
+      if (typeof LayerManager === 'undefined') return;
+
+      const toggleBtn = e.target.closest('[data-toggle-wms]');
+      if (toggleBtn) {
+        LayerManager.toggleWmsLayer(toggleBtn.dataset.toggleWms);
+        return;
+      }
+
+      const removeBtn = e.target.closest('[data-remove-wms]');
+      if (removeBtn) {
+        LayerManager.removeWmsLayer(removeBtn.dataset.removeWms);
+        return;
+      }
+    });
+
+    // WMS layers alpha sliders (delegated)
+    document.getElementById('wmsLayersList')?.addEventListener('input', (e) => {
+      const slider = e.target.closest('[data-alpha-wms]');
+      if (slider && typeof LayerManager !== 'undefined') {
+        const alpha = parseFloat(slider.value);
+        LayerManager.setWmsLayerAlpha(slider.dataset.alphaWms, alpha);
         const valueEl = slider.closest('.layer-overlay-alpha')?.querySelector('.layer-alpha-value');
         if (valueEl) valueEl.textContent = alpha.toFixed(2);
       }

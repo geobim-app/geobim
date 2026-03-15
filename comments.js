@@ -786,15 +786,24 @@
           </div>
           
           <div style="display: flex; gap: 8px;">
-            <button onclick="BimViewer.editComment('${comment.id}')" 
+            <button onclick="BimViewer.editComment('${comment.id}')"
                     style="flex: 1; background: #2196f3; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">
               ✏️ Edit
             </button>
-            <button onclick="BimViewer.deleteComment('${comment.id}')" 
+            <button onclick="BimViewer.deleteComment('${comment.id}')"
                     style="flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">
               🗑️ Delete
             </button>
           </div>
+          ${typeof GEOBIM_BCF !== 'undefined' ? `
+          <div style="margin-top: 8px;">
+            <button onclick="GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${comment.id}'))"
+                    style="width: 100%; background: rgba(46, 207, 176, 0.15); color: #2ECFB0; border: 1px solid rgba(46, 207, 176, 0.3); padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;"
+                    onmouseover="this.style.background='rgba(46, 207, 176, 0.25)'"
+                    onmouseout="this.style.background='rgba(46, 207, 176, 0.15)'">
+              📦 Export BCF
+            </button>
+          </div>` : ''}
         </div>
       </div>
     `;

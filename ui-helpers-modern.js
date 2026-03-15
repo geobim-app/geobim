@@ -223,13 +223,18 @@ BimViewer.updateCommentsList = function() {
         <div class="modern-comment-header">
           <div class="modern-comment-title">${typeEmoji} ${comment.title}</div>
           <div class="modern-comment-controls">
-            <button class="modern-comment-btn edit-btn" 
-                    onclick="event.stopPropagation(); BimViewer.editComment('${comment.id}')" 
+            ${typeof GEOBIM_BCF !== 'undefined' ? `<button class="modern-comment-btn bcf-btn"
+                    onclick="event.stopPropagation(); GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${comment.id}'))"
+                    title="Export BCF">
+              📦
+            </button>` : ''}
+            <button class="modern-comment-btn edit-btn"
+                    onclick="event.stopPropagation(); BimViewer.editComment('${comment.id}')"
                     title="Edit">
               ✏️
             </button>
-            <button class="modern-comment-btn delete-btn" 
-                    onclick="event.stopPropagation(); BimViewer.deleteComment('${comment.id}')" 
+            <button class="modern-comment-btn delete-btn"
+                    onclick="event.stopPropagation(); BimViewer.deleteComment('${comment.id}')"
                     title="Delete">
               🗑️
             </button>

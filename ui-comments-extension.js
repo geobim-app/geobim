@@ -272,6 +272,10 @@
     .modern-comment-btn.delete-btn:hover {
       background: #ee0979;
     }
+
+    .modern-comment-btn.bcf-btn:hover {
+      background: #2ECFB0;
+    }
     
     .modern-comment-text {
       font-size: 12px;

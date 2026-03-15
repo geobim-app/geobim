@@ -817,11 +817,41 @@
         
         const elementType = properties.className || properties.IfcEntity || properties.element_type || properties.building || 'Element';
         this.updateStatus(`Element selected: ${elementType}`, 'success');
+      } else if (picked && picked.id && picked.id.properties) {
+        // DataSource entity (WFS, GeoJSON, etc.)
+        console.log('🎯 DataSource entity picked:', picked.id.name || picked.id.id);
+
+        var entity = picked.id;
+        var properties = {};
+        var propNames = entity.properties.propertyNames;
+        for (var p = 0; p < propNames.length; p++) {
+          var key = propNames[p];
+          var val = entity.properties[key].getValue();
+          if (val !== undefined && val !== null && val !== '') {
+            properties[key] = val;
+          }
+        }
+
+        // Add entity name if available
+        if (entity.name) properties['_Name'] = entity.name;
+
+        console.log('📋 Entity properties:', properties);
+        this.displayIFCProperties(properties);
+
+        var entityName = entity.name || properties['Name'] || 'WFS Feature';
+        this.updateStatus('Feature selected: ' + entityName, 'success');
       } else {
-        console.log('❌ No feature picked');
-        
-        // Clear info box
-        BimViewer.closeInfoBox();
+        // No 3D Tiles or DataSource entity — try WMS GetFeatureInfo
+        var wmsQueried = false;
+        if (typeof LayerManager !== 'undefined' && LayerManager.wmsLayers && LayerManager.wmsLayers.length > 0) {
+          var wmsHit = LayerManager.queryWmsFeatureInfo(movement.position);
+          if (wmsHit) wmsQueried = true;
+        }
+
+        if (!wmsQueried) {
+          console.log('❌ No feature picked');
+          BimViewer.closeInfoBox();
+        }
       }
     } catch (error) {
       console.error('❌ Error in click handler:', error);
