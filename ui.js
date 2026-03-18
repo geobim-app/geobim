@@ -19,6 +19,7 @@
 
 // Valid asset IDs for the Asset Manager selector (curated from Ion account)
 const VALID_ASSET_IDS = new Set([
+  4538820, 4538744, 4533896,
   4510773, 4496917, 4495857,
   4483046, 4476749, 4458809, 4452138, 4450806,
   4446752, 4446751, 4428272, 4427396, 4422193,
@@ -173,6 +174,8 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
           <button class="modern-btn modern-btn-small google-tiles-preset-btn" data-preset="quality" onclick="BimViewer.setGoogleTilesQuality('quality')">
             <span>Quality</span>
           </button>
+        </div>
+        <div id="tilesetLayersList" class="layer-overlay-list" style="margin-top: 6px;">
         </div>
       </div>
 
@@ -1538,6 +1541,20 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         LayerManager.setWmsLayerAlpha(slider.dataset.alphaWms, alpha);
         const valueEl = slider.closest('.layer-overlay-alpha')?.querySelector('.layer-alpha-value');
         if (valueEl) valueEl.textContent = alpha.toFixed(2);
+      }
+    });
+
+    // 3D Tiles layers toggle (delegated)
+    document.getElementById('tilesetLayersList')?.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('[data-toggle-tileset]');
+      if (toggleBtn && typeof LayerManager !== 'undefined') {
+        const id = toggleBtn.dataset.toggleTileset;
+        const entry = LayerManager.tilesetLayers.find(t => t.id === id);
+        if (entry && entry.active) {
+          LayerManager.disableTileset(id);
+        } else {
+          LayerManager.enableTileset(id);
+        }
       }
     });
 

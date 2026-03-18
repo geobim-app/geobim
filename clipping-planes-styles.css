@@ -1,0 +1,153 @@
+/* ===============================
+   PER-ASSET CLIPPING PLANES STYLES
+   =============================== */
+
+.clip-planes-controls {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(255, 140, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 140, 0, 0.2);
+}
+
+.clip-planes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.clip-planes-header .modern-label-small {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.clip-reset-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.clip-reset-btn:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: #F87171;
+}
+
+/* Axis row */
+.clip-axis-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.clip-axis-row:last-child {
+  margin-bottom: 0;
+}
+
+.clip-axis-cb {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #6EECD8;
+}
+
+.clip-axis-label {
+  font-size: 11px;
+  font-weight: 700;
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.clip-axis-label-x { color: #ff6666; }
+.clip-axis-label-y { color: #66ff66; }
+.clip-axis-label-z { color: #6688ff; }
+
+/* Slider */
+.clip-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.clip-slider:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.clip-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.clip-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Flip button */
+.clip-flip-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.clip-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.clip-flip-btn.flipped {
+  background: rgba(255, 140, 0, 0.2);
+  border-color: rgba(255, 140, 0, 0.4);
+  color: #FF8C00;
+}
+
+/* Value display */
+.clip-axis-value {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  min-width: 42px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Active clip button highlight in asset header */
+.modern-icon-btn.clip-active {
+  background: rgba(255, 140, 0, 0.2) !important;
+  color: #FF8C00 !important;
+}

@@ -358,6 +358,14 @@
         continue;
       }
 
+      // Skip assets with no detected IFC properties — applying string-literal
+      // style conditions to non-IFC tilesets (e.g. undetected point clouds) causes
+      // "String literals are not supported" shader errors in Cesium.
+      if (!assetData.ifcPropertyName) {
+        console.log(`⏭️ Asset ${assetId}: No IFC properties detected - skipping filter (avoids shader error)`);
+        continue;
+      }
+
       try {
         const opacity = assetData.opacity || 1.0;
 

@@ -457,11 +457,31 @@ const BimViewer = {
       
       this.viewer.scene.renderError.addEventListener((scene, error) => {
         console.error('🔴 Cesium Rendering Error:', error);
-        
+
         if (error.message && error.message.includes('propertiesBySemantic')) {
           console.warn('⚠️ Property/Semantic error detected - attempting to continue rendering...');
         }
-        
+
+        // String literal shader error — likely a style applied to a point cloud tileset
+        if (error.message && error.message.includes('String literals are not supported')) {
+          console.warn('⚠️ String literal shader error — clearing styles from point cloud tilesets...');
+          if (this.loadedAssets) {
+            for (const [assetId, assetData] of this.loadedAssets) {
+              if (assetData.tileset && !assetData.ifcPropertyName && assetData.tileset.style) {
+                assetData.tileset.style = undefined;
+                console.log(`☁️ Cleared style from asset ${assetId} (likely point cloud)`);
+                // Re-check if this is a point cloud
+                if (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(assetData.tileset)) {
+                  assetData.isPointCloud = true;
+                  if (typeof this.applyPointCloudSettings === 'function') {
+                    this.applyPointCloudSettings(assetData.tileset);
+                  }
+                }
+              }
+            }
+          }
+        }
+
         try {
           scene.requestRender();
           this.updateStatus('Rendering error occurred - attempting recovery', 'error');
@@ -1026,6 +1046,18 @@ const BimViewer = {
       if (!assetData.ifcPropertyName) {
         setTimeout(async () => {
           try {
+            // Re-check point cloud detection (may have failed due to timeout)
+            if (!assetData.isPointCloud && typeof this.isPointCloudTileset === 'function') {
+              if (this.isPointCloudTileset(assetData.tileset)) {
+                assetData.isPointCloud = true;
+                console.log(`☁️ Asset ${assetId} detected as point cloud (delayed check)`);
+                if (typeof this.applyPointCloudSettings === 'function') {
+                  this.applyPointCloudSettings(assetData.tileset);
+                }
+                return; // Point cloud — no IFC filter needed
+              }
+            }
+
             if (typeof this.detectIFCProperties === 'function') {
               const detectedProp = await this.detectIFCProperties(assetData.tileset);
               if (detectedProp) {
@@ -1205,9 +1237,17 @@ const BimViewer = {
       return;
     }
 
-    // For non-point-clouds, use IFC filter
-    if (typeof this.applyIFCFilter === 'function') {
+    // Re-apply the active filter/style so the new opacity takes effect
+    if (assetData.ifcPropertyName && typeof this.applyIFCFilter === 'function') {
       this.applyIFCFilter();
+    } else if (assetData.categoryPropertyName && typeof this.applyRevitFilter === 'function') {
+      this.applyRevitFilter();
+    } else if (assetData.tileset) {
+      // No IFC/Revit filter — apply opacity directly
+      assetData.tileset.style = new Cesium.Cesium3DTileStyle({
+        color: `color('white', ${assetData.opacity})`,
+        show: true
+      });
     }
   },
 

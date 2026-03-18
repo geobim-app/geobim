@@ -1,6 +1,6 @@
 # geoBIM.app — Feature Reference
 
-**CesiumJS 1.138** | Vanilla JavaScript | No build step
+**CesiumJS 1.139.1** | Vanilla JavaScript | No build step
 
 ---
 
@@ -84,6 +84,7 @@
 |---|---|---|
 | Polygon Clipping | Draw arbitrary polygons via right-click. Cyan numbered markers, dashed lines. Min 3 points. | `clipping.js` |
 | Rectangle Clipping | 3-point rectangle mode: corner 1, corner 2 (edge), corner 3 (width). Live preview. | `clipping.js` |
+| Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. | `clipping-planes.js` |
 | Inverse Clipping | Flip clipping inside/outside. | `clipping.js` |
 | Terrain Clipping | Toggle terrain inclusion in clipping (Buildings Only vs. Buildings + Terrain). | `clipping.js` |
 | Clipping Visualization | Show/hide cyan polygon fill while clipping stays active. | `clipping.js` |
@@ -289,6 +290,37 @@
 
 ---
 
+## 22. Construction Sequencing (4D BIM)
+
+| Feature | Description | Files |
+|---|---|---|
+| Stage Animation | Animate construction stages via IFC `stage` property (pset_StageInfo). Elements without a stage remain always visible. | `sequencing.js` |
+| Timeline Controls | Play/pause, stage slider, auto-play, adjustable speed. | `sequencing.js` |
+| Property Detection | Searches multiple property name variants (stage, psetStageInfostage, pset_StageInfo_stage, Stage). | `sequencing.js` |
+
+---
+
+## 23. Measurement Persistence
+
+| Feature | Description | Files |
+|---|---|---|
+| Firestore Storage | Save measurements (distance, area, height, vertical, coordinates) to Firestore collection. | `measurement-store.js` |
+| Reload Measurements | Restore saved measurements across sessions with color-coded visualization. | `measurement-store.js` |
+
+---
+
+## 24. NRW LoD2 3D Tiles
+
+| Feature | Description | Files |
+|---|---|---|
+| NRW LoD2 Layer | Toggle NRW LoD2 building models (Open Data, Geobasis NRW) as 3D Tiles layer. | `layerManager.js` |
+| Semantic Coloring | Surface-type-based colors: roof (#C0703A), wall (#8899AA), ground (#556677). | `layerManager.js` |
+| Height Offset | 100 m correction for DHHN2016 Normalhöhen → WGS84 ellipsoid. | `layerManager.js` |
+| Feature Properties | Click handler showing ALKIS-ID, function, roof type, surface type. | `layerManager.js` |
+| 3D-Only Guard | Auto-disables when leaving 3D scene mode. | `layerManager.js` |
+
+---
+
 ## Module Reference
 
 | File | Purpose |
@@ -312,13 +344,16 @@
 | `sensorthings.js` | OGC SensorThings API module — live MQTT monitoring, sparklines, damage detection |
 | `iot.js` | Pegelonline IoT live module — water level, temperature markers |
 | `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
+| `measurement-store.js` | Measurement persistence in Firestore |
+| `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
+| `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
 | `ui-helpers-modern.js` | List rendering helpers for comments, hidden features, assets, saved views |
 | `ui-comments-extension.js` | Comments section UI controls |
 | `ui-clipping-extension.js` | Clipping section UI controls |
 | `ui-z-offset-extension.js` | Z-offset UI controls, global keyboard offset |
 | `ui-lighting-standalone.js` | Lighting UI integration |
-| `index.html` | Splash screen, comment dialog, script loading, Plausible analytics |
+| `index.html` | Splash screen (v3.0 tabbed), comment dialog, script loading, Plausible analytics |
 
 ---
 
-*Generated from codebase analysis — 2026-03-09*
+*Generated from codebase analysis — 2026-03-18*

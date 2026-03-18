@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-03-18
+
+### Added
+
+#### Per-Asset Clipping Planes
+- Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders
+- Only one asset can be clipped at a time to avoid conflicts
+
+#### Construction Sequencing (4D BIM)
+- Animate construction stages via IFC `stage` property (pset_StageInfo)
+- Play/pause timeline with stage slider, auto-play, and speed control
+- Elements without a `stage` property remain always visible
+
+#### Measurement Store (Firebase)
+- Persist measurements (distance, area, height, vertical, coordinates) in Firestore
+- Reload saved measurements across sessions with color-coded visualization
+
+#### NRW LoD2 3D Tiles Layer
+- Toggle NRW LoD2 building models (Open Data, Geobasis NRW) as 3D Tiles layer in Layer Manager
+- Semantic coloring by surface type (roof, wall, ground)
+- Height offset correction (100 m) for DHHN2016 → WGS84 ellipsoid conversion
+- Click handler for NRW feature properties (ALKIS-ID, function, roof type)
+- Auto-disable when leaving 3D mode
+
+#### WMTS Improvements
+- Extract TileMatrixLabels from GetCapabilities for correct zoom level mapping
+- KVP request mode to avoid URL-encoding issues with EPSG codes on some servers
+- Automatic tiling scheme selection based on TileMatrixSet CRS (WebMercator vs Geographic)
+- Image format extraction from WMTS layer metadata
+
+#### Splash Screen v3.0
+- Redesigned tabbed welcome screen (About, Features, Shortcuts tabs)
+- Info grid showing version, engine, license, and stack details
+- Scrollable feature and shortcut lists
+
+#### New Ion Assets
+- Added asset IDs 4538820, 4538744, 4533896 to curated whitelist
+
+### Changed
+
+#### Measurement Panel
+- Redesigned as floating, draggable, minimizable panel (replaced inline sidebar panel)
+- Collapsible panel body with minimize button
+
+#### CesiumJS Version
+- Updated from CesiumJS 1.138 to 1.139.1
+
+#### Authentication
+- Improved password reset error messages (user-not-found, invalid-email, too-many-requests)
+- Auth gate now shows login form for anonymous users (not just unauthenticated)
+
+### Fixed
+
+#### Asset Opacity
+- Fixed transparency slider not working for Revit assets (only IFC filter was called)
+- Fixed transparency slider not working for generic assets without IFC/Revit properties
+- Opacity now correctly dispatches to IFC filter, Revit filter, or direct style depending on asset type
+
+#### Point Cloud Stability
+- Added "String literals not supported" shader error recovery — auto-clears styles from non-IFC tilesets
+- Delayed point cloud re-detection for assets that fail initial detection due to tile loading timeout
+
+#### IFC Filter
+- Skip assets without detected IFC properties to avoid shader errors on point cloud tilesets
+
+## [1.4.0] - 2026-03-12
+
+### Added
+
+- BCF 2.1 export from comments with camera transform (ECEF → local IFC coords)
+- WMS, WMTS, and WFS layer support in Layer Manager with GetCapabilities discovery
+- Imagery overlay layers with alpha slider
+- About & Help dialog with tabbed interface (About, Features, Shortcuts, Feedback)
+- Feedback form saving to Firestore collection
+- Geoid terrain integration
+
 ## [1.3.0] - 2026-03-09
 
 ### Added

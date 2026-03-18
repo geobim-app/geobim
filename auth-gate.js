@@ -119,9 +119,20 @@
         forgotMsg.className = 'ag-forgot-msg';
         forgotMsg.textContent = 'Reset link sent to ' + email;
       })
-      .catch(function() {
+      .catch(function(err) {
+        console.error('Password reset error:', err.code, err.message);
+        var msg = 'Could not send reset email.';
+        if (err.code === 'auth/user-not-found') {
+          msg = 'No account found for this email address.';
+        } else if (err.code === 'auth/invalid-email') {
+          msg = 'Please enter a valid email address.';
+        } else if (err.code === 'auth/too-many-requests') {
+          msg = 'Too many requests. Please try again later.';
+        } else if (err.message) {
+          msg += ' (' + err.code + ')';
+        }
         forgotMsg.className = 'ag-forgot-msg ag-msg-error';
-        forgotMsg.textContent = 'Could not send reset email. Check the address.';
+        forgotMsg.textContent = msg;
       });
   });
 
@@ -183,10 +194,10 @@
   firebaseAuth.onAuthStateChanged(function(user) {
     if (user && !user.isAnonymous) {
       onAuthenticated(user);
-    } else if (!user) {
+    } else {
+      // No user or anonymous user — show login form
       onUnauthenticated();
     }
-    // Ignore anonymous users – they don't pass the gate
   });
 
   // =====================================

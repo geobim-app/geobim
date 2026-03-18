@@ -30,6 +30,20 @@
     wmsLayers: [],          // { id, name, url, type, layerName, layer, visible, alpha }
     wmsDiscovered: [],      // cached discovered layers from GetCapabilities
     wmsDiscoveredUrl: null, // URL of last discovery
+    tilesetLayers: [
+      {
+        id: 'nrw-lod2',
+        name: 'NRW LoD2',
+        nameEN: 'NRW LoD2 Buildings',
+        description: 'Gebäudemodelle Nordrhein-Westfalen (Open Data)',
+        url: 'https://ogc-api.nrw.de/3dg/v1/collections/building/3dtiles',
+        tileset: null,
+        active: false,
+        loading: false,
+        heightOffset: 100,
+        credit: 'Bezirksregierung K\u00f6ln / Geobasis NRW \u2014 dl-de/zero-2-0'
+      }
+    ],
     activeBasemap: null,
     activeTerrain: 'world',
 
@@ -97,8 +111,23 @@
         { id: 'terrain_2426648', name: 'Cesium World Bathymetry', assetId: 2426648, active: false }
       ];
 
+      // Disable 3D Tiles when leaving 3D mode
+      viewer.scene.morphComplete.addEventListener(() => {
+        if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
+          this.tilesetLayers.forEach(t => {
+            if (t.active) {
+              this.disableTileset(t.id);
+              BimViewer.updateStatus('3D Tiles deaktiviert (nur 3D-Modus)', 'warning');
+            }
+          });
+        }
+      });
+
       // Activate default basemap
       await this.switchBasemap('bing-aerial');
+
+      // Populate UI now that layers are registered
+      this.populateUI();
 
       console.log('Layer Manager initialized');
     },
@@ -331,6 +360,7 @@
       this.updateTerrainUI();
       this.updateOverlayUI();
       this.updateWmsUI();
+      this.updateTilesetUI();
     },
 
     updateBasemapUI() {
@@ -499,6 +529,10 @@
             }
             if (!preferredTms && allTms.length > 0) preferredTms = allTms[0];
 
+            // Extract image format from layer
+            var formatEl = el.querySelector('Format');
+            var layerFormat = formatEl ? formatEl.textContent : 'image/jpeg';
+
             // Extract ResourceURL template (RESTful WMTS)
             var resourceUrl = null;
             var resEls = el.querySelectorAll('ResourceURL');
@@ -511,12 +545,34 @@
               }
             });
 
+            // Extract TileMatrix labels for the preferred TileMatrixSet
+            var tileMatrixLabels = null;
+            if (preferredTms) {
+              var allTmsDefs = xml.querySelectorAll('TileMatrixSet');
+              for (var d = 0; d < allTmsDefs.length; d++) {
+                var tmsIdEl = allTmsDefs[d].querySelector(':scope > Identifier, :scope > ows\\:Identifier');
+                if (tmsIdEl && tmsIdEl.textContent === preferredTms) {
+                  var matrixEls = allTmsDefs[d].querySelectorAll('TileMatrix');
+                  if (matrixEls.length > 0) {
+                    tileMatrixLabels = [];
+                    matrixEls.forEach(function(mx) {
+                      var mxId = mx.querySelector('Identifier, ows\\:Identifier');
+                      if (mxId) tileMatrixLabels.push(mxId.textContent);
+                    });
+                  }
+                  break;
+                }
+              }
+            }
+
             if (id) {
               layers.push({
                 name: id.textContent,
                 title: (title ? title.textContent : id.textContent),
                 type: 'wmts',
+                format: layerFormat,
                 tileMatrixSet: preferredTms,
+                tileMatrixLabels: tileMatrixLabels,
                 allTileMatrixSets: allTms,
                 resourceUrl: resourceUrl,
                 url: url.trim()
@@ -601,18 +657,38 @@
           // WMS / WMTS — add as imagery layer
           let provider;
           if (layer.type === 'wmts') {
-            var wmtsUrl = layer.url;
             var wmtsOpts = { layer: layer.name, style: 'default' };
 
             if (layer.resourceUrl) {
               // RESTful WMTS — use the template URL
-              wmtsUrl = layer.resourceUrl.replace(/\{(\d+)-(\d+)\}/g, function(m, a) { return a; });
+              var wmtsUrl = layer.resourceUrl.replace(/\{(\d+)-(\d+)\}/g, function(m, a) { return a; });
               wmtsOpts.url = wmtsUrl;
             } else {
-              wmtsOpts.url = wmtsUrl;
+              // KVP WMTS — build explicit KVP URL to avoid CesiumJS using
+              // RESTful mode which URL-encodes colons in path segments
+              // (EPSG:3857 → EPSG%3A3857), causing 400 errors on many servers.
+              var baseUrl = layer.url;
+              var sep = baseUrl.indexOf('?') >= 0 ? '&' : '?';
+              wmtsOpts.url = baseUrl + sep +
+                'SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+                '&LAYER=' + encodeURIComponent(layer.name) +
+                '&STYLE=default' +
+                '&FORMAT=' + encodeURIComponent(layer.format || 'image/jpeg') +
+                '&TILEMATRIXSET=' + encodeURIComponent(layer.tileMatrixSet || '') +
+                '&TILEMATRIX={TileMatrix}&TILEROW={TileRow}&TILECOL={TileCol}';
             }
 
             if (layer.tileMatrixSet) wmtsOpts.tileMatrixSetID = layer.tileMatrixSet;
+            if (layer.format) wmtsOpts.format = layer.format;
+            if (layer.tileMatrixLabels) wmtsOpts.tileMatrixLabels = layer.tileMatrixLabels;
+
+            // Set tiling scheme based on TileMatrixSet CRS
+            var tmsLower = (layer.tileMatrixSet || '').toLowerCase();
+            if (tmsLower.indexOf('3857') >= 0 || tmsLower.indexOf('googlemapscompatible') >= 0 ||
+                tmsLower.indexOf('smerc') >= 0 || tmsLower.indexOf('webmercator') >= 0) {
+              wmtsOpts.tilingScheme = new Cesium.WebMercatorTilingScheme();
+            }
+
             provider = new Cesium.WebMapTileServiceImageryProvider(wmtsOpts);
           } else {
             provider = new Cesium.WebMapServiceImageryProvider({
@@ -1348,6 +1424,151 @@
           </div>
         </div>
       `).join('');
+    },
+
+    // =====================================
+    // 3D TILES LAYER MANAGEMENT
+    // =====================================
+
+    async enableTileset(id) {
+      const entry = this.tilesetLayers.find(t => t.id === id);
+      if (!entry || entry.active || entry.loading) return;
+
+      if (this.viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
+        BimViewer.updateStatus('NRW LoD2 nur im 3D-Modus verfügbar', 'warning');
+        return;
+      }
+
+      entry.loading = true;
+      this.updateTilesetUI();
+      BimViewer.updateStatus('Loading ' + entry.name + '...', 'loading');
+
+      try {
+        entry.tileset = await Cesium.Cesium3DTileset.fromUrl(entry.url, {
+          maximumScreenSpaceError: 16
+        });
+        this.viewer.scene.primitives.add(entry.tileset);
+
+        // Height offset: DHHN2016 Normalhöhen → WGS84 Ellipsoid (100m for NRW,
+        // empirically validated at Kölner Dom: 47m geoid + ~55m orthometric base)
+        if (entry.heightOffset) {
+          var carto = Cesium.Cartographic.fromCartesian(
+            entry.tileset.boundingSphere.center
+          );
+          var translation = new Cesium.Cartesian3();
+          Cesium.Cartesian3.subtract(
+            Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, entry.heightOffset),
+            Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0),
+            translation
+          );
+          entry.tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+          console.log('3D Tiles height offset applied: ' + entry.heightOffset + 'm');
+        }
+
+        // Semantic coloring by surfaceType (roof/wall/ground)
+        entry.tileset.style = new Cesium.Cesium3DTileStyle({
+          color: {
+            conditions: [
+              ["${surfaceType} === 'roof'",   "color('#C0703A')"],
+              ["${surfaceType} === 'wall'",   "color('#8899AA')"],
+              ["${surfaceType} === 'ground'", "color('#556677')"],
+              ["true",                        "color('#99AABB')"]
+            ]
+          }
+        });
+
+        // Click handler for NRW feature properties
+        var nrwTileset = entry.tileset;
+        var nrwHandler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
+        nrwHandler.setInputAction(function(movement) {
+          var picked = LayerManager.viewer.scene.pick(movement.position);
+          if (!(picked instanceof Cesium.Cesium3DTileFeature)) return;
+          if (picked.tileset !== nrwTileset) return;
+
+          var props = {};
+          var gmlId = picked.getProperty('gml_id');
+          var fn = picked.getProperty('function');
+          var roof = picked.getProperty('roofType');
+          var surf = picked.getProperty('surfaceType');
+          var name = picked.getProperty('name');
+
+          if (gmlId !== undefined && gmlId !== 'undefined') props['ALKIS-ID'] = gmlId;
+          if (fn !== undefined && fn !== 'undefined')        props['Funktion'] = fn;
+          if (roof !== undefined && roof !== 'undefined')    props['Dachform'] = roof;
+          if (surf !== undefined && surf !== 'undefined')    props['Fläche'] = surf;
+          if (name !== undefined && name !== 'undefined')    props['Name'] = name;
+          props['_Layer'] = 'NRW LoD2 Gebäude';
+
+          // Defer so this overwrites the generic IFC handler output
+          setTimeout(function() {
+            if (typeof BimViewer.displayIFCProperties === 'function') {
+              BimViewer.displayIFCProperties(props);
+            }
+          }, 0);
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        entry.clickHandler = nrwHandler;
+
+        this.viewer.creditDisplay.addStaticCredit(
+          new Cesium.Credit(entry.credit, false)
+        );
+        entry.active = true;
+        entry.loading = false;
+        this.updateTilesetUI();
+        BimViewer.updateStatus(entry.name + ' loaded', 'success');
+        console.log('3D Tiles layer enabled:', entry.name);
+      } catch (error) {
+        console.error('Failed to load 3D Tiles layer:', error);
+        entry.tileset = null;
+        entry.loading = false;
+        this.updateTilesetUI();
+        BimViewer.updateStatus('NRW LoD2 nicht erreichbar', 'error');
+      }
+    },
+
+    disableTileset(id) {
+      const entry = this.tilesetLayers.find(t => t.id === id);
+      if (!entry) return;
+
+      if (entry.clickHandler) {
+        entry.clickHandler.destroy();
+        entry.clickHandler = null;
+      }
+      if (entry.tileset) {
+        this.viewer.scene.primitives.remove(entry.tileset);
+      }
+      entry.tileset = null;
+      entry.active = false;
+      this.updateTilesetUI();
+      console.log('3D Tiles layer disabled:', entry.name);
+    },
+
+    updateTilesetUI() {
+      const container = document.getElementById('tilesetLayersList');
+      if (!container) return;
+
+      if (this.tilesetLayers.length === 0) {
+        container.innerHTML = '<div class="modern-empty-state">No 3D Tiles layers</div>';
+        return;
+      }
+
+      container.innerHTML = this.tilesetLayers.map(t => {
+        var truncUrl = t.url.length > 40 ? t.url.substring(0, 40) + '...' : t.url;
+        var statusText = t.loading ? 'Loading...' : (t.active ? 'Active' : 'Off');
+        return '<div class="layer-overlay-item" data-tileset-id="' + t.id + '">' +
+          '<div class="layer-overlay-header">' +
+            '<span class="layer-overlay-name">' + t.name + '</span>' +
+            '<div class="layer-overlay-actions">' +
+              '<button class="layer-toggle-btn ' + (t.active ? 'active' : '') + '" ' +
+                'data-toggle-tileset="' + t.id + '" title="Toggle" ' +
+                (t.loading ? 'disabled' : '') + '>' +
+                (t.loading ? '⏳' : (t.active ? '👁' : '👁\u200D🗨')) +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="layer-overlay-meta">3D Tiles · ' + truncUrl + '</div>' +
+          (t.description ? '<div class="layer-overlay-meta" style="color: rgba(255,255,255,0.35);">' + t.description + '</div>' : '') +
+        '</div>';
+      }).join('');
     },
 
     // =====================================

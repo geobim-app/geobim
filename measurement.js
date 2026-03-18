@@ -40,7 +40,7 @@
 
     if (panel) {
       const isVisible = panel.style.display !== 'none';
-      panel.style.display = isVisible ? 'none' : 'block';
+      panel.style.display = isVisible ? 'none' : 'flex';
 
       if (!isVisible && typeof plausible !== 'undefined') {
         plausible('Feature Used', { props: { feature: 'Measurement' } });
@@ -48,133 +48,84 @@
     }
   };
 
-  // Create measurement panel
+  // Collapse / expand measurement panel body
+  BimViewer.toggleMeasurementCollapse = function() {
+    const body = document.getElementById('measurementPanelBody');
+    const btn = document.getElementById('measurementCollapseBtn');
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    if (btn) btn.textContent = body.classList.contains('collapsed') ? '+' : '\u2212';
+  };
+
+  // Create measurement panel (floating, draggable, minimizable)
   BimViewer.createMeasurementPanel = function() {
     const existing = document.getElementById('measurementPanel');
     if (existing) existing.remove();
 
     const panel = document.createElement('div');
     panel.id = 'measurementPanel';
-    panel.style.cssText = `
-      position: absolute;
-      bottom: 50px;
-      right: 20px;
-      z-index: 150;
-      display: none;
-      min-width: 300px;
-      max-width: 340px;
-      background: rgba(30, 30, 35, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      overflow: hidden;
-    `;
+    panel.style.cssText =
+      'position: fixed; bottom: 60px; right: 20px; z-index: 200; display: none;' +
+      'width: 320px; max-height: 80vh;' +
+      'background: rgba(14, 17, 23, 0.92); backdrop-filter: blur(12px);' +
+      'border-radius: 12px;' +
+      'box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);' +
+      'color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;' +
+      'flex-direction: column; overflow: hidden;';
 
-    panel.innerHTML = `
-      <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0; font-size: 15px; font-weight: 600;">
-          <span style="margin-right: 8px;">📏</span>Measurement Tools
-        </h3>
-        <button onclick="BimViewer.toggleMeasurementPanel()" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; padding: 0; line-height: 1;">×</button>
-      </div>
+    panel.innerHTML =
+      // Header (draggable)
+      '<div id="measurementPanelHeader" class="floating-panel-header">' +
+        '<span class="floating-panel-title">📏 Measurements</span>' +
+        '<div class="floating-panel-controls">' +
+          '<button id="measurementCollapseBtn" class="floating-panel-btn" onclick="BimViewer.toggleMeasurementCollapse()" title="Minimize">\u2212</button>' +
+          '<button class="floating-panel-btn" onclick="BimViewer.toggleMeasurementPanel()" title="Close">\u2715</button>' +
+        '</div>' +
+      '</div>' +
 
-      <div style="padding: 12px;">
-        <!-- Distance & Area Row -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-          <button onclick="BimViewer.startDistanceMeasurement()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%);
-            border: none; border-radius: 8px;
-            color: white; font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>📏</span><span>Distance</span>
-          </button>
-          <button onclick="BimViewer.startAreaMeasurement()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            border: none; border-radius: 8px;
-            color: white; font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>⬛</span><span>Area</span>
-          </button>
-        </div>
+      // Body (collapsible)
+      '<div id="measurementPanelBody" class="floating-panel-body" style="max-height: none; padding: 10px;">' +
 
-        <!-- Height Row -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-          <button onclick="BimViewer.startHeightOverTerrain()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border: none; border-radius: 8px;
-            color: white; font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>⛰️</span><span>Height/Terrain</span>
-          </button>
-          <button onclick="BimViewer.startVerticalDistance()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            border: none; border-radius: 8px;
-            color: white; font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>↕️</span><span>Vertical</span>
-          </button>
-        </div>
+        // Tool buttons
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">' +
+          '<button onclick="BimViewer.startDistanceMeasurement()" class="ms-tool-btn" style="background: linear-gradient(135deg, #6EECD8, #3DB8A0);">' +
+            '<span>📏</span><span>Distance</span></button>' +
+          '<button onclick="BimViewer.startAreaMeasurement()" class="ms-tool-btn" style="background: linear-gradient(135deg, #11998e, #38ef7d);">' +
+            '<span>⬛</span><span>Area</span></button>' +
+        '</div>' +
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">' +
+          '<button onclick="BimViewer.startHeightOverTerrain()" class="ms-tool-btn" style="background: linear-gradient(135deg, #f093fb, #f5576c);">' +
+            '<span>⛰️</span><span>Height/Terrain</span></button>' +
+          '<button onclick="BimViewer.startVerticalDistance()" class="ms-tool-btn" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">' +
+            '<span>↕️</span><span>Vertical</span></button>' +
+        '</div>' +
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">' +
+          '<button onclick="BimViewer.startCoordinatePick()" class="ms-tool-btn" style="background: linear-gradient(135deg, #fa709a, #fee140);">' +
+            '<span>🌍</span><span>Coordinates</span></button>' +
+          '<button onclick="BimViewer.clearMeasurements()" class="ms-tool-btn" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);">' +
+            '<span>🗑️</span><span>Clear All</span></button>' +
+        '</div>' +
 
-        <!-- Coordinates Row -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-          <button onclick="BimViewer.startCoordinatePick()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            border: none; border-radius: 8px;
-            color: white; font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>🌍</span><span>Coordinates</span>
-          </button>
-          <button onclick="BimViewer.clearMeasurements()" style="
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500;
-            cursor: pointer;
-          ">
-            <span>🗑️</span><span>Clear All</span>
-          </button>
-        </div>
+        // Instructions
+        '<div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 6px 8px; margin-bottom: 10px;">' +
+          '<p style="color: rgba(255,255,255,0.45); font-size: 10px; margin: 0; line-height: 1.4;">' +
+          'Left-click to place \u2022 Right-click/Enter to finish \u2022 ESC to cancel</p>' +
+        '</div>' +
 
-        <!-- Instructions -->
-        <div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px 10px; margin-bottom: 12px;">
-          <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 0; line-height: 1.4;">
-            Left-click to place • Right-click/Enter to finish • ESC to cancel
-          </p>
-        </div>
+        // Results
+        '<div id="measurementResult" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center; min-height: 40px;">' +
+          '<span style="color: rgba(255,255,255,0.4); font-size: 12px;">Select a measurement tool</span>' +
+        '</div>' +
 
-        <!-- Results -->
-        <div id="measurementResult" style="
-          padding: 12px;
-          background: rgba(0,0,0,0.3);
-          border-radius: 8px;
-          text-align: center;
-          min-height: 50px;
-        ">
-          <span style="color: rgba(255,255,255,0.5); font-size: 12px;">Select a measurement tool</span>
-        </div>
-      </div>
-    `;
+      '</div>'; // end body
 
     document.body.appendChild(panel);
+
+    // Make draggable using shared helper
+    if (typeof this.makeFloatingPanelDraggable === 'function') {
+      this.makeFloatingPanelDraggable(panel, document.getElementById('measurementPanelHeader'));
+    }
+
     console.log('📏 Measurement panel created');
   };
 

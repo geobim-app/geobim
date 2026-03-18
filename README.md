@@ -5,7 +5,7 @@
 [Live Demo](https://geobim.app)
 
 ![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)
-![CesiumJS 1.138](https://img.shields.io/badge/CesiumJS-1.138-teal.svg)
+![CesiumJS 1.139.1](https://img.shields.io/badge/CesiumJS-1.139.1-teal.svg)
 
 ---
 
@@ -22,12 +22,14 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Asset Management** — Load and manage 3D Tiles from Cesium Ion and Bentley iTwin
 - **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings
 - **IFC & Revit Filtering** — Show/hide by entity class or category with color-coded visualization
-- **Measurements** — Distance, area, height, vertical distance, and coordinate tools
-- **Clipping** — Polygon and rectangle section planes for buildings and terrain
+- **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
+- **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes
+- **Construction Sequencing** — 4D BIM stage animation via IFC properties
 - **Annotations** — Point and area comments with Firestore persistence
 - **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
 - **IoT Live Module** — Real-time water level monitoring via Pegelonline with threshold alerts
 - **Geoid Module** — EGM96 undulation lookup for orthometric height display in coordinate picker
+- **NRW LoD2 Buildings** — Open Data 3D building models (Geobasis NRW) as toggleable layer
 - **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), SSAO, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
 - **Saved Views** — Capture and restore camera positions with scene state
@@ -79,7 +81,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 
 | Layer | Technology |
 |---|---|
-| 3D Rendering | CesiumJS 1.138 |
+| 3D Rendering | CesiumJS 1.139.1 |
 | Code Style | Vanilla JavaScript, IIFE modules |
 | BIM Conversion | Cesium Ion (IFC / Revit → 3D Tiles) |
 | Backend / Auth | Firebase (Firestore, Email/Password Auth) |
@@ -102,6 +104,9 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Collapsible sidebar toolbar with 12 sections |
 | `ui-helpers-modern.js` | List rendering helpers for UI components |
+| `measurement-store.js` | Measurement persistence in Firestore |
+| `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
+| `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
 | `sensorthings.js` | OGC SensorThings API module — live bridge monitoring with MQTT and damage detection |
 | `iot.js` | Pegelonline IoT live module — water level and temperature markers |
 | `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
