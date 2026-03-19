@@ -1181,29 +1181,364 @@ const BimViewer = {
     }
   },
 
+  // =====================================
+  // GLB MODEL LOADING
+  // =====================================
+
+  // Concrete PBR CustomShader for GLB models (triplanar noise, no textures needed)
+  _glbConcreteShader: null,
+  _getConcreteShader() {
+    if (this._glbConcreteShader) return this._glbConcreteShader;
+    this._glbConcreteShader = new Cesium.CustomShader({
+      uniforms: {
+        u_noiseScale: { type: Cesium.UniformType.FLOAT, value: 0.1 }
+      },
+      varyings: {
+        v_worldPos: Cesium.VaryingType.VEC3
+      },
+      vertexShaderText: /* glsl */ `
+        void vertexMain(VertexInput vsInput, inout czm_modelVertexOutput vsOutput) {
+          v_worldPos = (czm_model * vec4(vsInput.attributes.positionMC, 1.0)).xyz;
+        }
+      `,
+      fragmentShaderText: /* glsl */ `
+        float cHash(vec3 p) {
+          p = fract(p * vec3(443.897, 441.423, 437.195));
+          p += dot(p, p.yzx + 19.19);
+          return fract((p.x + p.y) * p.z);
+        }
+        float cNoise3D(vec3 p) {
+          vec3 i = floor(p); vec3 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float n000 = cHash(i); float n100 = cHash(i+vec3(1,0,0));
+          float n010 = cHash(i+vec3(0,1,0)); float n110 = cHash(i+vec3(1,1,0));
+          float n001 = cHash(i+vec3(0,0,1)); float n101 = cHash(i+vec3(1,0,1));
+          float n011 = cHash(i+vec3(0,1,1)); float n111 = cHash(i+vec3(1,1,1));
+          return mix(mix(mix(n000,n100,f.x),mix(n010,n110,f.x),f.y),
+                     mix(mix(n001,n101,f.x),mix(n011,n111,f.x),f.y),f.z);
+        }
+        float cTriplanar(vec3 wp, vec3 n, float s) {
+          vec3 b = abs(n); b /= (b.x+b.y+b.z+0.001);
+          float nx = 0.5*cNoise3D(vec3(wp.yz*s,0.0))+0.25*cNoise3D(vec3(wp.yz*s*2.0,0.0))
+                    +0.125*cNoise3D(vec3(wp.yz*s*4.0,0.0));
+          float ny = 0.5*cNoise3D(vec3(wp.xz*s,1.0))+0.25*cNoise3D(vec3(wp.xz*s*2.0,1.0))
+                    +0.125*cNoise3D(vec3(wp.xz*s*4.0,1.0));
+          float nz = 0.5*cNoise3D(vec3(wp.xy*s,2.0))+0.25*cNoise3D(vec3(wp.xy*s*2.0,2.0))
+                    +0.125*cNoise3D(vec3(wp.xy*s*4.0,2.0));
+          return nx*b.x + ny*b.y + nz*b.z;
+        }
+        void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
+          vec3 wp = v_worldPos;
+          vec3 norm = material.normalEC;
+          // Concrete base color
+          vec3 base = vec3(0.478, 0.463, 0.439);
+          // Two-scale noise: fine pores + coarse surface variation
+          float fine = cTriplanar(wp, norm, u_noiseScale * 8.0);
+          float coarse = cTriplanar(wp, norm, u_noiseScale * 2.0);
+          vec3 tint = base + (fine - 0.5) * 0.12 + (coarse - 0.5) * 0.06;
+          material.diffuse = clamp(tint, 0.0, 1.0);
+          material.specular = vec3(0.04);
+          material.roughness = 0.85;
+          material.alpha = 1.0;
+        }
+      `,
+      mode: Cesium.CustomShaderMode.MODIFY_MATERIAL,
+      lightingModel: Cesium.LightingModel.PBR
+    });
+    return this._glbConcreteShader;
+  },
+
+  toggleGLBPbr(assetId) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB || !assetData.model) return;
+
+    if (assetData.pbrEnabled) {
+      assetData.model.customShader = undefined;
+      assetData.pbrEnabled = false;
+    } else {
+      assetData.model.customShader = this._getConcreteShader();
+      assetData.pbrEnabled = true;
+    }
+
+    const btn = document.getElementById(`glb_pbr_${assetId}`);
+    if (btn) {
+      btn.textContent = assetData.pbrEnabled ? '🪨 PBR On' : '🪨 PBR Off';
+      btn.classList.toggle('active', assetData.pbrEnabled);
+    }
+  },
+
+  // Lab feature access — only these users see GLB models section
+  labUsers: new Set([
+    'christof2304@gmail.com'
+  ]),
+
+  isLabUser() {
+    if (!window.BimAuth || !BimAuth.currentUser) return false;
+    return this.labUsers.has(BimAuth.currentUser.email);
+  },
+
+  // Registry of locally available GLB models
+  glbModels: [
+    { id: 'csm', name: 'infraFEM Sofistik CSM', file: 'model/infraFEM_Sofistik_CSM.glb', animated: true,
+      defaultPosition: { lon: -79.8864, lat: 40.023979, height: 204.0863013479 }, defaultHeading: 130, defaultScale: 1.0 },
+    { id: 'baugrund', name: 'Baugrund', file: 'model/baugrund.glb' },
+    { id: 'blender', name: 'Blender', file: 'model/blender.glb' },
+    { id: 'brooklyn', name: 'Brooklyn Bridge (Blender)', file: 'model/brooklyn_blender.glb' },
+    { id: 'cube10m', name: 'Cube 10m', file: 'model/cube_10meter.glb' },
+    { id: 'freecad', name: 'FreeCAD', file: 'model/freecad.gltf' },
+    { id: 'gordie', name: 'Gordie Howe Bridge', file: 'model/gordie_howe_bridge_geopogo.glb' },
+    { id: 'manhattan', name: 'Manhattan (Blender)', file: 'model/manhattan_blender.glb' },
+    { id: 'noise1', name: 'Noise Barrier 1', file: 'model/noise_barrier_full_1.glb' },
+    { id: 'noise2', name: 'Noise Barrier 2', file: 'model/noise_barrier_full_2.glb' },
+    { id: 'plaba', name: 'Plaba', file: 'model/plaba.glb' },
+    { id: 'porsche', name: 'Porsche', file: 'model/porsche.glb' },
+    { id: 'sbp_benin', name: 'SBP Benin', file: 'model/sbp_benin.glb' },
+    { id: 'sbp_heidelberg', name: 'SBP Heidelberg', file: 'model/sbp_heidelberg_blender_gltf.gltf' },
+    { id: 'tum', name: 'TUM', file: 'model/TUM.glb' }
+  ],
+
+  async loadGLBAsset(modelDef, position) {
+    const assetId = 'glb_' + modelDef.id;
+    if (this.loadedAssets.has(assetId)) {
+      this.updateStatus('Model already loaded', 'warning');
+      return;
+    }
+
+    this.updateStatus(`Loading ${modelDef.name}...`, 'loading');
+
+    try {
+      // Use model default position, then override, then camera fallback
+      if (!position && modelDef.defaultPosition) {
+        position = { ...modelDef.defaultPosition };
+      }
+      if (!position) {
+        const cam = this.viewer.camera;
+        const ray = cam.getPickRay(new Cesium.Cartesian2(
+          this.viewer.canvas.clientWidth / 2,
+          this.viewer.canvas.clientHeight / 2
+        ));
+        const hit = this.viewer.scene.globe.pick(ray, this.viewer.scene);
+        if (hit) {
+          const carto = Cesium.Cartographic.fromCartesian(hit);
+          position = {
+            lon: Cesium.Math.toDegrees(carto.longitude),
+            lat: Cesium.Math.toDegrees(carto.latitude),
+            height: carto.height || 0
+          };
+        } else {
+          position = { lon: 10.0, lat: 50.0, height: 0 };
+        }
+      }
+
+      const initialHeading = modelDef.defaultHeading || 0;
+      const initialScale = modelDef.defaultScale || 1.0;
+      const url = modelDef.file;
+      const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+        Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
+        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(initialHeading), 0, 0)
+      );
+
+      const model = await Cesium.Model.fromGltfAsync({
+        url: url,
+        modelMatrix: modelMatrix,
+        scale: initialScale,
+        minimumPixelSize: 32,
+        maximumScale: 20000,
+        shadows: Cesium.ShadowMode.ENABLED,
+        silhouetteColor: Cesium.Color.LIME,
+        silhouetteSize: 0.0
+      });
+
+      this.viewer.scene.primitives.add(model);
+
+      const defaultAnimSpeed = 5.0;
+
+      // Start animations if present
+      if (modelDef.animated && model.activeAnimations) {
+        model.readyEvent.addEventListener(() => {
+          try {
+            model.activeAnimations.addAll({
+              loop: Cesium.ModelAnimationLoop.REPEAT,
+              multiplier: defaultAnimSpeed
+            });
+            model._glbAnimCount = model.activeAnimations.length;
+            console.log(`🎬 GLB ${model._glbAnimCount} animations started for ${modelDef.name} (speed: ${defaultAnimSpeed}x)`);
+          } catch (err) {
+            console.warn(`⚠️ GLB animation init failed:`, err.message);
+          }
+        });
+      }
+
+      const assetData = {
+        id: assetId,
+        name: modelDef.name,
+        model: model,       // Cesium.Model (not tileset)
+        tileset: null,       // null — this is a GLB, not 3D Tiles
+        visible: true,
+        opacity: 1.0,
+        type: 'GLB',
+        isGLB: true,
+        animated: !!modelDef.animated,
+        animSpeed: defaultAnimSpeed,
+        animPlaying: true,
+        position: { ...position },
+        heading: initialHeading,
+        scale: initialScale,
+        pbrEnabled: true,
+        modelDef: modelDef
+      };
+
+      // Apply PBR concrete shader by default
+      model.customShader = this._getConcreteShader();
+
+      this.loadedAssets.set(assetId, assetData);
+
+      // Fly to model
+      const boundingSphere = new Cesium.BoundingSphere(
+        Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
+        200
+      );
+      this.viewer.camera.flyToBoundingSphere(boundingSphere, { duration: 1.5 });
+
+      if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
+        BimViewerUI.createAssetControls(assetId);
+      }
+
+      this.updateStatus(`Loaded: ${modelDef.name}`, 'success');
+      console.log(`✅ GLB loaded: ${modelDef.name} at ${position.lon.toFixed(5)}, ${position.lat.toFixed(5)}`);
+
+    } catch (error) {
+      console.error('❌ GLB load failed:', error);
+      this.updateStatus(`GLB load failed: ${error.message}`, 'error');
+    }
+  },
+
+  updateGLBPosition(assetId) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB || !assetData.model) return;
+
+    const pos = assetData.position;
+    const heading = Cesium.Math.toRadians(assetData.heading || 0);
+    const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+    const origin = Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.height);
+
+    const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(origin, hpr);
+    Cesium.Matrix4.multiplyByUniformScale(modelMatrix, assetData.scale || 1.0, modelMatrix);
+    assetData.model.modelMatrix = modelMatrix;
+  },
+
+  // Restart all GLB animations with a new multiplier (multiplier is read-only,
+  // so we must removeAll + re-add). Optional animationTime callback for freeze.
+  // Safely restart GLB animations — defers addAll to next frame to avoid
+  // CesiumJS crash when evaluating new animations mid-render at t=0
+  _restartGLBAnimations(assetData, multiplier, opts) {
+    const model = assetData.model;
+    if (!model) return;
+    model.activeAnimations.removeAll();
+
+    requestAnimationFrame(() => {
+      try {
+        const addOpts = {
+          loop: (opts && opts.loop !== undefined) ? opts.loop : Cesium.ModelAnimationLoop.REPEAT,
+          multiplier: multiplier
+        };
+        if (opts && opts.animationTime) addOpts.animationTime = opts.animationTime;
+        model.activeAnimations.addAll(addOpts);
+      } catch (e) {
+        console.warn('⚠️ _restartGLBAnimations failed:', e.message);
+      }
+    });
+  },
+
+  setGLBAnimationSpeed(assetId, speed) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB) return;
+    assetData.animSpeed = speed;
+    if (assetData.animPlaying) {
+      this._restartGLBAnimations(assetData, speed);
+    }
+  },
+
+  toggleGLBAnimation(assetId) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB || !assetData.model) return;
+
+    if (assetData.animPlaying) {
+      // Pause — just remove all animations, model keeps rest pose (all visible)
+      assetData.model.activeAnimations.removeAll();
+      assetData.animPlaying = false;
+    } else {
+      // Play — restart with current speed
+      this._restartGLBAnimations(assetData, assetData.animSpeed || 5.0);
+      assetData.animPlaying = true;
+    }
+
+    const btn = document.getElementById(`glb_playpause_${assetId}`);
+    if (btn) btn.textContent = assetData.animPlaying ? '⏸ Pause' : '▶ Play';
+  },
+
+  showFullGLBModel(assetId) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB || !assetData.model) return;
+
+    const model = assetData.model;
+    model.activeAnimations.removeAll();
+
+    // Add all animations with a startTime far in the past so they've already
+    // completed — CLAMP_AND_STOP keeps the last frame (all elements at scale 1)
+    requestAnimationFrame(() => {
+      try {
+        const now = BimViewer.viewer.clock.currentTime;
+        const pastStart = Cesium.JulianDate.addSeconds(now, -3600, new Cesium.JulianDate());
+        model.activeAnimations.addAll({
+          loop: Cesium.ModelAnimationLoop.NONE,
+          multiplier: 1.0,
+          startTime: pastStart
+        });
+      } catch (e) {
+        console.warn('⚠️ showFullGLBModel failed:', e.message);
+      }
+    });
+
+    assetData.animPlaying = false;
+    const btn = document.getElementById(`glb_playpause_${assetId}`);
+    if (btn) btn.textContent = '▶ Play';
+
+    this.updateStatus('Showing full model (all elements)', 'success');
+    console.log(`🏗️ GLB ${assetId}: All elements visible (end frame)`);
+  },
+
   unloadAsset(assetId) {
     const assetData = this.loadedAssets.get(assetId.toString());
     if (!assetData) return;
 
-    if (assetData.tileset) {
+    if (assetData.isGLB && assetData.model) {
+      this.viewer.scene.primitives.remove(assetData.model);
+    } else if (assetData.tileset) {
       this.viewer.scene.primitives.remove(assetData.tileset);
     }
-    
+
     this.loadedAssets.delete(assetId.toString());
-    
+
     if (typeof BimViewer.updateZOffsetAssetsList === 'function') {
       setTimeout(() => BimViewer.updateZOffsetAssetsList(), 100);
     }
-    
+
     const assetDiv = document.getElementById(`asset_${assetId}`);
     if (assetDiv) assetDiv.remove();
-    
+
     this.updateStatus(`Asset unloaded`, 'success');
   },
 
   zoomToAsset(assetId) {
     const assetData = this.loadedAssets.get(assetId.toString());
-    if (assetData && assetData.tileset) {
+    if (!assetData) return;
+
+    if (assetData.isGLB && assetData.position) {
+      const pos = assetData.position;
+      const target = Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.height);
+      this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 200), { duration: 1.5 });
+    } else if (assetData.tileset) {
       this.viewer.flyTo(assetData.tileset);
     }
   },
@@ -1213,8 +1548,13 @@ const BimViewer = {
     if (!assetData) return;
 
     assetData.visible = !assetData.visible;
-    assetData.tileset.show = assetData.visible;
-    
+
+    if (assetData.isGLB && assetData.model) {
+      assetData.model.show = assetData.visible;
+    } else if (assetData.tileset) {
+      assetData.tileset.show = assetData.visible;
+    }
+
     const btn = document.querySelector(`#asset_${assetId} .asset-btn-visibility`);
     if (btn) btn.textContent = assetData.visible ? '👁️' : '🚫';
   },
@@ -1227,6 +1567,19 @@ const BimViewer = {
 
     const valueEl = document.getElementById(`opacityValue_${assetId}`);
     if (valueEl) valueEl.textContent = Math.round(opacity * 100) + '%';
+
+    // GLB models — adjust color alpha
+    if (assetData.isGLB && assetData.model) {
+      assetData.model.color = Cesium.Color.WHITE.withAlpha(assetData.opacity);
+      if (assetData.opacity < 1.0) {
+        assetData.model.colorBlendMode = Cesium.ColorBlendMode.MIX;
+        assetData.model.colorBlendAmount = 1.0 - assetData.opacity;
+      } else {
+        assetData.model.colorBlendMode = Cesium.ColorBlendMode.HIGHLIGHT;
+        assetData.model.colorBlendAmount = 0.0;
+      }
+      return;
+    }
 
     // For point clouds, preserve RGB colors - opacity handled differently
     if (assetData.isPointCloud && assetData.tileset) {

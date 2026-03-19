@@ -132,6 +132,21 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         <button id="loadIonAssets" style="display: none;"></button>
       </div>
 
+      <div id="glbSection" style="display: none;">
+        <div class="modern-divider">
+          <span class="modern-divider-text">🧪 Local GLB Models</span>
+        </div>
+        <div class="modern-group">
+          <select id="glbModelSelector" class="modern-select" size="1">
+            <option value="" disabled selected>Select a GLB model...</option>
+          </select>
+          <button id="importGLBModel" class="modern-btn modern-btn-primary" style="margin-top: 6px;">
+            <span class="modern-btn-icon">➕</span>
+            <span>Load GLB</span>
+          </button>
+        </div>
+      </div>
+
       <div class="modern-group" style="margin-top: 8px;">
         <button class="modern-btn modern-btn-small" onclick="BimViewer.toggleLoadedAssetsPanel()" title="Show/hide Loaded Assets panel">
           <span class="modern-btn-icon">📦</span>
@@ -1102,6 +1117,34 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       selector.selectedIndex = -1;
     });
 
+    // Populate GLB model selector (lab users only)
+    const glbSection = document.getElementById('glbSection');
+    const glbSelector = document.getElementById('glbModelSelector');
+    // Defer check — auth may not be resolved yet at init time
+    const initGLBSection = () => {
+      if (!BimViewer.isLabUser() || !glbSelector) return;
+      if (glbSection) glbSection.style.display = '';
+      if (glbSelector.options.length <= 1) {
+        BimViewer.glbModels.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name + (m.animated ? ' 🎬' : '');
+          glbSelector.appendChild(opt);
+        });
+      }
+    };
+    // Try now and again after auth settles
+    initGLBSection();
+    setTimeout(initGLBSection, 2000);
+    setTimeout(initGLBSection, 5000);
+
+    document.getElementById('importGLBModel')?.addEventListener('click', () => {
+      const selector = document.getElementById('glbModelSelector');
+      if (!selector || !selector.value) return;
+      const modelDef = BimViewer.glbModels.find(m => m.id === selector.value);
+      if (modelDef) BimViewer.loadGLBAsset(modelDef);
+    });
+
     // Drawing
     document.getElementById('startDrawing')?.addEventListener('click', () => {
       BimViewer.enterDrawingMode();
@@ -1648,8 +1691,8 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
     }
     
     // Get current offset value if any
-    const hasIndividualOffset = BimViewer.zOffset && BimViewer.zOffset.individualOffsets.has(assetData.tileset);
-    const currentOffset = hasIndividualOffset ? 
+    const hasIndividualOffset = !assetData.isGLB && BimViewer.zOffset && assetData.tileset && BimViewer.zOffset.individualOffsets.has(assetData.tileset);
+    const currentOffset = hasIndividualOffset ?
       BimViewer.zOffset.individualOffsets.get(assetData.tileset) : 0;
     
     assetDiv.innerHTML = `
@@ -1672,9 +1715,77 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
                title="Adjust transparency">
         <span id="opacityValue_${assetId}" class="modern-value-small">100%</span>
       </div>
-      
+
+      ${assetData.isGLB ? `
+      <!-- GLB Positioning Controls -->
+      <div class="modern-asset-glb-position" style="padding: 4px 0;">
+        <label class="modern-label-small">📍 Position</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px;">
+          <div>
+            <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Lon</label>
+            <input type="number" step="0.0001" value="${assetData.position.lon.toFixed(6)}"
+                   id="glb_lon_${assetId}" class="zoffset-input-box" style="width: 100%;"
+                   onchange="BimViewerUI.updateGLBParam('${assetId}', 'lon', this.value)">
+          </div>
+          <div>
+            <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Lat</label>
+            <input type="number" step="0.0001" value="${assetData.position.lat.toFixed(6)}"
+                   id="glb_lat_${assetId}" class="zoffset-input-box" style="width: 100%;"
+                   onchange="BimViewerUI.updateGLBParam('${assetId}', 'lat', this.value)">
+          </div>
+        </div>
+        <div style="margin-top: 4px;">
+          <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Height (m)</label>
+          <input type="number" step="0.5" value="${assetData.position.height.toFixed(1)}"
+                 id="glb_height_${assetId}" class="zoffset-input-box" style="width: 100%;"
+                 onchange="BimViewerUI.updateGLBParam('${assetId}', 'height', this.value)">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px;">
+          <div>
+            <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Heading (°)</label>
+            <input type="range" min="0" max="360" step="1" value="${assetData.heading || 0}"
+                   id="glb_heading_${assetId}" class="modern-slider-small"
+                   oninput="BimViewerUI.updateGLBParam('${assetId}', 'heading', this.value)">
+            <span id="glb_heading_val_${assetId}" class="modern-value-small">${Math.round(assetData.heading || 0)}°</span>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Scale</label>
+            <input type="range" min="0.1" max="50" step="0.1" value="${assetData.scale || 1}"
+                   id="glb_scale_${assetId}" class="modern-slider-small"
+                   oninput="BimViewerUI.updateGLBParam('${assetId}', 'scale', this.value)">
+            <span id="glb_scale_val_${assetId}" class="modern-value-small">${(assetData.scale || 1).toFixed(1)}x</span>
+          </div>
+        </div>
+        ${assetData.animated ? `
+        <div style="margin-top: 6px;">
+          <label style="font-size: 10px; color: rgba(255,255,255,0.4);">🎬 Animation Speed</label>
+          <input type="range" min="5" max="10" step="0.5" value="${assetData.animSpeed || 5}"
+                 id="glb_animspeed_${assetId}" class="modern-slider-small"
+                 oninput="BimViewerUI.updateGLBParam('${assetId}', 'animSpeed', this.value)">
+          <span id="glb_animspeed_val_${assetId}" class="modern-value-small">${(assetData.animSpeed || 5).toFixed(1)}x</span>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button id="glb_playpause_${assetId}" class="modern-btn modern-btn-small" style="flex:1;"
+                  onclick="BimViewer.toggleGLBAnimation('${assetId}')">
+            ⏸ Pause
+          </button>
+          <button class="modern-btn modern-btn-small" style="flex:1;"
+                  onclick="BimViewer.showFullGLBModel('${assetId}')">
+            🏗️ Show All
+          </button>
+        </div>
+        ` : ''}
+        <div style="margin-top: 6px;">
+          <button id="glb_pbr_${assetId}" class="modern-btn modern-btn-small ${assetData.pbrEnabled ? 'active' : ''}" style="width:100%;"
+                  onclick="BimViewer.toggleGLBPbr('${assetId}')">
+            🪨 PBR ${assetData.pbrEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+      </div>
+      ` : ''}
+
       <!-- 🏔️ Z-OFFSET CONTROLS (COMPACT VERSION -5m to +5m) -->
-      <div class="modern-asset-zoffset">
+      <div class="modern-asset-zoffset" ${assetData.isGLB ? 'style="display:none;"' : ''}>
         <div class="zoffset-label-row">
           <label class="modern-label-small">🏔️ Z-Offset</label>
           <span class="zoffset-value" id="zoffset_value_${assetId}">${currentOffset >= 0 ? '+' : ''}${currentOffset.toFixed(2)} m</span>
@@ -1724,6 +1835,43 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
     } else {
       console.warn('📦 floatingAssetsPanel not found in DOM');
     }
+  },
+
+  // GLB positioning parameter update
+  updateGLBParam(assetId, param, value) {
+    const assetData = BimViewer.loadedAssets.get(assetId);
+    if (!assetData || !assetData.isGLB) return;
+
+    const v = parseFloat(value);
+
+    switch (param) {
+      case 'lon':
+        assetData.position.lon = v;
+        break;
+      case 'lat':
+        assetData.position.lat = v;
+        break;
+      case 'height':
+        assetData.position.height = v;
+        break;
+      case 'heading':
+        assetData.heading = v;
+        const headingVal = document.getElementById(`glb_heading_val_${assetId}`);
+        if (headingVal) headingVal.textContent = Math.round(v) + '°';
+        break;
+      case 'scale':
+        assetData.scale = v;
+        const scaleVal = document.getElementById(`glb_scale_val_${assetId}`);
+        if (scaleVal) scaleVal.textContent = v.toFixed(1) + 'x';
+        break;
+      case 'animSpeed':
+        const speedVal = document.getElementById(`glb_animspeed_val_${assetId}`);
+        if (speedVal) speedVal.textContent = v.toFixed(1) + 'x';
+        BimViewer.setGLBAnimationSpeed(assetId, v);
+        return; // no position update needed
+    }
+
+    BimViewer.updateGLBPosition(assetId);
   },
 
   // ⭐ NEW: Update asset Z-Offset (with debouncing)
