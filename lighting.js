@@ -100,7 +100,7 @@
       this.viewer.scene.shadowMap.softShadows = true;
       this.viewer.scene.shadowMap.size = 2048;
       this.viewer.scene.shadowMap.normalOffset = true;
-      this.viewer.scene.shadowMap.maximumDistance = 200.0;
+      this.viewer.scene.shadowMap.maximumDistance = 1000.0;
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
       console.log('  ✅ Shadow system enabled (size: 2048, maxDist: 200m, normalOffset: true)');
       
@@ -109,7 +109,7 @@
       
       // STEP 4: Set initial time if not set
       if (!this.lighting.currentTime) {
-        this.setTime('2024-06-21T10:00:00');
+        this.setTime('2024-10-15T13:30:00');
       }
 
       // STEP 5: Increase sun intensity for dynamic lighting
@@ -350,14 +350,17 @@
     
     for (let i = 0; i < primitives.length; i++) {
       const primitive = primitives.get(i);
-      
+
       if (primitive instanceof Cesium.Cesium3DTileset) {
         if (this.lighting.monitoredTilesets.has(primitive)) {
           continue;
         }
-        
+
         this.applyLightingToTileset(primitive, 'realistic');
         this.lighting.monitoredTilesets.add(primitive);
+        updatedCount++;
+      } else if (primitive instanceof Cesium.Model) {
+        primitive.shadows = Cesium.ShadowMode.ENABLED;
         updatedCount++;
       }
     }
@@ -379,11 +382,15 @@
     this.loadedAssets.forEach((asset) => {
       if (asset.tileset) {
         this.applyLightingToTileset(asset.tileset, mode);
-        
+
         if (this.lighting.enabled && this.lighting.monitoredTilesets) {
           this.lighting.monitoredTilesets.add(asset.tileset);
         }
-        
+
+        updatedCount++;
+      } else if (asset.isGLB && asset.model) {
+        // Apply shadow mode to GLB models
+        asset.model.shadows = (mode === 'bright') ? Cesium.ShadowMode.DISABLED : Cesium.ShadowMode.ENABLED;
         updatedCount++;
       }
     });

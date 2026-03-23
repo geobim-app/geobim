@@ -1121,14 +1121,18 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
     const glbSection = document.getElementById('glbSection');
     const glbSelector = document.getElementById('glbModelSelector');
     // Defer check — auth may not be resolved yet at init time
-    const initGLBSection = () => {
+    const initGLBSection = async () => {
       if (!BimViewer.isLabUser() || !glbSelector) return;
       if (glbSection) glbSection.style.display = '';
       if (glbSelector.options.length <= 1) {
+        // Auto-discover models from server if not yet loaded
+        if (!BimViewer.glbModels.length && BimViewer.fetchGLBModels) {
+          await BimViewer.fetchGLBModels();
+        }
         BimViewer.glbModels.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m.id;
-          opt.textContent = m.name + (m.animated ? ' 🎬' : '');
+          opt.textContent = m.name;
           glbSelector.appendChild(opt);
         });
       }
@@ -1661,6 +1665,10 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
 
   // ⭐ NEW: Create asset control WITH INTEGRATED Z-OFFSET
   createAssetControls(assetId) {
+    // Skip WEA assets — managed by WEA Shadow widget
+    var ad = BimViewer.loadedAssets.get(assetId.toString());
+    if (ad && ad.isWEA) return;
+
     // Ensure floating panel exists
     if (typeof BimViewer.createLoadedAssetsPanel === 'function') {
       BimViewer.createLoadedAssetsPanel();
@@ -1750,16 +1758,19 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
           </div>
           <div>
             <label style="font-size: 10px; color: rgba(255,255,255,0.4);">Scale</label>
-            <input type="range" min="0.1" max="50" step="0.1" value="${assetData.scale || 1}"
+            <input type="range" min="-2" max="2" step="0.01" value="${Math.log10(assetData.scale || 1).toFixed(2)}"
                    id="glb_scale_${assetId}" class="modern-slider-small"
-                   oninput="BimViewerUI.updateGLBParam('${assetId}', 'scale', this.value)">
-            <span id="glb_scale_val_${assetId}" class="modern-value-small">${(assetData.scale || 1).toFixed(1)}x</span>
+                   oninput="BimViewerUI.updateGLBParam('${assetId}', 'scale', Math.pow(10, parseFloat(this.value)))">
+            <input type="number" min="0.01" max="100" step="any" value="${(assetData.scale || 1)}"
+                   id="glb_scale_input_${assetId}" class="zoffset-input-box" style="width: 55px; margin-top: 2px;"
+                   onchange="BimViewerUI.updateGLBParam('${assetId}', 'scale', this.value)">
+            <span id="glb_scale_val_${assetId}" class="modern-value-small">${(assetData.scale || 1).toFixed(2)}x</span>
           </div>
         </div>
         ${assetData.animated ? `
         <div style="margin-top: 6px;">
           <label style="font-size: 10px; color: rgba(255,255,255,0.4);">🎬 Animation Speed</label>
-          <input type="range" min="5" max="10" step="0.5" value="${assetData.animSpeed || 5}"
+          <input type="range" min="1" max="10" step="0.5" value="${assetData.animSpeed || 5}"
                  id="glb_animspeed_${assetId}" class="modern-slider-small"
                  oninput="BimViewerUI.updateGLBParam('${assetId}', 'animSpeed', this.value)">
           <span id="glb_animspeed_val_${assetId}" class="modern-value-small">${(assetData.animSpeed || 5).toFixed(1)}x</span>
@@ -1784,19 +1795,19 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
       </div>
       ` : ''}
 
-      <!-- 🏔️ Z-OFFSET CONTROLS (COMPACT VERSION -5m to +5m) -->
+      <!-- 🏔️ Z-OFFSET CONTROLS (COMPACT VERSION -15m to +15m) -->
       <div class="modern-asset-zoffset" ${assetData.isGLB ? 'style="display:none;"' : ''}>
         <div class="zoffset-label-row">
           <label class="modern-label-small">🏔️ Z-Offset</label>
           <span class="zoffset-value" id="zoffset_value_${assetId}">${currentOffset >= 0 ? '+' : ''}${currentOffset.toFixed(2)} m</span>
         </div>
         
-        <!-- Slider with color gradient (-5m to +5m) -->
+        <!-- Slider with color gradient (-15m to +15m) -->
         <input type="range"
                id="zoffset_slider_${assetId}"
                class="zoffset-slider"
-               min="-5"
-               max="5"
+               min="-15"
+               max="15"
                step="0.01"
                value="${currentOffset}"
                oninput="BimViewerUI.updateAssetZOffset('${assetId}', this.value)"
@@ -1807,8 +1818,8 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
           <input type="number" 
                  id="zoffset_input_${assetId}"
                  class="zoffset-input-box"
-                 min="-5" 
-                 max="5" 
+                 min="-15"
+                 max="15"
                  step="0.01" 
                  value="${currentOffset.toFixed(2)}"
                  placeholder="0.00"
@@ -1860,9 +1871,14 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
         if (headingVal) headingVal.textContent = Math.round(v) + '°';
         break;
       case 'scale':
-        assetData.scale = v;
+        const clampedScale = Math.max(0.01, Math.min(100, v));
+        assetData.scale = clampedScale;
         const scaleVal = document.getElementById(`glb_scale_val_${assetId}`);
-        if (scaleVal) scaleVal.textContent = v.toFixed(1) + 'x';
+        if (scaleVal) scaleVal.textContent = clampedScale.toFixed(2) + 'x';
+        const scaleSlider = document.getElementById(`glb_scale_${assetId}`);
+        if (scaleSlider) scaleSlider.value = Math.log10(clampedScale).toFixed(2);
+        const scaleInput = document.getElementById(`glb_scale_input_${assetId}`);
+        if (scaleInput) scaleInput.value = clampedScale;
         break;
       case 'animSpeed':
         const speedVal = document.getElementById(`glb_animspeed_val_${assetId}`);
@@ -1883,14 +1899,14 @@ toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getV
     if (valueDisplay) {
       valueDisplay.textContent = `${offsetValue >= 0 ? '+' : ''}${offsetValue.toFixed(2)} m`;
       
-      // Color coding based on value (adjusted for -5 to +5 range)
-      if (offsetValue < -3) {
+      // Color coding based on value (adjusted for -15 to +15 range)
+      if (offsetValue < -9) {
         valueDisplay.style.color = '#f44336'; // Red (deep)
-      } else if (offsetValue < -1) {
+      } else if (offsetValue < -3) {
         valueDisplay.style.color = '#ff9800'; // Orange
-      } else if (offsetValue >= -1 && offsetValue <= 1) {
+      } else if (offsetValue >= -3 && offsetValue <= 3) {
         valueDisplay.style.color = '#4caf50'; // Green (near zero)
-      } else if (offsetValue <= 3) {
+      } else if (offsetValue <= 9) {
         valueDisplay.style.color = '#2196f3'; // Blue
       } else {
         valueDisplay.style.color = '#9c27b0'; // Purple (high)

@@ -61,7 +61,7 @@ const CONFIG = {
         preloadWhenHidden: false,
         preloadFlightDestinations: false,
         dynamicScreenSpaceError: false,
-        shadowMaxDistance: 150.0,
+        shadowMaxDistance: 500.0,
         shadowBias: 0.005
       },
 
@@ -83,7 +83,7 @@ const CONFIG = {
         preloadWhenHidden: true,
         preloadFlightDestinations: false,
         dynamicScreenSpaceError: true,
-        shadowMaxDistance: 300.0,
+        shadowMaxDistance: 1000.0,
         shadowBias: 0.003
       },
 
@@ -112,7 +112,7 @@ const CONFIG = {
         ssaoStepSize: 2.0,
         ssaoFrustumLength: 1000.0,
         ssaoBlurStepSize: 0.86,
-        shadowMaxDistance: 500.0,
+        shadowMaxDistance: 2000.0,
         shadowBias: 0.002
       },
 
@@ -144,7 +144,7 @@ const CONFIG = {
         ssaoStepSize: 2.0,
         ssaoFrustumLength: 1000.0,
         ssaoBlurStepSize: 0.72,
-        shadowMaxDistance: 400.0,
+        shadowMaxDistance: 2000.0,
         shadowBias: 0.001
       }
     }
@@ -539,8 +539,8 @@ const BimViewer = {
       // Shadow quality defaults
       scene.shadowMap.normalOffset = true;
       scene.shadowMap.softShadows = true;
-      scene.shadowMap.maximumDistance = 200.0;
-      console.log('✅ Shadow quality configured (normalOffset, softShadows, maxDist: 200m)');
+      scene.shadowMap.maximumDistance = 1000.0;
+      console.log('✅ Shadow quality configured (normalOffset, softShadows, maxDist: 1000m)');
 
       // Helper to adjust sun intensity (called by lighting.js)
       this.setSunIntensity = function(intensity) {
@@ -648,8 +648,8 @@ const BimViewer = {
         this.viewer.scene.primitives.add(tileset);
         this.enableTilesetLighting(tileset);
 
-        // Disable shadows on Google tiles for performance
-        tileset.shadows = Cesium.ShadowMode.DISABLED;
+        // Enable shadows on Google tiles (managed by lighting module)
+        tileset.shadows = Cesium.ShadowMode.ENABLED;
 
         // Scene-level seam-fix settings
         const scene = this.viewer.scene;
@@ -904,7 +904,7 @@ const BimViewer = {
     }
   },
 
-  async loadSelectedAsset(assetId, assetName = null) {
+  async loadSelectedAsset(assetId, assetName = null, opts = {}) {
     if (!assetId || this.loadedAssets.has(assetId.toString())) return;
 
     try {
@@ -968,7 +968,7 @@ const BimViewer = {
       }
 
       // flyTo FIRST so Cesium starts streaming tiles (tiles won't load until camera sees them)
-      if (!this.firstAssetLoaded) {
+      if (!opts.noFlyTo && !this.firstAssetLoaded) {
         this.firstAssetLoaded = true;
         await this.viewer.flyTo(tileset, { duration: 1.0 });
       }
@@ -1024,7 +1024,7 @@ const BimViewer = {
         setTimeout(() => BimViewer.updateZOffsetAssetsList(), 100);
       }
 
-      if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
+      if (!opts.silent && window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
         BimViewerUI.createAssetControls(assetId);
       }
 
@@ -1277,25 +1277,42 @@ const BimViewer = {
     return this.labUsers.has(BimAuth.currentUser.email);
   },
 
-  // Registry of locally available GLB models
-  glbModels: [
-    { id: 'csm', name: 'infraFEM Sofistik CSM', file: 'model/infraFEM_Sofistik_CSM.glb', animated: true,
+  // Metadata overrides for known models (defaultPosition, custom names, etc.)
+  // Models are auto-discovered from the server via api/models.php
+  glbModelOverrides: {
+    'infrafem_sofistik_csm': { name: 'infraFEM Sofistik CSM',
       defaultPosition: { lon: -79.8864, lat: 40.023979, height: 204.0863013479 }, defaultHeading: 130, defaultScale: 1.0 },
-    { id: 'baugrund', name: 'Baugrund', file: 'model/baugrund.glb' },
-    { id: 'blender', name: 'Blender', file: 'model/blender.glb' },
-    { id: 'brooklyn', name: 'Brooklyn Bridge (Blender)', file: 'model/brooklyn_blender.glb' },
-    { id: 'cube10m', name: 'Cube 10m', file: 'model/cube_10meter.glb' },
-    { id: 'freecad', name: 'FreeCAD', file: 'model/freecad.gltf' },
-    { id: 'gordie', name: 'Gordie Howe Bridge', file: 'model/gordie_howe_bridge_geopogo.glb' },
-    { id: 'manhattan', name: 'Manhattan (Blender)', file: 'model/manhattan_blender.glb' },
-    { id: 'noise1', name: 'Noise Barrier 1', file: 'model/noise_barrier_full_1.glb' },
-    { id: 'noise2', name: 'Noise Barrier 2', file: 'model/noise_barrier_full_2.glb' },
-    { id: 'plaba', name: 'Plaba', file: 'model/plaba.glb' },
-    { id: 'porsche', name: 'Porsche', file: 'model/porsche.glb' },
-    { id: 'sbp_benin', name: 'SBP Benin', file: 'model/sbp_benin.glb' },
-    { id: 'sbp_heidelberg', name: 'SBP Heidelberg', file: 'model/sbp_heidelberg_blender_gltf.gltf' },
-    { id: 'tum', name: 'TUM', file: 'model/TUM.glb' }
-  ],
+    'brooklyn_blender': { name: 'Brooklyn Bridge (Blender)' },
+    'cube_10meter': { name: 'Cube 10m' },
+    'freecad': { name: 'FreeCAD' },
+    'gordie_howe_bridge_geopogo': { name: 'Gordie Howe Bridge' },
+    'manhattan_blender': { name: 'Manhattan (Blender)' },
+    'noise_barrier_full_1': { name: 'Noise Barrier 1' },
+    'noise_barrier_full_2': { name: 'Noise Barrier 2' },
+    'sbp_benin': { name: 'SBP Benin' },
+    'sbp_heidelberg_blender_gltf': { name: 'SBP Heidelberg' },
+  },
+
+  // Auto-discovered model list (populated by fetchGLBModels)
+  glbModels: [],
+
+  // Fetch GLB models from server and merge with overrides
+  async fetchGLBModels() {
+    try {
+      const resp = await fetch('api/models.php');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const serverModels = await resp.json();
+      this.glbModels = serverModels.map(m => {
+        const overrides = this.glbModelOverrides[m.id] || {};
+        return { ...m, ...overrides };
+      });
+      console.log(`📦 Auto-discovered ${this.glbModels.length} GLB/glTF models`);
+    } catch (err) {
+      console.warn('⚠️ Could not fetch model list, using empty list:', err.message);
+      this.glbModels = [];
+    }
+    return this.glbModels;
+  },
 
   async loadGLBAsset(modelDef, position) {
     const assetId = 'glb_' + modelDef.id;
@@ -1342,7 +1359,7 @@ const BimViewer = {
         url: url,
         modelMatrix: modelMatrix,
         scale: initialScale,
-        minimumPixelSize: 32,
+        minimumPixelSize: 0,
         maximumScale: 20000,
         shadows: Cesium.ShadowMode.ENABLED,
         silhouetteColor: Cesium.Color.LIME,
@@ -1352,22 +1369,52 @@ const BimViewer = {
       this.viewer.scene.primitives.add(model);
 
       const defaultAnimSpeed = 5.0;
+      let hasAnimations = !!modelDef.animated;
 
-      // Start animations if present
-      if (modelDef.animated && model.activeAnimations) {
-        model.readyEvent.addEventListener(() => {
-          try {
-            model.activeAnimations.addAll({
-              loop: Cesium.ModelAnimationLoop.REPEAT,
-              multiplier: defaultAnimSpeed
-            });
-            model._glbAnimCount = model.activeAnimations.length;
-            console.log(`🎬 GLB ${model._glbAnimCount} animations started for ${modelDef.name} (speed: ${defaultAnimSpeed}x)`);
-          } catch (err) {
-            console.warn(`⚠️ GLB animation init failed:`, err.message);
+      // Auto-detect animations: try to add all, check if any were found
+      // Uses wall-clock time so animations play even when scene clock is paused (shadow timeline)
+      model.readyEvent.addEventListener(() => {
+        try {
+          const startRealTime = performance.now() / 1000.0;
+          const wallClockAnimTime = function(duration, seconds) {
+            const elapsed = performance.now() / 1000.0 - startRealTime;
+            return (elapsed * defaultAnimSpeed) % duration;
+          };
+          const anims = model.activeAnimations.addAll({
+            loop: Cesium.ModelAnimationLoop.REPEAT,
+            multiplier: 1.0,
+            animationTime: wallClockAnimTime
+          });
+          if (anims.length > 0) {
+            hasAnimations = true;
+            model._glbAnimCount = anims.length;
+            const assetData = this.loadedAssets.get(assetId);
+
+            // WEA models: detect animations but don't play — user starts manually
+            if (assetData && assetData.isWEA) {
+              model.activeAnimations.removeAll();
+              assetData.animated = true;
+              assetData.animPlaying = false;
+            } else if (assetData) {
+              assetData.animated = true;
+              assetData.animPlaying = true;
+            }
+            console.log(`🎬 GLB ${anims.length} animations auto-detected for ${modelDef.name} (speed: ${defaultAnimSpeed}x)`);
+            // Re-render asset card to show animation controls
+            const cardEl = document.getElementById(`asset_${assetId}`);
+            if (cardEl && window.BimViewerUI) {
+              cardEl.remove();
+              BimViewerUI.createAssetControls(assetId);
+            }
+          } else {
+            // No animations found — clean up
+            model.activeAnimations.removeAll();
+            console.log(`ℹ️ GLB ${modelDef.name}: no embedded animations`);
           }
-        });
-      }
+        } catch (err) {
+          console.warn(`⚠️ GLB animation init failed:`, err.message);
+        }
+      });
 
       const assetData = {
         id: assetId,
@@ -1378,14 +1425,15 @@ const BimViewer = {
         opacity: 1.0,
         type: 'GLB',
         isGLB: true,
-        animated: !!modelDef.animated,
+        animated: hasAnimations,
         animSpeed: defaultAnimSpeed,
-        animPlaying: true,
+        animPlaying: hasAnimations,
         position: { ...position },
         heading: initialHeading,
         scale: initialScale,
         pbrEnabled: true,
-        modelDef: modelDef
+        modelDef: modelDef,
+        isWEA: !!modelDef.isWEA
       };
 
       // Apply PBR concrete shader by default
@@ -1393,12 +1441,14 @@ const BimViewer = {
 
       this.loadedAssets.set(assetId, assetData);
 
-      // Fly to model
-      const boundingSphere = new Cesium.BoundingSphere(
-        Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
-        200
-      );
-      this.viewer.camera.flyToBoundingSphere(boundingSphere, { duration: 1.5 });
+      // Fly to model (WEA models fly after terrain clamping)
+      if (!modelDef.isWEA) {
+        const boundingSphere = new Cesium.BoundingSphere(
+          Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
+          200
+        );
+        this.viewer.camera.flyToBoundingSphere(boundingSphere, { duration: 1.5 });
+      }
 
       if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
         BimViewerUI.createAssetControls(assetId);
@@ -1430,19 +1480,28 @@ const BimViewer = {
   // Restart all GLB animations with a new multiplier (multiplier is read-only,
   // so we must removeAll + re-add). Optional animationTime callback for freeze.
   // Safely restart GLB animations — defers addAll to next frame to avoid
-  // CesiumJS crash when evaluating new animations mid-render at t=0
+  // CesiumJS crash when evaluating new animations mid-render at t=0.
+  // Uses animationTime callback so animations run on wall-clock time,
+  // independent of the Cesium scene clock (shadow timeline).
   _restartGLBAnimations(assetData, multiplier, opts) {
     const model = assetData.model;
     if (!model) return;
     model.activeAnimations.removeAll();
 
+    // Wall-clock based animation time — immune to scene clock changes
+    const startRealTime = performance.now() / 1000.0;
+    const wallClockAnimTime = function(duration, seconds) {
+      const elapsed = performance.now() / 1000.0 - startRealTime;
+      return (elapsed * multiplier) % duration;
+    };
+
     requestAnimationFrame(() => {
       try {
         const addOpts = {
           loop: (opts && opts.loop !== undefined) ? opts.loop : Cesium.ModelAnimationLoop.REPEAT,
-          multiplier: multiplier
+          multiplier: 1.0,  // multiplier handled by wallClockAnimTime
+          animationTime: (opts && opts.animationTime) ? opts.animationTime : wallClockAnimTime
         };
-        if (opts && opts.animationTime) addOpts.animationTime = opts.animationTime;
         model.activeAnimations.addAll(addOpts);
       } catch (e) {
         console.warn('⚠️ _restartGLBAnimations failed:', e.message);

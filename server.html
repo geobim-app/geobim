@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Architecture — christoflorenz.de</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232733;
+      --border: #2d3142;
+      --text: #e4e6ed;
+      --text2: #9498a8;
+      --accent: #4f8ff7;
+      --accent2: #7c5cfc;
+      --green: #34d399;
+      --orange: #f59e0b;
+      --red: #f87171;
+      --cyan: #22d3ee;
+      --pink: #f472b6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* --- Hero --- */
+    .hero {
+      position: relative;
+      padding: 80px 40px 60px;
+      text-align: center;
+      background: linear-gradient(135deg, #0f1117 0%, #1a1040 50%, #0f1117 100%);
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse at 30% 50%, rgba(79,143,247,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 50%, rgba(124,92,252,0.06) 0%, transparent 50%);
+      animation: drift 20s ease-in-out infinite alternate;
+    }
+    @keyframes drift {
+      from { transform: translate(0, 0) rotate(0deg); }
+      to { transform: translate(-3%, 2%) rotate(2deg); }
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+    .hero h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .hero .subtitle {
+      font-size: 1.15rem;
+      color: var(--text2);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .hero-meta {
+      margin-top: 28px;
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .hero-meta .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text2);
+    }
+    .meta-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(52,211,153,0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* --- Layout --- */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    section {
+      padding: 60px 0;
+    }
+    section + section { border-top: 1px solid var(--border); }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .section-desc {
+      color: var(--text2);
+      font-size: 0.95rem;
+      margin-bottom: 36px;
+      max-width: 600px;
+    }
+
+    /* --- Project Cards --- */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .project-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(79,143,247,0.08);
+    }
+    .project-card .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+    }
+    .project-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .project-card .card-domain {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      margin-bottom: 10px;
+    }
+    .project-card p {
+      font-size: 0.88rem;
+      color: var(--text2);
+      line-height: 1.55;
+    }
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .tag {
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .tag.cesium { color: var(--cyan); border-color: rgba(34,211,238,0.25); }
+    .tag.firebase { color: var(--orange); border-color: rgba(245,158,11,0.25); }
+    .tag.threejs { color: var(--green); border-color: rgba(52,211,153,0.25); }
+    .tag.docker { color: var(--accent); border-color: rgba(79,143,247,0.25); }
+    .tag.node { color: var(--green); border-color: rgba(52,211,153,0.25); }
+    .tag.python { color: var(--orange); border-color: rgba(245,158,11,0.25); }
+    .tag.php { color: var(--accent2); border-color: rgba(124,92,252,0.25); }
+
+    /* Card icon colors */
+    .icon-blue { background: rgba(79,143,247,0.12); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,0.12); color: var(--accent2); }
+    .icon-green { background: rgba(52,211,153,0.12); color: var(--green); }
+    .icon-orange { background: rgba(245,158,11,0.12); color: var(--orange); }
+    .icon-cyan { background: rgba(34,211,238,0.12); color: var(--cyan); }
+    .icon-pink { background: rgba(244,114,182,0.12); color: var(--pink); }
+
+    /* --- Architecture Diagram --- */
+    .arch-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 36px;
+      overflow-x: auto;
+    }
+    .arch-layer {
+      margin-bottom: 16px;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .arch-layer:last-child { margin-bottom: 0; }
+    .layer-label {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 10px;
+      border-radius: 4px;
+      background: var(--bg);
+    }
+    .layer-label.lb-proxy { color: var(--accent); border: 1px solid rgba(79,143,247,0.3); }
+    .layer-label.lb-apps { color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .layer-label.lb-services { color: var(--orange); border: 1px solid rgba(245,158,11,0.3); }
+    .layer-label.lb-external { color: var(--accent2); border: 1px solid rgba(124,92,252,0.3); }
+
+    .arch-nodes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .arch-node {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 160px;
+      flex: 1;
+      transition: border-color 0.2s;
+    }
+    .arch-node:hover { border-color: var(--accent); }
+    .arch-node .node-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .arch-node .node-detail {
+      font-size: 0.75rem;
+      color: var(--text2);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .arch-node .node-port {
+      font-size: 0.7rem;
+      color: var(--accent);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .arch-arrow {
+      text-align: center;
+      color: var(--text2);
+      font-size: 1.2rem;
+      margin: 4px 0;
+      opacity: 0.4;
+    }
+
+    /* --- Stats --- */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text2);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* --- Tech Stack --- */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .tech-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .tech-icon {
+      font-size: 1.3rem;
+      width: 36px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .tech-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .tech-role {
+      font-size: 0.75rem;
+      color: var(--text2);
+    }
+
+    /* --- Footer --- */
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--text2);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .hero { padding: 60px 24px 40px; }
+      .hero h1 { font-size: 2rem; }
+      .projects-grid { grid-template-columns: 1fr; }
+      .hero-meta { gap: 16px; }
+      .arch-nodes { flex-direction: column; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-content">
+      <h1>christoflorenz.de</h1>
+      <p class="subtitle">
+        Hetzner VPS hosting geospatial BIM/GIS applications, IoT sensor infrastructure, and development tools.
+      </p>
+      <div class="hero-meta">
+        <div class="meta-item"><span class="meta-dot"></span> Ubuntu 24.04</div>
+        <div class="meta-item">168.119.232.12</div>
+        <div class="meta-item">2 GB RAM + 2 GB Swap</div>
+        <div class="meta-item">Apache 2.4</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <section>
+    <div class="container">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value">5</div>
+          <div class="stat-label">Domains</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">4</div>
+          <div class="stat-label">Node.js Services</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">2</div>
+          <div class="stat-label">Docker Containers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">12+</div>
+          <div class="stat-label">JS Modules</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Build Steps</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Projects</h2>
+      <p class="section-desc">Web applications and services running on this server.</p>
+      <div class="projects-grid">
+
+        <!-- geobim.app -->
+        <div class="project-card">
+          <div class="card-icon icon-blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <h3>geobim.app</h3>
+          <div class="card-domain">geobim.app</div>
+          <p>CesiumJS-based BIM/GIS viewer for IFC models as 3D Tiles. IFC filtering, 3D annotations, PBR materials, clipping, WMS/WMTS layers, 4D sequencing, measurement tools.</p>
+          <div class="card-tags">
+            <span class="tag cesium">CesiumJS</span>
+            <span class="tag firebase">Firebase</span>
+            <span class="tag">Vanilla JS</span>
+            <span class="tag">IFC/3D Tiles</span>
+            <span class="tag php">PHP API</span>
+          </div>
+        </div>
+
+        <!-- lab.geobim.app -->
+        <div class="project-card">
+          <div class="card-icon icon-green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6v8l4 10H5L9 11V3z"/><path d="M8 3h8"/></svg>
+          </div>
+          <h3>BIM Lab</h3>
+          <div class="card-domain">lab.geobim.app</div>
+          <p>Experimental IFC viewer with native IFC loading, element picking, PBR materials, clipping planes, and a georeferencing Location Editor with Cesium Ion upload pipeline.</p>
+          <div class="card-tags">
+            <span class="tag threejs">Three.js</span>
+            <span class="tag cesium">CesiumJS</span>
+            <span class="tag">@thatopen</span>
+            <span class="tag">Vite</span>
+            <span class="tag">web-ifc</span>
+          </div>
+        </div>
+
+        <!-- FROST SensorThings -->
+        <div class="project-card">
+          <div class="card-icon icon-cyan">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <h3>Bridge Monitoring</h3>
+          <div class="card-domain">frost.christoflorenz.de</div>
+          <p>FROST SensorThings API with PostGIS backend. Real-time bridge monitoring simulator posts acceleration, tilt, temperature &amp; strain data every 5 seconds via MQTT.</p>
+          <div class="card-tags">
+            <span class="tag docker">Docker</span>
+            <span class="tag">PostGIS</span>
+            <span class="tag">SensorThings</span>
+            <span class="tag">MQTT</span>
+            <span class="tag python">Python</span>
+          </div>
+        </div>
+
+        <!-- WEA Shadow -->
+        <div class="project-card">
+          <div class="card-icon icon-orange">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </div>
+          <h3>WEA Shadow Analysis</h3>
+          <div class="card-domain">geobim.app (module)</div>
+          <p>Wind energy shadow flicker simulation. Place parametric turbines (GLB models), configure hub height, rotor diameter &amp; RPM. BImSchG compliance analysis planned.</p>
+          <div class="card-tags">
+            <span class="tag cesium">CesiumJS</span>
+            <span class="tag">GLB/glTF</span>
+            <span class="tag">BSL 1.1</span>
+            <span class="tag php">PHP API</span>
+          </div>
+        </div>
+
+        <!-- GPS Tracker -->
+        <div class="project-card">
+          <div class="card-icon icon-pink">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h3>GPS Tracker</h3>
+          <div class="card-domain">gps.christoflorenz.de</div>
+          <p>Real-time GPS position broadcasting via WebSocket. Express server with web UI for live tracking.</p>
+          <div class="card-tags">
+            <span class="tag node">Node.js</span>
+            <span class="tag">WebSocket</span>
+            <span class="tag">Express</span>
+          </div>
+        </div>
+
+        <!-- Supporting Services -->
+        <div class="project-card">
+          <div class="card-icon icon-purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+          </div>
+          <h3>Backend Services</h3>
+          <div class="card-domain">PM2 managed</div>
+          <p>Cesium Ion token proxy (port 3000), Asset/Document API with Meteomatics weather integration (port 3001). All managed by PM2 with auto-restart.</p>
+          <div class="card-tags">
+            <span class="tag node">Node.js</span>
+            <span class="tag">Express</span>
+            <span class="tag">PM2</span>
+            <span class="tag">Meteomatics</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Architecture</h2>
+      <p class="section-desc">Request flow from browser to backend services.</p>
+      <div class="arch-diagram">
+
+        <div class="arch-layer">
+          <span class="layer-label lb-proxy">Reverse Proxy &amp; SSL</span>
+          <div class="arch-nodes">
+            <div class="arch-node">
+              <div class="node-name">Apache 2.4</div>
+              <div class="node-detail">Let's Encrypt SSL</div>
+              <div class="node-port">:443 / :80</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-arrow">&#8595; &#8595; &#8595;</div>
+
+        <div class="arch-layer">
+          <span class="layer-label lb-apps">Web Applications</span>
+          <div class="arch-nodes">
+            <div class="arch-node">
+              <div class="node-name">geobim.app</div>
+              <div class="node-detail">Vanilla JS + CesiumJS</div>
+              <div class="node-port">/var/www/christoflorenz.de</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">lab.geobim.app</div>
+              <div class="node-detail">Vite + Three.js + web-ifc</div>
+              <div class="node-port">/var/www/lab.geobim.app/dist</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">GPS Tracker</div>
+              <div class="node-detail">Express + WebSocket</div>
+              <div class="node-port">localhost:3005</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-arrow">&#8595; &#8595; &#8595;</div>
+
+        <div class="arch-layer">
+          <span class="layer-label lb-services">Backend Services</span>
+          <div class="arch-nodes">
+            <div class="arch-node">
+              <div class="node-name">FROST Server</div>
+              <div class="node-detail">SensorThings API v1.1</div>
+              <div class="node-port">Docker :8080</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">PostGIS 15</div>
+              <div class="node-detail">Spatial Database</div>
+              <div class="node-port">Docker :5432</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">Cesium Proxy</div>
+              <div class="node-detail">Ion Token Vending</div>
+              <div class="node-port">PM2 :3000</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">Asset API</div>
+              <div class="node-detail">Documents + Weather</div>
+              <div class="node-port">PM2 :3001</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-arrow">&#8595; &#8595; &#8595;</div>
+
+        <div class="arch-layer">
+          <span class="layer-label lb-external">External Services</span>
+          <div class="arch-nodes">
+            <div class="arch-node">
+              <div class="node-name">Cesium Ion</div>
+              <div class="node-detail">3D Tiles Hosting</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">Firebase</div>
+              <div class="node-detail">Auth + Firestore + Storage</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">Meteomatics</div>
+              <div class="node-detail">Weather Data API</div>
+            </div>
+            <div class="arch-node">
+              <div class="node-name">Plausible</div>
+              <div class="node-detail">Privacy Analytics</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Tech Stack</h2>
+      <p class="section-desc">Languages, frameworks, and infrastructure.</p>
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F30D;</div>
+          <div><div class="tech-name">CesiumJS</div><div class="tech-role">3D Globe &amp; Tiles</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F536;</div>
+          <div><div class="tech-name">Three.js</div><div class="tech-role">WebGL Rendering</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F3D7;</div>
+          <div><div class="tech-name">web-ifc / @thatopen</div><div class="tech-role">IFC Parsing</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F525;</div>
+          <div><div class="tech-name">Firebase</div><div class="tech-role">Auth + Database + Storage</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F4E6;</div>
+          <div><div class="tech-name">Vanilla JS</div><div class="tech-role">No Framework, No Bundler</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x26A1;</div>
+          <div><div class="tech-name">Vite</div><div class="tech-role">Lab Build Tool</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F40B;</div>
+          <div><div class="tech-name">Docker</div><div class="tech-role">FROST + PostGIS</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F418;</div>
+          <div><div class="tech-name">PostGIS 15</div><div class="tech-role">Spatial Database</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F40D;</div>
+          <div><div class="tech-name">Python 3</div><div class="tech-role">IoT Simulator</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F7E2;</div>
+          <div><div class="tech-name">Node.js + PM2</div><div class="tech-role">API Services</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F310;</div>
+          <div><div class="tech-name">Apache 2.4</div><div class="tech-role">Reverse Proxy + SSL</div></div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">&#x1F512;</div>
+          <div><div class="tech-name">Let's Encrypt</div><div class="tech-role">TLS Certificates</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      christoflorenz.de &mdash; Hetzner VPS &mdash;
+      <a href="https://geobim.app">geobim.app</a> &middot;
+      <a href="https://lab.geobim.app">lab.geobim.app</a> &middot;
+      <a href="https://frost.christoflorenz.de">frost</a> &middot;
+      <a href="https://gps.christoflorenz.de">gps</a>
+    </div>
+  </footer>
+
+</body>
+</html>

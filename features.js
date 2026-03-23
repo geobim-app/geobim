@@ -756,8 +756,18 @@
 
   BimViewer.handleIFCSelection = function(movement) {
     try {
+      // Skip if gizmo is active and handling this click
+      if (window.BimGizmo && BimGizmo.gizmo.active) {
+        var picked = this.viewer.scene.pick(movement.position);
+        if (picked) {
+          // Gizmo handle or GLB model — let gizmo handle it
+          if (picked.id && picked.id._gizmoAxis) return;
+          if (picked.primitive instanceof Cesium.Model) return;
+        }
+      }
+
       console.log('🎯 IFC Selection handler triggered');
-      
+
       // Reset previous selection
       if (this.selectedFeature) {
         try {

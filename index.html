@@ -240,6 +240,9 @@
        JAVASCRIPT MODULES - LOAD ORDER IS CRITICAL!
        ============================================ -->
 
+  <!-- WEA Demo Mode (?mode=wea) — must load before splash/auth -->
+  <script src="wea-demo.js"></script>
+
   <!-- Splash Screen (before auth) -->
   <script src="splash-screen.js"></script>
 
@@ -297,6 +300,8 @@
   <script src="ui-z-offset-extension.js"></script>
   <script src="clipping-planes.js"></script>
   <script src="sequencing.js"></script>
+  <script src="glb-gizmo.js"></script>
+  <script src="wea-shadow.js"></script>
 
   <!-- 7. OLD Lighting UI Extension - NOT NEEDED ANYMORE (commented out) -->
   <!-- <script src="ui-lighting-extension.js"></script> -->

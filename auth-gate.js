@@ -192,6 +192,11 @@
 
   // Listen for auth state changes (handles both fresh login and persisted sessions)
   firebaseAuth.onAuthStateChanged(function(user) {
+    if (window._weaDemoMode) {
+      // WEA demo mode — skip login, proceed as demo user
+      onAuthenticated(user || { email: 'demo-wea@geobim.app', displayName: 'WEA Demo', isAnonymous: true });
+      return;
+    }
     if (user && !user.isAnonymous) {
       onAuthenticated(user);
     } else {

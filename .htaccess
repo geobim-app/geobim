@@ -1,0 +1,4 @@
+RewriteEngine On
+
+# /wea-shadow → index.html?mode=wea
+RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
