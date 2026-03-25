@@ -2,3 +2,11 @@ RewriteEngine On
 
 # /wea-shadow → index.html?mode=wea
 RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
+
+# Protect stats page
+<Files "stats.html">
+  AuthType Basic
+  AuthName "Analytics"
+  AuthUserFile /etc/apache2/.htpasswd-stats
+  Require valid-user
+</Files>

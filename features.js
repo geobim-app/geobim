@@ -758,11 +758,11 @@
     try {
       // Skip if gizmo is active and handling this click
       if (window.BimGizmo && BimGizmo.gizmo.active) {
-        var picked = this.viewer.scene.pick(movement.position);
-        if (picked) {
+        const gizmoPick = this.viewer.scene.pick(movement.position);
+        if (gizmoPick) {
           // Gizmo handle or GLB model — let gizmo handle it
-          if (picked.id && picked.id._gizmoAxis) return;
-          if (picked.primitive instanceof Cesium.Model) return;
+          if (gizmoPick.id && gizmoPick.id._gizmoAxis) return;
+          if (gizmoPick.primitive instanceof Cesium.Model) return;
         }
       }
 
