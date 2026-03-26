@@ -1,12 +1,21 @@
 RewriteEngine On
 
+# Pass Basic Auth to PHP-FPM
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 # /wea-shadow → index.html?mode=wea
 RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
 
-# Protect stats page
+# Protect stats page + API
 <Files "stats.html">
   AuthType Basic
   AuthName "Analytics"
   AuthUserFile /etc/apache2/.htpasswd-stats
   Require valid-user
 </Files>
+<FilesMatch "stats\.php$">
+  AuthType Basic
+  AuthName "Analytics"
+  AuthUserFile /etc/apache2/.htpasswd-stats
+  Require valid-user
+</FilesMatch>

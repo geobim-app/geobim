@@ -379,6 +379,14 @@
     gizmo.activeAxis = null;
     viewer.scene.screenSpaceCameraController.enableInputs = true;
     viewer.canvas.style.cursor = gizmo.active ? 'pointer' : '';
+
+    // Notify SIB module of position change
+    if (gizmo.selectedAssetId && window.BimSIB && typeof BimSIB.onPositionChanged === 'function') {
+      var ad = getAssetData(gizmo.selectedAssetId);
+      if (ad && ad.isSIB) {
+        BimSIB.onPositionChanged(gizmo.selectedAssetId, ad);
+      }
+    }
   }
 
   // ---- Keyboard ----
