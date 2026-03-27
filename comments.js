@@ -1616,11 +1616,13 @@
     const key = event.key.toLowerCase();
     
     if (key === 'c' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+      if (window.BimFirstPerson && BimFirstPerson.isActive()) return;
       event.preventDefault();
       BimViewer.toggleCommentMode();
     }
     
     if (key === 'a' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+      if (window.BimFirstPerson && BimFirstPerson.isActive()) return;
       event.preventDefault();
       BimViewer.setAnnotationType('area');
       if (!BimViewer.comments.isAddingComment) {
@@ -1631,24 +1633,33 @@
     if (key === 'enter') {
       if (BimViewer.comments.annotationType === 'area' && BimViewer.comments.areaPoints.length >= 3) {
         event.preventDefault();
+        event.stopPropagation();
         BimViewer.finishAreaAnnotation();
       } else if (BimViewer.comments.annotationType === 'polyline' && BimViewer.comments.areaPoints.length >= 2) {
         event.preventDefault();
+        event.stopPropagation();
         BimViewer.finishPolylineAnnotation();
       }
     }
 
     if (key === 'escape') {
+      // Only handle ESC if comment tools are actually active
+      var hasArea = BimViewer.comments.areaPoints && BimViewer.comments.areaPoints.length > 0;
+      var hasCircle = BimViewer.comments.circleCenter;
+      var isAdding = BimViewer.comments.isAddingComment;
+      if (!hasArea && !hasCircle && !isAdding) return;
+
       event.preventDefault();
-      if (BimViewer.comments.areaPoints.length > 0) {
+      event.stopPropagation();
+      if (hasArea) {
         BimViewer.clearAreaPreview();
         BimViewer.updateStatus('Annotation cancelled', 'warning');
       }
-      if (BimViewer.comments.circleCenter) {
+      if (hasCircle) {
         BimViewer.clearCirclePreview();
         BimViewer.updateStatus('Circle annotation cancelled', 'warning');
       }
-      if (BimViewer.comments.isAddingComment) {
+      if (isAdding) {
         BimViewer.closeCommentDialog();
       }
     }

@@ -1012,8 +1012,9 @@
       BimViewer.flipLastPolygonOrientation();
     }
     
-    // V = Toggle visualization (show/hide polygon filling)
+    // V = Toggle visualization (show/hide polygon filling) — skip in walk mode
     if (key === 'v' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
+      if (window.BimFirstPerson && BimFirstPerson.isActive()) return;
       event.preventDefault();
       console.log('⌨️ V pressed - toggling clipping visualization');
       BimViewer.toggleClippingVisualization();

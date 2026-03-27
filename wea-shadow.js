@@ -689,6 +689,7 @@
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key.toLowerCase() === 'w') {
+      if (window.BimFirstPerson && BimFirstPerson.isActive()) return;
       e.preventDefault();
       togglePanel();
     }
