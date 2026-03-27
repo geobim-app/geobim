@@ -36,6 +36,9 @@
   var preRenderListener = null;
   var lastTerrainSample = 0;
   var terrainHeight = 0;
+  var lastCollisionCheck = 0;
+  var lastCollisionResult = { forward: true, right: true };
+  var COLLISION_INTERVAL = 100; // ms — check collision max ~10x/sec
 
   var keys = {
     forward: false, backward: false, left: false, right: false,
@@ -44,6 +47,10 @@
 
   var look = { heading: 0, pitch: 0 };
 
+  var velocity = { forward: 0, right: 0, up: 0 };
+  var ACCEL_FACTOR = 0.06;   // how fast velocity ramps up (0–1, lower = smoother)
+  var DECEL_FACTOR = 0.10;   // how fast velocity decays to zero
+
   var gamepad = { index: -1, lastA: false };
 
   // ========================================================
@@ -51,15 +58,17 @@
   // ========================================================
 
   var config = {
-    moveSpeed: 8.0,
-    sprintMultiplier: 4.0,
-    mouseSensitivity: 0.005,
+    moveSpeed: 0.15,
+    sprintMultiplier: 3.0,
+    mouseSensitivity: 0.003,
     eyeHeight: 1.7,
     terrainClamp: true,
     terrainSampleInterval: 400,
-    gamepadMoveSpeed: 12.0,
-    gamepadSensitivity: 0.05,
-    gamepadDeadzone: 0.15
+    gamepadMoveSpeed: 0.2,
+    gamepadSensitivity: 0.025,
+    gamepadDeadzone: 0.15,
+    collision: true,
+    collisionRadius: 0.5      // meters — minimum distance to geometry
   };
 
   // ========================================================
@@ -153,8 +162,9 @@
       preRenderListener = null;
     }
 
-    // Reset keys
+    // Reset keys & velocity
     keys.forward = keys.backward = keys.left = keys.right = keys.up = keys.down = keys.sprint = false;
+    velocity.forward = velocity.right = velocity.up = 0;
 
     // UI
     hideCrosshair();
@@ -367,7 +377,7 @@
 
     // Look
     if (rightX !== 0 || rightY !== 0) {
-      look.heading -= rightX * config.gamepadSensitivity;
+      look.heading += rightX * config.gamepadSensitivity;
       look.pitch += rightY * config.gamepadSensitivity;
       look.pitch = clamp(look.pitch, -Math.PI * 0.49, Math.PI * 0.49);
       viewer.camera.setView({
@@ -375,12 +385,35 @@
       });
     }
 
-    // Move
-    var speed = config.gamepadMoveSpeed * boost;
-    if (leftY !== 0) viewer.camera.moveForward(-leftY * speed);
-    if (leftX !== 0) viewer.camera.moveRight(leftX * speed);
-    if (rightTrig > 0.05) viewer.camera.moveUp(rightTrig * speed);
-    if (leftTrig > 0.05) viewer.camera.moveDown(leftTrig * speed);
+    // Move — smooth via shared velocity (merged with keyboard input)
+    var gpSpeed = config.gamepadMoveSpeed * boost;
+    var gpTargetFwd = -leftY;   // stick forward = negative Y
+    var gpTargetRight = leftX;
+    var gpTargetUp = rightTrig - leftTrig;
+
+    // Lerp gamepad input into velocity
+    var gaf = gpTargetFwd !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    var gar = gpTargetRight !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    var gau = gpTargetUp !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    velocity.forward += (gpTargetFwd - velocity.forward) * gaf;
+    velocity.right   += (gpTargetRight - velocity.right) * gar;
+    velocity.up      += (gpTargetUp - velocity.up) * gau;
+
+    if (Math.abs(velocity.forward) < 0.001) velocity.forward = 0;
+    if (Math.abs(velocity.right)   < 0.001) velocity.right = 0;
+    if (Math.abs(velocity.up)      < 0.001) velocity.up = 0;
+
+    if (velocity.forward !== 0) {
+      if (canMove(viewer, 'moveForward', velocity.forward, gpSpeed)) {
+        viewer.camera.moveForward(velocity.forward * gpSpeed);
+      }
+    }
+    if (velocity.right !== 0) {
+      if (canMove(viewer, 'moveRight', velocity.right, gpSpeed)) {
+        viewer.camera.moveRight(velocity.right * gpSpeed);
+      }
+    }
+    if (velocity.up !== 0) viewer.camera.moveUp(velocity.up * gpSpeed);
   }
 
   function updateGamepadUI() {
@@ -396,6 +429,141 @@
   }
 
   // ========================================================
+  // COLLISION DETECTION
+  // ========================================================
+  //
+  // Approach:
+  //   - Fan of rays in movement direction (center + spread) for narrow openings
+  //   - Adaptive collision radius based on velocity (anti-tunneling)
+  //   - Downward ray ahead of movement to detect floor edges
+  //
+
+  var _ray = new Cesium.Ray();
+  var _dir = new Cesium.Cartesian3();
+  var _tmpV = new Cesium.Cartesian3();
+  var _edgeCheckDropThreshold = 2.0; // meters — drop larger than this blocks movement
+
+  // Local "up" at camera position (normalized position on ellipsoid)
+  function localUp(viewer) {
+    return Cesium.Cartesian3.normalize(viewer.camera.position, new Cesium.Cartesian3());
+  }
+
+  // Project a direction onto the horizontal plane (remove vertical component)
+  function horizontalize(dir, up, out) {
+    var d = Cesium.Cartesian3.dot(dir, up);
+    var vert = Cesium.Cartesian3.multiplyByScalar(up, d, new Cesium.Cartesian3());
+    Cesium.Cartesian3.subtract(dir, vert, out);
+    if (Cesium.Cartesian3.magnitudeSquared(out) < 0.0001) return false;
+    Cesium.Cartesian3.normalize(out, out);
+    return true;
+  }
+
+  // Rotate a horizontal direction around `up` by `angle` radians
+  function rotateAroundUp(dir, up, angle, out) {
+    var cosA = Math.cos(angle);
+    var sinA = Math.sin(angle);
+    // Rodrigues' rotation: v*cos + (up×v)*sin + up*(up·v)*(1-cos)
+    var cross = Cesium.Cartesian3.cross(up, dir, new Cesium.Cartesian3());
+    Cesium.Cartesian3.multiplyByScalar(dir, cosA, out);
+    Cesium.Cartesian3.multiplyByScalar(cross, sinA, _tmpV);
+    Cesium.Cartesian3.add(out, _tmpV, out);
+  }
+
+  // Single ray check — returns distance to hit, or Infinity
+  // Ignores hits closer than 0.05m (self-intersection with floor/ceiling)
+  function rayDist(viewer, origin, direction) {
+    Cesium.Cartesian3.clone(origin, _ray.origin);
+    Cesium.Cartesian3.clone(direction, _ray.direction);
+    var result = viewer.scene.pickFromRay(_ray);
+    if (!result || !result.position) return Infinity;
+    var dist = Cesium.Cartesian3.distance(origin, result.position);
+    return dist < 0.05 ? Infinity : dist;
+  }
+
+  // Check collision before moving; returns false if blocked
+  function canMove(viewer, moveFunc, amount, currentSpeed) {
+    if (!config.collision || amount === 0) return true;
+    if (moveFunc === 'moveUp') return true;
+
+    // Throttle: reuse last result between checks
+    var now = Date.now();
+    if (now - lastCollisionCheck < COLLISION_INTERVAL) {
+      return moveFunc === 'moveForward' ? lastCollisionResult.forward : lastCollisionResult.right;
+    }
+    lastCollisionCheck = now;
+
+    var cam = viewer.camera;
+    var up = localUp(viewer);
+
+    // Build base direction from move type
+    if (moveFunc === 'moveForward') {
+      Cesium.Cartesian3.clone(cam.direction, _dir);
+      if (amount < 0) Cesium.Cartesian3.negate(_dir, _dir);
+    } else if (moveFunc === 'moveRight') {
+      Cesium.Cartesian3.clone(cam.right, _dir);
+      if (amount < 0) Cesium.Cartesian3.negate(_dir, _dir);
+    } else {
+      return true;
+    }
+
+    // Project onto horizontal plane
+    if (!horizontalize(_dir, up, _dir)) return true;
+
+    // Adaptive radius: base + velocity-proportional margin (anti-tunneling)
+    var effectiveSpeed = Math.abs(amount) * currentSpeed;
+    var radius = config.collisionRadius + effectiveSpeed * 0.5;
+
+    // --- Ray origins at two heights: eye level + waist level (1.0m above floor) ---
+    var eyePos = cam.position;
+    var waistDrop = Math.min(config.eyeHeight - 1.0, config.eyeHeight * 0.4);
+    var waistOffset = Cesium.Cartesian3.multiplyByScalar(up, -waistDrop, new Cesium.Cartesian3());
+    var waistPos = Cesium.Cartesian3.add(eyePos, waistOffset, new Cesium.Cartesian3());
+
+    // --- Fan of rays: center + ±25° spread, at both heights ---
+    var spreadAngle = Math.PI / 7.2;  // ~25°
+    var leftDir = new Cesium.Cartesian3();
+    var rightDir = new Cesium.Cartesian3();
+    rotateAroundUp(_dir, up, spreadAngle, leftDir);
+    rotateAroundUp(_dir, up, -spreadAngle, rightDir);
+
+    var blocked = false;
+    // Check all 3 directions at both heights (6 rays total)
+    var dirs = [_dir, leftDir, rightDir];
+    var origins = [eyePos, waistPos];
+    for (var oi = 0; oi < origins.length && !blocked; oi++) {
+      for (var di = 0; di < dirs.length && !blocked; di++) {
+        if (rayDist(viewer, origins[oi], dirs[di]) < radius) blocked = true;
+      }
+    }
+
+    if (blocked) {
+      if (moveFunc === 'moveForward') lastCollisionResult.forward = false;
+      else lastCollisionResult.right = false;
+      return false;
+    }
+
+    // --- Edge detection: downward ray 0.8m ahead of movement direction ---
+    if (config.terrainClamp) {
+      var ahead = new Cesium.Cartesian3();
+      Cesium.Cartesian3.multiplyByScalar(_dir, 0.8, ahead);
+      Cesium.Cartesian3.add(eyePos, ahead, ahead);
+
+      var negUp = Cesium.Cartesian3.negate(up, new Cesium.Cartesian3());
+      var floorDist = rayDist(viewer, ahead, negUp);
+
+      if (isFinite(floorDist) && floorDist > config.eyeHeight + _edgeCheckDropThreshold) {
+        if (moveFunc === 'moveForward') lastCollisionResult.forward = false;
+        else lastCollisionResult.right = false;
+        return false;
+      }
+    }
+
+    if (moveFunc === 'moveForward') lastCollisionResult.forward = true;
+    else lastCollisionResult.right = true;
+    return true;
+  }
+
+  // ========================================================
   // PER-FRAME UPDATE
   // ========================================================
 
@@ -408,12 +576,40 @@
 
     var speed = config.moveSpeed * (keys.sprint ? config.sprintMultiplier : 1.0);
 
-    if (keys.forward)  viewer.camera.moveForward(speed);
-    if (keys.backward) viewer.camera.moveBackward(speed);
-    if (keys.left)     viewer.camera.moveLeft(speed);
-    if (keys.right)    viewer.camera.moveRight(speed);
-    if (keys.up)       viewer.camera.moveUp(speed);
-    if (keys.down)     viewer.camera.moveDown(speed);
+    // Target velocity from keyboard input (-1, 0, or +1 per axis)
+    var targetFwd = 0, targetRight = 0, targetUp = 0;
+    if (keys.forward)  targetFwd += 1;
+    if (keys.backward) targetFwd -= 1;
+    if (keys.left)     targetRight -= 1;
+    if (keys.right)    targetRight += 1;
+    if (keys.up)       targetUp += 1;
+    if (keys.down)     targetUp -= 1;
+
+    // Smooth lerp toward target (accel when input, decel when released)
+    var af = targetFwd !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    var ar = targetRight !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    var au = targetUp !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
+    velocity.forward += (targetFwd - velocity.forward) * af;
+    velocity.right   += (targetRight - velocity.right) * ar;
+    velocity.up      += (targetUp - velocity.up) * au;
+
+    // Kill tiny residual drift
+    if (Math.abs(velocity.forward) < 0.001) velocity.forward = 0;
+    if (Math.abs(velocity.right)   < 0.001) velocity.right = 0;
+    if (Math.abs(velocity.up)      < 0.001) velocity.up = 0;
+
+    if (velocity.forward !== 0) {
+      if (canMove(viewer, 'moveForward', velocity.forward, speed)) {
+        viewer.camera.moveForward(velocity.forward * speed);
+      }
+      // Don't zero velocity — let it decay naturally or apply when unblocked
+    }
+    if (velocity.right !== 0) {
+      if (canMove(viewer, 'moveRight', velocity.right, speed)) {
+        viewer.camera.moveRight(velocity.right * speed);
+      }
+    }
+    if (velocity.up !== 0) viewer.camera.moveUp(velocity.up * speed);
 
     // Terrain clamping
     if (config.terrainClamp) {
@@ -422,33 +618,48 @@
   }
 
   // ========================================================
-  // TERRAIN CLAMPING
+  // TERRAIN CLAMPING (downward raycast — works indoors)
   // ========================================================
+  //
+  // sampleHeight() returns the TOPMOST surface (= roof when indoors).
+  // Instead we cast a ray straight down from the camera — this hits
+  // the floor directly below, even inside multi-story buildings.
+  //
+
+  var _clampRay = new Cesium.Ray();
 
   function clampToTerrain(viewer) {
     var now = Date.now();
     if (now - lastTerrainSample < config.terrainSampleInterval) {
-      // Between samples, enforce last known height
       enforceMinHeight(viewer);
       return;
     }
     lastTerrainSample = now;
 
-    var carto = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+    var cam = viewer.camera;
+    var up = localUp(viewer);
+    var down = Cesium.Cartesian3.negate(up, new Cesium.Cartesian3());
 
-    // Try scene.sampleHeight first (synchronous, works with 3D tiles + terrain)
-    try {
-      var h = viewer.scene.sampleHeight(carto);
-      if (h !== undefined && isFinite(h)) {
-        terrainHeight = h;
+    // Cast ray downward from camera position
+    Cesium.Cartesian3.clone(cam.position, _clampRay.origin);
+    Cesium.Cartesian3.clone(down, _clampRay.direction);
+
+    var result = viewer.scene.pickFromRay(_clampRay);
+    if (result && result.position) {
+      var floorDist = Cesium.Cartesian3.distance(cam.position, result.position);
+      // Convert hit to cartographic height
+      var floorCarto = Cesium.Cartographic.fromCartesian(result.position);
+      if (isFinite(floorCarto.height)) {
+        terrainHeight = floorCarto.height;
         enforceMinHeight(viewer);
         return;
       }
-    } catch (_) {}
+    }
 
-    // Fallback: async terrain sampling
+    // Fallback: async terrain sampling (outdoors, no 3D tiles below)
     var tp = viewer.scene.terrainProvider;
     if (tp && tp.ready !== false) {
+      var carto = Cesium.Cartographic.fromCartesian(cam.position);
       Cesium.sampleTerrainMostDetailed(tp, [Cesium.Cartographic.clone(carto)])
         .then(function(results) {
           if (results[0] && isFinite(results[0].height)) {
@@ -607,10 +818,11 @@
         '</div>' +
       '</div>' +
       '<div class="fp-body">' +
-        '<div class="fp-row"><label>Speed</label><input type="range" id="fpSpeed" min="1" max="50" value="' + config.moveSpeed + '" oninput="BimFirstPerson.setMoveSpeed(+this.value)"><span class="fp-val" id="fpSpeedVal">' + config.moveSpeed + '</span></div>' +
+        '<div class="fp-row"><label>Speed</label><input type="range" id="fpSpeed" min="0.02" max="1" step="0.02" value="' + config.moveSpeed + '" oninput="BimFirstPerson.setMoveSpeed(+this.value)"><span class="fp-val" id="fpSpeedVal">' + config.moveSpeed + '</span></div>' +
         '<div class="fp-row"><label>Sensitivity</label><input type="range" id="fpSens" min="1" max="100" value="50" oninput="BimFirstPerson.setSensitivity(+this.value)"><span class="fp-val" id="fpSensVal">50</span></div>' +
         '<div class="fp-row"><label>Eye Height</label><input type="number" id="fpEyeH" min="0.5" max="10" step="0.1" value="' + config.eyeHeight + '" onchange="BimFirstPerson.setEyeHeight(+this.value)"><span style="font-size:10px;color:rgba(255,255,255,0.3);">m</span></div>' +
         '<div class="fp-row"><label>Terrain Clamp</label><input type="checkbox" id="fpClamp" ' + (config.terrainClamp ? 'checked' : '') + ' onchange="BimFirstPerson.setTerrainClamp(this.checked)"></div>' +
+        '<div class="fp-row"><label>Wall Collision</label><input type="checkbox" id="fpCollision" ' + (config.collision ? 'checked' : '') + ' onchange="BimFirstPerson.setCollision(this.checked)"></div>' +
         '<div id="fpGamepadStatus"></div>' +
       '</div>';
 
@@ -659,6 +871,10 @@
     config.terrainClamp = !!v;
   }
 
+  function setCollision(v) {
+    config.collision = !!v;
+  }
+
   // ========================================================
   // INIT
   // ========================================================
@@ -687,6 +903,7 @@
     setSensitivity: setSensitivity,
     setEyeHeight: setEyeHeight,
     setTerrainClamp: setTerrainClamp,
+    setCollision: setCollision,
     config: config
   };
 
