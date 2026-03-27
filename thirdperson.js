@@ -55,6 +55,8 @@
   var charVelFwd = 0;
   var charVelRight = 0;
   var preRenderListener = null;
+  var lastTileClampTime = 0;
+  var lastTileHeight = null;
 
   // Player Start (spawn point)
   var spawnSet = false;
@@ -88,14 +90,13 @@
     characterEntity = viewer.entities.add({
       position: pos,
       orientation: Cesium.Transforms.headingPitchRollQuaternion(
-        pos, new Cesium.HeadingPitchRoll(characterHeading, 0, 0)
+        pos, new Cesium.HeadingPitchRoll(characterHeading + MODEL_HEADING_OFFSET, 0, 0)
       ),
       model: {
         uri: MODEL_URL,
         scale: 1.3,
         minimumPixelSize: 64,
-        colorBlendMode: Cesium.ColorBlendMode.HIGHLIGHT,
-        color: Cesium.Color.WHITE
+        imageBasedLightingFactor: new Cesium.Cartesian2(1.0, 1.0)
       }
     });
     console.log('🏃 Character entity created');
@@ -380,25 +381,50 @@
     // Camera follows via trackedEntity — no manual camera repositioning needed.
     // Right stick rotates camera → camHeading changes → movement direction follows.
 
-    // --- 3. Floor clamping (terrain + 3D tiles) ---
-    // Get terrain height as baseline
-    var terrainH = viewer.scene.globe.getHeight(Cesium.Cartographic.fromRadians(charLon, charLat));
+    // --- 3. Floor clamping (terrain + throttled 3D tile raycast) ---
+    // Terrain height (cheap, every frame)
+    var carto = Cesium.Cartographic.fromRadians(charLon, charLat);
+    var terrainH = viewer.scene.globe.getHeight(carto);
     var bestFloor = (terrainH !== undefined && isFinite(terrainH)) ? terrainH : charHeight;
 
-    // Raycast down from just above feet to find 3D tile surfaces (roofs, floors)
-    var feetProbe = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight + 1.0);
-    var feetUp = Cesium.Cartesian3.normalize(feetProbe, new Cesium.Cartesian3());
-    var feetDown = Cesium.Cartesian3.negate(feetUp, new Cesium.Cartesian3());
-    var floorRay = new Cesium.Ray(feetProbe, feetDown);
-    var floorHit = viewer.scene.pickFromRay(floorRay);
-    if (floorHit && floorHit.position) {
-      var tileH = Cesium.Cartographic.fromCartesian(floorHit.position).height;
-      if (isFinite(tileH) && tileH > bestFloor) {
-        bestFloor = tileH; // Stand on whichever surface is higher
+    // Terrain slightly ahead in movement direction (prevents sinking on slopes)
+    if (moving) {
+      var aheadDist = 0.5;
+      var aheadLat = charLat + (aheadDist * Math.cos(characterHeading)) / 6378137.0;
+      var aheadLon = charLon + (aheadDist * Math.sin(characterHeading)) / (6378137.0 * Math.cos(charLat));
+      var aheadH = viewer.scene.globe.getHeight(Cesium.Cartographic.fromRadians(aheadLon, aheadLat));
+      if (aheadH !== undefined && isFinite(aheadH) && aheadH > bestFloor) {
+        bestFloor = aheadH;
       }
     }
 
-    charHeight = bestFloor;
+    // 3D tile raycast (expensive — throttle to ~5x/sec)
+    var now = Date.now();
+    if (now - lastTileClampTime > 200) {
+      lastTileClampTime = now;
+      var feetProbe = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight + 1.0);
+      var feetUp = Cesium.Cartesian3.normalize(feetProbe, new Cesium.Cartesian3());
+      var feetDown = Cesium.Cartesian3.negate(feetUp, new Cesium.Cartesian3());
+      var floorRay = new Cesium.Ray(feetProbe, feetDown);
+      var floorHit = viewer.scene.pickFromRay(floorRay);
+      if (floorHit && floorHit.position) {
+        var tileH = Cesium.Cartographic.fromCartesian(floorHit.position).height;
+        if (isFinite(tileH)) {
+          lastTileHeight = tileH;
+        }
+      }
+    }
+    if (lastTileHeight !== null && lastTileHeight > bestFloor) {
+      bestFloor = lastTileHeight;
+    }
+
+    // Smooth height transition to avoid flickering
+    var heightDiff = bestFloor - charHeight;
+    if (Math.abs(heightDiff) < 0.01) {
+      charHeight = bestFloor;
+    } else {
+      charHeight += heightDiff * 0.3;
+    }
 
     // --- 4. Update entity ---
     updateModelMatrix();
@@ -469,7 +495,7 @@
   // ========================================================
 
   document.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
     var k = e.key.toLowerCase();
 
     // V = toggle 3rd person (while in first-person)

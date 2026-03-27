@@ -184,7 +184,7 @@
 
   document.addEventListener('keydown', function(e) {
     // Skip inputs
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
 
     var k = e.key.toLowerCase();
 
