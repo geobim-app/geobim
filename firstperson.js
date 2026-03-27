@@ -249,6 +249,8 @@
   document.addEventListener('mousemove', function(e) {
     var viewer = getViewer();
     if (!active || !viewer) return;
+    // In third-person, thirdperson.js handles mouse orbit
+    if (window.BimThirdPerson && BimThirdPerson.isActive()) return;
     if (document.pointerLockElement !== viewer.scene.canvas) return;
 
     look.heading += e.movementX * config.mouseSensitivity;
@@ -260,10 +262,11 @@
     });
   });
 
-  // Re-acquire pointer lock on click while active
+  // Re-acquire pointer lock on click while active (1st person only)
   document.addEventListener('click', function() {
     var viewer = getViewer();
     if (!active || !viewer || isMobile()) return;
+    if (window.BimThirdPerson && BimThirdPerson.isActive()) return;
     if (document.pointerLockElement !== viewer.scene.canvas) {
       try { viewer.scene.canvas.requestPointerLock(); } catch (_) {}
     }
@@ -347,14 +350,14 @@
     return Math.abs(v) < config.gamepadDeadzone ? 0 : v;
   }
 
+  // Gamepad input targets (analog, -1 to +1)
+  var gpInput = { forward: 0, right: 0, up: 0, lookX: 0, lookY: 0, sprint: false };
+
   function processGamepad() {
     if (gamepad.index < 0) return;
     var gps = navigator.getGamepads ? navigator.getGamepads() : [];
     var gp = gps[gamepad.index];
     if (!gp || !gp.connected) return;
-
-    var viewer = getViewer();
-    if (!viewer) return;
 
     // A button = toggle first person
     var aPressed = gp.buttons[0] && gp.buttons[0].pressed;
@@ -363,57 +366,17 @@
 
     if (!active) return;
 
-    // Left stick = move
-    var leftX = deadzone(gp.axes[0] || 0);
-    var leftY = deadzone(gp.axes[1] || 0);
-    // Right stick = look
-    var rightX = deadzone(gp.axes[2] || 0);
-    var rightY = deadzone(gp.axes[3] || 0);
-    // Triggers = up/down
-    var leftTrig = gp.buttons[6] ? gp.buttons[6].value : 0;
+    // Read all axes and buttons into input state
+    gpInput.forward = -deadzone(gp.axes[1] || 0);   // stick forward = negative Y
+    gpInput.right   = deadzone(gp.axes[0] || 0);
+    gpInput.lookX   = deadzone(gp.axes[2] || 0);
+    gpInput.lookY   = deadzone(gp.axes[3] || 0);
+
+    var leftTrig  = gp.buttons[6] ? gp.buttons[6].value : 0;
     var rightTrig = gp.buttons[7] ? gp.buttons[7].value : 0;
-    // Boost
-    var boost = (gp.buttons[10] && gp.buttons[10].pressed) ? config.sprintMultiplier : 1.0;
+    gpInput.up = rightTrig - leftTrig;
 
-    // Look
-    if (rightX !== 0 || rightY !== 0) {
-      look.heading += rightX * config.gamepadSensitivity;
-      look.pitch += rightY * config.gamepadSensitivity;
-      look.pitch = clamp(look.pitch, -Math.PI * 0.49, Math.PI * 0.49);
-      viewer.camera.setView({
-        orientation: { heading: look.heading, pitch: look.pitch, roll: 0 }
-      });
-    }
-
-    // Move — smooth via shared velocity (merged with keyboard input)
-    var gpSpeed = config.gamepadMoveSpeed * boost;
-    var gpTargetFwd = -leftY;   // stick forward = negative Y
-    var gpTargetRight = leftX;
-    var gpTargetUp = rightTrig - leftTrig;
-
-    // Lerp gamepad input into velocity
-    var gaf = gpTargetFwd !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    var gar = gpTargetRight !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    var gau = gpTargetUp !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    velocity.forward += (gpTargetFwd - velocity.forward) * gaf;
-    velocity.right   += (gpTargetRight - velocity.right) * gar;
-    velocity.up      += (gpTargetUp - velocity.up) * gau;
-
-    if (Math.abs(velocity.forward) < 0.001) velocity.forward = 0;
-    if (Math.abs(velocity.right)   < 0.001) velocity.right = 0;
-    if (Math.abs(velocity.up)      < 0.001) velocity.up = 0;
-
-    if (velocity.forward !== 0) {
-      if (canMove(viewer, 'moveForward', velocity.forward, gpSpeed)) {
-        viewer.camera.moveForward(velocity.forward * gpSpeed);
-      }
-    }
-    if (velocity.right !== 0) {
-      if (canMove(viewer, 'moveRight', velocity.right, gpSpeed)) {
-        viewer.camera.moveRight(velocity.right * gpSpeed);
-      }
-    }
-    if (velocity.up !== 0) viewer.camera.moveUp(velocity.up * gpSpeed);
+    gpInput.sprint = !!(gp.buttons[10] && gp.buttons[10].pressed);
   }
 
   function updateGamepadUI() {
@@ -574,18 +537,25 @@
     var viewer = getViewer();
     if (!viewer) return;
 
-    var speed = config.moveSpeed * (keys.sprint ? config.sprintMultiplier : 1.0);
+    // --- Merge keyboard + gamepad into one target per axis ---
+    // Keyboard: digital (-1, 0, +1). Gamepad: analog (-1..+1).
+    // Take whichever has larger magnitude.
+    var kbFwd = 0, kbRight = 0, kbUp = 0;
+    if (keys.forward)  kbFwd += 1;
+    if (keys.backward) kbFwd -= 1;
+    if (keys.left)     kbRight -= 1;
+    if (keys.right)    kbRight += 1;
+    if (keys.up)       kbUp += 1;
+    if (keys.down)     kbUp -= 1;
 
-    // Target velocity from keyboard input (-1, 0, or +1 per axis)
-    var targetFwd = 0, targetRight = 0, targetUp = 0;
-    if (keys.forward)  targetFwd += 1;
-    if (keys.backward) targetFwd -= 1;
-    if (keys.left)     targetRight -= 1;
-    if (keys.right)    targetRight += 1;
-    if (keys.up)       targetUp += 1;
-    if (keys.down)     targetUp -= 1;
+    var targetFwd   = Math.abs(gpInput.forward) > Math.abs(kbFwd)   ? gpInput.forward : kbFwd;
+    var targetRight = Math.abs(gpInput.right)   > Math.abs(kbRight) ? gpInput.right   : kbRight;
+    var targetUp    = Math.abs(gpInput.up)       > Math.abs(kbUp)    ? gpInput.up      : kbUp;
 
-    // Smooth lerp toward target (accel when input, decel when released)
+    var isSprint = keys.sprint || gpInput.sprint;
+    var speed = config.moveSpeed * (isSprint ? config.sprintMultiplier : 1.0);
+
+    // Smooth lerp toward target
     var af = targetFwd !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
     var ar = targetRight !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
     var au = targetUp !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
@@ -598,11 +568,25 @@
     if (Math.abs(velocity.right)   < 0.001) velocity.right = 0;
     if (Math.abs(velocity.up)      < 0.001) velocity.up = 0;
 
+    // --- Gamepad right stick → look (1st person only) ---
+    var isTP = window.BimThirdPerson && BimThirdPerson.isActive();
+    if (!isTP && (gpInput.lookX !== 0 || gpInput.lookY !== 0)) {
+      look.heading += gpInput.lookX * config.gamepadSensitivity;
+      look.pitch += gpInput.lookY * config.gamepadSensitivity;
+      look.pitch = clamp(look.pitch, -Math.PI * 0.49, Math.PI * 0.49);
+      viewer.camera.setView({
+        orientation: { heading: look.heading, pitch: look.pitch, roll: 0 }
+      });
+    }
+
+    // In third-person: only calculate velocity, don't move camera
+    if (isTP) return;
+
+    // --- Apply movement to camera (1st person only) ---
     if (velocity.forward !== 0) {
       if (canMove(viewer, 'moveForward', velocity.forward, speed)) {
         viewer.camera.moveForward(velocity.forward * speed);
       }
-      // Don't zero velocity — let it decay naturally or apply when unblocked
     }
     if (velocity.right !== 0) {
       if (canMove(viewer, 'moveRight', velocity.right, speed)) {
@@ -904,7 +888,11 @@
     setEyeHeight: setEyeHeight,
     setTerrainClamp: setTerrainClamp,
     setCollision: setCollision,
-    config: config
+    config: config,
+    velocity: velocity,
+    gpInput: gpInput,
+    canMove: canMove,
+    clampToTerrain: clampToTerrain
   };
 
 })();
