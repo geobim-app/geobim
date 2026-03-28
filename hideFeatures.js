@@ -33,6 +33,7 @@
     const indicator = document.getElementById('hideModeIndicator');
     
     if (this.hiddenFeatures.isHideMode) {
+      if (window.BimCursor) BimCursor.set('hide');
       toggleBtn.classList.add('active');
       if (indicator) {
         indicator.classList.add('active');
@@ -41,6 +42,7 @@
       this.updateStatus('Hide mode activated - Click elements to hide', 'warning');
       console.log('🙈 Hide mode ACTIVATED');
     } else {
+      if (window.BimCursor) BimCursor.clear();
       toggleBtn.classList.remove('active');
       if (indicator) {
         indicator.classList.remove('active');

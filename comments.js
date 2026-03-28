@@ -1298,6 +1298,7 @@
     const indicator = document.getElementById('commentModeIndicator');
     
     if (this.comments.isAddingComment) {
+      if (window.BimCursor) BimCursor.set('comment');
       if (toggleBtn) {
         toggleBtn.classList.add('active');
         toggleBtn.innerHTML = '✋ Cancel';
@@ -1325,16 +1326,17 @@
       
       this.updateStatus(modeText, 'warning');
     } else {
+      if (window.BimCursor) BimCursor.clear();
       if (toggleBtn) {
         toggleBtn.classList.remove('active');
         const btnLabels = { 'point': '📍 Add Comment', 'circle': '⭕ Add Circle', 'polyline': '〰️ Add Polyline', 'area': '⬡ Add Area' };
         toggleBtn.innerHTML = btnLabels[this.comments.annotationType] || '📍 Add Comment';
       }
-      
+
       if (indicator) {
         indicator.classList.remove('active');
       }
-      
+
       this.closeCommentDialog();
     }
   };

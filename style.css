@@ -34,6 +34,15 @@
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.1);
   --border-default: rgba(255, 255, 255, 0.2);
+
+  /* Z-Index Scale */
+  --z-base: 1;
+  --z-toolbar: 100;
+  --z-sidebar-toggle: 101;
+  --z-panels: 200;
+  --z-dialogs: 300;
+  --z-overlays: 400;
+  --z-splash: 500;
 }
 
 /* ===============================
@@ -1769,4 +1778,101 @@ body {
     top: 10px;
     max-height: 60vh;
   }
+}
+
+/* ===============================
+   QW3: REDUCED MOTION
+   =============================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===============================
+   QW5: FOCUS STATES (Keyboard Nav)
+   =============================== */
+.modern-btn:focus-visible,
+.modern-toggle-btn:focus-visible,
+.modern-icon-btn:focus-visible,
+.bottom-toolbar-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.modern-section-header:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+input[type="range"]:focus-visible,
+input[type="checkbox"]:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+/* ===============================
+   ME3: CONTEXTUAL CURSORS
+   =============================== */
+body.tool-measure #cesiumContainer { cursor: crosshair; }
+body.tool-clip #cesiumContainer { cursor: cell; }
+body.tool-comment #cesiumContainer { cursor: copy; }
+body.tool-hide #cesiumContainer { cursor: pointer; }
+body.tool-inspect #cesiumContainer { cursor: help; }
+body.tool-spawn #cesiumContainer { cursor: crosshair; }
+
+/* ===============================
+   ME4: PANEL TRANSITIONS
+   =============================== */
+#infoBoxPanel,
+#modernCommentsPanel,
+#floatingAssetsPanel,
+#weaShadowPanel {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* InfoBox slides in from right */
+#infoBoxPanel {
+  transform: translateX(20px);
+  opacity: 0;
+}
+#infoBoxPanel.visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Comments panel slides up */
+#modernCommentsPanel {
+  transform: translateY(20px);
+  opacity: 0;
+}
+#modernCommentsPanel.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Assets panel slides up */
+#floatingAssetsPanel {
+  transform: translateY(20px);
+  opacity: 0;
+}
+#floatingAssetsPanel.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* WEA panel slides in from right */
+#weaShadowPanel {
+  transform: translateX(20px);
+  opacity: 0;
+}
+#weaShadowPanel.visible {
+  transform: translateX(0);
+  opacity: 1;
 }

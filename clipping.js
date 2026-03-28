@@ -59,6 +59,7 @@
     
     this.clipping.isDrawing = true;
     this.clipping.drawMode = 'polygon';
+    if (window.BimCursor) BimCursor.set('clip');
     this.clipping.currentPoints = [];
     this.clipping.lastRightClickTime = 0; // For double-click detection
     
@@ -207,6 +208,7 @@
     const wasMode = this.clipping.drawMode;
     this.clipping.isDrawing = false;
     this.clipping.drawMode = null;
+    if (window.BimCursor) BimCursor.clear();
     this.clipping.currentPoints = [];
 
     // Clean up handler
@@ -277,6 +279,7 @@
 
     this.clipping.isDrawing = true;
     this.clipping.drawMode = 'rectangle';
+    if (window.BimCursor) BimCursor.set('clip');
     this.clipping.currentPoints = [];
 
     // Update UI

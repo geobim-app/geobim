@@ -26,6 +26,20 @@ const VALID_ASSET_IDS = new Set([
   4422185, 4422182, 4422180, 4422178, 4422174, 4422171
 ]);
 
+// Global tool cursor helper — set/clear contextual cursor on body
+window.BimCursor = {
+  _active: null,
+  set: function(tool) {
+    if (this._active) document.body.classList.remove('tool-' + this._active);
+    this._active = tool;
+    if (tool) document.body.classList.add('tool-' + tool);
+  },
+  clear: function() {
+    if (this._active) document.body.classList.remove('tool-' + this._active);
+    this._active = null;
+  }
+};
+
 const BimViewerUI = {
   // Track expanded sections
   expandedSections: new Set(['assets']), // Only assets open by default

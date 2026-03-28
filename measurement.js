@@ -142,6 +142,7 @@
     this.cancelMeasurement();
     this.measurement.active = true;
     this.measurement.type = 'distance';
+    if (window.BimCursor) BimCursor.set('measure');
     this.measurement.positions = [];
 
     this.updateStatus('LEFT-CLICK first point', 'loading');
@@ -645,6 +646,7 @@
   };
 
   BimViewer.cancelMeasurement = function() {
+    if (window.BimCursor) BimCursor.clear();
     if (this.measurement.polygonEntity) {
       this.viewer.entities.remove(this.measurement.polygonEntity);
       this.measurement.polygonEntity = null;
