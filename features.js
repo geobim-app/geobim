@@ -1055,7 +1055,7 @@
         
         html += `<tr class="bim-property-row ${categoryId}_props" ${!setConfig.expanded ? 'style="display:none;"' : ''}>`;
         html += `<td class="bim-property-name">${displayName}</td>`;
-        html += `<td class="${valueClass}"><span class="bim-value-text">${value}</span>${value !== 'n/a' ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(value).replace(/'/g, "\\'") + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
+        html += `<td class="${valueClass}"><span class="bim-value-text">${value}</span>${value !== 'n/a' ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
@@ -1082,7 +1082,7 @@
         
         html += `<tr class="bim-property-row ${categoryId}_props">`;
         html += `<td class="bim-property-name">${prop}</td>`;
-        html += `<td class="bim-property-value"><span class="bim-value-text">${displayValue}</span>${displayValue && !String(displayValue).includes('<i ') ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(displayValue).replace(/'/g, "\\'").replace(/</g, '').replace(/>/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
+        html += `<td class="bim-property-value"><span class="bim-value-text">${displayValue}</span>${displayValue && !String(displayValue).includes('<i ') ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(displayValue).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '').replace(/</g, '').replace(/>/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
