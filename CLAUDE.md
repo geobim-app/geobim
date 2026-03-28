@@ -1,229 +1,179 @@
-# geobim.app – Projektkontext für Claude Code
+# geobim.app — Projektkontext für Claude Code
 
 ## Projektübersicht
 
 **geobim.app** ist ein CesiumJS-basierter BIM/GIS-Viewer, der IFC-Modelle als
 3D Tiles über Cesium Ion lädt und im Browser visualisiert. Zielgruppe sind
-Ingenieurbüros, Auftraggeber und die Öffentlichkeit (Entwurfspräsentationen,
-Brückeninspektionen, Infrastrukturprojekte).
+Ingenieurbüros, Auftraggeber und die Öffentlichkeit.
 
-- **Server:** Hetzner (IP: 168.119.232.12), Apache
-- **Domain:** geobim.app (DNS via INWX)
-- **Auth/Backend:** Firebase (Authentication + Firestore + Storage)
-- **3D Tiles Hosting:** Cesium Ion
-- **Cesium Version:** CesiumJS (aktuelle stabile Version per CDN oder npm)
+| Aspekt | Details |
+|--------|---------|
+| **Server** | Hetzner VPS (168.119.232.12), Apache, Let's Encrypt |
+| **Domain** | geobim.app (DNS via INWX) |
+| **Auth/Backend** | Firebase (Authentication + Firestore + Storage) |
+| **3D Tiles** | Cesium Ion |
+| **CesiumJS** | v1.139.1 (neueste, CDN) |
+| **Frontend** | Vanilla JS — kein Framework, kein Bundler |
+| **GitHub** | https://github.com/geobim-app/geobim |
 
 ---
 
 ## Modulare Architektur
 
-Die App ist in eigenständige JS-Module aufgeteilt, die über ein zentrales
-`BimViewer`-Objekt kommunizieren.
+Alle Module erweitern das globale `BimViewer`-Objekt. Ladereihenfolge in
+`index.html` ist kritisch.
 
 ```
 index.html
-├── core.js              → Viewer-Init, Asset-Management, BimViewer-Objekt
-├── features.js          → IFC-Filtering, Element-Interaktion, InfoBox, Clipping
-├── hideFeatures.js      → Einzelne BIM-Elemente per Click verstecken
-├── comments.js          → 3D-Kommentare mit Firebase Firestore
-├── measurement.js       → Messwerkzeuge (Cesium Ion SDK)
-├── pbr-materials.js     → PBR CustomShader (prozedurales Material-Texturing)
-├── ui.js                → Benutzeroberfläche (Panels, Buttons, Toolbar)
-└── ui-comments-extension.js  → Kommentar-UI-Erweiterung
+├── config.js              → Cesium Ion Token, Firebase Config (.gitignore!)
+├── core.js                → Viewer-Init, Asset-Mgmt, Performance-Presets, BimViewer-Objekt
+├── features.js            → IFC-Filtering, Element-Picking (pickAsync), InfoBox, Clipping
+├── hideFeatures.js        → Elemente per Click verstecken (H / Shift+H)
+├── comments.js            → 3D-Kommentare, Firestore, Annotations, BCF Export
+├── inspection.js          → Brückeninspektions-Erweiterung für Comments
+├── measurement.js         → Distanz/Fläche/Höhe (Cesium Ion Measurement SDK)
+├── measurement-store.js   → Persistenz für Messungen (Firestore)
+├── clipping.js            → Polygon/Rectangle Clipping
+├── clipping-planes.js     → Per-Asset Section Planes (X/Y/Z)
+├── z-offset.js            → Vertikaler Höhenversatz pro Asset
+├── layerManager.js        → Basemaps, WMS/WMTS/WFS, NRW LoD2
+├── lighting.js            → Dynamische Beleuchtung, Schatten, Tageszeiten
+├── ibl.js                 → Image-Based Lighting, Spherical Harmonics
+├── pbr-materials.js       → PBR CustomShader (Triplanar Mapping, prozedural)
+├── pointcloud.js          → Eye Dome Lighting, Punkt-Einstellungen
+├── glb-gizmo.js           → GLB-Modelle positionieren/rotieren per Drag
+├── wea-shadow.js          → Windenergieanlagen-Schattensimulation
+├── firstperson.js         → First-Person Navigation (WASD, Gamepad, Wall Collision)
+├── thirdperson.js         → Third-Person mit Cesium_Man Character
+├── sib.js                 → SIB Brückengenerator
+├── sensorthings.js        → FROST SensorThings API Live-Daten
+├── iot.js                 → IoT Sensor Widget
+├── ui.js                  → Sidebar + Bottom Toolbar (Lucide Icons)
+├── ui-helpers-modern.js   → Floating Panels (Assets, Comments, Hidden)
+├── about-feedback.js      → About-Dialog, Feedback, Guided Tour
+├── onboarding.js          → 6-Schritt Onboarding Tour
+└── bcf-export.js          → BCF 2.1 Export für Kommentare
 ```
 
-### Zentrales BimViewer-Objekt (core.js)
-
-Alle Module greifen auf das globale `BimViewer`-Objekt zu:
+### Zentrales BimViewer-Objekt
 
 ```javascript
 window.BimViewer = {
-  viewer,           // Cesium.Viewer Instanz
-  tilesets: [],     // geladene Cesium3DTileset-Objekte
-  assets: [],       // Asset-Metadaten {id, name, ionAssetId, tileset}
-  // ...
+  viewer,                // Cesium.Viewer
+  loadedAssets: Map(),   // assetId → {id, name, tileset, isGLB, ...}
+  // Alle Module erweitern dieses Objekt
 };
 ```
 
 ---
 
-## IFC → 3D Tiles Workflow
-
-```
-IFC-Datei
-  → Upload auf Cesium Ion (Design Tiler)
-  → 3D Tiles (IFC-Properties als Feature-Metadaten erhalten)
-  → geobim.app lädt Tileset: Cesium.Cesium3DTileset.fromUrl(resource)
-  → Feature-Properties: feature.getPropertyIds() / feature.getProperty(name)
-```
-
-**Wichtig:** Die App macht **kein** IFC-Parsing. Alles läuft über die
-Feature-Properties der 3D Tiles, so wie Cesium Ion sie aus dem IFC übernimmt.
-
-### Relevante IFC Feature-Properties
-
-| Property          | Beispielwert                  | Verwendung             |
-|-------------------|-------------------------------|------------------------|
-| `className`       | `IfcWall`, `IfcBeam`         | Entity-Typ-Erkennung   |
-| `IfcEntity`       | `IfcColumn`                   | Alternativ zu className|
-| `Material`        | `Baustahl - S355`             | PBR-Material-Matching  |
-| `MaterialName`    | `Beton C30/37`                | Fallback Material      |
-| `Name`            | `Wandtyp-Außen-30cm`          | Element-Name           |
-| `GlobalId`        | `2X9NnrP...`                  | IFC-Referenz           |
-
----
-
-## Firebase Setup
-
-- **Firestore Collection:** `comments_trainbridge` (Beispiel, pro Projekt variiert)
-- **Kommentar-Datenstruktur:**
-  ```javascript
-  {
-    title: "Riss am Widerlager",
-    text: "Kommentartext",
-    lon: 10.9544,
-    lat: 50.7323,
-    height: 5.2,
-    imageUrl: "https://...",   // optional, Firebase Storage
-    author: "user@email.com",
-    timestamp: Firestore.FieldValue.serverTimestamp(),
-    status: "open"             // open | resolved
-  }
-  ```
-- **Firebase Storage:** Für Kommentar-Bild-Uploads (Spark Plan: 5 GB)
-- **Auth:** Firebase Authentication (Email/Password oder Google)
-
----
-
-## Module – Kernfunktionen
-
-### core.js
-- Cesium Viewer initialisieren (Ion Access Token via Env/Config)
-- Assets laden: `Cesium3DTileset.fromIonAssetId()` oder `fromUrl()`
-- Mehrere Assets gleichzeitig, Opazität pro Asset steuerbar
-- Performance-Presets (Performance → Ultra)
-- Auto-IFC-Detection: erkennt automatisch IFC-Properties
-
-### features.js
-- **IFC-Filtering:** 30+ IFC-Entitätstypen (Wände, Säulen, Türen, MEP etc.)
-- Farbcodierung nach Kategorie (Struktur, MEP, Innenausbau)
-- **InfoBox:** Zeigt alle Feature-Properties kategorisiert an
-- **Clipping:** Polygon zeichnen → Gebäude oder Terrain clippen
-- OSM-Building-Support (Adress-/Bauinfos)
-
-### hideFeatures.js
-- Einzelne Elemente per Click verstecken/zeigen
-- **H** = Toggle, **Shift+H** = Alle wiederherstellen
-- Liste versteckter Elemente mit Bulk-Restore
-
-### comments.js
-- 3D-Kommentare: Picking → Weltkoordinaten → Firebase speichern
-- Kommentar-Pins als Cesium Billboards/Labels in der Szene
-- Bild-Upload via Firebase Storage (URL in Firestore)
-
-### pbr-materials.js (Extension)
-- **Triplanar Mapping** im GLSL Fragment Shader (keine UVs nötig)
-- **Prozedurales Noise** (FBM-ähnlich) für Material-Variation
-- Material-Erkennung per IFC Feature-Properties (keyword-basiert, case-insensitiv)
-- Unterstützte Materialtypen: Stahlbeton, Baustahl, Stahl poliert,
-  Verzinkt, Naturstein/Granit, Bitumen/Asphalt, Holz, Glas, Mauerwerk, Erde
-
-#### Material-Matching Fallback-Kette:
-1. Feature-Property `Material` oder `MaterialName` (Keyword-Matching)
-2. IFC Entity-Typ (`IfcWindow` → Glas, `IfcWall` → Beton etc.)
-3. Luminanz der Basisfarbe (dunkel → Stahl, mittel → Beton, hell → Putz)
-
-### measurement.js
-- Distanz-, Flächen- und Höhenmessungen
-- Nutzt Cesium Ion Measurement SDK
-
----
-
 ## Coding-Konventionen
 
-- **Kein Framework:** Vanilla JS + HTML + CSS (kein React/Vue)
-- **Module Pattern:** Jedes Modul exportiert Funktionen oder erweitert `BimViewer`
-- **Neue Extensions:** Neues Modul anlegen, in `index.html` einbinden,
-  über `BimViewer`-Objekt integrieren – nicht bestehende Module verändern
-- **IFC-Properties:** Immer keyword-basiert und case-insensitiv matchen,
-  da Materialnamen je nach BIM-Tool (Revit, Allplan, Archicad, Tekla)
-  und Sprache (DE/EN) stark variieren
-- **Cesium3DTileset API:** `feature.getPropertyIds()` / `feature.getProperty(name)`
-  für alle Feature-Daten – kein direktes IFC-Parsing
+### Allgemein
+- **Kein Framework:** Vanilla JS + HTML + CSS (kein React/Vue/Bundler)
+- **Module Pattern:** Jedes Modul erweitert `BimViewer` — NICHT bestehende Module ändern
+- **Neue Features:** Separates Modul (`feature-name.js`), in `index.html` einbinden
+- **Kein Build-Prozess:** `git pull` = Deployment
+
+### CSS
+- **CSS Custom Properties nutzen** — alle Farben, Spacing, Radius aus `:root` Variablen
+- **Design Tokens:** `--space-xs` bis `--space-2xl`, `--radius-sm` bis `--radius-2xl`,
+  `--shadow-sm` bis `--shadow-xl`, `--input-bg`, `--input-bg-solid`
+- **Brand-Farbe:** `var(--brand-teal)` = `#2ECFB0` — NIEMALS `#6EECD8` verwenden
+- **Keine Inline-Styles** in HTML — CSS-Klassen in `*-styles.css` Dateien
+- **Glassmorphism:** Panel-Opacity 0.82, `backdrop-filter: blur(12px)`
+
+### Icons
+- **Lucide Icons** via CDN (`<i data-lucide="icon-name"></i>`)
+- **Keine Emojis** als UI-Icons (Rendering variiert zwischen Plattformen)
+- Nach dynamischem HTML: `if (window.lucide) lucide.createIcons()` aufrufen
+
+### JavaScript
+- **`scene.pickAsync()`** statt `scene.pick()` — non-blocking GPU readback
+- Aufrufende Funktionen müssen `async` sein, Ergebnis mit `await`
+- Ausnahme: `onMouseMove`-Hover bleibt synchron (Performance)
+- **Keyboard-Handler:** Immer `BUTTON` im Tag-Filter:
+  `if (e.target.tagName === 'INPUT' || ... || e.target.tagName === 'BUTTON') return;`
+- Neue Shortcuts: `BimFirstPerson.isActive()`-Guard wenn der Key im Walk-Modus blockiert sein soll
+- **IFC-Properties:** Immer keyword-basiert, case-insensitiv, sourcen-agnostisch
+
+### Cesium
+- **Version:** 1.139.1 (neueste), CDN
+- **Tone Mapping:** PBR Neutral (`Cesium.Tonemapper.PBR_NEUTRAL`)
+- **AO:** HBAO (Horizon-Based, seit v1.124)
+- **Environment Maps:** `configureDynamicEnvMaps()` wird auf jedes Tileset angewandt
+- **Ion Access Token:** Aus `config.js` lesen, NICHT hardcoden
+- **Tileset API:** `feature.getPropertyIds()` / `feature.getProperty(name)` — kein IFC-Parsing
 
 ---
 
-## Infrastruktur & Tooling
+## QA-Pflicht
 
-- **Server:** Hetzner VPS, Apache + Let's Encrypt
-- **Domain/DNS:** INWX → Hetzner
-- **E-Mail:** Mailbox.org (Standard), MX/SPF/DKIM konfiguriert
-- **Nextcloud:** Selbst gehostet auf Hetzner (selber Server)
-- **Versionskontrolle:** Git (lokal + Hetzner)
-- **Cesium Ion:** Eigener Account, Cesium Certified Developer
+### Vor jedem Commit:
+```bash
+bash qa-check.sh
+```
+Muss **0 Errors** zeigen. Warnings prüfen, bekannte akzeptieren.
 
----
+### Vor jedem Release:
+`QA-CHECKLIST.md` durchgehen (18 Sektionen, ~80 Punkte).
 
-## Offene Features / Backlog
-
-- [ ] Bild-Upload in Kommentarfunktion (Firebase Storage, ~50-100 LOC)
-- [ ] DSGVO-konforme Analytics (Matomo self-hosted auf Hetzner)
-- [ ] Mehrseitige Kommentarbilder (Galerie-View)
-- [ ] PBR-Material-Editor in der UI (Slider für Roughness/Metallic)
-- [ ] Revit → IFC4 → Ion Pipeline Dokumentation
+### Nach UI-Änderungen:
+- Prüfen ob Lucide Icons rendern (`lucide.createIcons()`)
+- Touch-Targets ≥ 44px auf Mobile
+- `prefers-reduced-motion` nicht brechen
+- Focus-visible States für neue Buttons
 
 ---
 
-## Deployment & Git-Workflow
+## UI-Architektur
 
-### Repository
+### Sidebar (links, 340px)
+Daten-/Browse-Tools: Assets, Layers, Point Cloud, Annotations, Inspection,
+IFC Filter, Revit Filter, Split View, Saved Views, Settings.
 
-- **GitHub Repo:** https://github.com/geobim-app/geobim
-- **Branch-Strategie:** `main` = Produktion, Feature-Branches für neue Module
+### Bottom Toolbar (unten, zentriert)
+Action-Tools: Measure, Visibility, Lighting, Walk Mode, Help.
+Buttons öffnen die entsprechende Section in der Sidebar.
 
-### Deployment auf Hetzner (Apache)
+### Floating Panels
+- InfoBox (rechts oben), Comments (rechts unten), Assets (links unten)
+- WEA Shadow (rechts oben), Sequencing Timeline (unten mitte)
+- Alle draggable, alle mit `visible`-Klasse für CSS-Transitions
+
+### Walk Mode
+- **G** → First-Person (WASD, Mouse Look, Gamepad, Wall Collision)
+- **V** → Third-Person (Cesium_Man GLB, Orbit Camera, `trackedEntity`)
+- **T** → Player Start setzen
+- `firstperson.js` berechnet Velocity, `thirdperson.js` bewegt Character
+- Collision via `scene.pickFromRay()`, throttled 10x/sec
+
+---
+
+## Deployment
 
 ```bash
 # Auf dem Hetzner-Server (168.119.232.12)
-# Web-Root:  /var/www/christoflorenz.de/
-
-# Typischer Deploy-Workflow:
+# Web-Root: /var/www/christoflorenz.de/
 git pull origin main
-# Kein Build-Schritt nötig (Vanilla JS, kein Bundler)
+# Kein Build-Schritt nötig
 ```
 
-### Commit & Release Workflow
-
-Claude Code kann direkt per natürlicher Sprache beauftragt werden:
-- `"Mache ein Commit auf GitHub"` → `git add . && git commit -m "..." && git push`
-- `"Erzeuge ein neues Release"` → alle `*.md` Dateien aktualisieren (Changelog, README, Versionsnummer), dann `gh release create`
-
-Git-Credentials sind systemseitig konfiguriert (gh CLI / SSH-Key), kein Token in der CLAUDE.md nötig.
-
-### Kein Build-Prozess
-
-Die App verwendet **Vanilla JS ohne Bundler** (kein Webpack/Vite/npm build).
-Deployment = einfach Dateien auf den Server kopieren bzw. `git pull`.
-Neue Module nur in `index.html` per `<script src="neues-modul.js">` einbinden.
-
-### Umgebungsvariablen / Secrets
-
-- **Cesium Ion Access Token:** Nicht hardcoden – aus einer separaten Config-Datei
-  lesen (z.B. `config.js` die in `.gitignore` steht)
-- **Firebase Config:** Über Firebase SDK Config (kann public sein, aber
-  Firestore Rules korrekt setzen)
-- `.gitignore` sollte enthalten: `config.js`, `*.env`, `node_modules/`
-
-
+### Secrets
+- `config.js` → `.gitignore` (enthält Ion Token, Firebase Config)
+- Firebase Config kann public sein (Firestore Rules schützen)
 
 ---
 
-## Wichtige Hinweise für Claude Code
+## Wichtige Regeln für Claude Code
 
 1. **Nie** bestehende Module umstrukturieren ohne explizite Anweisung
-2. Neue Features immer als separates Modul (`feature-name.js`)
-3. IFC-Properties **nie** direkt parsen – immer über `feature.getProperty()`
-4. Cesium Ion Access Token nicht hardcoden – aus Config/Env lesen
-5. Firebase-Credentials nicht in den Code – aus Firebase SDK Config
-6. Material-Matching muss **sourcen-agnostisch** sein (Revit, Allplan, IFC2x3/4)
-7. GLSL-Shader: Triplanar Mapping bevorzugen (keine UV-Abhängigkeit)
+2. **Nie** `#6EECD8` verwenden — immer `var(--brand-teal)` / `#2ECFB0`
+3. **Nie** Inline-Styles in HTML — CSS-Klassen erstellen
+4. **Nie** Emojis als UI-Icons — Lucide SVG verwenden
+5. **Nie** `scene.pick()` — immer `await scene.pickAsync()`
+6. **Nie** committen ohne `bash qa-check.sh` (0 Errors)
+7. **Immer** neue Features als separates Modul
+8. **Immer** Design Tokens für Spacing/Radius/Shadows
+9. **Immer** Keyboard-Handler mit BUTTON-Tag-Filter
+10. **Immer** `CHANGELOG.md` bei jedem Commit aktualisieren

@@ -1,261 +1,77 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to geobim.app will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-03-18
-
 ### Added
 
-#### Per-Asset Clipping Planes
-- Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders
-- Only one asset can be clipped at a time to avoid conflicts
+#### Third-Person Navigation
+- Third-person mode with Cesium_Man.glb animated character (V key to toggle)
+- Unreal Engine-style controls: character faces movement direction, no backward walking
+- Camera follows via `trackedEntity`, right stick/mouse orbits around character
+- Player Start (T key): click any surface to set spawn point (terrain, rooftops, 3D tiles)
+- Walk animation synced to movement speed, stops on idle
+- Wall collision against 3D Tiles mesh geometry
+- Terrain + 3D tile dual floor clamping (`globe.getHeight` + `pickFromRay`)
 
-#### Construction Sequencing (4D BIM)
-- Animate construction stages via IFC `stage` property (pset_StageInfo)
-- Play/pause timeline with stage slider, auto-play, and speed control
-- Elements without a `stage` property remain always visible
+#### First-Person Improvements
+- Raycast wall collision (6 rays, 3 directions × 2 heights, throttled 10x/sec)
+- Velocity smoothing (lerp acceleration/deceleration for keyboard + gamepad)
+- Unified gamepad + keyboard input pipeline (merged by magnitude)
+- Xbox controller right stick inversion fix
+- Inspection-speed tuning (moveSpeed=0.15, smooth acceleration)
+- Terrain clamping via downward raycast (fixes indoor floor jumping)
+- Wall Collision toggle in settings panel
 
-#### Measurement Store (Firebase)
-- Persist measurements (distance, area, height, vertical, coordinates) in Firestore
-- Reload saved measurements across sessions with color-coded visualization
+#### UI Refresh (15-point roadmap)
+- **Bottom Action Toolbar**: Measure, Visibility, Lighting, Walk, Help (Speckle-style)
+- **Lucide SVG Icons**: 14 toolbar section emojis replaced with consistent SVG icons
+- **Unified Brand Color**: 147 occurrences of legacy `#6EECD8` replaced with `#2ECFB0`
+- **Glassmorphism**: Panel opacity reduced from 0.95 to 0.82 (scene shows through)
+- **Design Token System**: CSS variables for spacing, radius, shadows, input surfaces
+- **Inline Styles Extracted**: ~120 lines from comment dialog → `comments-styles.css`
+- **Loading Skeletons**: Shimmer animation for async loading states
+- **Enhanced Empty States**: Icon + title + contextual hint (was: plain gray text)
+- **Property Panel Redesign**: Search filter + copy-to-clipboard on every value
+- **Contextual Cursors**: Crosshair (measure), Cell (clip), Copy (comment), Pointer (hide)
+- **Panel Transitions**: Slide/fade animations with cubic-bezier easing
+- **Guided Tour / Onboarding**: 6-step spotlight tour, localStorage persistence
+- **Accessibility**: `prefers-reduced-motion`, focus-visible states, Z-index variables
+- **Mobile**: Touch targets ≥ 44px, panels positioned above bottom toolbar
 
-#### NRW LoD2 3D Tiles Layer
-- Toggle NRW LoD2 building models (Open Data, Geobasis NRW) as 3D Tiles layer in Layer Manager
-- Semantic coloring by surface type (roof, wall, ground)
-- Height offset correction (100 m) for DHHN2016 → WGS84 ellipsoid conversion
-- Click handler for NRW feature properties (ALKIS-ID, function, roof type)
-- Auto-disable when leaving 3D mode
+#### CesiumJS 1.139.1 Features
+- HBAO (Horizon-Based Ambient Occlusion) replaces legacy SSAO
+- Dynamic Environment Maps configured per tileset for better reflections
+- AO toggle button in Lighting sidebar section
+- Verified PBR Neutral tone mapping and ES6 Cartesian class compatibility
 
-#### WMTS Improvements
-- Extract TileMatrixLabels from GetCapabilities for correct zoom level mapping
-- KVP request mode to avoid URL-encoding issues with EPSG codes on some servers
-- Automatic tiling scheme selection based on TileMatrixSet CRS (WebMercator vs Geographic)
-- Image format extraction from WMTS layer metadata
+#### Performance
+- `scene.pick()` → `await scene.pickAsync()` migration (6 call sites)
+  Non-blocking GPU readback prevents pipeline stalls during BIM interaction
+- 3D tile floor raycast throttled to 5x/sec (prevents tile flickering)
+- Height smoothing via lerp (eliminates terrain/tile oscillation)
 
-#### Splash Screen v3.0
-- Redesigned tabbed welcome screen (About, Features, Shortcuts tabs)
-- Info grid showing version, engine, license, and stack details
-- Scrollable feature and shortcut lists
+#### Quality Assurance
+- `qa-check.sh`: 10-section automated pre-release check script
+- `QA-CHECKLIST.md`: 18-section, ~80-point manual browser test checklist
 
-#### New Ion Assets
-- Added asset IDs 4538820, 4538744, 4533896 to curated whitelist
+### Fixed
+- Measurement tool click no longer activates first-person mode (BUTTON tag filter)
+- V key conflict between third-person toggle and clipping visualization
+- W/A/C keys blocked in walk mode to prevent WEA/comment/annotation activation
+- ESC/ENTER keyboard handler conflicts resolved with `stopPropagation` + context checks
+- Copy button XSS with special characters in IFC property values
+- Walk button active state no longer cleared by section button clicks
+- Floating panels positioned above bottom toolbar on mobile
+- Status indicator repositioned above bottom toolbar
+- Dead CSS selector `#modernCommentsPanel` → `#floatingCommentsPanel`
+- Dead CSS for removed iTwin integration cleaned up
+- Missing `await` on `_originalClickHandler` in hideFeatures.js async chain
 
 ### Changed
-
-#### Measurement Panel
-- Redesigned as floating, draggable, minimizable panel (replaced inline sidebar panel)
-- Collapsible panel body with minimize button
-
-#### CesiumJS Version
-- Updated from CesiumJS 1.138 to 1.139.1
-
-#### Authentication
-- Improved password reset error messages (user-not-found, invalid-email, too-many-requests)
-- Auth gate now shows login form for anonymous users (not just unauthenticated)
-
-### Fixed
-
-#### Asset Opacity
-- Fixed transparency slider not working for Revit assets (only IFC filter was called)
-- Fixed transparency slider not working for generic assets without IFC/Revit properties
-- Opacity now correctly dispatches to IFC filter, Revit filter, or direct style depending on asset type
-
-#### Point Cloud Stability
-- Added "String literals not supported" shader error recovery — auto-clears styles from non-IFC tilesets
-- Delayed point cloud re-detection for assets that fail initial detection due to tile loading timeout
-
-#### IFC Filter
-- Skip assets without detected IFC properties to avoid shader errors on point cloud tilesets
-
-## [1.4.0] - 2026-03-12
-
-### Added
-
-- BCF 2.1 export from comments with camera transform (ECEF → local IFC coords)
-- WMS, WMTS, and WFS layer support in Layer Manager with GetCapabilities discovery
-- Imagery overlay layers with alpha slider
-- About & Help dialog with tabbed interface (About, Features, Shortcuts, Feedback)
-- Feedback form saving to Firestore collection
-- Geoid terrain integration
-
-## [1.3.0] - 2026-03-09
-
-### Added
-
-#### IoT Live Module — Pegelonline Water Level Monitoring
-- Pegelonline API integration for real-time water level, water temperature, and air temperature
-- Color-coded threshold indicators (green/yellow/red) for water level alerts
-- Standalone CesiumJS billboard markers with auto-refresh (5-minute interval)
-
-#### EGM96 Geoid Module
-- EGM96 geoid undulation lookup for coordinate picker
-- Converts WGS84 ellipsoidal heights to orthometric (above sea level) heights
-- 1-degree resolution geoid grid (`data/egm96-1deg.json`)
-
-#### Authentication
-- "Forgot password?" link with Firebase password reset email flow
-
-#### Asset Management
-- Added asset ID 4510773 to curated Ion whitelist
-
-### Fixed
-
-#### SensorThings — Damage Detection
-- Fixed damage threshold matching failing because property names were translated to English but thresholds only matched German keywords — added English equivalents for all thresholds, explanations, color mappings, sparkline history depths, and priority order
-- Fixed polling fallback (`fetchData`) not checking damage thresholds — damage detection now works in both MQTT and polling modes
-
-## [1.2.0] - 2026-03-06
-
-### Added
-
-#### OGC SensorThings API — Live Bridge Monitoring
-- FROST-Server integration via REST and MQTT over WebSocket (OGC STA v1.1)
-- Real-time observation streaming with auto-reconnect and polling fallback
-- Floating draggable billboard anchored to Cesium Ion 3D Tileset (Asset 4452138)
-- Inline SVG sparkline charts per datastream with configurable history depth
-- Damage event detection with threshold-based anomaly alerts (acceleration, inclination, strain)
-- Animated damage fly-out panel (bottom-center) with sensor explanation and auto-dismiss (180s)
-- In-panel "Damage" trigger button with server-side simulation endpoint (`api/damage-trigger.php`)
-- Red sparkline color override during active damage events, restored on dismiss
-- English translation map for all German sensor/datastream names
-
-### Fixed
-
-#### IFC Filter
-- Fixed IFC and Revit filters conflicting by overwriting each other's tileset styles — each filter now skips assets belonging to the other type
-- Fixed `detectCategoryProperty` always returning `'categoryName'` without verifying the property exists in tile content — now checks actual feature properties
-- Fixed IFC property detection permanently failing after first attempt — now retries on each filter apply until successful
-- Added `className` as default fallback when IFC property detection fails (tiles not yet loaded)
-- Fixed all IFC features hidden when entity types not in the predefined list — now uses `show: true` when all entities are enabled
-- Added IFC property value validation (must start with "Ifc") to prevent false matches on generic properties like `type`
-
-## [1.0.0] - 2026-03-01
-
-### Added
-
-#### Authentication & Configuration
-- Demo mode with auto-applied Cesium Ion token and anonymous Firestore access
-- Optional email/password login via Firebase auth gate overlay
-- External configuration file (`config.js` / `config.example.js`) for Firebase credentials
-- Branded splash screen with "Enter Demo" button
-- Plausible analytics integration (privacy-friendly, no cookies)
-
-#### Asset & Model Management
-- Load 3D Tiles from Cesium Ion via REST API with curated asset whitelist
-- Bentley iTwin iModel integration via share keys and iModel IDs
-- Per-asset visibility toggle, opacity control, and unloading
-- Fly-to-asset camera navigation
-
-#### Layer & Terrain Management
-- Basemap switcher with 6 options (Bing Aerial, Bing Roads, OSM, Google Contour, Google Satellite w/ Labels, None)
-- Terrain provider switching (Cesium World Terrain, World Bathymetry, custom Ion assets)
-- OSM Buildings toggle with auto-disable when Google 3D Tiles active
-- Google Photorealistic 3D Tiles with 3 quality presets (Performance, Balanced, Quality)
-- Globe transparency and distance-based fade controls
-- Underground navigation mode
-
-#### IFC & Revit Filtering
-- IFC entity filter for 31 entity classes with color-coded visualization and OR-logic conditions
-- Auto-detection of IFC property names from tile content with caching
-- Revit category filter for 34+ categories with English/German name mapping
-- Bulk select/deselect all entities or categories
-- Manual IFC property name override per asset
-
-#### Feature Selection & Properties
-- Click-to-select 3D elements with lime green highlight
-- Property display popup grouped by Identification, Geometry, Material, Building Physics, Manufacturer, OSM
-- Silhouette post-processing outline with 6 color options and adjustable strength
-- Click-to-hide mode for individual elements with undo and show-all
-
-#### Measurements
-- Distance measurement (total, horizontal, vertical) with glow line visualization
-- Area measurement with polygon fill and perimeter display
-- Height-over-terrain measurement with WGS84 and terrain elevation
-- Vertical distance measurement between two points
-- Coordinate picking with lat/lon display and copy-to-clipboard
-
-#### Clipping & Section Planes
-- Polygon clipping via right-click drawing with numbered markers and dashed lines
-- Rectangle clipping via 3-point input with live preview
-- Inverse clipping mode (flip inside/outside)
-- Terrain clipping toggle (Buildings Only vs. Buildings + Terrain)
-- Clipping visualization toggle (show/hide polygon fill)
-- Polygon management (remove last, remove by ID, clear all, flip orientation)
-
-#### Annotations & Comments
-- Point comments via right-click with title, text, category, and priority
-- Area annotations via polygon drawing with fill, outline, center label, and area calculation
-- 6 comment categories (General, Architecture, Structure, MEP, Issue, Question)
-- 3 priority levels (Low, Normal, High) with color-coded markers
-- Firestore persistence with CRUD operations and real-time sync across users
-- Comment fly-to, edit, delete (individual and bulk), and visibility toggle
-- Auto-positioned comment dialog modal
-
-#### Z-Offset (Vertical Positioning)
-- Per-asset vertical offset slider (-70m to +70m) relative to original position
-- Global Z-offset via Shift+PageUp/Down (1m increments for all visible assets)
-
-#### Saved Views
-- Save camera position, orientation, Google Tiles state, and clipping state
-- Load saved views with automatic scene state restoration (keys 1–9 for quick load)
-- Delete saved views by slot number
-- View list UI with slot number, capture time, and altitude
-
-#### Split-Screen View
-- Left/right viewport split for before/after comparison
-- Automatic left copy of Google 3D Tiles for side-by-side viewing
-- Draggable slider to adjust split position
-
-#### Lighting & Rendering
-- Dynamic sun-based lighting with globe lighting, atmosphere, and time-of-day control
-- 8 time presets (Dawn, Morning, Noon, Afternoon, Sunset, Dusk, Night, Midnight)
-- Time animation with adjustable speed multiplier
-- Shadow system with soft shadows, normal offset, configurable max distance (150m–500m) and bias per preset
-- Adjustable shadow darkness and sun intensity (prevents overexposure on white BIM surfaces)
-- Image-Based Lighting in dynamic mode (environmentMapManager + spherical harmonics) and static mode (Kiara 6 Afternoon KTX2 cubemap)
-- Independent IBL diffuse and specular sliders
-- Screen-space ambient occlusion (SSAO) optimized for BIM geometry
-- PBR Neutral tone mapping
-- FXAA and MSAA anti-aliasing options
-- HDR rendering toggle
-
-#### Point Cloud Support
-- Auto-detection of point cloud tilesets by tile URI, Ion metadata, or IFC property absence
-- Eye Dome Lighting (EDL) with adjustable strength and radius
-- 4 color modes (RGB, Height gradient, Intensity, ASPRS Classification)
-- Point size, distance attenuation, geometric error scale, and back-face culling controls
-- 3 rendering presets (Quality, Performance, Detailed)
-
-#### Performance Management
-- 4 performance presets (Performance, Balanced, Quality, Ultra) controlling SSAO, shadows, LOD, memory, and anti-aliasing
-- Tileset-level settings applied per primitive (screenSpaceError, cacheSize, skipLevelOfDetail, preloading)
-- Google 3D Tiles protection (skipLevelOfDetail forced false to prevent black crack artifacts)
-- Automatic performance preset application to newly loaded tilesets
-
-#### User Interface
-- Collapsible sidebar with 12 sections (Assets, Layer Manager, Point Cloud, Measure & Clip, Comments, Visibility, IFC Filter, Revit Filter, Split View, Saved Views, Lighting, Settings)
-- Per-asset control cards with visibility, zoom, opacity slider, z-offset slider, and unload button
-- Floating status notifications with auto-dismiss
-- Mode indicator overlays for Drawing, Hide, and Comment modes
-- User badge with email display and logout button
-
-#### Keyboard Shortcuts
-- M (toggle sidebar), H (hide mode), Shift+H (show all hidden)
-- C (point comment), A (area annotation)
-- P (polygon clipping), R (rectangle clipping), ENTER (finish), ESC (cancel), DELETE (remove last polygon)
-- F (flip polygon orientation), V (toggle clipping visualization)
-- 1–9 (load saved views)
-- Shift+PageUp/Down (global Z-offset)
-
-#### Localization
-- German/English Revit category auto-translation (34+ mappings)
-
-#### Error Handling
-- CesiumJS render error handler with logging and recovery
-- Background tileset monitor for applying lighting and performance settings to new primitives
-- Graceful fallback to OSM imagery when Ion imagery fails
+- CLAUDE.md completely rewritten with current architecture, conventions, and rules
+- Sidebar reorganized: action tools moved to bottom toolbar, data tools remain
+- Comment dialog: all inline styles extracted to CSS classes (`cd-*` namespace)
