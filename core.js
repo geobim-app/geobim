@@ -518,14 +518,16 @@ const BimViewer = {
 
       scene.postProcessStages.tonemapper = Cesium.Tonemapper.PBR_NEUTRAL;
 
-      // Pre-load SSAO with optimized BIM defaults (Quality preset values)
+      // HBAO — Horizon-Based Ambient Occlusion (CesiumJS 1.124+)
+      // Replaces legacy SSAO with physically-based AO that scales with camera distance.
       const ao = scene.postProcessStages.ambientOcclusion;
       if (ao) {
-        ao.uniforms.intensity = 8.8;
-        ao.uniforms.bias = 0.26;
-        ao.uniforms.lengthCap = 0.07;
+        ao.uniforms.intensity = 3.0;
+        ao.uniforms.bias = 0.1;
+        ao.uniforms.lengthCap = 0.26;
+        ao.uniforms.stepSize = 1.95;
+        // Legacy SSAO params (kept as fallback, HBAO ignores them)
         ao.uniforms.directions = 16;
-        ao.uniforms.stepSize = 2.0;
         ao.uniforms.frustumLength = 1000.0;
         ao.uniforms.blurStepSize = 0.86;
       }
@@ -579,6 +581,18 @@ const BimViewer = {
       if (typeof this.initIBL === 'function') {
         this.initIBL();
       }
+
+      // Dynamic Environment Maps — tune for BIM (CesiumJS 1.125+)
+      // Improves specular reflections on steel, glass, and polished surfaces.
+      this.configureDynamicEnvMaps = function(tileset) {
+        if (tileset && tileset.environmentMapManager) {
+          var em = tileset.environmentMapManager;
+          em.enabled = true;
+          em.atmosphereScatteringIntensity = 2.5;  // slightly brighter than default
+          em.brightness = 1.0;
+          em.saturation = 1.0;
+        }
+      };
 
       // Set initial performance settings reference (PERFORMANCE preset is default)
       this._currentPerformanceSettings = CONFIG.performance.presets.PERFORMANCE;
@@ -939,6 +953,9 @@ const BimViewer = {
 
       this.viewer.scene.primitives.add(tileset);
       this.enableTilesetLighting(tileset);
+      if (typeof this.configureDynamicEnvMaps === 'function') {
+        this.configureDynamicEnvMaps(tileset);
+      }
 
       // Apply current performance preset to newly loaded tileset
       if (this._currentPerformanceSettings) {

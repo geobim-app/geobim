@@ -955,10 +955,23 @@ const BimViewerUI = {
             <span>Enable Shadows</span>
           </button>
         </div>
+
+        <div class="modern-group">
+          <div class="modern-label">Ambient Occlusion (HBAO)</div>
+          <button id="toggleAOBtn" class="modern-toggle-btn" onclick="
+            var ao = BimViewer.viewer.scene.postProcessStages.ambientOcclusion;
+            ao.enabled = !ao.enabled;
+            this.classList.toggle('active');
+            this.querySelector('span:last-child').textContent = ao.enabled ? 'AO Enabled' : 'Enable AO';
+          ">
+            <span class="modern-btn-icon">🔲</span>
+            <span>Enable AO</span>
+          </button>
+        </div>
       </div>
 
       <div class="modern-hint">
-        <strong>💡 Tip:</strong> Enable lighting to see realistic sun position and shadows based on time of day.
+        <strong>💡 Tip:</strong> Enable lighting for realistic sun + shadows. AO adds depth to building interiors.
       </div>
     `;
   },
