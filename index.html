@@ -114,127 +114,96 @@
     Status updates will appear here
   </div>
 
-  <!-- Comment Dialog -->
-  <div id="commentDialog" style="position: fixed; display: none; background: rgba(26, 32, 44, 0.98); backdrop-filter: blur(10px); border-radius: 16px; color: white; z-index: 250; box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08); min-width: 380px; max-width: 420px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden;">
-    <div id="commentDialogHeader" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.08); cursor: grab; user-select: none;">
-      <h4 style="margin: 0; color: #6EECD8; font-size: 16px; font-weight: 700;" id="commentDialogTitle">New Comment</h4>
-      <button onclick="BimViewer.closeCommentDialog()" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 4px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-size: 14px; cursor: pointer;">✕</button>
+  <!-- Comment Dialog (styles in comments-styles.css) -->
+  <div id="commentDialog">
+    <div id="commentDialogHeader">
+      <h4 id="commentDialogTitle">New Comment</h4>
+      <button class="cd-close-btn" onclick="BimViewer.closeCommentDialog()">✕</button>
     </div>
-    <div style="padding: 20px;">
+    <div class="cd-body">
 
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Title *</label>
-      <input type="text" id="commentTitleInput" placeholder="Comment title..." style="width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; box-sizing: border-box; font-size: 14px; transition: all 0.2s ease;">
-    </div>
-
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Comment</label>
-      <textarea id="commentTextInput" placeholder="Your comment..." style="width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; min-height: 120px; resize: vertical; box-sizing: border-box; font-size: 14px; font-family: inherit; transition: all 0.2s ease;"></textarea>
+    <div class="cd-field">
+      <label class="cd-label">Title *</label>
+      <input type="text" id="commentTitleInput" class="cd-input" placeholder="Comment title...">
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+    <div class="cd-field">
+      <label class="cd-label">Comment</label>
+      <textarea id="commentTextInput" class="cd-textarea" placeholder="Your comment..."></textarea>
+    </div>
+
+    <div class="cd-grid">
       <div>
-        <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Category</label>
-        <select id="commentCategory" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #1a202c; color: white; box-sizing: border-box; font-size: 14px;">
-          <option value="General" style="background: #1a202c; color: white;">📋 General</option>
-          <option value="Architecture" style="background: #1a202c; color: white;">🏛️ Architecture</option>
-          <option value="Structure" style="background: #1a202c; color: white;">🗿 Structure</option>
-          <option value="MEP" style="background: #1a202c; color: white;">⚡ MEP</option>
-          <option value="Issue" style="background: #1a202c; color: white;">⚠️ Issue</option>
-          <option value="Question" style="background: #1a202c; color: white;">❓ Question</option>
+        <label class="cd-label">Category</label>
+        <select id="commentCategory" class="cd-select">
+          <option value="General">General</option>
+          <option value="Architecture">Architecture</option>
+          <option value="Structure">Structure</option>
+          <option value="MEP">MEP</option>
+          <option value="Issue">Issue</option>
+          <option value="Question">Question</option>
         </select>
       </div>
 
       <div>
-        <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Priority</label>
-        <select id="commentPriority" style="width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #1a202c; color: white; box-sizing: border-box; font-size: 14px;">
-          <option value="Low" style="background: #1a202c; color: white;">⚪ Low</option>
-          <option value="Normal" selected style="background: #1a202c; color: white;">🔵 Normal</option>
-          <option value="High" style="background: #1a202c; color: white;">🔴 High</option>
+        <label class="cd-label">Priority</label>
+        <select id="commentPriority" class="cd-select">
+          <option value="Low">Low</option>
+          <option value="Normal" selected>Normal</option>
+          <option value="High">High</option>
         </select>
       </div>
     </div>
 
-    <div style="margin-bottom: 16px;">
-      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.8);">
-        <input type="checkbox" id="inspectionCheckbox" onchange="document.getElementById('inspectionFields').style.display = this.checked ? 'block' : 'none'" style="width: 16px; height: 16px; accent-color: #FBBF24; cursor: pointer;">
+    <div class="cd-field">
+      <label class="cd-checkbox-label">
+        <input type="checkbox" id="inspectionCheckbox" class="cd-checkbox" onchange="document.getElementById('inspectionFields').style.display = this.checked ? 'block' : 'none'">
         Inspection comment
       </label>
     </div>
 
-    <div id="inspectionFields" style="display: none; margin-bottom: 16px; border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 14px; background: rgba(251,191,36,0.05);">
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+    <div id="inspectionFields" class="cd-inspection-fields">
+      <div class="cd-grid-3">
         <div>
-          <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 4px; font-weight: 600;">Condition</label>
-          <select id="inspectionRating" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: #1a202c; color: white; font-size: 13px;">
-            <option value="1" style="background: #1a202c;">1 - Good</option>
-            <option value="2" style="background: #1a202c;">2 - Fair</option>
-            <option value="3" style="background: #1a202c;">3 - Poor</option>
-            <option value="4" style="background: #1a202c;">4 - Critical</option>
+          <label class="cd-label-sm">Condition</label>
+          <select id="inspectionRating" class="cd-select-sm">
+            <option value="1">1 - Good</option>
+            <option value="2">2 - Fair</option>
+            <option value="3">3 - Poor</option>
+            <option value="4">4 - Critical</option>
           </select>
         </div>
         <div>
-          <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 4px; font-weight: 600;">Component</label>
-          <select id="inspectionComponent" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: #1a202c; color: white; font-size: 13px;">
-            <option value="superstructure" style="background: #1a202c;">Superstructure</option>
-            <option value="substructure" style="background: #1a202c;">Substructure</option>
-            <option value="bearings" style="background: #1a202c;">Bearings</option>
-            <option value="joints" style="background: #1a202c;">Joints</option>
-            <option value="drainage" style="background: #1a202c;">Drainage</option>
-            <option value="equipment" style="background: #1a202c;">Equipment</option>
+          <label class="cd-label-sm">Component</label>
+          <select id="inspectionComponent" class="cd-select-sm">
+            <option value="superstructure">Superstructure</option>
+            <option value="substructure">Substructure</option>
+            <option value="bearings">Bearings</option>
+            <option value="joints">Joints</option>
+            <option value="drainage">Drainage</option>
+            <option value="equipment">Equipment</option>
           </select>
         </div>
         <div>
-          <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 4px; font-weight: 600;">Damage</label>
-          <select id="inspectionDamageType" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: #1a202c; color: white; font-size: 13px;">
-            <option value="crack" style="background: #1a202c;">Crack</option>
-            <option value="spalling" style="background: #1a202c;">Spalling</option>
-            <option value="corrosion" style="background: #1a202c;">Corrosion</option>
-            <option value="deformation" style="background: #1a202c;">Deformation</option>
-            <option value="leakage" style="background: #1a202c;">Leakage</option>
-            <option value="other" style="background: #1a202c;">Other</option>
+          <label class="cd-label-sm">Damage</label>
+          <select id="inspectionDamageType" class="cd-select-sm">
+            <option value="crack">Crack</option>
+            <option value="spalling">Spalling</option>
+            <option value="corrosion">Corrosion</option>
+            <option value="deformation">Deformation</option>
+            <option value="leakage">Leakage</option>
+            <option value="other">Other</option>
           </select>
         </div>
       </div>
     </div>
 
-    <div style="display: flex; gap: 12px;">
-      <button onclick="BimViewer.closeCommentDialog()" style="flex: 1; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s ease;">
-        Cancel
-      </button>
-      <button onclick="BimViewer.saveCommentFromDialog()" style="flex: 1; background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%); color: #0E1117; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(110, 236, 216, 0.3); transition: all 0.2s ease;">
-        Save Comment
-      </button>
+    <div class="cd-buttons">
+      <button class="cd-btn-cancel" onclick="BimViewer.closeCommentDialog()">Cancel</button>
+      <button class="cd-btn-save" onclick="BimViewer.saveCommentFromDialog()">Save Comment</button>
     </div>
     </div>
   </div>
-
-  <style>
-    #commentDialog input:focus,
-    #commentDialog textarea:focus,
-    #commentDialog select:focus {
-      outline: none;
-      border-color: #6EECD8;
-      box-shadow: 0 0 0 3px rgba(110, 236, 216, 0.1);
-      background: rgba(255,255,255,0.08);
-    }
-
-    #commentDialog button:hover {
-      transform: translateY(-1px);
-    }
-
-    #commentDialog button:active {
-      transform: translateY(0);
-    }
-
-    #commentDialog button:last-child:hover {
-      box-shadow: 0 6px 16px rgba(110, 236, 216, 0.4);
-    }
-
-    #commentDialogHeader:active {
-      cursor: grabbing;
-    }
-  </style>
 
   <!-- ============================================
        JAVASCRIPT MODULES - LOAD ORDER IS CRITICAL!
