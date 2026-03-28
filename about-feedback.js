@@ -80,6 +80,9 @@
               </div>
             </div>
             <p class="about-copyright">© 2026 Christof Lorenz. All rights reserved.</p>
+            <button class="about-tour-btn" onclick="BimViewer.closeAboutDialog();setTimeout(function(){BimTour.start()},300);">
+              Take a guided tour
+            </button>
           </div>
 
           <!-- FEATURES TAB -->

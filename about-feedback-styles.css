@@ -400,3 +400,24 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Guided Tour button */
+.about-tour-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: rgba(var(--brand-teal-rgb, 46, 207, 176), 0.1);
+  border: 1px solid rgba(var(--brand-teal-rgb, 46, 207, 176), 0.3);
+  border-radius: var(--radius-md, 8px);
+  color: var(--brand-teal, #2ECFB0);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.about-tour-btn:hover {
+  background: rgba(var(--brand-teal-rgb, 46, 207, 176), 0.2);
+  border-color: var(--brand-teal, #2ECFB0);
+}
