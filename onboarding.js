@@ -34,7 +34,7 @@
       position: 'top'
     },
     {
-      target: '[data-section="drawing"]',
+      target: '.bottom-toolbar-btn[data-section="drawing"]',
       title: 'Measure & Clip',
       text: 'Measure distances, areas, and heights. Draw clipping polygons to section through buildings.',
       position: 'top'

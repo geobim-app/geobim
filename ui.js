@@ -129,8 +129,8 @@ const BimViewerUI = {
         const sectionId = btn.getAttribute('data-section');
         const isActive = btn.classList.contains('active');
 
-        // Deactivate all bottom buttons
-        bar.querySelectorAll('.bottom-toolbar-btn').forEach(b => b.classList.remove('active'));
+        // Deactivate section buttons (not Walk — it has independent state)
+        bar.querySelectorAll('.bottom-toolbar-btn[data-section]').forEach(b => b.classList.remove('active'));
 
         if (!isActive) {
           btn.classList.add('active');

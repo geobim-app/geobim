@@ -251,6 +251,12 @@ body {
     right: 10px;
     transform: none;
     justify-content: center;
+    bottom: 6px;
+  }
+  .bottom-toolbar-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
   }
   .bottom-toolbar-label {
     display: none;
@@ -1151,7 +1157,7 @@ body {
    =============================== */
 .status-indicator {
   position: fixed;
-  bottom: 20px;
+  bottom: 76px;
   right: 20px;
   background: var(--bg-overlay);
   backdrop-filter: blur(10px);
@@ -1918,14 +1924,14 @@ body {
   #floatingCommentsPanel {
     width: calc(100vw - 20px);
     right: 10px;
-    bottom: 10px;
+    bottom: 68px; /* above bottom toolbar */
     max-height: 300px;
   }
 
   #floatingAssetsPanel {
     width: calc(100vw - 20px);
     left: 10px;
-    bottom: 10px;
+    bottom: 68px; /* above bottom toolbar */
     max-height: 350px;
   }
 
@@ -1987,7 +1993,7 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
    ME4: PANEL TRANSITIONS
    =============================== */
 #infoBoxPanel,
-#modernCommentsPanel,
+#floatingCommentsPanel,
 #floatingAssetsPanel,
 #weaShadowPanel {
   transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
@@ -2005,11 +2011,11 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
 }
 
 /* Comments panel slides up */
-#modernCommentsPanel {
+#floatingCommentsPanel {
   transform: translateY(20px);
   opacity: 0;
 }
-#modernCommentsPanel.visible {
+#floatingCommentsPanel.visible {
   transform: translateY(0);
   opacity: 1;
 }
