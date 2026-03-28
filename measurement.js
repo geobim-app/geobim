@@ -67,7 +67,7 @@
     panel.style.cssText =
       'position: fixed; bottom: 60px; right: 20px; z-index: 200; display: none;' +
       'width: 320px; max-height: 80vh;' +
-      'background: rgba(14, 17, 23, 0.92); backdrop-filter: blur(12px);' +
+      'background: rgba(14, 17, 23, 0.82); backdrop-filter: blur(12px);' +
       'border-radius: 12px;' +
       'box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);' +
       'color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;' +
@@ -88,7 +88,7 @@
 
         // Tool buttons
         '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">' +
-          '<button onclick="BimViewer.startDistanceMeasurement()" class="ms-tool-btn" style="background: linear-gradient(135deg, #6EECD8, #3DB8A0);">' +
+          '<button onclick="BimViewer.startDistanceMeasurement()" class="ms-tool-btn" style="background: linear-gradient(135deg, #2ECFB0, #3DB8A0);">' +
             '<span>📏</span><span>Distance</span></button>' +
           '<button onclick="BimViewer.startAreaMeasurement()" class="ms-tool-btn" style="background: linear-gradient(135deg, #11998e, #38ef7d);">' +
             '<span>⬛</span><span>Area</span></button>' +
@@ -145,7 +145,7 @@
     this.measurement.positions = [];
 
     this.updateStatus('LEFT-CLICK first point', 'loading');
-    this.updateMeasurementResult('<span style="color: #6EECD8;">📏 Click first point...</span>');
+    this.updateMeasurementResult('<span style="color: #2ECFB0;">📏 Click first point...</span>');
 
     const self = this;
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
@@ -165,7 +165,7 @@
       this.addPointMarker(cartesian, Cesium.Color.YELLOW);
 
       if (this.measurement.positions.length === 1) {
-        this.updateMeasurementResult('<span style="color: #6EECD8;">📏 Click second point...</span>');
+        this.updateMeasurementResult('<span style="color: #2ECFB0;">📏 Click second point...</span>');
       } else if (this.measurement.positions.length === 2) {
         this.completeDistanceMeasurement();
       }

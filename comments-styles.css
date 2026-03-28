@@ -4,8 +4,8 @@
 
 /* Comment Mode Indicator */
 #commentModeIndicator {
-  background: rgba(110, 236, 216, 0.95);
-  border-color: var(--brand-teal, #6EECD8);
+  background: rgba(46, 207, 176, 0.95);
+  border-color: var(--brand-teal, #2ECFB0);
 }
 
 #commentModeIndicator.active {
@@ -14,20 +14,20 @@
 
 /* Comment Section in Toolbar */
 .comments-section {
-  background: rgba(110, 236, 216, 0.1);
-  border: 2px solid var(--brand-teal, #6EECD8);
+  background: rgba(46, 207, 176, 0.1);
+  border: 2px solid var(--brand-teal, #2ECFB0);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 15px;
 }
 
 .comments-section-title {
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
   font-size: 1em;
   font-weight: bold;
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(110, 236, 216, 0.3);
+  border-bottom: 1px solid rgba(46, 207, 176, 0.3);
 }
 
 /* Comment Controls */
@@ -63,7 +63,7 @@
 }
 
 #toggleCommentMode {
-  background: var(--brand-teal, #6EECD8);
+  background: var(--brand-teal, #2ECFB0);
   color: var(--bg-base, #0E1117);
   font-weight: bold;
 }
@@ -76,10 +76,10 @@
 
 @keyframes commentPulse {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(110, 236, 216, 0.5);
+    box-shadow: 0 0 10px rgba(46, 207, 176, 0.5);
   }
   50% {
-    box-shadow: 0 0 20px rgba(110, 236, 216, 0.8), 0 0 30px rgba(110, 236, 216, 0.4);
+    box-shadow: 0 0 20px rgba(46, 207, 176, 0.8), 0 0 30px rgba(46, 207, 176, 0.4);
   }
 }
 
@@ -118,12 +118,12 @@
 }
 
 #commentsList::-webkit-scrollbar-thumb {
-  background: rgba(110, 236, 216, 0.5);
+  background: rgba(46, 207, 176, 0.5);
   border-radius: 3px;
 }
 
 #commentsList::-webkit-scrollbar-thumb:hover {
-  background: rgba(110, 236, 216, 0.8);
+  background: rgba(46, 207, 176, 0.8);
 }
 
 /* Individual Comment Item in List */
@@ -133,7 +133,7 @@
   padding: 10px;
   margin-bottom: 8px;
   cursor: pointer;
-  border-left: 3px solid var(--brand-teal, #6EECD8);
+  border-left: 3px solid var(--brand-teal, #2ECFB0);
   transition: all 0.2s ease;
 }
 
@@ -151,7 +151,7 @@
 
 .comment-list-title {
   font-weight: bold;
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
   font-size: 13px;
   flex: 1;
 }
@@ -219,14 +219,14 @@
 #commentDialog textarea:focus,
 #commentDialog select:focus {
   outline: none;
-  border-color: var(--brand-teal, #6EECD8);
-  box-shadow: 0 0 0 2px rgba(110, 236, 216, 0.2);
+  border-color: var(--brand-teal, #2ECFB0);
+  box-shadow: 0 0 0 2px rgba(46, 207, 176, 0.2);
 }
 
 /* Comment Info Box */
 .comment-info {
-  background: rgba(110, 236, 216, 0.1);
-  border-left: 3px solid var(--brand-teal, #6EECD8);
+  background: rgba(46, 207, 176, 0.1);
+  border-left: 3px solid var(--brand-teal, #2ECFB0);
   padding: 10px;
   border-radius: 4px;
   margin-top: 10px;
@@ -235,7 +235,7 @@
 }
 
 .comment-info strong {
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
 }
 
 /* Modern InfoBox Styles for Comments */
@@ -247,13 +247,13 @@
 }
 
 .modern-infobox h3 {
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
   font-size: 18px;
   margin: 0;
   font-weight: 600;
   padding: 15px;
-  background: rgba(110, 236, 216, 0.1);
-  border-bottom: 2px solid rgba(110, 236, 216, 0.3);
+  background: rgba(46, 207, 176, 0.1);
+  border-bottom: 2px solid rgba(46, 207, 176, 0.3);
 }
 
 /* Priority Indicators */
@@ -262,7 +262,7 @@
 }
 
 .priority-normal {
-  border-left-color: var(--brand-teal, #6EECD8) !important;
+  border-left-color: var(--brand-teal, #2ECFB0) !important;
 }
 
 .priority-low {
@@ -331,9 +331,9 @@
 }
 
 .comment-filter-btn.active {
-  background: var(--brand-teal, #6EECD8);
+  background: var(--brand-teal, #2ECFB0);
   color: var(--bg-base, #0E1117);
-  border-color: var(--brand-teal, #6EECD8);
+  border-color: var(--brand-teal, #2ECFB0);
 }
 
 /* Empty State */
@@ -354,7 +354,7 @@
 .comments-loading {
   text-align: center;
   padding: 20px;
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
 }
 
 .comments-loading::after {

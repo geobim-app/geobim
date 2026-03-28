@@ -33,8 +33,8 @@
 }
 
 .layer-radio-item.active {
-  background: rgba(110, 236, 216, 0.15);
-  color: var(--brand-teal, #6EECD8);
+  background: rgba(46, 207, 176, 0.15);
+  color: var(--brand-teal, #2ECFB0);
   font-weight: 600;
 }
 
@@ -52,7 +52,7 @@
 }
 
 .layer-radio-item input[type="radio"]:checked {
-  border-color: var(--brand-teal, #6EECD8);
+  border-color: var(--brand-teal, #2ECFB0);
 }
 
 .layer-radio-item input[type="radio"]:checked::after {
@@ -63,7 +63,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--brand-teal, #6EECD8);
+  background: var(--brand-teal, #2ECFB0);
 }
 
 .layer-radio-label {
@@ -181,7 +181,7 @@
 }
 
 .layer-toggle-btn.active {
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
 }
 
 .layer-remove-btn:hover {

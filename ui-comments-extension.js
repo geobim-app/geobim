@@ -122,10 +122,10 @@
     }
 
     .modern-btn-icon-only.active {
-      background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
+      background: linear-gradient(135deg, var(--brand-teal, #2ECFB0) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
       color: var(--bg-base, #0E1117) !important;
-      border-color: var(--brand-teal, #6EECD8) !important;
-      box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
+      border-color: var(--brand-teal, #2ECFB0) !important;
+      box-shadow: 0 4px 12px rgba(46, 207, 176, 0.4) !important;
       transform: translateY(-1px);
     }
 
@@ -149,10 +149,10 @@
     }
 
     .modern-btn-small.active {
-      background: linear-gradient(135deg, var(--brand-teal, #6EECD8) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
+      background: linear-gradient(135deg, var(--brand-teal, #2ECFB0) 0%, var(--brand-teal-dark, #3DB8A0) 100%) !important;
       color: var(--bg-base, #0E1117) !important;
-      border-color: var(--brand-teal, #6EECD8) !important;
-      box-shadow: 0 4px 12px rgba(110, 236, 216, 0.4) !important;
+      border-color: var(--brand-teal, #2ECFB0) !important;
+      box-shadow: 0 4px 12px rgba(46, 207, 176, 0.4) !important;
       transform: translateY(-1px);
     }
 
@@ -181,7 +181,7 @@
     /* Modern Comment List Item */
     .modern-comment-item {
       background: rgba(255, 255, 255, 0.05);
-      border-left: 3px solid #6EECD8;
+      border-left: 3px solid #2ECFB0;
       border-radius: 8px;
       padding: 12px;
       margin-bottom: 8px;
@@ -199,7 +199,7 @@
     }
 
     .modern-comment-item.priority-normal {
-      border-left-color: #6EECD8;
+      border-left-color: #2ECFB0;
     }
     
     .modern-comment-item.priority-low {
@@ -266,7 +266,7 @@
     }
     
     .modern-comment-btn.edit-btn:hover {
-      background: #6EECD8;
+      background: #2ECFB0;
     }
     
     .modern-comment-btn.delete-btn:hover {
@@ -297,7 +297,7 @@
     }
     
     .modern-comment-type {
-      background: rgba(110, 236, 216, 0.3);
+      background: rgba(46, 207, 176, 0.3);
       padding: 2px 6px;
       border-radius: 3px;
       font-weight: 600;
@@ -322,8 +322,8 @@
     }
     
     .modern-comment-priority.normal {
-      background: rgba(110, 236, 216, 0.2);
-      color: #6EECD8;
+      background: rgba(46, 207, 176, 0.2);
+      color: #2ECFB0;
     }
     
     .modern-comment-priority.low {
@@ -403,8 +403,8 @@
     
     /* Enhanced hints section */
     .modern-hint {
-      background: rgba(110, 236, 216, 0.1);
-      border-left: 3px solid #6EECD8;
+      background: rgba(46, 207, 176, 0.1);
+      border-left: 3px solid #2ECFB0;
       padding: 10px;
       border-radius: 6px;
       font-size: 11px;

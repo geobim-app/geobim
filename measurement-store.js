@@ -316,7 +316,7 @@
     btn.innerHTML = '💾 Save Measurement';
     btn.style.cssText =
       'display: block; width: 100%; margin-top: 10px; padding: 8px 12px;' +
-      'background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%);' +
+      'background: linear-gradient(135deg, #2ECFB0 0%, #3DB8A0 100%);' +
       'border: none; border-radius: 6px; color: #0E1117; font-size: 12px;' +
       'font-weight: 600; cursor: pointer; transition: transform 0.15s;';
     btn.onmouseenter = function() { this.style.transform = 'translateY(-1px)'; };
@@ -709,7 +709,7 @@
     measurements.forEach(m => {
       const icon = TYPE_ICONS[m.type] || '📐';
       const typeLabel = TYPE_LABELS[m.type] || m.type;
-      const accent = TYPE_ACCENT[m.type] || '#6EECD8';
+      const accent = TYPE_ACCENT[m.type] || '#2ECFB0';
       const date = m.timestamp ? new Date(m.timestamp).toLocaleDateString() : '';
 
       html +=

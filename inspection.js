@@ -36,7 +36,7 @@
   // =====================================
 
   var CONDITION_COLORS = {
-    1: '#6EECD8', // Good — default teal
+    1: '#2ECFB0', // Good — default teal
     2: '#FBBF24', // Fair — yellow
     3: '#e74c3c', // Poor — red
     4: '#e74c3c'  // Critical — red
@@ -111,7 +111,7 @@
 
     BimViewer.addCommentEntity = function(comment) {
       if (comment.inspectionMode && comment.conditionRating) {
-        var color = CONDITION_COLORS[comment.conditionRating] || '#6EECD8';
+        var color = CONDITION_COLORS[comment.conditionRating] || '#2ECFB0';
         createInspectionEntity(comment, color);
         return;
       }
@@ -309,11 +309,11 @@
     var html = '';
     html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">';
     html += '<div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; text-align: center;">';
-    html += '<div style="font-size: 20px; font-weight: 700; color: #6EECD8;">' + totalCount + '</div>';
+    html += '<div style="font-size: 20px; font-weight: 700; color: #2ECFB0;">' + totalCount + '</div>';
     html += '<div style="font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase;">Findings</div>';
     html += '</div>';
     html += '<div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; text-align: center;">';
-    html += '<div style="font-size: 20px; font-weight: 700; color: ' + (parseFloat(avgRating) >= 3 ? '#e74c3c' : parseFloat(avgRating) >= 2 ? '#FBBF24' : '#6EECD8') + ';">' + avgRating + '</div>';
+    html += '<div style="font-size: 20px; font-weight: 700; color: ' + (parseFloat(avgRating) >= 3 ? '#e74c3c' : parseFloat(avgRating) >= 2 ? '#FBBF24' : '#2ECFB0') + ';">' + avgRating + '</div>';
     html += '<div style="font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase;">Avg Rating</div>';
     html += '</div>';
     html += '</div>';
@@ -334,7 +334,7 @@
       components.forEach(function(comp) {
         var data = componentMap[comp];
         var compAvg = (data.sumRating / data.count).toFixed(1);
-        var compColor = parseFloat(compAvg) >= 3 ? '#e74c3c' : parseFloat(compAvg) >= 2 ? '#FBBF24' : '#6EECD8';
+        var compColor = parseFloat(compAvg) >= 3 ? '#e74c3c' : parseFloat(compAvg) >= 2 ? '#FBBF24' : '#2ECFB0';
         html += '<tr style="border-top: 1px solid rgba(255,255,255,0.05);">';
         html += '<td style="padding: 6px 0; color: rgba(255,255,255,0.8);">' + comp + '</td>';
         html += '<td style="text-align: center; color: rgba(255,255,255,0.6);">' + data.count + '</td>';

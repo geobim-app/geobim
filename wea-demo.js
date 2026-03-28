@@ -123,18 +123,18 @@
       '}' +
       '#weaDemoBanner .wea-demo-timer{' +
         'font-family:"SF Mono","Fira Code",monospace;font-size:13px;' +
-        'color:#6EECD8;font-weight:600;min-width:52px;text-align:center;' +
+        'color:#2ECFB0;font-weight:600;min-width:52px;text-align:center;' +
       '}' +
       '#weaDemoBanner .wea-demo-timer.warning{color:#f59e0b;}' +
       '#weaDemoBanner .wea-demo-timer.critical{color:#f87171;animation:wea-blink 1s ease-in-out infinite;}' +
       '@keyframes wea-blink{0%,100%{opacity:1;}50%{opacity:0.5;}}' +
       '#weaDemoBanner .wea-demo-login{' +
-        'color:#6EECD8;text-decoration:none;font-size:12px;font-weight:500;' +
-        'padding:4px 12px;border:1px solid rgba(110,236,216,0.3);border-radius:6px;' +
+        'color:#2ECFB0;text-decoration:none;font-size:12px;font-weight:500;' +
+        'padding:4px 12px;border:1px solid rgba(46,207,176,0.3);border-radius:6px;' +
         'transition:all 0.2s;' +
       '}' +
       '#weaDemoBanner .wea-demo-login:hover{' +
-        'background:rgba(110,236,216,0.1);border-color:rgba(110,236,216,0.5);' +
+        'background:rgba(46,207,176,0.1);border-color:rgba(46,207,176,0.5);' +
       '}' +
       '#weaDemoBanner .wea-demo-hint{' +
         'color:rgba(255,255,255,0.4);font-size:11px;' +
@@ -233,12 +233,12 @@
       '}' +
       '#weaDemoExpired .expired-btn{' +
         'display:inline-block;padding:12px 32px;border:none;border-radius:8px;' +
-        'background:linear-gradient(135deg,#6EECD8 0%,#3DB8A0 100%);' +
+        'background:linear-gradient(135deg,#2ECFB0 0%,#3DB8A0 100%);' +
         'color:#0E1117;font-size:15px;font-weight:700;cursor:pointer;' +
         'text-decoration:none;transition:box-shadow 0.2s,transform 0.2s;' +
       '}' +
       '#weaDemoExpired .expired-btn:hover{' +
-        'box-shadow:0 6px 16px rgba(110,236,216,0.35);transform:translateY(-1px);' +
+        'box-shadow:0 6px 16px rgba(46,207,176,0.35);transform:translateY(-1px);' +
       '}' +
       '#weaDemoExpired .expired-restart{' +
         'display:block;margin-top:16px;color:rgba(255,255,255,0.4);' +

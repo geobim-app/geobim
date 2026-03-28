@@ -623,7 +623,7 @@
               '<div style="color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + l.title + '">' + l.title + '</div>' +
               '<div style="color: rgba(255,255,255,0.4); font-size: 10px;">' + metaInfo + '</div>' +
             '</div>' +
-            '<span style="color: #6EECD8; font-size: 16px; margin-left: 8px; flex-shrink: 0;">+</span>' +
+            '<span style="color: #2ECFB0; font-size: 16px; margin-left: 8px; flex-shrink: 0;">+</span>' +
           '</div>';
         }).join('');
 
@@ -1124,10 +1124,10 @@
       // Load into CesiumJS as GeoJsonDataSource
       var dataSource = await Cesium.GeoJsonDataSource.load(geojson, {
         clampToGround: true,
-        stroke: Cesium.Color.fromCssColorString('#6EECD8'),
+        stroke: Cesium.Color.fromCssColorString('#2ECFB0'),
         strokeWidth: 2,
-        fill: Cesium.Color.fromCssColorString('#6EECD8').withAlpha(0.25),
-        markerColor: Cesium.Color.fromCssColorString('#6EECD8'),
+        fill: Cesium.Color.fromCssColorString('#2ECFB0').withAlpha(0.25),
+        markerColor: Cesium.Color.fromCssColorString('#2ECFB0'),
         markerSize: 24
       });
 
@@ -1362,17 +1362,17 @@
         for (var i = 0; i < entities.length; i++) {
           var ent = entities[i];
           if (ent.polygon) {
-            ent.polygon.material = Cesium.Color.fromCssColorString('#6EECD8').withAlpha(alpha * 0.25);
-            ent.polygon.outlineColor = Cesium.Color.fromCssColorString('#6EECD8').withAlpha(alpha);
+            ent.polygon.material = Cesium.Color.fromCssColorString('#2ECFB0').withAlpha(alpha * 0.25);
+            ent.polygon.outlineColor = Cesium.Color.fromCssColorString('#2ECFB0').withAlpha(alpha);
           }
           if (ent.polyline) {
-            ent.polyline.material = Cesium.Color.fromCssColorString('#6EECD8').withAlpha(alpha);
+            ent.polyline.material = Cesium.Color.fromCssColorString('#2ECFB0').withAlpha(alpha);
           }
           if (ent.billboard) {
             ent.billboard.color = new Cesium.Color(1, 1, 1, alpha);
           }
           if (ent.point) {
-            ent.point.color = Cesium.Color.fromCssColorString('#6EECD8').withAlpha(alpha);
+            ent.point.color = Cesium.Color.fromCssColorString('#2ECFB0').withAlpha(alpha);
           }
         }
       } else if (wms.layer) {

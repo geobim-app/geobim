@@ -9,7 +9,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 200;
-  background: rgba(14, 17, 23, 0.92);
+  background: rgba(14, 17, 23, 0.82);
   backdrop-filter: blur(12px);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -207,9 +207,9 @@
 }
 
 .seq-chip.past {
-  background: rgba(110, 236, 216, 0.1);
-  border-color: rgba(110, 236, 216, 0.2);
-  color: #6EECD8;
+  background: rgba(46, 207, 176, 0.1);
+  border-color: rgba(46, 207, 176, 0.2);
+  color: #2ECFB0;
 }
 
 .seq-chip.current {

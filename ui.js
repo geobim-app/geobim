@@ -36,6 +36,8 @@ const BimViewerUI = {
       this.createModernToolbar();
       this.initEventHandlers();
       this.initCollapseHandlers();
+      // Initialize Lucide SVG icons
+      if (window.lucide) lucide.createIcons();
       console.log('✅ Modern BIM Viewer UI initialized v3.2 (Integrated Z-Offset -70m to +70m)');
     } catch (error) {
       console.error('❌ Failed to initialize UI:', error);
@@ -57,20 +59,20 @@ const BimViewerUI = {
     toolbar.appendChild(this.createHeader());
     
     // Collapsible sections
-    toolbar.appendChild(this.createSection('assets', '📦', 'Assets', this.getAssetsContent()));
-    toolbar.appendChild(this.createSection('layers', '🗺️', 'Layer Manager', this.getLayerManagerContent()));
-    toolbar.appendChild(this.createSection('pointcloud', '☁️', 'Point Cloud Settings', this.getPointCloudContent()));
-    toolbar.appendChild(this.createSection('drawing', '📏', 'Measure & Clip', this.getDrawingContent()));
-    toolbar.appendChild(this.createSection('comments', '💬', 'Annotations', this.getCommentsContent()));
-    toolbar.appendChild(this.createSection('inspection', '🔍', 'Inspection', typeof GEOBIM_INSPECTION !== 'undefined' ? GEOBIM_INSPECTION.getSummaryContent() : ''));
-    toolbar.appendChild(this.createSection('visibility', '👁️', 'Visibility', this.getVisibilityContent()));
-    toolbar.appendChild(this.createSection('ifc', '🏗️', 'IFC Filter', this.getIFCContent()));
-    toolbar.appendChild(this.createSection('revit', '🏢', 'Revit Filter', this.getRevitContent()));
-toolbar.appendChild(this.createSection('split', '↔️', 'Split View', this.getSplitViewContent()));
-toolbar.appendChild(this.createSection('views', '📷', 'Saved Views', this.getViewsContent()));
-    toolbar.appendChild(this.createSection('lighting', '☀️', 'Lighting', this.getLightingContent()));
-    toolbar.appendChild(this.createSection('settings', '⚙️', 'Settings', this.getSettingsContent()));
-    toolbar.appendChild(this.createSection('about', 'ℹ️', 'About & Help', this.getAboutContent()));
+    toolbar.appendChild(this.createSection('assets', '<i data-lucide="box"></i>', 'Assets', this.getAssetsContent()));
+    toolbar.appendChild(this.createSection('layers', '<i data-lucide="layers"></i>', 'Layer Manager', this.getLayerManagerContent()));
+    toolbar.appendChild(this.createSection('pointcloud', '<i data-lucide="cloud"></i>', 'Point Cloud Settings', this.getPointCloudContent()));
+    toolbar.appendChild(this.createSection('drawing', '<i data-lucide="ruler"></i>', 'Measure & Clip', this.getDrawingContent()));
+    toolbar.appendChild(this.createSection('comments', '<i data-lucide="message-square"></i>', 'Annotations', this.getCommentsContent()));
+    toolbar.appendChild(this.createSection('inspection', '<i data-lucide="search"></i>', 'Inspection', typeof GEOBIM_INSPECTION !== 'undefined' ? GEOBIM_INSPECTION.getSummaryContent() : ''));
+    toolbar.appendChild(this.createSection('visibility', '<i data-lucide="eye"></i>', 'Visibility', this.getVisibilityContent()));
+    toolbar.appendChild(this.createSection('ifc', '<i data-lucide="building-2"></i>', 'IFC Filter', this.getIFCContent()));
+    toolbar.appendChild(this.createSection('revit', '<i data-lucide="building"></i>', 'Revit Filter', this.getRevitContent()));
+    toolbar.appendChild(this.createSection('split', '<i data-lucide="columns-2"></i>', 'Split View', this.getSplitViewContent()));
+    toolbar.appendChild(this.createSection('views', '<i data-lucide="camera"></i>', 'Saved Views', this.getViewsContent()));
+    toolbar.appendChild(this.createSection('lighting', '<i data-lucide="sun"></i>', 'Lighting', this.getLightingContent()));
+    toolbar.appendChild(this.createSection('settings', '<i data-lucide="settings"></i>', 'Settings', this.getSettingsContent()));
+    toolbar.appendChild(this.createSection('about', '<i data-lucide="info"></i>', 'About & Help', this.getAboutContent()));
   },
 
   // Create header

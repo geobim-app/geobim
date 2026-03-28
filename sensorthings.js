@@ -38,12 +38,12 @@ window.GEOBIM_SENSORTHINGS = (function() {
     'Acceleration':   { css: '#FF8C00', cesium: Cesium.Color.fromCssColorString('#FF8C00') },
     'Neigung':        { css: '#FF4444', cesium: Cesium.Color.fromCssColorString('#FF4444') },
     'Inclination':    { css: '#FF4444', cesium: Cesium.Color.fromCssColorString('#FF4444') },
-    'Temperatur':     { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') },
-    'Temperature':    { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') },
+    'Temperatur':     { css: '#2ECFB0', cesium: Cesium.Color.fromCssColorString('#2ECFB0') },
+    'Temperature':    { css: '#2ECFB0', cesium: Cesium.Color.fromCssColorString('#2ECFB0') },
     'Dehnung':        { css: '#9B59B6', cesium: Cesium.Color.fromCssColorString('#9B59B6') },
     'Strain':         { css: '#9B59B6', cesium: Cesium.Color.fromCssColorString('#9B59B6') }
   };
-  var DEFAULT_COLOR = { css: '#6EECD8', cesium: Cesium.Color.fromCssColorString('#6EECD8') };
+  var DEFAULT_COLOR = { css: '#2ECFB0', cesium: Cesium.Color.fromCssColorString('#2ECFB0') };
 
   // Property priority for dominant color (first match wins, German + English)
   var PRIORITY_ORDER = ['Beschleunigung', 'Acceleration', 'Neigung', 'Inclination', 'Temperatur', 'Temperature', 'Dehnung', 'Strain'];
@@ -353,11 +353,11 @@ window.GEOBIM_SENSORTHINGS = (function() {
         'z-index: 400;' +
         'width: 480px;' +
         'max-width: 90vw;' +
-        'background: rgba(14,17,23,0.96);' +
-        'border: 1px solid rgba(110,236,216,0.35);' +
-        'border-left: 4px solid #6EECD8;' +
+        'background: rgba(14,17,23,0.85);' +
+        'border: 1px solid rgba(46,207,176,0.35);' +
+        'border-left: 4px solid #2ECFB0;' +
         'border-radius: 12px;' +
-        'box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 20px rgba(110,236,216,0.15);' +
+        'box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,207,176,0.15);' +
         'backdrop-filter: blur(14px);' +
         'color: #e2e8f0;' +
         'font-family: sans-serif;' +
@@ -381,7 +381,7 @@ window.GEOBIM_SENSORTHINGS = (function() {
       '#sta-damage-flyout .damage-close:hover { color: #fff; }' +
       '#sta-damage-flyout .damage-body { padding: 12px 16px; }' +
       '#sta-damage-flyout .damage-sensor {' +
-        'font-size: 13px; color: #6EECD8; font-weight: 600; margin-bottom: 6px;' +
+        'font-size: 13px; color: #2ECFB0; font-weight: 600; margin-bottom: 6px;' +
       '}' +
       '#sta-damage-flyout .damage-value {' +
         'font-size: 24px; font-weight: 700; color: #FF4444; margin-bottom: 8px;' +
@@ -499,7 +499,7 @@ window.GEOBIM_SENSORTHINGS = (function() {
         'right: 20px;' +
         'width: 540px;' +
         'z-index: 250;' +
-        'background: rgba(14,17,23,0.95);' +
+        'background: rgba(14,17,23,0.85);' +
         'border: 1px solid rgba(255,255,255,0.12);' +
         'border-radius: 12px;' +
         'box-shadow: 0 8px 32px rgba(0,0,0,0.4);' +
@@ -995,14 +995,14 @@ window.GEOBIM_SENSORTHINGS = (function() {
         'white-space: nowrap;' +
       '}' +
       '#staToggleBtn:hover {' +
-        'background: rgba(14,17,23,0.95);' +
+        'background: rgba(14,17,23,0.85);' +
         'border-color: rgba(255,255,255,0.4);' +
       '}' +
       '#staToggleBtn.active {' +
-        'background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%);' +
+        'background: linear-gradient(135deg, #2ECFB0 0%, #3DB8A0 100%);' +
         'color: #0E1117;' +
-        'border-color: #6EECD8;' +
-        'box-shadow: 0 4px 12px rgba(110,236,216,0.4);' +
+        'border-color: #2ECFB0;' +
+        'box-shadow: 0 4px 12px rgba(46,207,176,0.4);' +
       '}';
     document.head.appendChild(style);
 

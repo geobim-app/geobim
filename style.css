@@ -19,7 +19,7 @@
   /* Backgrounds */
   --bg-base: #000000;
   --bg-surface: #0D1017;
-  --bg-overlay: rgba(14, 17, 23, 0.95);
+  --bg-overlay: rgba(14, 17, 23, 0.82);
 
   /* Text */
   --text-primary: #E2E8F0;
@@ -249,6 +249,15 @@ body {
 .modern-section-icon {
   font-size: 18px;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  display: flex;
+  align-items: center;
+}
+
+.modern-section-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--brand-teal);
+  stroke-width: 1.75;
 }
 
 .modern-section-toggle {
@@ -1387,7 +1396,7 @@ body {
   right: 20px;
   width: 320px;
   max-height: 420px;
-  background: var(--bg-overlay, rgba(14, 17, 23, 0.92));
+  background: var(--bg-overlay, rgba(14, 17, 23, 0.82));
   backdrop-filter: blur(12px);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -1427,7 +1436,7 @@ body {
 .floating-panel-title {
   font-weight: 600;
   font-size: 13px;
-  color: var(--brand-teal, #6EECD8);
+  color: var(--brand-teal, #2ECFB0);
 }
 
 .floating-panel-controls {
@@ -1574,8 +1583,8 @@ body {
 }
 
 .ms-saved-zoom:hover {
-  background: rgba(110, 236, 216, 0.15);
-  color: #6EECD8;
+  background: rgba(46, 207, 176, 0.15);
+  color: #2ECFB0;
 }
 
 .ms-saved-delete {
@@ -1601,7 +1610,7 @@ body {
   left: 360px;
   width: 340px;
   max-height: 500px;
-  background: var(--bg-overlay, rgba(14, 17, 23, 0.92));
+  background: var(--bg-overlay, rgba(14, 17, 23, 0.82));
   backdrop-filter: blur(12px);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);

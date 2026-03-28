@@ -369,15 +369,15 @@ window.GEOBIM_IOT = (function() {
         'box-shadow: 0 2px 8px rgba(0,0,0,0.3);' +
       '}' +
       '#iotToggleBtn:hover {' +
-        'background: rgba(14,17,23,0.95);' +
+        'background: rgba(14,17,23,0.85);' +
         'border-color: rgba(255,255,255,0.4);' +
         'transform: scale(1.05);' +
       '}' +
       '#iotToggleBtn.active {' +
-        'background: linear-gradient(135deg, #6EECD8 0%, #3DB8A0 100%);' +
+        'background: linear-gradient(135deg, #2ECFB0 0%, #3DB8A0 100%);' +
         'color: #0E1117;' +
-        'border-color: #6EECD8;' +
-        'box-shadow: 0 4px 12px rgba(110,236,216,0.4);' +
+        'border-color: #2ECFB0;' +
+        'box-shadow: 0 4px 12px rgba(46,207,176,0.4);' +
       '}';
     document.head.appendChild(style);
 

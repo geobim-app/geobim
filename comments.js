@@ -418,11 +418,11 @@
   BimViewer.addCommentEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#6EECD8',
+      'Normal': '#2ECFB0',
       'Low': '#95a5a6'
     };
     
-    const color = priorityColors[comment.priority] || '#6EECD8';
+    const color = priorityColors[comment.priority] || '#2ECFB0';
     
     const position = Cesium.Cartesian3.fromDegrees(
       comment.lon,
@@ -499,11 +499,11 @@
   BimViewer.addAreaEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#6EECD8',
+      'Normal': '#2ECFB0',
       'Low': '#95a5a6'
     };
     
-    const color = priorityColors[comment.priority] || '#6EECD8';
+    const color = priorityColors[comment.priority] || '#2ECFB0';
     const cesiumColor = Cesium.Color.fromCssColorString(color);
     
     const OFFSET_HEIGHT = 0.15;
@@ -561,11 +561,11 @@
   BimViewer.addCircleEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#6EECD8',
+      'Normal': '#2ECFB0',
       'Low': '#95a5a6'
     };
 
-    const color = priorityColors[comment.priority] || '#6EECD8';
+    const color = priorityColors[comment.priority] || '#2ECFB0';
     const cesiumColor = Cesium.Color.fromCssColorString(color);
 
     const position = Cesium.Cartesian3.fromDegrees(
@@ -621,11 +621,11 @@
   BimViewer.addPolylineEntity = function(comment) {
     const priorityColors = {
       'High': '#e74c3c',
-      'Normal': '#6EECD8',
+      'Normal': '#2ECFB0',
       'Low': '#95a5a6'
     };
 
-    const color = priorityColors[comment.priority] || '#6EECD8';
+    const color = priorityColors[comment.priority] || '#2ECFB0';
     const cesiumColor = Cesium.Color.fromCssColorString(color);
 
     const OFFSET_HEIGHT = 0.15;
@@ -718,7 +718,7 @@
     
     const priorityBadges = {
       'High': '<span style="background: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔴 HIGH</span>',
-      'Normal': '<span style="background: #6EECD8; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔵 NORMAL</span>',
+      'Normal': '<span style="background: #2ECFB0; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">🔵 NORMAL</span>',
       'Low': '<span style="background: #95a5a6; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold;">⚪ LOW</span>'
     };
     
@@ -738,19 +738,19 @@
     let areaInfo = '';
     if (comment.type === 'area' && comment.areaPoints) {
       areaInfo = `
-        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+        <div style="background: rgba(46, 207, 176, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
           <strong>⬡ Area:</strong> ${comment.areaPoints.length} points
         </div>
       `;
     } else if (comment.type === 'circle' && comment.radius) {
       areaInfo = `
-        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+        <div style="background: rgba(46, 207, 176, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
           <strong>⭕ Circle:</strong> radius ${comment.radius.toFixed(1)} m
         </div>
       `;
     } else if (comment.type === 'polyline' && comment.areaPoints) {
       areaInfo = `
-        <div style="background: rgba(110, 236, 216, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+        <div style="background: rgba(46, 207, 176, 0.2); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
           <strong>〰️ Polyline:</strong> ${comment.areaPoints.length} points
         </div>
       `;
@@ -758,7 +758,7 @@
     
     return `
       <div class="modern-infobox" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0; min-width: 300px;">
-        <h3 style="margin: 0; padding: 15px; background: rgba(110, 236, 216, 0.1); border-bottom: 2px solid rgba(110, 236, 216, 0.3); color: #6EECD8; font-size: 18px;">
+        <h3 style="margin: 0; padding: 15px; background: rgba(46, 207, 176, 0.1); border-bottom: 2px solid rgba(46, 207, 176, 0.3); color: #2ECFB0; font-size: 18px;">
           ${typeEmoji} ${comment.title}
         </h3>
         
@@ -1466,10 +1466,10 @@
           
           const priorityColors = {
             'High': '#e74c3c',
-            'Normal': '#6EECD8',
+            'Normal': '#2ECFB0',
             'Low': '#95a5a6'
           };
-          const color = priorityColors[priority] || '#6EECD8';
+          const color = priorityColors[priority] || '#2ECFB0';
           
           if (updatedComment.type === 'area' && entity.polygon) {
             const cesiumColor = Cesium.Color.fromCssColorString(color);
