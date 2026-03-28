@@ -1480,8 +1480,8 @@
         // Click handler for NRW feature properties
         var nrwTileset = entry.tileset;
         var nrwHandler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
-        nrwHandler.setInputAction(function(movement) {
-          var picked = LayerManager.viewer.scene.pick(movement.position);
+        nrwHandler.setInputAction(async function(movement) {
+          var picked = await LayerManager.viewer.scene.pickAsync(movement.position);
           if (!(picked instanceof Cesium.Cesium3DTileFeature)) return;
           if (picked.tileset !== nrwTileset) return;
 

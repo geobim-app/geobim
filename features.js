@@ -754,11 +754,11 @@
     }
   };
 
-  BimViewer.handleIFCSelection = function(movement) {
+  BimViewer.handleIFCSelection = async function(movement) {
     try {
       // Skip if gizmo is active and handling this click
       if (window.BimGizmo && BimGizmo.gizmo.active) {
-        const gizmoPick = this.viewer.scene.pick(movement.position);
+        const gizmoPick = await this.viewer.scene.pickAsync(movement.position);
         if (gizmoPick) {
           // Gizmo handle or GLB model — let gizmo handle it
           if (gizmoPick.id && gizmoPick.id._gizmoAxis) return;
@@ -782,8 +782,8 @@
         this.selectedFeature = undefined;
       }
 
-      // Pick feature at click position
-      const picked = this.viewer.scene.pick(movement.position);
+      // Pick feature at click position (non-blocking GPU readback)
+      const picked = await this.viewer.scene.pickAsync(movement.position);
 
       if (picked && picked instanceof Cesium.Cesium3DTileFeature) {
         console.log('🎯 Feature picked:', picked);

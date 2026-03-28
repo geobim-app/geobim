@@ -254,12 +254,12 @@
     }
     
     // Replace with our wrapper
-    this.handleIFCSelection = function(movement) {
+    this.handleIFCSelection = async function(movement) {
       // If hide mode is active, hide the clicked feature instead
       if (this.hiddenFeatures.isHideMode) {
         try {
-          const picked = this.viewer.scene.pick(movement.position);
-          
+          const picked = await this.viewer.scene.pickAsync(movement.position);
+
           if (picked && picked instanceof Cesium.Cesium3DTileFeature) {
             this.hideFeature(picked);
           } else {

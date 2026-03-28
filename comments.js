@@ -65,10 +65,10 @@
   // IMPROVED SURFACE PICKING
   // =====================================
   
-  BimViewer.getAccurateSurfacePosition = function(screenPosition) {
+  BimViewer.getAccurateSurfacePosition = async function(screenPosition) {
     const scene = this.viewer.scene;
-    
-    const pickedObject = scene.pick(screenPosition);
+
+    const pickedObject = await scene.pickAsync(screenPosition);
     
     if (Cesium.defined(pickedObject)) {
       const cartesian = scene.pickPosition(screenPosition);
@@ -1546,14 +1546,14 @@
     
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     
-    handler.setInputAction((click) => {
+    handler.setInputAction(async (click) => {
       if (!this.comments.isAddingComment) return;
 
       // Don't process if measurement is active
       if (this.measurement && this.measurement.active) return;
-      
+
       try {
-        const surfaceData = this.getAccurateSurfacePosition(click.position);
+        const surfaceData = await this.getAccurateSurfacePosition(click.position);
         
         if (!surfaceData || !surfaceData.position) {
           this.updateStatus('⚠️ Please RIGHT-CLICK on a 3D model or terrain surface!', 'error');

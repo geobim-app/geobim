@@ -243,9 +243,9 @@
 
   // ---- Drag logic ----
 
-  function onLeftDown(movement) {
+  async function onLeftDown(movement) {
     var viewer = BimViewer.viewer;
-    var picked = viewer.scene.pick(movement.position);
+    var picked = await viewer.scene.pickAsync(movement.position);
     if (!picked) {
       deselectModel();
       return;
