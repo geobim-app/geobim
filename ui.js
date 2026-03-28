@@ -34,6 +34,7 @@ const BimViewerUI = {
   init() {
     try {
       this.createModernToolbar();
+      this.createBottomToolbar();
       this.initEventHandlers();
       this.initCollapseHandlers();
       // Initialize Lucide SVG icons
@@ -62,17 +63,119 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('assets', '<i data-lucide="box"></i>', 'Assets', this.getAssetsContent()));
     toolbar.appendChild(this.createSection('layers', '<i data-lucide="layers"></i>', 'Layer Manager', this.getLayerManagerContent()));
     toolbar.appendChild(this.createSection('pointcloud', '<i data-lucide="cloud"></i>', 'Point Cloud Settings', this.getPointCloudContent()));
-    toolbar.appendChild(this.createSection('drawing', '<i data-lucide="ruler"></i>', 'Measure & Clip', this.getDrawingContent()));
+    // Data/browse tools stay in sidebar
     toolbar.appendChild(this.createSection('comments', '<i data-lucide="message-square"></i>', 'Annotations', this.getCommentsContent()));
     toolbar.appendChild(this.createSection('inspection', '<i data-lucide="search"></i>', 'Inspection', typeof GEOBIM_INSPECTION !== 'undefined' ? GEOBIM_INSPECTION.getSummaryContent() : ''));
-    toolbar.appendChild(this.createSection('visibility', '<i data-lucide="eye"></i>', 'Visibility', this.getVisibilityContent()));
     toolbar.appendChild(this.createSection('ifc', '<i data-lucide="building-2"></i>', 'IFC Filter', this.getIFCContent()));
     toolbar.appendChild(this.createSection('revit', '<i data-lucide="building"></i>', 'Revit Filter', this.getRevitContent()));
     toolbar.appendChild(this.createSection('split', '<i data-lucide="columns-2"></i>', 'Split View', this.getSplitViewContent()));
     toolbar.appendChild(this.createSection('views', '<i data-lucide="camera"></i>', 'Saved Views', this.getViewsContent()));
-    toolbar.appendChild(this.createSection('lighting', '<i data-lucide="sun"></i>', 'Lighting', this.getLightingContent()));
     toolbar.appendChild(this.createSection('settings', '<i data-lucide="settings"></i>', 'Settings', this.getSettingsContent()));
+
+    // Action tools moved to bottom toolbar (Measure, Visibility, Lighting, Walk, About)
+    toolbar.appendChild(this.createSection('drawing', '<i data-lucide="ruler"></i>', 'Measure & Clip', this.getDrawingContent()));
+    toolbar.appendChild(this.createSection('visibility', '<i data-lucide="eye"></i>', 'Visibility', this.getVisibilityContent()));
+    toolbar.appendChild(this.createSection('lighting', '<i data-lucide="sun"></i>', 'Lighting', this.getLightingContent()));
     toolbar.appendChild(this.createSection('about', '<i data-lucide="info"></i>', 'About & Help', this.getAboutContent()));
+  },
+
+  // Create bottom action toolbar (Speckle-style)
+  createBottomToolbar() {
+    const bar = document.getElementById('bottomToolbar');
+    if (!bar) return;
+
+    bar.innerHTML = `
+      <button class="bottom-toolbar-btn" data-section="drawing" title="Measure & Clip (📏)">
+        <i data-lucide="ruler"></i>
+        <span class="bottom-toolbar-label">Measure</span>
+      </button>
+      <button class="bottom-toolbar-btn" data-section="visibility" title="Hide/Show Elements (H)">
+        <i data-lucide="eye"></i>
+        <span class="bottom-toolbar-label">Visibility</span>
+      </button>
+      <div class="bottom-toolbar-sep"></div>
+      <button class="bottom-toolbar-btn" data-section="lighting" title="Lighting & Time of Day">
+        <i data-lucide="sun"></i>
+        <span class="bottom-toolbar-label">Lighting</span>
+      </button>
+      <button class="bottom-toolbar-btn" id="bottomWalkBtn" title="Walk Mode (G)">
+        <i data-lucide="person-standing"></i>
+        <span class="bottom-toolbar-label">Walk</span>
+      </button>
+      <div class="bottom-toolbar-sep"></div>
+      <button class="bottom-toolbar-btn" data-section="about" title="About & Help">
+        <i data-lucide="info"></i>
+        <span class="bottom-toolbar-label">Help</span>
+      </button>
+    `;
+
+    // Section toggle buttons — expand in sidebar
+    bar.querySelectorAll('[data-section]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sectionId = btn.getAttribute('data-section');
+        const isActive = btn.classList.contains('active');
+
+        // Deactivate all bottom buttons
+        bar.querySelectorAll('.bottom-toolbar-btn').forEach(b => b.classList.remove('active'));
+
+        if (!isActive) {
+          btn.classList.add('active');
+          // Show sidebar if hidden
+          const toolbar = document.getElementById('toolbar');
+          const toggle = document.getElementById('sidebarToggle');
+          if (toolbar && toolbar.classList.contains('collapsed')) {
+            toolbar.classList.remove('collapsed');
+            if (toggle) toggle.classList.remove('at-edge');
+          }
+          // Expand the target section, collapse others in action group
+          ['drawing', 'visibility', 'lighting', 'about'].forEach(id => {
+            this.toggleSection(id, id === sectionId);
+          });
+        } else {
+          // Collapse the section
+          this.toggleSection(sectionId, false);
+        }
+      });
+    });
+
+    // Walk mode button — direct toggle
+    const walkBtn = document.getElementById('bottomWalkBtn');
+    if (walkBtn) {
+      walkBtn.addEventListener('click', () => {
+        if (window.BimFirstPerson) {
+          if (BimFirstPerson.isActive()) {
+            BimFirstPerson.deactivate();
+            walkBtn.classList.remove('active');
+          } else {
+            BimFirstPerson.activate();
+            walkBtn.classList.add('active');
+          }
+        }
+      });
+    }
+  },
+
+  // Toggle a sidebar section open/closed programmatically
+  toggleSection(sectionId, expand) {
+    const header = document.querySelector(`.modern-section-header[data-section="${sectionId}"]`);
+    if (!header) return;
+    const content = header.nextElementSibling;
+    const toggle = header.querySelector('.modern-section-toggle');
+    if (!content) return;
+
+    if (expand) {
+      content.classList.add('expanded');
+      content.classList.remove('collapsed');
+      if (toggle) toggle.textContent = '▼';
+      this.expandedSections.add(sectionId);
+      // Scroll section into view
+      header.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      content.classList.remove('expanded');
+      content.classList.add('collapsed');
+      if (toggle) toggle.textContent = '▶';
+      this.expandedSections.delete(sectionId);
+    }
   },
 
   // Create header
