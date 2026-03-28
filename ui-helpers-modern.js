@@ -36,7 +36,9 @@ BimViewer.createCommentsPanel = function() {
     </div>
     <div id="commentsPanelBody" class="floating-panel-body">
       <div id="commentsList" class="floating-comments-list">
-        <div class="modern-empty-state">Loading...</div>
+        <div class="skeleton skeleton-asset"></div>
+        <div class="skeleton skeleton-asset"></div>
+        <div class="skeleton skeleton-asset" style="width:70%"></div>
       </div>
     </div>
   `;
@@ -135,7 +137,13 @@ BimViewer.createLoadedAssetsPanel = function() {
     </div>
     <div id="assetsPanelBody" class="floating-panel-body">
       <div id="loadedAssetsList" class="floating-assets-list">
-        <div class="modern-empty-state">No assets loaded yet</div>
+        <div class="modern-empty-state">
+          <div class="modern-empty-state-icon">
+            <i data-lucide="box" style="width:28px;height:28px;stroke:var(--text-muted);"></i>
+          </div>
+          <div class="modern-empty-state-title">No assets loaded</div>
+          <div class="modern-empty-state-hint">Select an asset from the sidebar to load it into the viewer</div>
+        </div>
       </div>
     </div>
   `;
@@ -183,7 +191,8 @@ BimViewer.updateCommentsList = function() {
   if (!container) return;
   
   if (!this.comments || this.comments.comments.length === 0) {
-    container.innerHTML = '<div class="modern-empty-state">No comments yet</div>';
+    container.innerHTML = '<div class="modern-empty-state"><div class="modern-empty-state-icon"><i data-lucide="message-square" style="width:28px;height:28px;stroke:var(--text-muted);"></i></div><div class="modern-empty-state-title">No comments yet</div><div class="modern-empty-state-hint">Right-click on the model to add a comment</div></div>';
+    if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: container });
     return;
   }
   
@@ -286,7 +295,8 @@ BimViewer.updateHiddenFeaturesList = function() {
   if (!container) return;
   
   if (this.hiddenFeatures.features.size === 0) {
-    container.innerHTML = '<div class="modern-empty-state">No hidden elements</div>';
+    container.innerHTML = '<div class="modern-empty-state"><div class="modern-empty-state-icon"><i data-lucide="eye" style="width:28px;height:28px;stroke:var(--text-muted);"></i></div><div class="modern-empty-state-title">No hidden elements</div><div class="modern-empty-state-hint">Press H and click elements to hide them</div></div>';
+    if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: container });
     return;
   }
   
@@ -325,7 +335,8 @@ BimViewer.updateSavedViewsList = function() {
   if (!container) return;
   
   if (this.savedViews.size === 0) {
-    container.innerHTML = '<div class="modern-empty-state">No saved views</div>';
+    container.innerHTML = '<div class="modern-empty-state"><div class="modern-empty-state-icon"><i data-lucide="camera" style="width:28px;height:28px;stroke:var(--text-muted);"></i></div><div class="modern-empty-state-title">No saved views</div><div class="modern-empty-state-hint">Press 1-9 to save the current camera position</div></div>';
+    if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: container });
     return;
   }
   

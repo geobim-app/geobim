@@ -907,7 +907,12 @@
     console.log(`📋 Element type: ${isOSMBuilding ? 'OSM Building' : 'IFC Element'}`);
     
     let html = '';
-    
+
+    // Search filter for properties
+    html += '<div class="bim-property-search">';
+    html += '<input type="text" id="propertySearchInput" class="bim-search-input" placeholder="Search properties..." oninput="BimViewer.filterProperties(this.value)">';
+    html += '</div>';
+
     html += '<table class="bim-property-table">';
     html += '<tr class="bim-header-row">';
     html += '<th class="bim-header-cell" style="width: 45%;">Property</th>';
@@ -1050,7 +1055,7 @@
         
         html += `<tr class="bim-property-row ${categoryId}_props" ${!setConfig.expanded ? 'style="display:none;"' : ''}>`;
         html += `<td class="bim-property-name">${displayName}</td>`;
-        html += `<td class="${valueClass}">${value}</td>`;
+        html += `<td class="${valueClass}"><span class="bim-value-text">${value}</span>${value !== 'n/a' ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(value).replace(/'/g, "\\'") + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
@@ -1077,7 +1082,7 @@
         
         html += `<tr class="bim-property-row ${categoryId}_props">`;
         html += `<td class="bim-property-name">${prop}</td>`;
-        html += `<td class="bim-property-value">${displayValue}</td>`;
+        html += `<td class="bim-property-value"><span class="bim-value-text">${displayValue}</span>${displayValue && !String(displayValue).includes('<i ') ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(displayValue).replace(/'/g, "\\'").replace(/</g, '').replace(/>/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
@@ -1135,6 +1140,40 @@
     });
     
     icon.textContent = isHidden ? '▼' : '▶';
+  };
+
+  // Filter properties by search query
+  BimViewer.filterProperties = function(query) {
+    var q = query.toLowerCase();
+    var rows = document.querySelectorAll('.bim-property-row');
+    var categories = document.querySelectorAll('.bim-category-row');
+
+    if (!q) {
+      rows.forEach(function(r) { r.style.display = ''; });
+      categories.forEach(function(c) { c.style.display = ''; });
+      return;
+    }
+
+    // Hide all categories initially, show matching rows
+    categories.forEach(function(c) { c.style.display = 'none'; });
+    rows.forEach(function(r) {
+      var name = (r.querySelector('.bim-property-name') || {}).textContent || '';
+      var value = (r.querySelector('.bim-value-text') || {}).textContent || '';
+      var match = name.toLowerCase().includes(q) || value.toLowerCase().includes(q);
+      r.style.display = match ? '' : 'none';
+
+      // Show parent category if any row matches
+      if (match) {
+        var classes = r.className.split(' ');
+        for (var i = 0; i < classes.length; i++) {
+          if (classes[i].endsWith('_props')) {
+            var catId = classes[i].replace('_props', '');
+            var catRow = document.querySelector('.bim-category-row[onclick*="' + catId + '"]');
+            if (catRow) catRow.style.display = '';
+          }
+        }
+      }
+    });
   };
 
   // ===============================

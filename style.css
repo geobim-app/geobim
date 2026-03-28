@@ -802,6 +802,72 @@ body {
 }
 
 /* Asset item */
+/* ===============================
+   ME5: LOADING SKELETONS
+   =============================== */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-asset {
+  height: 64px;
+  margin-bottom: var(--space-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.skeleton-property {
+  height: 20px;
+  margin-bottom: 6px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 4px;
+  width: 70%;
+}
+
+.skeleton-text-short { width: 40%; }
+
+/* ===============================
+   LI4: ENHANCED EMPTY STATES
+   =============================== */
+.modern-empty-state {
+  text-align: center;
+  padding: var(--space-xl) var(--space-lg);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.modern-empty-state-icon {
+  font-size: 32px;
+  margin-bottom: var(--space-sm);
+  opacity: 0.4;
+}
+
+.modern-empty-state-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.modern-empty-state-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .modern-asset-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
@@ -1269,6 +1335,72 @@ body {
   padding: 8px 15px;
   color: rgba(255, 255, 255, 0.3);
   font-style: italic;
+}
+
+/* LI5: Property search */
+.bim-property-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bim-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.bim-search-input:focus {
+  outline: none;
+  border-color: var(--brand-teal);
+}
+
+.bim-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* LI5: Copy button on property values */
+.bim-property-value,
+.bim-property-value-na {
+  position: relative;
+}
+
+.bim-value-text {
+  display: inline;
+}
+
+.bim-copy-btn {
+  display: none;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 22px;
+  text-align: center;
+}
+
+.bim-copy-btn:hover {
+  background: rgba(var(--brand-teal-rgb), 0.2);
+  color: var(--brand-teal);
+}
+
+.bim-property-row:hover .bim-copy-btn {
+  display: inline-block;
 }
 
 /* InfoBox size variations */
