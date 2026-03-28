@@ -272,9 +272,9 @@
         return; // Don't proceed with normal IFC selection
       }
       
-      // Otherwise, use the original IFC selection handler
+      // Otherwise, use the original IFC selection handler (async)
       if (this._originalClickHandler) {
-        this._originalClickHandler(movement);
+        await this._originalClickHandler(movement);
       }
     };
     

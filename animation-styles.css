@@ -51,7 +51,7 @@
 }
 
 .anim-speed-row select option {
-  background: #1a202c;
+  background: var(--input-bg-solid);
   color: #e2e8f0;
 }
 

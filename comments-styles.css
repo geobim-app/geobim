@@ -592,7 +592,7 @@
 .cd-btn-save {
   flex: 1;
   background: linear-gradient(135deg, var(--brand-teal) 0%, var(--brand-teal-dark) 100%);
-  color: #0E1117;
+  color: var(--bg-base);
   border: none;
   padding: var(--space-md, 12px) var(--space-lg, 16px);
   border-radius: var(--radius-md, 8px);

@@ -1482,14 +1482,6 @@ body {
   font-weight: 600;
 }
 
-/* iTwin Input Fields - Monospace for IDs/Keys */
-#iTwinShareKeyInput,
-#iTwinModelIdInput {
-  font-family: 'Courier New', Courier, monospace !important;
-  font-size: 11px !important;
-  letter-spacing: -0.5px;
-}
-
 /* Modern Hint Box Enhancement */
 .modern-hint {
   background: rgba(var(--brand-teal-rgb), 0.1);
