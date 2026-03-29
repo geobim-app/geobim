@@ -117,7 +117,7 @@ const BimViewerUI = {
         <span class="bottom-toolbar-label">Walk</span>
       </button>
       <div class="bottom-toolbar-sep"></div>
-      <button class="bottom-toolbar-btn" data-section="about" title="About & Help">
+      <button class="bottom-toolbar-btn" id="bottomHelpBtn" title="About & Help">
         <i data-lucide="info"></i>
         <span class="bottom-toolbar-label">Help</span>
       </button>
@@ -176,6 +176,22 @@ const BimViewerUI = {
             // Remove focus from button so WASD keys reach the document handler
             walkBtn.blur();
           }
+        }
+      });
+    }
+
+    // Help button — open About dialog directly on Features tab
+    const helpBtn = document.getElementById('bottomHelpBtn');
+    if (helpBtn) {
+      helpBtn.addEventListener('click', () => {
+        helpBtn.blur();
+        if (window.BimViewer && typeof BimViewer.showAboutDialog === 'function') {
+          BimViewer.showAboutDialog();
+          // Switch to Features tab after dialog opens
+          setTimeout(() => {
+            var featuresTab = document.querySelector('.about-tab[data-tab="features"]');
+            if (featuresTab) featuresTab.click();
+          }, 50);
         }
       });
     }
