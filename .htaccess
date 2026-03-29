@@ -3,6 +3,9 @@ RewriteEngine On
 # Pass Basic Auth to PHP-FPM
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+# /demo → index.html?mode=demo (30 min full access trial)
+RewriteRule ^demo/?$ /index.html?mode=demo [L,QSA]
+
 # /wea-shadow → index.html?mode=wea
 RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
 
