@@ -234,6 +234,57 @@ for asset in model/Cesium_Man.glb logo/logo_teal_transparent.svg favicon.svg; do
 done
 
 # ============================================================
+section "11. VERSION CONSISTENCY"
+# ============================================================
+
+# Extract version from CHANGELOG.md (first ## [x.y.z] line)
+CHANGELOG_VER=$(grep -oP '## \[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md 2>/dev/null | head -1)
+if [ -z "$CHANGELOG_VER" ]; then
+  fail "No version found in CHANGELOG.md"
+else
+  pass "CHANGELOG.md version: $CHANGELOG_VER"
+fi
+
+# Check splash-screen.js APP_VERSION
+SPLASH_VER=$(grep -oP "APP_VERSION = '[0-9]+\.[0-9]+\.[0-9]+" splash-screen.js 2>/dev/null | grep -oP '[0-9]+\.[0-9]+\.[0-9]+')
+if [ "$SPLASH_VER" = "$CHANGELOG_VER" ]; then
+  pass "splash-screen.js version matches ($SPLASH_VER)"
+else
+  fail "splash-screen.js version mismatch: $SPLASH_VER (expected $CHANGELOG_VER)"
+fi
+
+# Check about-feedback.js APP_VERSION
+ABOUT_VER=$(grep -oP "APP_VERSION = '[0-9]+\.[0-9]+\.[0-9]+" about-feedback.js 2>/dev/null | grep -oP '[0-9]+\.[0-9]+\.[0-9]+')
+if [ "$ABOUT_VER" = "$CHANGELOG_VER" ]; then
+  pass "about-feedback.js version matches ($ABOUT_VER)"
+else
+  fail "about-feedback.js version mismatch: $ABOUT_VER (expected $CHANGELOG_VER)"
+fi
+
+# Check that README.md mentions key v1.6+ features
+for feature in "Walk Mode" "Third-Person" "Demo Mode"; do
+  if grep -q "$feature" README.md 2>/dev/null; then
+    pass "README.md mentions '$feature'"
+  else
+    warn "README.md missing '$feature'"
+  fi
+done
+
+# Check that FEATURES.md is up to date (has Walk Mode section)
+if grep -q "Walk Mode" FEATURES.md 2>/dev/null; then
+  pass "FEATURES.md includes Walk Mode section"
+else
+  warn "FEATURES.md missing Walk Mode section"
+fi
+
+# Check splash features list includes Walk Mode
+if grep -qi "Walk Mode\|Walk.mode\|first.person" splash-screen.js 2>/dev/null; then
+  pass "Splash screen lists Walk Mode"
+else
+  warn "Splash screen missing Walk Mode feature"
+fi
+
+# ============================================================
 # SUMMARY
 # ============================================================
 

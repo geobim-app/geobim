@@ -116,7 +116,12 @@ bash qa-check.sh
 Muss **0 Errors** zeigen. Warnings prüfen, bekannte akzeptieren.
 
 ### Vor jedem Release:
-`QA-CHECKLIST.md` durchgehen (18 Sektionen, ~80 Punkte).
+1. `QA-CHECKLIST.md` durchgehen (18 Sektionen, ~80 Punkte)
+2. **Versionsnummern synchronisieren:** `splash-screen.js`, `about-feedback.js`, `CHANGELOG.md` — müssen identisch sein
+3. **MD-Dateien aktualisieren:** README.md, FEATURES.md, CHANGELOG.md — neue Features dokumentieren
+4. **Splash Screen:** Features-Tab und Shortcuts-Tab mit neuen Features/Shortcuts aktualisieren
+5. **About Dialog:** Features-Tab, Shortcuts-Tab und Version aktualisieren
+6. `bash qa-check.sh` → Sektion 11 (Version Consistency) muss 0 Errors zeigen
 
 ### Nach UI-Änderungen:
 - Prüfen ob Lucide Icons rendern (`lucide.createIcons()`)
