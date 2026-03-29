@@ -118,7 +118,8 @@
     look.heading = viewer.camera.heading;
     look.pitch = viewer.camera.pitch;
 
-    // Pointer lock (desktop only)
+    // Focus canvas and request pointer lock (desktop only)
+    try { viewer.scene.canvas.focus(); } catch (_) {}
     if (!isMobile()) {
       try { viewer.scene.canvas.requestPointerLock(); } catch (_) {}
     }

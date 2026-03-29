@@ -173,8 +173,14 @@ const BimViewerUI = {
           } else {
             BimFirstPerson.activate();
             walkBtn.classList.add('active');
-            // Remove focus from button so WASD keys reach the document handler
+            // Focus canvas + request pointer lock so WASD and mouse work immediately
             walkBtn.blur();
+            var canvas = BimViewer.viewer && BimViewer.viewer.scene.canvas;
+            if (canvas) {
+              canvas.setAttribute('tabindex', '0');
+              canvas.focus();
+              try { canvas.requestPointerLock(); } catch (_) {}
+            }
           }
         }
       });
