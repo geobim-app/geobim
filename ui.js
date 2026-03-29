@@ -126,6 +126,7 @@ const BimViewerUI = {
     // Section toggle buttons — expand in sidebar
     bar.querySelectorAll('[data-section]').forEach(btn => {
       btn.addEventListener('click', () => {
+        btn.blur(); // Remove focus so keyboard shortcuts work immediately
         const sectionId = btn.getAttribute('data-section');
         const isActive = btn.classList.contains('active');
 
@@ -172,6 +173,8 @@ const BimViewerUI = {
           } else {
             BimFirstPerson.activate();
             walkBtn.classList.add('active');
+            // Remove focus from button so WASD keys reach the document handler
+            walkBtn.blur();
           }
         }
       });
