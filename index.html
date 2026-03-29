@@ -431,19 +431,21 @@
       console.log('');
       console.log('INITIALIZING REMAINING SYSTEMS:');
 
-      // Initialize Comments (Firestore - Demo Mode)
-      // Wait for anonymous auth to complete before initializing Firestore comments
+      // Initialize Comments (Firestore)
+      // In demo mode, skip waiting for auth — Firestore rules allow demo collections
       function initComments() {
-        const authUser = BimAuth.getFirebaseUser();
-        if (!authUser) {
-          console.log('Waiting for anonymous auth...');
-          setTimeout(initComments, 500);
-          return;
+        if (!window._demoMode && !window._weaDemoMode) {
+          const authUser = BimAuth.getFirebaseUser();
+          if (!authUser) {
+            console.log('Waiting for anonymous auth...');
+            setTimeout(initComments, 500);
+            return;
+          }
         }
 
         if (typeof BimViewer.initFirebase === 'function') {
           if (BimViewer.initFirebase()) {
-            console.log('Comments initialized (Firestore - Demo Mode)');
+            console.log('Comments initialized (Firestore)');
             const statusEl = document.getElementById('commentsListStatus');
             if (statusEl) statusEl.textContent = 'Ready';
           } else {
