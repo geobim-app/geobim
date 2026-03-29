@@ -145,9 +145,18 @@ const BimViewerUI = {
           ['drawing', 'visibility', 'lighting', 'about'].forEach(id => {
             this.toggleSection(id, id === sectionId);
           });
+          // Auto-open measurement panel when Measure button clicked
+          if (sectionId === 'drawing' && window.BimViewer && typeof BimViewer.toggleMeasurementPanel === 'function') {
+            setTimeout(() => BimViewer.toggleMeasurementPanel(), 100);
+          }
         } else {
           // Collapse the section
           this.toggleSection(sectionId, false);
+          // Close measurement panel when deactivating
+          if (sectionId === 'drawing' && window.BimViewer && BimViewer.measurement) {
+            var mp = document.getElementById('measurementPanel');
+            if (mp) mp.style.display = 'none';
+          }
         }
       });
     });
