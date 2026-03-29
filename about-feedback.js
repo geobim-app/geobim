@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.5.0';
+  const APP_VERSION = '1.6.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -148,7 +148,7 @@
                 <span class="about-feature-icon">☀️</span>
                 <div>
                   <strong>Advanced Lighting</strong>
-                  <span>Sun simulation, shadows, IBL, tone mapping, SSAO</span>
+                  <span>Sun simulation, shadows, IBL, tone mapping, HBAO</span>
                 </div>
               </div>
               <div class="about-feature-item">
@@ -156,6 +156,27 @@
                 <div>
                   <strong>Saved Views</strong>
                   <span>Save and restore camera positions</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">🚶</span>
+                <div>
+                  <strong>Walk Mode</strong>
+                  <span>First-person navigation with WASD, mouse or Xbox controller</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">🎮</span>
+                <div>
+                  <strong>Third-Person Mode</strong>
+                  <span>Animated character with Unreal Engine-style controls</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">🌬️</span>
+                <div>
+                  <strong>WEA Shadow Analysis</strong>
+                  <span>Wind turbine shadow flicker simulation</span>
                 </div>
               </div>
               <div class="about-feature-item">
@@ -183,6 +204,14 @@
               <div class="about-shortcut"><kbd>Right-click + drag</kbd><span>Zoom</span></div>
               <div class="about-shortcut"><kbd>Middle-click + drag</kbd><span>Pan</span></div>
               <div class="about-shortcut"><kbd>Scroll</kbd><span>Zoom in/out</span></div>
+
+              <div class="about-shortcut-group-title">Walk Mode</div>
+              <div class="about-shortcut"><kbd>G</kbd><span>Toggle first-person mode</span></div>
+              <div class="about-shortcut"><kbd>V</kbd><span>Switch to third-person view</span></div>
+              <div class="about-shortcut"><kbd>T</kbd><span>Set Player Start (spawn point)</span></div>
+              <div class="about-shortcut"><kbd>WASD</kbd><span>Move (walk mode)</span></div>
+              <div class="about-shortcut"><kbd>Shift</kbd><span>Sprint</span></div>
+              <div class="about-shortcut"><kbd>ESC</kbd><span>Exit walk mode</span></div>
 
               <div class="about-shortcut-group-title">Tools</div>
               <div class="about-shortcut"><kbd>M</kbd><span>Toggle sidebar</span></div>
