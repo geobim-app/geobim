@@ -225,16 +225,12 @@
     createBanner();
     startTimer();
 
-    // Auto-open About dialog (Features tab) for new demo users
+    // Auto-open About dialog (About tab — has Tour button) for new demo users
     var aboutCheck = setInterval(function() {
       if (window.BimViewer && typeof BimViewer.showAboutDialog === 'function') {
         clearInterval(aboutCheck);
         setTimeout(function() {
           BimViewer.showAboutDialog();
-          setTimeout(function() {
-            var tab = document.querySelector('.about-tab[data-tab="features"]');
-            if (tab) tab.click();
-          }, 100);
         }, 2000);
       }
     }, 500);
