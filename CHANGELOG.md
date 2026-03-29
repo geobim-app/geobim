@@ -4,7 +4,7 @@ All notable changes to geobim.app will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.6.0] — 2026-03-29
 
 ### Added
 
@@ -54,6 +54,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 3D tile floor raycast throttled to 5x/sec (prevents tile flickering)
 - Height smoothing via lerp (eliminates terrain/tile oscillation)
 
+#### Demo Mode
+- `/demo` URL: 30-minute full-access trial without login
+- Demo banner with countdown timer (teal → amber → red + blink)
+- Auto-opens About dialog on entry (with "Take a guided tour" button)
+- Firestore demo collections open for unauthenticated access
+- Session persists across page refresh (sessionStorage)
+- Expired overlay with sign-in CTA and restart option
+
 #### Quality Assurance
 - `qa-check.sh`: 10-section automated pre-release check script
 - `QA-CHECKLIST.md`: 18-section, ~80-point manual browser test checklist
@@ -70,6 +78,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dead CSS selector `#modernCommentsPanel` → `#floatingCommentsPanel`
 - Dead CSS for removed iTwin integration cleaned up
 - Missing `await` on `_originalClickHandler` in hideFeatures.js async chain
+- ESC not fully exiting walk mode (third-person + orbit controls not restored)
+- WASD not working after activating walk mode via bottom toolbar (button focus issue)
+- Measurement cursor stuck as crosshair after measurement completes
+- Measurement panel not auto-opening from bottom toolbar Measure button
+- setPointerCapture errors when switching to third-person mode
+- Demo mode login dialog appearing (race condition with auth flags)
+- Infinite "Waiting for anonymous auth" loop in demo mode
 
 ### Changed
 - CLAUDE.md completely rewritten with current architecture, conventions, and rules
