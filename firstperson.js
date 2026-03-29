@@ -58,7 +58,7 @@
   // ========================================================
 
   var config = {
-    moveSpeed: 0.15,
+    moveSpeed: 0.225,
     sprintMultiplier: 3.0,
     mouseSensitivity: 0.003,
     eyeHeight: 1.7,

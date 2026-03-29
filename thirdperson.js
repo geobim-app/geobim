@@ -32,7 +32,7 @@
   var MAX_DISTANCE = 15.0;
 
   // Character Movement — tuned to match Cesium_Man walk animation
-  var WALK_SPEED = 0.023;         // meters/frame at 60fps ≈ 1.4 m/s (5 km/h walking pace)
+  var WALK_SPEED = 0.035;         // meters/frame at 60fps ≈ 2.1 m/s (7.5 km/h brisk walk)
   var SPRINT_MULTIPLIER = 2.5;    // sprint ≈ 3.5 m/s (12 km/h jog)
   var BRAKING = 0.18;             // deceleration factor (higher = snappier stop, Unreal: 2048cm/s²)
 
