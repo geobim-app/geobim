@@ -233,18 +233,21 @@
 
     createModel(viewer);
 
-    // Re-enable orbit controls for third-person (FP disables them)
-    var ctrl = viewer.scene.screenSpaceCameraController;
-    ctrl.enableRotate = true;
-    ctrl.enableZoom = true;
-    ctrl.enableTilt = true;
-
     var ch = document.getElementById('fpCrosshair');
     if (ch) ch.style.display = 'none';
 
+    // Exit pointer lock first, then enable orbit controls after lock is fully released
     if (document.pointerLockElement) {
       try { document.exitPointerLock(); } catch (_) {}
     }
+
+    // Delay enabling SSCC to avoid setPointerCapture conflict with pointer lock release
+    setTimeout(function() {
+      var ctrl = viewer.scene.screenSpaceCameraController;
+      ctrl.enableRotate = true;
+      ctrl.enableZoom = true;
+      ctrl.enableTilt = true;
+    }, 100);
 
     // Position camera behind & above character, then start update loop
     // Camera: 2m behind, 1m above → pitch = atan2(1, 2) ≈ 0.46 rad, range = sqrt(4+1) ≈ 2.24m
