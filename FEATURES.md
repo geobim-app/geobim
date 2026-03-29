@@ -11,8 +11,8 @@
 | Demo Mode | Auto-applies demo Cesium Ion token without login. Anonymous Firestore access for shared comments. | `auth.js` |
 | Email/Password Login | Optional Firebase auth gate overlay. Persistent sessions, logout support. | `auth-gate.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
-| Splash Screen | Branded landing page with "Enter Demo" button, copyright, license, and contact info. | `index.html` |
-| Plausible Analytics | Privacy-friendly tracking (no cookies). Events: Enter Demo, Asset Loaded, Feature Used, Contact Click. | `index.html`, various |
+| Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.6.0 with Walk Mode + Third-Person. | `splash-screen.js` |
+| Onboarding Tour | 6-step guided tour with spotlight overlay for new users. Auto-starts on first visit. | `onboarding.js` |
 
 ---
 
@@ -356,4 +356,64 @@
 
 ---
 
-*Generated from codebase analysis — 2026-03-18*
+## 15. Walk Mode & Third-Person Navigation
+
+| Feature | Description | Files |
+|---|---|---|
+| First-Person Mode | WASD + mouse or Xbox controller navigation at ground level. Press G to toggle. | `firstperson.js` |
+| Wall Collision | Raycast-based collision against 3D Tiles mesh (6 rays, throttled 10x/sec). | `firstperson.js` |
+| Velocity Smoothing | Lerp-based acceleration/deceleration for smooth movement. | `firstperson.js` |
+| Terrain Clamping | Downward raycast keeps player on terrain surface (works indoors). | `firstperson.js` |
+| Third-Person Mode | Animated Cesium_Man character with camera orbit. Press V to toggle. | `thirdperson.js` |
+| Unreal-Style Controls | Character always faces movement direction. No backward walking. | `thirdperson.js` |
+| Player Start | Click any surface (T key) to set spawn point, including rooftops. | `thirdperson.js` |
+| Floor Clamping | Dual system: `globe.getHeight()` for terrain + `pickFromRay` for 3D tiles. | `thirdperson.js` |
+| Xbox Controller | Full gamepad support in both modes. Left stick = move, right stick = look/orbit. | `firstperson.js`, `thirdperson.js` |
+
+---
+
+## 16. WEA Shadow Analysis
+
+| Feature | Description | Files |
+|---|---|---|
+| Shadow Flicker Simulation | Parametric wind turbine shadow analysis on real terrain. | `wea-shadow.js` |
+| GLB Turbine Models | Enercon E-138 EP3 default, custom models via `/model/wind/`. | `wea-shadow.js` |
+| Anonymous Demo | 30-minute session at `/wea-shadow`, no login required. | `wea-demo.js` |
+
+---
+
+## 17. Demo Mode
+
+| Feature | Description | Files |
+|---|---|---|
+| Full-Access Demo | 30-minute trial at `/demo` with all tools, no login. | `demo.js` |
+| Demo Banner | Countdown timer with color warnings (teal → amber → red). | `demo.js` |
+| Session Expiry | Overlay with sign-in CTA and restart option after 30 minutes. | `demo.js` |
+| About Auto-Open | About dialog opens automatically for new demo users. | `demo.js` |
+
+---
+
+## 18. Onboarding & QA
+
+| Feature | Description | Files |
+|---|---|---|
+| Guided Tour | 6-step spotlight tour with Next/Back/Skip, localStorage persistence. | `onboarding.js` |
+| QA Check Script | Automated 10-section pre-release quality checks. | `qa-check.sh` |
+| QA Checklist | 80-point manual browser test checklist. | `QA-CHECKLIST.md` |
+
+---
+
+## UI Architecture (v1.6.0)
+
+| Component | Purpose | Files |
+|---|---|---|
+| Sidebar (left) | Data tools: Assets, Layers, Annotations, Inspection, IFC/Revit Filter, Split View, Saved Views, Settings | `ui.js` |
+| Bottom Toolbar | Action tools: Measure, Visibility, Lighting, Walk Mode, Help | `ui.js` |
+| Floating Panels | InfoBox, Comments, Assets, WEA Shadow, Sequencing Timeline | `ui-helpers-modern.js`, `style.css` |
+| Lucide Icons | SVG icon library replacing emoji-based UI. | `index.html`, `ui.js` |
+| Design Tokens | CSS variables for spacing, radius, shadows, input surfaces. | `style.css` |
+| Contextual Cursors | Crosshair (measure), Cell (clip), Copy (comment), Pointer (hide). | `ui.js`, `style.css` |
+
+---
+
+*Updated 2026-03-29 — v1.6.0*

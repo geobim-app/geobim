@@ -2,7 +2,7 @@
 
 **BIM x GIS = Geospatial Intelligence**
 
-[Live Demo](https://geobim.app)
+[Live Demo](https://geobim.app/demo)
 
 ![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)
 ![CesiumJS 1.139.1](https://img.shields.io/badge/CesiumJS-1.139.1-teal.svg)
@@ -30,12 +30,16 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **IoT Live Module** — Real-time water level monitoring via Pegelonline with threshold alerts
 - **Geoid Module** — EGM96 undulation lookup for orthometric height display in coordinate picker
 - **NRW LoD2 Buildings** — Open Data 3D building models (Geobasis NRW) as toggleable layer
-- **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), SSAO, time-of-day control
+- **Walk Mode** — First-person navigation with WASD, mouse or Xbox controller, wall collision against 3D Tiles
+- **Third-Person Mode** — Animated character with Unreal Engine-style controls, Player Start on any surface
+- **WEA Shadow Analysis** — Wind turbine shadow flicker simulation with parametric turbines
+- **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), HBAO ambient occlusion, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
 - **Saved Views** — Capture and restore camera positions with scene state
 - **Split-Screen** — Side-by-side comparison mode
 - **Z-Offset** — Vertical repositioning of assets (-70m to +70m)
 - **Performance Presets** — 4 levels from Performance to Ultra with tileset-level tuning
+- **Demo Mode** — 30-minute full access at [geobim.app/demo](https://geobim.app/demo), no login required
 
 For a complete feature reference see [FEATURES.md](FEATURES.md).
 
