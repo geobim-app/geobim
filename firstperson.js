@@ -140,16 +140,14 @@
 
     active = false;
 
-    // Restore controller
-    if (savedController) {
-      var ctrl = viewer.scene.screenSpaceCameraController;
-      ctrl.enableRotate = savedController.enableRotate;
-      ctrl.enableTranslate = savedController.enableTranslate;
-      ctrl.enableZoom = savedController.enableZoom;
-      ctrl.enableTilt = savedController.enableTilt;
-      ctrl.enableLook = savedController.enableLook;
-      savedController = null;
-    }
+    // Restore default orbit controls (always re-enable everything)
+    var ctrl = viewer.scene.screenSpaceCameraController;
+    ctrl.enableRotate = true;
+    ctrl.enableTranslate = true;
+    ctrl.enableZoom = true;
+    ctrl.enableTilt = true;
+    ctrl.enableLook = true;
+    savedController = null;
 
     // Exit pointer lock
     if (document.pointerLockElement === viewer.scene.canvas) {
@@ -170,6 +168,10 @@
     hideCrosshair();
     hideBanner();
     updatePanelState();
+
+    // Update bottom toolbar walk button
+    var walkBtn = document.getElementById('bottomWalkBtn');
+    if (walkBtn) walkBtn.classList.remove('active');
 
     console.log('🚶 First-Person mode deactivated');
   }
@@ -198,10 +200,13 @@
 
     if (!active) return;
 
-    // ESC to exit
+    // ESC to exit — deactivate third-person first if active
     if (k === 'escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (window.BimThirdPerson && BimThirdPerson.isActive()) {
+        BimThirdPerson.deactivate();
+      }
       deactivate();
       return;
     }
