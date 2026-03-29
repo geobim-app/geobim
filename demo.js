@@ -39,16 +39,12 @@
     sessionStorage.setItem(SESSION_KEY, sessionStart.toString());
   }
 
-  // Global flag for other modules to check
+  // Global flags — MUST be set before auth-gate.js loads
   window._demoMode = true;
-
-  // ========================================================
-  // SKIP AUTH GATE
-  // ========================================================
-
+  window._weaDemoMode = true;   // auth-gate.js checks this flag
   window._splashDismissed = true;
-  sessionStorage.setItem('geoBIM_splashShown', '1');
   window._authGatePassed = true;
+  sessionStorage.setItem('geoBIM_splashShown', '1');
 
   // ========================================================
   // DEMO BANNER + COUNTDOWN
@@ -210,21 +206,6 @@
 
     document.body.appendChild(overlay);
   }
-
-  // ========================================================
-  // HOOK INTO AUTH-GATE
-  // ========================================================
-
-  // Tell auth-gate to treat this as a demo user (like WEA demo)
-  var origOnAuthState = null;
-  var hookAuth = setInterval(function() {
-    if (window.firebase && firebase.auth) {
-      clearInterval(hookAuth);
-      // The auth-gate checks _weaDemoMode — we set a similar flag
-      // that auth-gate.js can recognize
-      window._weaDemoMode = true;
-    }
-  }, 100);
 
   // ========================================================
   // BOOT
