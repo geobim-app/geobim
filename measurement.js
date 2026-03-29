@@ -224,6 +224,7 @@
     this.measurement.active = true;
     this.measurement.type = 'area';
     this.measurement.positions = [];
+    if (window.BimCursor) BimCursor.set('measure');
 
     this.updateStatus('LEFT-CLICK to add points, RIGHT-CLICK or ENTER to finish', 'loading');
     this.updateMeasurementResult('<span style="color: #11998e;">⬛ Click to add polygon points...</span>');
@@ -312,6 +313,7 @@
     this.cancelMeasurement();
     this.measurement.active = true;
     this.measurement.type = 'height';
+    if (window.BimCursor) BimCursor.set('measure');
 
     this.updateStatus('LEFT-CLICK on a point to measure height over terrain', 'loading');
     this.updateMeasurementResult('<span style="color: #f093fb;">⛰️ Click on a point...</span>');
@@ -389,6 +391,7 @@
     this.measurement.active = true;
     this.measurement.type = 'vertical';
     this.measurement.positions = [];
+    if (window.BimCursor) BimCursor.set('measure');
 
     this.updateStatus('LEFT-CLICK two points to measure vertical distance', 'loading');
     this.updateMeasurementResult('<span style="color: #4facfe;">↕️ Click first point...</span>');
@@ -476,6 +479,7 @@
     this.cancelMeasurement();
     this.measurement.active = true;
     this.measurement.type = 'coordinates';
+    if (window.BimCursor) BimCursor.set('measure');
 
     this.updateStatus('LEFT-CLICK to get coordinates', 'loading');
     this.updateMeasurementResult('<span style="color: #fa709a;">🌍 Click on a point...</span>');
@@ -656,6 +660,7 @@
   };
 
   BimViewer.cleanupMeasurementHandlers = function() {
+    if (window.BimCursor) BimCursor.clear();
     if (this.measurement.handler) {
       this.measurement.handler.destroy();
       this.measurement.handler = null;
