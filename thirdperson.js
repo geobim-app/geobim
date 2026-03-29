@@ -57,6 +57,7 @@
   var preRenderListener = null;
   var lastTileClampTime = 0;
   var lastTileHeight = null;
+  var _savedClockMultiplier = 1;
 
   // Player Start (spawn point)
   var spawnSet = false;
@@ -273,6 +274,11 @@
 
     active = false;
 
+    // Restore clock multiplier if we paused it
+    if (viewer.clock.multiplier === 0 && _savedClockMultiplier) {
+      viewer.clock.multiplier = _savedClockMultiplier;
+    }
+
     // Stop tracking and restore FP camera controls
     viewer.trackedEntity = undefined;
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
@@ -449,8 +455,13 @@
     }
 
     // --- 6. Animation ---
-    if (characterEntity.model) {
-      characterEntity.model.runAnimations = moving;
+    // Entity animations run via Cesium clock. Toggle clock to control walk cycle.
+    // Save/restore multiplier so other systems (shadows, WEA) aren't affected permanently.
+    if (moving && viewer.clock.multiplier === 0) {
+      viewer.clock.multiplier = _savedClockMultiplier || 1;
+    } else if (!moving && viewer.clock.multiplier !== 0) {
+      _savedClockMultiplier = viewer.clock.multiplier;
+      viewer.clock.multiplier = 0;
     }
   }
 
