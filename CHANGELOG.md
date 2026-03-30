@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+#### Google 3D Tiles Rendering Optimization
+- `skipLevelOfDetail` set to `false` in all presets — eliminates hole/seam/stretched texture artifacts
+- `dynamicScreenSpaceErrorFactor` updated from 4.0 to 24.0 (new CesiumJS default, 39% faster loading)
+- Shadows disabled on Google tiles (`KHR_materials_unlit` — no visual effect, saves GPU)
+- `backFaceCulling` set to `false` in all presets — fixes missing faces from inconsistent winding
+- Fog re-enabled with Google tiles — masks LOD transitions at horizon
+- Cache updated to Google defaults: 1.5 GB + 1 GB overflow (replaces deprecated `maximumMemoryUsage`)
+- `enableCollision: true` added for walk mode `pickFromRay` support
+
 ### Added
 
 #### Walk Mode Fixes
