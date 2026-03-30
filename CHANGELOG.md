@@ -4,6 +4,21 @@ All notable changes to geobim.app will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+#### Cesium Ion OAuth2 Integration
+- OAuth2 PKCE flow for connecting personal Cesium Ion accounts (`ion-auth.js`)
+- Ion status indicator (top-right) with connect/disconnect dropdown
+- Asset selector shows user's own 3D Tiles and GLB assets when connected
+- Demo token moved server-side (`api/ion-config.php`) — no longer hardcoded in JS
+- Curated demo asset list with proper names (was: numeric IDs only)
+- Required Ion Assets info panel (Cesium World Terrain, Bing Maps, Google Maps)
+- Graceful error messages when Ion assets are not activated in user's account
+- Token persistence via localStorage, automatic refresh (90-day refresh token)
+- Asset list auto-reloads on connect/disconnect
+
 ## [1.6.0] — 2026-03-29
 
 ### Added
