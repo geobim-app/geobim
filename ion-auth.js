@@ -440,7 +440,7 @@
         });
       }
     } else {
-      statusEl.textContent = 'Demo';
+      statusEl.textContent = 'Connect';
       statusEl.className = 'ion-auth-status ion-auth-default';
 
       contentEl.innerHTML =
@@ -448,7 +448,7 @@
           'Using shared demo token. Connect your own Cesium Ion account to access your personal assets.' +
         '</div>' +
         '<button class="ion-auth-btn ion-auth-btn-login" id="ionLoginBtn">' +
-          '<i data-lucide="log-in" style="width:14px;height:14px;"></i> Connect Cesium Ion' +
+          '<i data-lucide="log-in" style="width:14px;height:14px;"></i> Connect to Cesium Ion' +
         '</button>';
 
       var loginBtn = document.getElementById('ionLoginBtn');
