@@ -17,14 +17,32 @@
 // ===============================
 'use strict';
 
-// Valid asset IDs for the Asset Manager selector (curated from Ion account)
-const VALID_ASSET_IDS = new Set([
-  4538820, 4538744, 4533896,
-  4510773, 4496917, 4495857,
-  4483046, 4476749, 4458809, 4452138, 4450806,
-  4446752, 4446751, 4428272, 4427396, 4422193,
-  4422185, 4422182, 4422180, 4422178, 4422174, 4422171
+// Curated demo assets from the geobim.app Ion account (ID → display name)
+const DEMO_ASSETS = new Map([
+  [4538820, 'Construction Stages (Bridge)'],
+  [4533896, 'RC_Bridge'],
+  [4510773, 'BIMcollab (IFC)'],
+  [4496917, 'Asset 4496917'],
+  [4495857, 'Dublin Bridge'],
+  [4483046, 'Rowing Center (Gaussian Splats)'],
+  [4476749, 'Golden Nugget (Revit)'],
+  [4458809, 'Atlanta (GLB)'],
+  [4452138, 'Bridge Belgium #1 (Reality-Mesh)'],
+  [4450806, 'Office Building (IFC)'],
+  [4446752, 'Bridge (Gaussian Splats)'],
+  [4446751, 'Bridge (Pointcloud)'],
+  [4428272, 'House (Pointcloud)'],
+  [4427396, 'Bridge (IFC)'],
+  [4422193, 'Facades (Revit)'],
+  [4422185, 'Architectural (Revit)'],
+  [4422182, 'HVAC (Revit)'],
+  [4422180, 'Electrical (Revit)'],
+  [4422178, 'Plumbing (Revit)'],
+  [4422174, 'Site (Revit)'],
+  [4422171, 'Structural (Revit)']
 ]);
+// Legacy compat — some code still references VALID_ASSET_IDS
+const VALID_ASSET_IDS = new Set(DEMO_ASSETS.keys());
 
 // Global tool cursor helper — set/clear contextual cursor on body
 window.BimCursor = {
@@ -1237,11 +1255,11 @@ const BimViewerUI = {
         btn.innerHTML = '<span class="modern-btn-icon">⏳</span><span>Loading...</span>';
         btn.disabled = true;
         
-        // Call the fetchAvailableAssets function from core.js
         const allAssets = await BimViewer.fetchAvailableAssets();
-        const assets = allAssets.filter(asset =>
-          VALID_ASSET_IDS.has(asset.id)
-        );
+        var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+        const assets = isOAuth
+          ? allAssets.filter(asset => asset.type === '3DTILES' || asset.type === 'GLTF')
+          : Array.from(DEMO_ASSETS, function(entry) { return { id: entry[0], name: entry[1] }; });
 
         // Clear and populate selector
         selector.innerHTML = '<option value="">-- Select an asset --</option>';
@@ -2180,6 +2198,8 @@ const BimViewerUI = {
     }
   },
 
+  _assetsLoadVersion: 0,
+
   // Auto-load Ion assets on startup
   async autoLoadIonAssets() {
     const loadingEl = document.getElementById('ionAssetsLoading');
@@ -2192,20 +2212,37 @@ const BimViewerUI = {
       return;
     }
 
+    // Increment version — if another call starts while we're awaiting,
+    // this call's result is stale and should be discarded
+    var myVersion = ++this._assetsLoadVersion;
+
     try {
       console.log('Auto-loading Ion assets...');
 
       // Fetch assets from Ion account
       const allAssets = await BimViewer.fetchAvailableAssets();
 
-      // Show all assets except terrain/imagery (Layer Manager) and OSM/Google (dedicated toggles)
-      const assets = allAssets.filter(asset =>
-        VALID_ASSET_IDS.has(asset.id)
-      );
+      // Discard if a newer call has started while we were awaiting
+      if (myVersion !== this._assetsLoadVersion) return;
 
-      console.log(`Loaded ${assets.length} assets (from ${allAssets.length} total, excluded terrain/imagery/OSM/Google)`);
+      var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+      var assets;
 
-      // Hide loading, show selector
+      if (isOAuth) {
+        // OAuth — show all 3D Tiles and 3D Model assets from user's account
+        assets = allAssets.filter(asset =>
+          asset.type === '3DTILES' || asset.type === 'GLTF'
+        );
+      } else {
+        // Demo — show curated assets with proper names from DEMO_ASSETS map
+        assets = Array.from(DEMO_ASSETS, function(entry) {
+          return { id: entry[0], name: entry[1], type: '3DTILES' };
+        });
+      }
+
+      console.log(`Loaded ${assets.length} assets (from ${allAssets.length} total)`);
+
+      // Show selector
       if (loadingEl) loadingEl.style.display = 'none';
       selector.style.display = 'block';
       if (importBtn) importBtn.style.display = 'block';
@@ -2235,6 +2272,14 @@ const BimViewerUI = {
 
 // Expose globally
 window.BimViewerUI = BimViewerUI;
+
+// Reload asset list when Ion token changes (OAuth connect/disconnect)
+window.addEventListener('ion-token-changed', function() {
+  if (BimViewerUI && typeof BimViewerUI.autoLoadIonAssets === 'function') {
+    console.log('Ion token changed — reloading asset list...');
+    BimViewerUI.autoLoadIonAssets();
+  }
+});
 
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {

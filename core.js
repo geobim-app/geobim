@@ -900,6 +900,18 @@ const BimViewer = {
 
   async fetchAvailableAssets() {
     try {
+      var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+
+      if (!isOAuth) {
+        // Demo token — can't query REST API, return curated asset stubs
+        // The VALID_ASSET_IDS filter in ui.js handles the selection
+        this.availableAssets = Array.from(typeof VALID_ASSET_IDS !== 'undefined' ? VALID_ASSET_IDS : []).map(function(id) {
+          return { id: id, name: 'Asset ' + id, type: '3DTILES' };
+        });
+        return this.availableAssets;
+      }
+
+      // OAuth token — fetch real asset list from Ion API
       const ionToken = BimAuth.getIonToken();
       const response = await fetch('https://api.cesium.com/v1/assets', {
         headers: {
@@ -907,14 +919,22 @@ const BimViewer = {
         }
       });
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        console.warn('Ion API /v1/assets returned ' + response.status + ' — falling back to demo assets');
+        // Fallback: return demo stubs so the app still works
+        this.availableAssets = Array.from(typeof VALID_ASSET_IDS !== 'undefined' ? VALID_ASSET_IDS : []).map(function(id) {
+          return { id: id, name: 'Asset ' + id, type: '3DTILES' };
+        });
+        return this.availableAssets;
       }
       const data = await response.json();
       this.availableAssets = data.items || [];
       return this.availableAssets;
     } catch (error) {
-      console.error('Failed to fetch assets:', error);
-      throw error;
+      console.warn('Failed to fetch Ion assets, using demo fallback:', error.message);
+      this.availableAssets = Array.from(typeof VALID_ASSET_IDS !== 'undefined' ? VALID_ASSET_IDS : []).map(function(id) {
+        return { id: id, name: 'Asset ' + id, type: '3DTILES' };
+      });
+      return this.availableAssets;
     }
   },
 
@@ -1092,7 +1112,13 @@ const BimViewer = {
       
     } catch (error) {
       console.error('Failed to load asset:', error);
-      this.updateStatus('Failed to load asset', 'error');
+      var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+      var msg = error.message || '';
+      if (isOAuth && (msg.indexOf('404') !== -1 || msg.indexOf('403') !== -1 || msg.indexOf('unauthorized') !== -1 || msg.indexOf('not found') !== -1)) {
+        this.updateStatus('Asset ' + assetId + ' not available — activate it in your Cesium Ion My Assets', 'error');
+      } else {
+        this.updateStatus('Failed to load asset ' + assetId, 'error');
+      }
     }
   },
 

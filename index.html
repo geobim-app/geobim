@@ -51,6 +51,9 @@
   <!-- Sequencing Styles -->
   <link rel="stylesheet" href="sequencing-styles.css">
 
+  <!-- Ion Auth Styles -->
+  <link rel="stylesheet" href="ion-auth-styles.css">
+
   <!-- About & Feedback Styles -->
   <link rel="stylesheet" href="about-feedback-styles.css">
 
@@ -216,6 +219,9 @@
   <!-- Splash Screen (before auth) -->
   <script src="splash-screen.js"></script>
 
+  <!-- Ion Auth (OAuth2 PKCE — must load before auth.js) -->
+  <script src="ion-auth.js"></script>
+
   <!-- Auth Module -->
   <script src="auth.js"></script>
 
@@ -378,8 +384,9 @@
               console.log('Lighting system initialized');
             }
 
-            // Auto-load Ion assets
-            if (typeof BimViewerUI !== 'undefined' && typeof BimViewerUI.autoLoadIonAssets === 'function') {
+            // Auto-load Ion assets (skip if OAuth redirect is still processing —
+            // the ion-token-changed event will trigger the load after OAuth completes)
+            if (!window._ionOAuthPending && typeof BimViewerUI !== 'undefined' && typeof BimViewerUI.autoLoadIonAssets === 'function') {
               BimViewerUI.autoLoadIonAssets();
               console.log('Auto-loading Ion assets...');
             }

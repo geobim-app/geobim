@@ -179,7 +179,12 @@
         BimViewer.updateStatus('Basemap: ' + target.name, 'success');
       } catch (error) {
         console.error('Failed to load basemap:', target.name, error);
-        BimViewer.updateStatus('Failed to load basemap: ' + target.name, 'error');
+        var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+        if (isOAuth) {
+          BimViewer.updateStatus(target.name + ' — activate this asset in your Cesium Ion My Assets', 'error');
+        } else {
+          BimViewer.updateStatus('Failed to load basemap: ' + target.name, 'error');
+        }
       }
     },
 
@@ -258,7 +263,12 @@
 
       } catch (error) {
         console.error('Failed to switch terrain:', error);
-        BimViewer.updateStatus('Failed to switch terrain: ' + error.message, 'error');
+        var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+        if (isOAuth) {
+          BimViewer.updateStatus('Cesium World Terrain — activate this asset in your Cesium Ion My Assets', 'error');
+        } else {
+          BimViewer.updateStatus('Failed to switch terrain: ' + error.message, 'error');
+        }
       }
     },
 

@@ -29,14 +29,8 @@
   const firebaseDb = firebase.firestore();
 
   // =====================================
-  // DEMO ION TOKEN
+  // ION TOKEN — delegated to BimIonAuth
   // =====================================
-  const SAVED_ION_ACCOUNTS = {
-    'demo': {
-      name: 'geobim.app Demo',
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4ZGM1ZDdlNi02ZDFhLTRkMGItYTNhNy0wZTRiM2RhZWFlNWUiLCJpZCI6Mzg3NDE4LCJpYXQiOjE3NzAyOTk1MTR9.kdRP3yJ-1NV3Y0vccI14W8-1oeVKOVoOUQAfkjeBCg0'
-    }
-  };
 
   // =====================================
   // AUTH STATE
@@ -77,14 +71,30 @@
       this.checkIonToken();
     },
 
-    // Check for Ion Token - auto-apply demo token
-    checkIonToken: function() {
-      const demoToken = SAVED_ION_ACCOUNTS['demo'].token;
-      this.ionToken = demoToken;
-      this.currentAccountId = 'demo';
-      this.applyToken(demoToken);
+    // Check for Ion Token — delegates to BimIonAuth
+    checkIonToken: async function() {
+      if (typeof BimIonAuth !== 'undefined') {
+        await BimIonAuth.init();
+        var token = BimIonAuth.getToken();
+        if (token) {
+          this.ionToken = token;
+          this.currentAccountId = BimIonAuth.isOAuthConnected() ? 'oauth' : 'demo';
+          this.applyToken(token);
+        }
+      }
       this.showApp();
-      console.log('Demo token applied automatically');
+      console.log('Ion token applied via BimIonAuth');
+
+      // Listen for token changes (OAuth login/logout)
+      window.addEventListener('ion-token-changed', function(e) {
+        var newToken = e.detail.token;
+        if (newToken) {
+          BimAuth.ionToken = newToken;
+          BimAuth.currentAccountId = e.detail.isOAuth ? 'oauth' : 'demo';
+          BimAuth.applyToken(newToken);
+          console.log('Ion token updated:', e.detail.isOAuth ? 'OAuth' : 'Default');
+        }
+      });
     },
 
     // Apply Token to Cesium
@@ -105,12 +115,18 @@
 
     // Get Ion Token
     getIonToken: function() {
-      return this.ionToken || SAVED_ION_ACCOUNTS['demo'].token;
+      if (typeof BimIonAuth !== 'undefined') {
+        return BimIonAuth.getToken();
+      }
+      return this.ionToken;
     },
 
-    // Clear Ion Token (resets to demo)
+    // Clear Ion Token (resets to demo via BimIonAuth)
     clearIonToken: function() {
-      this.ionToken = SAVED_ION_ACCOUNTS['demo'].token;
+      if (typeof BimIonAuth !== 'undefined') {
+        BimIonAuth.logout();
+      }
+      this.ionToken = typeof BimIonAuth !== 'undefined' ? BimIonAuth.getDefaultToken() : null;
       this.currentAccountId = 'demo';
       console.log('Ion Token reset to demo');
     },

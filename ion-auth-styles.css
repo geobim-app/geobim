@@ -1,0 +1,230 @@
+/**
+ * geoBIM.app — Ion Auth Indicator Styles
+ * Cesium Ion OAuth2 status indicator (top-right corner)
+ */
+
+/* ==============================
+   INDICATOR (collapsed bar)
+   ============================== */
+
+.ion-auth-indicator {
+  position: fixed;
+  top: var(--space-sm);
+  right: 340px;
+  z-index: 1001;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}
+
+/* Shift down when demo banner is active */
+body.demo-active .ion-auth-indicator {
+  top: 45px;
+}
+
+.ion-auth-indicator-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.ion-auth-indicator-inner:hover {
+  background: rgba(14, 17, 23, 0.92);
+  border-color: var(--border-default);
+}
+
+.ion-auth-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.ion-auth-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ion-auth-status {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ion-auth-status.ion-auth-default {
+  color: var(--text-secondary);
+}
+
+.ion-auth-status.ion-auth-connected {
+  color: var(--brand-teal);
+}
+
+/* ==============================
+   DROPDOWN
+   ============================== */
+
+.ion-auth-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  min-width: 260px;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.ion-auth-dropdown.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.ion-auth-dropdown-content {
+  padding: var(--space-md);
+}
+
+/* ==============================
+   DROPDOWN CONTENT
+   ============================== */
+
+.ion-auth-user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.ion-auth-username {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ion-auth-email {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ion-auth-info-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: var(--space-md);
+}
+
+/* ==============================
+   REQUIRED ASSETS INFO
+   ============================== */
+
+.ion-auth-details {
+  margin-bottom: var(--space-md);
+}
+
+.ion-auth-details summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ion-auth-details summary:hover {
+  color: var(--text-secondary);
+}
+
+.ion-auth-required-assets {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: var(--space-xs);
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+}
+
+.ion-auth-required-assets a {
+  color: var(--brand-teal);
+  text-decoration: none;
+}
+
+.ion-auth-required-assets a:hover {
+  text-decoration: underline;
+}
+
+.ion-auth-required-assets ul {
+  margin: var(--space-xs) 0 0 0;
+  padding-left: var(--space-lg);
+}
+
+.ion-auth-required-assets li {
+  margin-bottom: 2px;
+}
+
+/* ==============================
+   BUTTONS
+   ============================== */
+
+.ion-auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.ion-auth-btn-login {
+  background: var(--brand-teal);
+  color: #000;
+}
+
+.ion-auth-btn-login:hover {
+  background: var(--brand-teal-dark);
+}
+
+.ion-auth-btn-logout {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.ion-auth-btn-logout:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+}
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
+
+@media (max-width: 768px) {
+  .ion-auth-label {
+    display: none;
+  }
+
+  .ion-auth-dropdown {
+    min-width: 220px;
+  }
+}
