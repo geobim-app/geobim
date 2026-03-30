@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+#### Post-Processing Effects Module (`postfx.js`)
+- Bloom (Cesium built-in) — toggleable with contrast, brightness, sigma, stepSize
+- Lens Flare (Cesium built-in) — intensity, distortion, ghostDispersal, haloWidth
+- Vignette + Color Grading (custom GLSL) — vignette strength/radius, contrast, saturation, warmth, brightness
+- New "Cinematic" performance preset — MSAA 4x + Bloom + Lens Flare + Vignette + SSAO + resolutionScale 1.5
+- All effects wrapped in try/catch for mobile WebGL compatibility
+- Public API: `GEOBIM_POSTFX.setBloom()`, `.setLensFlare()`, `.setColorGrading()`, `.activateCinematic()`
+
 ### Changed
 
 #### Google 3D Tiles Rendering Optimization

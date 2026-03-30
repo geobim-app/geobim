@@ -146,6 +146,39 @@ const CONFIG = {
         ssaoBlurStepSize: 0.72,
         shadowMaxDistance: 2000.0,
         shadowBias: 0.001
+      },
+      CINEMATIC: {
+        name: 'Cinematic',
+        screenSpaceError: 1.0,
+        memoryUsage: 8192,
+        shadowSize: 4096,
+        lodQuality: 4.0,
+        enableSSAO: true,
+        enableShadows: true,
+        enableFXAA: false,
+        enableMSAA: true,
+        enableHDR: true,
+        enableAtmosphere: true,
+        enableLighting: true,
+        skipLevelOfDetail: false,
+        cullRequestsWhileMoving: false,
+        preloadWhenHidden: true,
+        preloadFlightDestinations: true,
+        dynamicScreenSpaceError: true,
+        dynamicScreenSpaceErrorDensity: 0.00278,
+        dynamicScreenSpaceErrorFactor: 4.0,
+        dynamicScreenSpaceErrorHeightFalloff: 0.25,
+        ssaoIntensity: 8.8,
+        ssaoBias: 0.24,
+        ssaoLengthCap: 0.07,
+        ssaoDirections: 16,
+        ssaoStepSize: 2.0,
+        ssaoFrustumLength: 1000.0,
+        ssaoBlurStepSize: 0.72,
+        shadowMaxDistance: 2000.0,
+        shadowBias: 0.001,
+        resolutionScale: 1.5,
+        enableCinematicPostFX: true
       }
     }
   }
@@ -1840,11 +1873,23 @@ const BimViewer = {
     // Store current settings so newly loaded tilesets can be configured on load
     this._currentPerformanceSettings = settings;
 
-    console.log('✅ Tileset-level settings applied to all primitives:', {
+    // --- PostFX: Cinematic mode integration ---
+    if (settings.enableCinematicPostFX && window.GEOBIM_POSTFX) {
+      GEOBIM_POSTFX.activateCinematic();
+    } else if (window.GEOBIM_POSTFX) {
+      GEOBIM_POSTFX.deactivateCinematic();
+    }
+
+    // Resolution scale: 1.5 for Cinematic, reset to 1.0 for all others
+    this.viewer.resolutionScale = settings.resolutionScale || 1.0;
+
+    console.log('✅ Performance settings applied:', {
       screenSpaceError: settings.screenSpaceError,
       skipLevelOfDetail: settings.skipLevelOfDetail,
       dynamicScreenSpaceError: settings.dynamicScreenSpaceError,
-      memoryUsage: settings.memoryUsage
+      memoryUsage: settings.memoryUsage,
+      cinematic: !!settings.enableCinematicPostFX,
+      resolutionScale: settings.resolutionScale || 1.0
     });
   },
 
