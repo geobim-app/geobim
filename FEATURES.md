@@ -13,6 +13,7 @@
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
 | Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.6.0 with Walk Mode + Third-Person. | `splash-screen.js` |
 | Onboarding Tour | 6-step guided tour with spotlight overlay for new users. Auto-starts on first visit. | `onboarding.js` |
+| Cesium Ion Connect | OAuth2 PKCE flow to link personal Cesium Ion accounts. Browse and load private assets. Token persistence via localStorage with automatic refresh. Falls back to server-side demo token. | `ion-auth.js`, `ion-auth-styles.css`, `api/ion-config.php` |
 
 ---
 

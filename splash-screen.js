@@ -99,6 +99,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F32C;&#xFE0F;</span><div><strong>WEA Shadow Analysis</strong><span>Wind turbine shadow flicker simulation</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2194;&#xFE0F;</span><div><strong>Split View</strong><span>Side-by-side comparison of two tilesets</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F310;</span><div><strong>Geoid / Coordinate Tools</strong><span>EGM2008 geoid lookup, coordinate display</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F511;</span><div><strong>Cesium Ion Connect</strong><span>Link your own Ion account to load private assets</span></div></div>' +
           '</div>' +
         '</div>' +
 

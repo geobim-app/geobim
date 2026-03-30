@@ -38,7 +38,7 @@
   var terrainHeight = 0;
   var lastCollisionCheck = 0;
   var lastCollisionResult = { forward: true, right: true };
-  var COLLISION_INTERVAL = 100; // ms — check collision max ~10x/sec
+  var COLLISION_INTERVAL = 150; // ms — check collision ~7x/sec (balance: fluidity vs GPU cost)
 
   var keys = {
     forward: false, backward: false, left: false, right: false,
@@ -48,8 +48,6 @@
   var look = { heading: 0, pitch: 0 };
 
   var velocity = { forward: 0, right: 0, up: 0 };
-  var ACCEL_FACTOR = 0.06;   // how fast velocity ramps up (0–1, lower = smoother)
-  var DECEL_FACTOR = 0.10;   // how fast velocity decays to zero
 
   var gamepad = { index: -1, lastA: false };
 
@@ -58,17 +56,17 @@
   // ========================================================
 
   var config = {
-    moveSpeed: 0.225,
+    moveSpeed: 4.0,              // direct speed (like original repo: 8.0)
     sprintMultiplier: 3.0,
     mouseSensitivity: 0.003,
     eyeHeight: 1.7,
     terrainClamp: true,
-    terrainSampleInterval: 400,
-    gamepadMoveSpeed: 0.2,
+    tileClampInterval: 300,      // ms — pickFromRay for 3D tiles (~3x/sec)
+    gamepadMoveSpeed: 6.0,       // direct gamepad speed
     gamepadSensitivity: 0.025,
     gamepadDeadzone: 0.15,
-    collision: true,
-    collisionRadius: 0.5      // meters — minimum distance to geometry
+    collision: false,            // off by default — causes stutter
+    collisionRadius: 0.35
   };
 
   // ========================================================
@@ -439,33 +437,39 @@
   }
 
   // Single ray check — returns distance to hit, or Infinity
-  // Ignores hits closer than 0.05m (self-intersection with floor/ceiling)
+  // Ignores hits closer than 0.15m (self-intersection with floor/ceiling/terrain)
   function rayDist(viewer, origin, direction) {
     Cesium.Cartesian3.clone(origin, _ray.origin);
     Cesium.Cartesian3.clone(direction, _ray.direction);
     var result = viewer.scene.pickFromRay(_ray);
     if (!result || !result.position) return Infinity;
     var dist = Cesium.Cartesian3.distance(origin, result.position);
-    return dist < 0.05 ? Infinity : dist;
+    return dist < 0.15 ? Infinity : dist;
   }
 
   // Check collision before moving; returns false if blocked
+  // Forward and right are checked independently with separate throttle timestamps.
+  var _lastCollisionFwd = 0;
+  var _lastCollisionRight = 0;
+
   function canMove(viewer, moveFunc, amount, currentSpeed) {
     if (!config.collision || amount === 0) return true;
     if (moveFunc === 'moveUp') return true;
 
-    // Throttle: reuse last result between checks
+    // Per-axis throttle: each direction has its own timer
     var now = Date.now();
-    if (now - lastCollisionCheck < COLLISION_INTERVAL) {
-      return moveFunc === 'moveForward' ? lastCollisionResult.forward : lastCollisionResult.right;
+    var isFwd = moveFunc === 'moveForward';
+    var lastCheck = isFwd ? _lastCollisionFwd : _lastCollisionRight;
+    if (now - lastCheck < COLLISION_INTERVAL) {
+      return isFwd ? lastCollisionResult.forward : lastCollisionResult.right;
     }
-    lastCollisionCheck = now;
+    if (isFwd) _lastCollisionFwd = now; else _lastCollisionRight = now;
 
     var cam = viewer.camera;
     var up = localUp(viewer);
 
     // Build base direction from move type
-    if (moveFunc === 'moveForward') {
+    if (isFwd) {
       Cesium.Cartesian3.clone(cam.direction, _dir);
       if (amount < 0) Cesium.Cartesian3.negate(_dir, _dir);
     } else if (moveFunc === 'moveRight') {
@@ -478,35 +482,22 @@
     // Project onto horizontal plane
     if (!horizontalize(_dir, up, _dir)) return true;
 
-    // Adaptive radius: base + velocity-proportional margin (anti-tunneling)
-    var effectiveSpeed = Math.abs(amount) * currentSpeed;
-    var radius = config.collisionRadius + effectiveSpeed * 0.5;
+    // Collision radius
+    var radius = config.collisionRadius;
 
-    // --- Ray origins at two heights: eye level + waist level (1.0m above floor) ---
+    // --- Single horizontal ray at chest height (eye - 0.4m) ---
+    // Minimal GPU cost: 1 ray per axis per check (~7x/sec)
     var eyePos = cam.position;
-    var waistDrop = Math.min(config.eyeHeight - 1.0, config.eyeHeight * 0.4);
-    var waistOffset = Cesium.Cartesian3.multiplyByScalar(up, -waistDrop, new Cesium.Cartesian3());
-    var waistPos = Cesium.Cartesian3.add(eyePos, waistOffset, new Cesium.Cartesian3());
-
-    // --- Fan of rays: center + ±25° spread, at both heights ---
-    var spreadAngle = Math.PI / 7.2;  // ~25°
-    var leftDir = new Cesium.Cartesian3();
-    var rightDir = new Cesium.Cartesian3();
-    rotateAroundUp(_dir, up, spreadAngle, leftDir);
-    rotateAroundUp(_dir, up, -spreadAngle, rightDir);
+    var chestDrop = 0.4;
+    var chestOffset = Cesium.Cartesian3.multiplyByScalar(up, -chestDrop, new Cesium.Cartesian3());
+    var chestPos = Cesium.Cartesian3.add(eyePos, chestOffset, new Cesium.Cartesian3());
 
     var blocked = false;
-    // Check all 3 directions at both heights (6 rays total)
-    var dirs = [_dir, leftDir, rightDir];
-    var origins = [eyePos, waistPos];
-    for (var oi = 0; oi < origins.length && !blocked; oi++) {
-      for (var di = 0; di < dirs.length && !blocked; di++) {
-        if (rayDist(viewer, origins[oi], dirs[di]) < radius) blocked = true;
-      }
-    }
+    var d = rayDist(viewer, chestPos, _dir);
+    if (d < radius) blocked = true;
 
     if (blocked) {
-      if (moveFunc === 'moveForward') lastCollisionResult.forward = false;
+      if (isFwd) lastCollisionResult.forward = false;
       else lastCollisionResult.right = false;
       return false;
     }
@@ -521,13 +512,13 @@
       var floorDist = rayDist(viewer, ahead, negUp);
 
       if (isFinite(floorDist) && floorDist > config.eyeHeight + _edgeCheckDropThreshold) {
-        if (moveFunc === 'moveForward') lastCollisionResult.forward = false;
+        if (isFwd) lastCollisionResult.forward = false;
         else lastCollisionResult.right = false;
         return false;
       }
     }
 
-    if (moveFunc === 'moveForward') lastCollisionResult.forward = true;
+    if (isFwd) lastCollisionResult.forward = true;
     else lastCollisionResult.right = true;
     return true;
   }
@@ -561,18 +552,10 @@
     var isSprint = keys.sprint || gpInput.sprint;
     var speed = config.moveSpeed * (isSprint ? config.sprintMultiplier : 1.0);
 
-    // Smooth lerp toward target
-    var af = targetFwd !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    var ar = targetRight !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    var au = targetUp !== 0 ? ACCEL_FACTOR : DECEL_FACTOR;
-    velocity.forward += (targetFwd - velocity.forward) * af;
-    velocity.right   += (targetRight - velocity.right) * ar;
-    velocity.up      += (targetUp - velocity.up) * au;
-
-    // Kill tiny residual drift
-    if (Math.abs(velocity.forward) < 0.001) velocity.forward = 0;
-    if (Math.abs(velocity.right)   < 0.001) velocity.right = 0;
-    if (Math.abs(velocity.up)      < 0.001) velocity.up = 0;
+    // Direct input — no velocity lerp (like original cesiumfirstperson repo)
+    velocity.forward = targetFwd;
+    velocity.right   = targetRight;
+    velocity.up      = targetUp;
 
     // --- Gamepad right stick → look (1st person only) ---
     var isTP = window.BimThirdPerson && BimThirdPerson.isActive();
@@ -589,83 +572,66 @@
     if (isTP) return;
 
     // --- Apply movement to camera (1st person only) ---
-    if (velocity.forward !== 0) {
-      if (canMove(viewer, 'moveForward', velocity.forward, speed)) {
-        viewer.camera.moveForward(velocity.forward * speed);
-      }
-    }
-    if (velocity.right !== 0) {
-      if (canMove(viewer, 'moveRight', velocity.right, speed)) {
-        viewer.camera.moveRight(velocity.right * speed);
-      }
-    }
-    if (velocity.up !== 0) viewer.camera.moveUp(velocity.up * speed);
+    // Direct movement like original cesiumfirstperson repo — no collision gate
+    if (velocity.forward !== 0) viewer.camera.moveForward(velocity.forward * speed);
+    if (velocity.right !== 0)   viewer.camera.moveRight(velocity.right * speed);
+    if (velocity.up !== 0)      viewer.camera.moveUp(velocity.up * speed);
 
-    // Terrain clamping
+    // Terrain clamping (cheap globe.getHeight + throttled pickFromRay for 3D tiles)
     if (config.terrainClamp) {
       clampToTerrain(viewer);
     }
   }
 
   // ========================================================
-  // TERRAIN CLAMPING (downward raycast — works indoors)
+  // TERRAIN CLAMPING
   // ========================================================
   //
-  // sampleHeight() returns the TOPMOST surface (= roof when indoors).
-  // Instead we cast a ray straight down from the camera — this hits
-  // the floor directly below, even inside multi-story buildings.
+  // Two-tier approach:
+  //   1. globe.getHeight() every frame — FREE, already computed for rendering
+  //   2. pickFromRay() for 3D tiles — EXPENSIVE, throttled to ~3x/sec
   //
 
   var _clampRay = new Cesium.Ray();
+  var _lastTileClamp = 0;
+  var _tileFloorHeight = null;
 
   function clampToTerrain(viewer) {
+    var carto = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+
+    // --- Tier 1: globe.getHeight() — free, every frame ---
+    var globeH = viewer.scene.globe.getHeight(carto);
+    var bestFloor = (globeH !== undefined && isFinite(globeH)) ? globeH : terrainHeight;
+
+    // --- Tier 2: pickFromRay for 3D tiles — throttled ---
     var now = Date.now();
-    if (now - lastTerrainSample < config.terrainSampleInterval) {
-      enforceMinHeight(viewer);
-      return;
-    }
-    lastTerrainSample = now;
-
-    var cam = viewer.camera;
-    var up = localUp(viewer);
-    var down = Cesium.Cartesian3.negate(up, new Cesium.Cartesian3());
-
-    // Cast ray downward from camera position
-    Cesium.Cartesian3.clone(cam.position, _clampRay.origin);
-    Cesium.Cartesian3.clone(down, _clampRay.direction);
-
-    var result = viewer.scene.pickFromRay(_clampRay);
-    if (result && result.position) {
-      var floorDist = Cesium.Cartesian3.distance(cam.position, result.position);
-      // Convert hit to cartographic height
-      var floorCarto = Cesium.Cartographic.fromCartesian(result.position);
-      if (isFinite(floorCarto.height)) {
-        terrainHeight = floorCarto.height;
-        enforceMinHeight(viewer);
-        return;
+    if (now - _lastTileClamp > config.tileClampInterval) {
+      _lastTileClamp = now;
+      var up = localUp(viewer);
+      var down = Cesium.Cartesian3.negate(up, new Cesium.Cartesian3());
+      Cesium.Cartesian3.clone(viewer.camera.position, _clampRay.origin);
+      Cesium.Cartesian3.clone(down, _clampRay.direction);
+      var result = viewer.scene.pickFromRay(_clampRay);
+      if (result && result.position) {
+        var hitCarto = Cesium.Cartographic.fromCartesian(result.position);
+        if (isFinite(hitCarto.height)) {
+          _tileFloorHeight = hitCarto.height;
+        }
       }
     }
-
-    // Fallback: async terrain sampling (outdoors, no 3D tiles below)
-    var tp = viewer.scene.terrainProvider;
-    if (tp && tp.ready !== false) {
-      var carto = Cesium.Cartographic.fromCartesian(cam.position);
-      Cesium.sampleTerrainMostDetailed(tp, [Cesium.Cartographic.clone(carto)])
-        .then(function(results) {
-          if (results[0] && isFinite(results[0].height)) {
-            terrainHeight = results[0].height;
-          }
-        })
-        .catch(function() {});
+    if (_tileFloorHeight !== null && _tileFloorHeight > bestFloor) {
+      bestFloor = _tileFloorHeight;
     }
-  }
 
-  function enforceMinHeight(viewer) {
-    var carto = Cesium.Cartographic.fromCartesian(viewer.camera.position);
-    var minH = terrainHeight + config.eyeHeight;
-    if (carto.height < minH) {
+    terrainHeight = bestFloor;
+
+    // Enforce minimum height — smooth lerp to ground
+    var targetH = terrainHeight + config.eyeHeight;
+    var diff = targetH - carto.height;
+    if (diff > 0) {
+      var newH = (diff < 0.05) ? targetH : carto.height + diff * 0.5;
       viewer.camera.position = Cesium.Cartesian3.fromRadians(
-        carto.longitude, carto.latitude, minH
+        carto.longitude, carto.latitude, newH
       );
     }
   }
@@ -808,8 +774,8 @@
         '</div>' +
       '</div>' +
       '<div class="fp-body">' +
-        '<div class="fp-row"><label>Speed</label><input type="range" id="fpSpeed" min="0.02" max="1" step="0.02" value="' + config.moveSpeed + '" oninput="BimFirstPerson.setMoveSpeed(+this.value)"><span class="fp-val" id="fpSpeedVal">' + config.moveSpeed + '</span></div>' +
-        '<div class="fp-row"><label>Sensitivity</label><input type="range" id="fpSens" min="1" max="100" value="50" oninput="BimFirstPerson.setSensitivity(+this.value)"><span class="fp-val" id="fpSensVal">50</span></div>' +
+        '<div class="fp-row"><label>Speed</label><input type="range" id="fpSpeed" min="1" max="20" step="0.5" value="' + config.moveSpeed + '" oninput="BimFirstPerson.setMoveSpeed(+this.value)"><span class="fp-val" id="fpSpeedVal">' + config.moveSpeed + '</span></div>' +
+        '<div class="fp-row"><label>Sensitivity</label><input type="range" id="fpSens" min="1" max="100" value="30" oninput="BimFirstPerson.setSensitivity(+this.value)"><span class="fp-val" id="fpSensVal">30</span></div>' +
         '<div class="fp-row"><label>Eye Height</label><input type="number" id="fpEyeH" min="0.5" max="10" step="0.1" value="' + config.eyeHeight + '" onchange="BimFirstPerson.setEyeHeight(+this.value)"><span style="font-size:10px;color:rgba(255,255,255,0.3);">m</span></div>' +
         '<div class="fp-row"><label>Terrain Clamp</label><input type="checkbox" id="fpClamp" ' + (config.terrainClamp ? 'checked' : '') + ' onchange="BimFirstPerson.setTerrainClamp(this.checked)"></div>' +
         '<div class="fp-row"><label>Wall Collision</label><input type="checkbox" id="fpCollision" ' + (config.collision ? 'checked' : '') + ' onchange="BimFirstPerson.setCollision(this.checked)"></div>' +
@@ -897,6 +863,7 @@
     config: config,
     velocity: velocity,
     gpInput: gpInput,
+    isSprinting: function() { return keys.sprint || gpInput.sprint; },
     canMove: canMove,
     clampToTerrain: clampToTerrain
   };

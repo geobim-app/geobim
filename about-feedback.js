@@ -193,6 +193,13 @@
                   <span>EGM2008 geoid lookup, coordinate display</span>
                 </div>
               </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">🔑</span>
+                <div>
+                  <strong>Cesium Ion Connect</strong>
+                  <span>Link your own Ion account to load private assets</span>
+                </div>
+              </div>
             </div>
           </div>
 

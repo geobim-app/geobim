@@ -8,6 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+#### Walk Mode Fixes
+- T key (Player Start) now works from any mode — first-person, third-person, or normal orbit
+- Third-person collision upgraded from single ray to fan of 6 rays (3 directions × 2 heights)
+- Third-person edge detection added — character blocked at cliff edges (>2m drop)
+- Mouse sensitivity slider now correctly defaults to match config value (0.003)
+- Cesium clock multiplier always restored on third-person deactivate (prevents frozen shadows/WEA)
+
 #### Cesium Ion OAuth2 Integration
 - OAuth2 PKCE flow for connecting personal Cesium Ion accounts (`ion-auth.js`)
 - Ion status indicator (top-right) with connect/disconnect dropdown

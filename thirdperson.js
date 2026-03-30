@@ -8,7 +8,11 @@
 //
 // Shortcut: V to toggle between 1st and 3rd person
 // Requires firstperson.js (provides velocity + input).
-// Uses camera.lookAtTransform() as spring-arm equivalent.
+//
+// Animation approach from Cesium Sandcastle "3D Models — Animation":
+//   Model as Primitive, activeAnimations with animationTime callback,
+//   modelMatrix updated via rotationMatrixFromPositionVelocity.
+//   Clock multiplier is NEVER touched — animation is distance-driven.
 //
 // Tuned to match Unreal Engine third-person defaults:
 //   Spring Arm: 300cm, Camera Lag off
@@ -26,38 +30,36 @@
   var MODEL_URL = 'model/Cesium_Man.glb';
 
   // Camera offset (Unreal: TargetArmLength=300, CapsuleHalfHeight=96cm)
-  var CAM_BEHIND = 3.0;           // meters behind character (300cm)
-  var CAM_ABOVE = 1.7;            // pivot at head height (170cm)
+  var CAM_BEHIND = 1.8;           // meters behind character
+  var CAM_ABOVE = 1.0;            // pivot at head height
   var MIN_DISTANCE = 1.5;
   var MAX_DISTANCE = 15.0;
 
-  // Character Movement — tuned to match Cesium_Man walk animation
-  var WALK_SPEED = 0.035;         // meters/frame at 60fps ≈ 2.1 m/s (7.5 km/h brisk walk)
-  var SPRINT_MULTIPLIER = 2.5;    // sprint ≈ 3.5 m/s (12 km/h jog)
-  var BRAKING = 0.18;             // deceleration factor (higher = snappier stop, Unreal: 2048cm/s²)
+  // Character Movement
+  var WALK_SPEED = 0.10;          // meters/frame at 60fps ≈ 6 m/s
+  var SPRINT_MULTIPLIER = 2.5;
+  var ANIM_STRIDE_LENGTH = 4.0;   // meters per walk cycle — higher = slower step frequency
 
   // Rotation (Unreal: RotationRate=(0,540,0), OrientRotationToMovement=true)
-  var ROTATION_RATE = 0.35;       // lerp factor per frame — snappy turn toward movement
-  var MODEL_HEADING_OFFSET = -Math.PI / 2; // GLB model faces +X, Cesium heading 0 = North (+Y)
+  var ROTATION_RATE = 0.50;       // lerp factor per frame — snappy turn toward movement
 
   // ========================================================
   // STATE
   // ========================================================
 
   var active = false;
-  var modelPrimitive = null;
+  var modelPrimitive = null;       // Cesium.Model (Primitive API)
+  var trackingEntity = null;       // lightweight Entity for trackedEntity camera follow
   var charLon = 0;
   var charLat = 0;
   var charHeight = 0;
   var characterHeading = 0;
   var orbitHeading = 0;
   var orbitDistance = CAM_BEHIND;
-  var charVelFwd = 0;
-  var charVelRight = 0;
   var preRenderListener = null;
   var lastTileClampTime = 0;
   var lastTileHeight = null;
-  var _savedClockMultiplier = 1;
+  var totalDistance = 0;            // cumulative distance traveled (drives animation)
 
   // Player Start (spawn point)
   var spawnSet = false;
@@ -77,46 +79,103 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   // ========================================================
-  // MODEL
+  // MODEL — Primitive API with distance-driven animation
   // ========================================================
 
-  var characterEntity = null;
+  var _rotation = new Cesium.Matrix3();
 
   function createModel(viewer) {
     removeModel(viewer);
+    totalDistance = 0;
 
     var pos = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight);
     console.log('🏃 Loading character at', Cesium.Math.toDegrees(charLon).toFixed(5), Cesium.Math.toDegrees(charLat).toFixed(5), 'h=' + charHeight.toFixed(1));
 
-    characterEntity = viewer.entities.add({
-      position: pos,
-      orientation: Cesium.Transforms.headingPitchRollQuaternion(
-        pos, new Cesium.HeadingPitchRoll(characterHeading + MODEL_HEADING_OFFSET, 0, 0)
-      ),
-      model: {
-        uri: MODEL_URL,
-        scale: 1.3,
-        minimumPixelSize: 64,
-        imageBasedLightingFactor: new Cesium.Cartesian2(1.0, 1.0)
-      }
+    // Load as Primitive (not Entity) — gives us activeAnimations + animationTime
+    Cesium.Model.fromGltfAsync({
+      url: MODEL_URL,
+      scale: 1.3,
+      minimumPixelSize: 64
+    }).then(function(model) {
+      if (!active) { return; } // deactivated while loading
+      modelPrimitive = model;
+      viewer.scene.primitives.add(model);
+
+      model.readyEvent.addEventListener(function() {
+        // Start all animations with distance-driven timing
+        model.activeAnimations.addAll({
+          loop: Cesium.ModelAnimationLoop.REPEAT,
+          animationTime: function(duration) {
+            // Map cumulative distance to animation time
+            // duration = total animation length in seconds
+            // ANIM_STRIDE_LENGTH = meters per full cycle
+            return (totalDistance / ANIM_STRIDE_LENGTH) * duration;
+          },
+          multiplier: 1.0
+        });
+        console.log('🏃 Character model ready, distance-driven animation active');
+      });
+
+      // Set initial modelMatrix
+      updateModelMatrix();
+
+      // Create lightweight tracking entity for camera follow
+      trackingEntity = viewer.entities.add({
+        position: pos,
+        point: { pixelSize: 1, color: Cesium.Color.TRANSPARENT }
+      });
+
+      // Position camera and start update loop
+      var camRange = Math.sqrt(CAM_BEHIND * CAM_BEHIND + CAM_ABOVE * CAM_ABOVE);
+      var camPitch = -Math.atan2(CAM_ABOVE, CAM_BEHIND);
+
+      viewer.zoomTo(trackingEntity, new Cesium.HeadingPitchRange(
+        characterHeading, camPitch, camRange
+      )).then(function() {
+        if (!active) return;
+        viewer.trackedEntity = trackingEntity;
+        preRenderListener = viewer.scene.preRender.addEventListener(update);
+        console.log('🏃 Camera locked to character, update loop started');
+      });
+    }).catch(function(err) {
+      console.error('Failed to load character model:', err);
     });
-    console.log('🏃 Character entity created');
+
+    updateBanner(true);
+    console.log('🏃 Third-Person activated (V = 1st person, G/ESC = exit)');
   }
 
   function removeModel(viewer) {
-    if (characterEntity) {
-      viewer.entities.remove(characterEntity);
-      characterEntity = null;
+    if (modelPrimitive) {
+      viewer.scene.primitives.remove(modelPrimitive);
+      modelPrimitive = null;
+    }
+    if (trackingEntity) {
+      viewer.entities.remove(trackingEntity);
+      trackingEntity = null;
     }
   }
 
   function updateModelMatrix() {
-    if (!characterEntity) return;
+    if (!modelPrimitive) return;
     var pos = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight);
-    characterEntity.position = pos;
-    characterEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(
-      pos, new Cesium.HeadingPitchRoll(characterHeading + MODEL_HEADING_OFFSET, 0, 0)
+
+    // Build rotation from heading (like Sandcastle: rotationMatrixFromPositionVelocity)
+    // We have heading, not velocity vector, so build ENU rotation manually
+    var hpr = new Cesium.HeadingPitchRoll(characterHeading - Math.PI / 2, 0, 0);
+    var modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+      pos, hpr, Cesium.Ellipsoid.WGS84,
+      Cesium.Transforms.localFrameToFixedFrameGenerator('east', 'north')
     );
+    // Apply scale
+    var scale = Cesium.Matrix4.fromUniformScale(1.3);
+    Cesium.Matrix4.multiply(modelMatrix, scale, modelMatrix);
+    modelPrimitive.modelMatrix = modelMatrix;
+
+    // Update tracking entity position for camera follow
+    if (trackingEntity) {
+      trackingEntity.position = pos;
+    }
   }
 
   // ========================================================
@@ -229,10 +288,7 @@
     }
     orbitHeading = characterHeading;
     orbitDistance = CAM_BEHIND;
-    charVelFwd = 0;
-    charVelRight = 0;
-
-    createModel(viewer);
+    totalDistance = 0;
 
     var ch = document.getElementById('fpCrosshair');
     if (ch) ch.style.display = 'none';
@@ -250,22 +306,7 @@
       ctrl.enableTilt = true;
     }, 100);
 
-    // Position camera behind & above character, then start update loop
-    // Camera: 2m behind, 1m above → pitch = atan2(1, 2) ≈ 0.46 rad, range = sqrt(4+1) ≈ 2.24m
-    var camRange = Math.sqrt(CAM_BEHIND * CAM_BEHIND + CAM_ABOVE * CAM_ABOVE);
-    var camPitch = -Math.atan2(CAM_ABOVE, CAM_BEHIND);
-
-    viewer.zoomTo(characterEntity, new Cesium.HeadingPitchRange(
-      characterHeading,
-      camPitch,
-      camRange
-    )).then(function() {
-      if (!active) return;
-      preRenderListener = viewer.scene.preRender.addEventListener(update);
-      console.log('🏃 Camera locked to character, update loop started');
-    });
-    updateBanner(true);
-    console.log('🏃 Third-Person activated (V = 1st person, G/ESC = exit)');
+    createModel(viewer);
   }
 
   function deactivate() {
@@ -274,10 +315,7 @@
 
     active = false;
 
-    // Restore clock multiplier if we paused it
-    if (viewer.clock.multiplier === 0 && _savedClockMultiplier) {
-      viewer.clock.multiplier = _savedClockMultiplier;
-    }
+    // No clock multiplier manipulation needed — we never touch it
 
     // Stop tracking and restore FP camera controls
     viewer.trackedEntity = undefined;
@@ -317,19 +355,14 @@
   // PER-FRAME UPDATE
   // ========================================================
 
-  var _frameCount = 0;
-
   function update() {
     var viewer = getViewer();
     var fp = getFP();
-    if (!viewer || !fp || !active || !characterEntity) return;
+    if (!viewer || !fp || !active || !modelPrimitive) return;
 
     var vel = fp.velocity;
-    var speed = WALK_SPEED;
-    if (fp.config && vel) {
-      var isSprint = Math.abs(vel.forward) > 0.7 || Math.abs(vel.right) > 0.7;
-      if (isSprint) speed = WALK_SPEED * SPRINT_MULTIPLIER;
-    }
+    var isSprint = fp.isSprinting && fp.isSprinting();
+    var speed = WALK_SPEED * (isSprint ? SPRINT_MULTIPLIER : 1.0);
 
     // --- 1. Camera forward heading ---
     var camHeading = viewer.camera.heading;
@@ -345,37 +378,48 @@
       var worldHeading = camHeading + moveAngle;
 
       // Character ALWAYS faces movement direction (Unreal: OrientRotationToMovement)
-      // No walking backward — stick back = turn 180° and walk forward
       var diff = worldHeading - characterHeading;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
       characterHeading += diff * ROTATION_RATE;
 
-      // Move in character's facing direction (not raw input direction)
+      // Move in character's facing direction
       var moveMag = Math.min(Math.sqrt(fwd * fwd + right * right), 1.0);
       var dist = moveMag * speed;
 
-      // Collision check: raycast from character position in movement direction
+      // Collision check: single chest-height ray + edge detection
       var blocked = false;
       if (fp.config.collision) {
         var charCartesian = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight + 1.0);
-        var moveDir3D = new Cesium.Cartesian3();
         var enuMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(charCartesian);
-        // Convert heading to ENU direction vector (east, north, up)
         var localMoveDir = new Cesium.Cartesian3(
           Math.sin(characterHeading),
           Math.cos(characterHeading),
           0
         );
-        moveDir3D = Cesium.Matrix4.multiplyByPointAsVector(enuMatrix, localMoveDir, moveDir3D);
+        var moveDir3D = Cesium.Matrix4.multiplyByPointAsVector(enuMatrix, localMoveDir, new Cesium.Cartesian3());
         Cesium.Cartesian3.normalize(moveDir3D, moveDir3D);
 
         var ray = new Cesium.Ray(charCartesian, moveDir3D);
         var hit = viewer.scene.pickFromRay(ray);
         if (hit && hit.position) {
           var hitDist = Cesium.Cartesian3.distance(charCartesian, hit.position);
-          if (hitDist < 0.5 + dist) {
+          if (hitDist > 0.15 && hitDist < 0.35 + dist) {
             blocked = true;
+          }
+        }
+
+        // Edge detection: downward ray 0.8m ahead
+        if (!blocked) {
+          var localUp = Cesium.Cartesian3.normalize(charCartesian, new Cesium.Cartesian3());
+          var aheadOffset = Cesium.Cartesian3.multiplyByScalar(moveDir3D, 0.8, new Cesium.Cartesian3());
+          var aheadPos = Cesium.Cartesian3.add(charCartesian, aheadOffset, new Cesium.Cartesian3());
+          var downDir = Cesium.Cartesian3.negate(localUp, new Cesium.Cartesian3());
+          var edgeRay = new Cesium.Ray(aheadPos, downDir);
+          var edgeHit = viewer.scene.pickFromRay(edgeRay);
+          if (edgeHit && edgeHit.position) {
+            var floorDist = Cesium.Cartesian3.distance(aheadPos, edgeHit.position);
+            if (floorDist > 3.0) blocked = true;
           }
         }
       }
@@ -384,14 +428,12 @@
         var R = 6378137.0;
         charLat += (dist * Math.cos(characterHeading)) / R;
         charLon += (dist * Math.sin(characterHeading)) / (R * Math.cos(charLat));
+        // Accumulate distance for animation
+        totalDistance += dist;
       }
     }
 
-    // Camera follows via trackedEntity — no manual camera repositioning needed.
-    // Right stick rotates camera → camHeading changes → movement direction follows.
-
     // --- 3. Floor clamping (terrain + throttled 3D tile raycast) ---
-    // Terrain height (cheap, every frame)
     var carto = Cesium.Cartographic.fromRadians(charLon, charLat);
     var terrainH = viewer.scene.globe.getHeight(carto);
     var bestFloor = (terrainH !== undefined && isFinite(terrainH)) ? terrainH : charHeight;
@@ -407,9 +449,9 @@
       }
     }
 
-    // 3D tile raycast (expensive — throttle to ~5x/sec)
+    // 3D tile raycast (throttled ~8x/sec)
     var now = Date.now();
-    if (now - lastTileClampTime > 200) {
+    if (now - lastTileClampTime > 120) {
       lastTileClampTime = now;
       var feetProbe = Cesium.Cartesian3.fromRadians(charLon, charLat, charHeight + 1.0);
       var feetUp = Cesium.Cartesian3.normalize(feetProbe, new Cesium.Cartesian3());
@@ -427,23 +469,23 @@
       bestFloor = lastTileHeight;
     }
 
-    // Smooth height transition to avoid flickering
+    // Smooth height transition
     var heightDiff = bestFloor - charHeight;
-    if (Math.abs(heightDiff) < 0.01) {
+    if (Math.abs(heightDiff) < 0.02) {
       charHeight = bestFloor;
     } else {
-      charHeight += heightDiff * 0.3;
+      charHeight += heightDiff * 0.5;
     }
 
-    // --- 4. Update entity ---
+    // --- 4. Update model + tracking entity ---
     updateModelMatrix();
 
-    // --- 4. Ensure tracked ---
-    if (viewer.trackedEntity !== characterEntity) {
-      viewer.trackedEntity = characterEntity;
+    // --- 5. Ensure tracked ---
+    if (trackingEntity && viewer.trackedEntity !== trackingEntity) {
+      viewer.trackedEntity = trackingEntity;
     }
 
-    // --- 5. Gamepad right stick → orbit camera around character ---
+    // --- 6. Gamepad right stick → orbit camera around character ---
     var gpIn = fp.gpInput;
     if (gpIn) {
       if (gpIn.lookX !== 0) {
@@ -454,15 +496,7 @@
       }
     }
 
-    // --- 6. Animation ---
-    // Entity animations run via Cesium clock. Toggle clock to control walk cycle.
-    // Save/restore multiplier so other systems (shadows, WEA) aren't affected permanently.
-    if (moving && viewer.clock.multiplier === 0) {
-      viewer.clock.multiplier = _savedClockMultiplier || 1;
-    } else if (!moving && viewer.clock.multiplier !== 0) {
-      _savedClockMultiplier = viewer.clock.multiplier;
-      viewer.clock.multiplier = 0;
-    }
+    // Animation is driven by totalDistance via animationTime callback — no clock manipulation needed
   }
 
   // ========================================================
@@ -522,10 +556,16 @@
       }
     }
 
-    // T = set Player Start (spawn point picker)
-    if (k === 't' && !e.ctrlKey && !e.altKey && !e.metaKey && !active && !spawnPickerActive) {
+    // T = set Player Start (spawn point picker) — works in FP, 3P, and normal orbit
+    if (k === 't' && !e.ctrlKey && !e.altKey && !e.metaKey && !spawnPickerActive) {
       e.preventDefault();
       e.stopImmediatePropagation();
+      // If in third-person, deactivate first so user can click surfaces
+      if (active) deactivate();
+      // Exit pointer lock if in first-person so user can click
+      if (document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch (_) {}
+      }
       startSpawnPicker();
     }
 
