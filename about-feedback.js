@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.6.0';
+  const APP_VERSION = '1.7.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -198,6 +198,13 @@
                 <div>
                   <strong>Cesium Ion Connect</strong>
                   <span>Link your own Ion account to load private assets</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">🎬</span>
+                <div>
+                  <strong>Post-Processing Effects</strong>
+                  <span>Bloom, lens flare, vignette, color grading, Cinematic preset</span>
                 </div>
               </div>
             </div>

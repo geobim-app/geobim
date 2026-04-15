@@ -40,6 +40,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Z-Offset** — Vertical repositioning of assets (-70m to +70m)
 - **Performance Presets** — 4 levels from Performance to Ultra with tileset-level tuning
 - **Cesium Ion Connect** — Link your own Cesium Ion account via OAuth2, load your private assets
+- **Post-Processing Effects** — Bloom, lens flare, vignette, color grading with Cinematic preset
 - **Demo Mode** — 30-minute full access at [geobim.app/demo](https://geobim.app/demo), no login required
 
 For a complete feature reference see [FEATURES.md](FEATURES.md).

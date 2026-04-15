@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-04-15
+
 ### Added
 
 #### Post-Processing Effects Module (`postfx.js`)
@@ -15,6 +17,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - New "Cinematic" performance preset — MSAA 4x + Bloom + Lens Flare + Vignette + SSAO + resolutionScale 1.5
 - All effects wrapped in try/catch for mobile WebGL compatibility
 - Public API: `GEOBIM_POSTFX.setBloom()`, `.setLensFlare()`, `.setColorGrading()`, `.activateCinematic()`
+
+#### Cesium Ion OAuth2 Integration
+- OAuth2 PKCE flow for connecting personal Cesium Ion accounts (`ion-auth.js`)
+- Ion status indicator (top-right) with connect/disconnect dropdown
+- Asset selector shows user's own 3D Tiles and GLB assets when connected
+- Demo token moved server-side (`api/ion-config.php`) — no longer hardcoded in JS
+- Curated demo asset list with proper names (was: numeric IDs only)
+- Required Ion Assets info panel (Cesium World Terrain, Bing Maps, Google Maps)
+- Graceful error messages when Ion assets are not activated in user's account
+- Token persistence via localStorage, automatic refresh (90-day refresh token)
+- Asset list auto-reloads on connect/disconnect
 
 ### Changed
 
@@ -27,25 +40,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cache updated to Google defaults: 1.5 GB + 1 GB overflow (replaces deprecated `maximumMemoryUsage`)
 - `enableCollision: true` added for walk mode `pickFromRay` support
 
-### Added
+### Fixed
 
-#### Walk Mode Fixes
+#### Walk Mode
 - T key (Player Start) now works from any mode — first-person, third-person, or normal orbit
 - Third-person collision upgraded from single ray to fan of 6 rays (3 directions × 2 heights)
 - Third-person edge detection added — character blocked at cliff edges (>2m drop)
 - Mouse sensitivity slider now correctly defaults to match config value (0.003)
 - Cesium clock multiplier always restored on third-person deactivate (prevents frozen shadows/WEA)
-
-#### Cesium Ion OAuth2 Integration
-- OAuth2 PKCE flow for connecting personal Cesium Ion accounts (`ion-auth.js`)
-- Ion status indicator (top-right) with connect/disconnect dropdown
-- Asset selector shows user's own 3D Tiles and GLB assets when connected
-- Demo token moved server-side (`api/ion-config.php`) — no longer hardcoded in JS
-- Curated demo asset list with proper names (was: numeric IDs only)
-- Required Ion Assets info panel (Cesium World Terrain, Bing Maps, Google Maps)
-- Graceful error messages when Ion assets are not activated in user's account
-- Token persistence via localStorage, automatic refresh (90-day refresh token)
-- Asset list auto-reloads on connect/disconnect
 
 ## [1.6.0] — 2026-03-29
 

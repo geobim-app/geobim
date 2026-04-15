@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.6.0';
+  var APP_VERSION = '1.7.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
@@ -100,6 +100,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2194;&#xFE0F;</span><div><strong>Split View</strong><span>Side-by-side comparison of two tilesets</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F310;</span><div><strong>Geoid / Coordinate Tools</strong><span>EGM2008 geoid lookup, coordinate display</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F511;</span><div><strong>Cesium Ion Connect</strong><span>Link your own Ion account to load private assets</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3AC;</span><div><strong>Post-Processing Effects</strong><span>Bloom, lens flare, vignette, color grading, Cinematic preset</span></div></div>' +
           '</div>' +
         '</div>' +
 

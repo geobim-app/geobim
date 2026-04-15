@@ -11,7 +11,7 @@
 | Demo Mode | Auto-applies demo Cesium Ion token without login. Anonymous Firestore access for shared comments. | `auth.js` |
 | Email/Password Login | Optional Firebase auth gate overlay. Persistent sessions, logout support. | `auth-gate.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
-| Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.6.0 with Walk Mode + Third-Person. | `splash-screen.js` |
+| Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.7.0 with Post-Processing + Ion OAuth2. | `splash-screen.js` |
 | Onboarding Tour | 6-step guided tour with spotlight overlay for new users. Auto-starts on first visit. | `onboarding.js` |
 | Cesium Ion Connect | OAuth2 PKCE flow to link personal Cesium Ion accounts. Browse and load private assets. Token persistence via localStorage with automatic refresh. Falls back to server-side demo token. | `ion-auth.js`, `ion-auth-styles.css`, `api/ion-config.php` |
 
@@ -157,6 +157,19 @@
 | FXAA | Fast approximate anti-aliasing toggle. | `core.js` |
 | MSAA | Multi-sample anti-aliasing (4x, Ultra preset only). | `core.js` |
 | HDR | High dynamic range rendering toggle. | `core.js` |
+
+---
+
+## 12a. Post-Processing Effects
+
+| Feature | Description | Files |
+|---|---|---|
+| Bloom | Cesium built-in bloom with configurable contrast, brightness, sigma, stepSize. | `postfx.js` |
+| Lens Flare | Cesium built-in lens flare with intensity, distortion, ghostDispersal, haloWidth. | `postfx.js` |
+| Vignette | Custom GLSL vignette with adjustable strength and radius. | `postfx.js` |
+| Color Grading | Custom GLSL post-process: contrast, saturation, warmth, brightness. | `postfx.js` |
+| Cinematic Preset | One-click preset: MSAA 4x + Bloom + Lens Flare + Vignette + SSAO + resolutionScale 1.5. | `postfx.js`, `core.js` |
+| Mobile Compatibility | All effects wrapped in try/catch for WebGL fallback on mobile devices. | `postfx.js` |
 
 ---
 
@@ -404,7 +417,7 @@
 
 ---
 
-## UI Architecture (v1.6.0)
+## UI Architecture (v1.7.0)
 
 | Component | Purpose | Files |
 |---|---|---|
@@ -417,4 +430,4 @@
 
 ---
 
-*Updated 2026-03-29 — v1.6.0*
+*Updated 2026-04-15 — v1.7.0*
