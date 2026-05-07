@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.2] — 2026-05-07
+
+CesiumJS upgrade from 1.139.1 to 1.141 (skipping 1.140). Brings clipping performance fixes directly relevant to `clipping.js` / `clipping-planes.js`, plus general engine improvements.
+
+### Changed
+
+- **CesiumJS upgraded to 1.141** (was 1.139.1)
+- Documentation refs updated across `README.md`, `FEATURES.md`, `CLAUDE.md`, and per-module "Tested with" comments
+- SkyBox texture URLs in `core.js` remain pinned to 1.134 (immutable CDN, intentional)
+
+### Notable Cesium changes consumed
+
+- **1.140 — ClippingPolygon performance + quality** improvements on `Cesium3DTileset` (multiple ClippingPolygons, ClippingPolygonCollection)
+- **1.140 — Gaussian splat** memory leak fix, large-tileset crash fix (>16M splats), modelMatrix fix
+- **1.140 — Camera zoom** behavior fix when transform is set (`lookAt`, `trackedEntity`)
+- **1.141 — Vector tilesets** now support `EXT_structural_metadata`
+
+### Breaking changes (not impactful for geobim.app)
+
+- **1.140**: Billboards/Labels require WebGL 2 or WebGL 1 with `ANGLE_instanced_arrays` (all modern browsers OK)
+- **1.141**: Min Node 22 — only matters for build pipelines, geobim.app loads via CDN
+- **1.141**: `BufferPrimitiveCollection` properties read-only — not used in geobim.app
+
 ## [1.7.1] — 2026-05-07
 
 Stability & maintainability release. No new user-facing features.

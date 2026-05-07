@@ -1,6 +1,6 @@
 # geoBIM.app — Feature Reference
 
-**CesiumJS 1.139.1** | Vanilla JavaScript | No build step
+**CesiumJS 1.141** | Vanilla JavaScript | No build step
 
 ---
 

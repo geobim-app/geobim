@@ -11,7 +11,7 @@
 // Terrain clamping with configurable eye height
 //
 // Based on prototype: github.com/christof2304/firstperson
-// Tested with CesiumJS 1.139.1
+// Tested with CesiumJS 1.141
 // ============================================================
 
 (function() {

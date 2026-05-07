@@ -12,7 +12,7 @@ Ingenieurbüros, Auftraggeber und die Öffentlichkeit.
 | **Domain** | geobim.app (DNS via INWX) |
 | **Auth/Backend** | Firebase (Authentication + Firestore + Storage) |
 | **3D Tiles** | Cesium Ion |
-| **CesiumJS** | v1.139.1 (neueste, CDN) |
+| **CesiumJS** | v1.141 (neueste, CDN) |
 | **Frontend** | Vanilla JS — kein Framework, kein Bundler |
 | **GitHub** | https://github.com/geobim-app/geobim |
 
@@ -98,7 +98,7 @@ window.BimViewer = {
 - **IFC-Properties:** Immer keyword-basiert, case-insensitiv, sourcen-agnostisch
 
 ### Cesium
-- **Version:** 1.139.1 (neueste), CDN
+- **Version:** 1.141 (neueste), CDN
 - **Tone Mapping:** PBR Neutral (`Cesium.Tonemapper.PBR_NEUTRAL`)
 - **AO:** HBAO (Horizon-Based, seit v1.124)
 - **Environment Maps:** `configureDynamicEnvMaps()` wird auf jedes Tileset angewandt

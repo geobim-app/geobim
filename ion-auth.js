@@ -11,7 +11,7 @@
 //   - OAuth2 PKCE login with user's own Ion account
 //   - Token refresh and localStorage persistence
 //
-// Tested with CesiumJS 1.139.1
+// Tested with CesiumJS 1.141
 // ============================================================
 
 (function() {

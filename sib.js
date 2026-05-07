@@ -10,7 +10,7 @@
 // places them georeferenced in the Cesium viewer.
 // Backend: FastAPI on Hetzner (/api/sib/generate)
 //
-// Tested with CesiumJS 1.139.1
+// Tested with CesiumJS 1.141
 // ============================================================
 
 (function() {
