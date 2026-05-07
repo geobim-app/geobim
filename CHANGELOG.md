@@ -6,6 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-05-07
+
+Stability & maintainability release. No new user-facing features.
+
+### Changed
+
+#### `ui.js` Refactor
+- Extracted 13 sidebar/toolbar sections out of `ui.js` (2303 → 831 lines, **-64%**)
+- New section modules: `ui-{assets,comments,drawing,ifc,layer,lighting,pointcloud,revit,settings,split,views,visibility,about}-section.js`
+- Each module exposes `GEOBIM_<NAME>_UI.getContent()` and `GEOBIM_<NAME>_UI.initHandlers()`
+- `ui.js` now only carries toolbar scaffolding (`createModernToolbar`, `createBottomToolbar`, `createSection`), global init wiring, and cross-cutting helpers (`autoLoadIonAssets`)
+- `ui-split-section.js` absorbs full Split View feature (`toggleSplitView`, slider drag, Google 3D Tiles unclipped left-copy management); `core.js` Google 3D Tiles integration retargeted to `GEOBIM_SPLIT_UI.X`
+
+### Fixed
+
+- `auth-gate.js`: `signOut()` promise now has a `.catch` so reload still happens on sign-out failure (was: silent unhandled rejection)
+- `wea-shadow.js`: replaced two silent catch blocks with `console.warn` so WEA model discovery / GLB analysis failures surface in the console (was: presented as "no models available" with no diagnostic)
+
 ## [1.7.0] — 2026-04-15
 
 ### Added
