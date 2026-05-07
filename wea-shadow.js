@@ -100,15 +100,24 @@
   async function fetchAndAnalyze(url) {
     try {
       var resp = await fetch(url, { headers: { 'Range': 'bytes=0-65535' } });
-      if (!resp.ok && resp.status !== 206) return null;
+      if (!resp.ok && resp.status !== 206) {
+        console.warn('WEA: fetch failed for', url, '— HTTP', resp.status);
+        return null;
+      }
       return analyzeWEA(parseGLBJson(await resp.arrayBuffer()));
-    } catch (e) { return null; }
+    } catch (e) {
+      console.warn('WEA: analyze failed for', url, e);
+      return null;
+    }
   }
 
   async function discoverWEAModels() {
     try {
       var resp = await fetch('api/wea-models.php');
-      if (!resp.ok) return [];
+      if (!resp.ok) {
+        console.warn('WEA: model discovery failed — HTTP', resp.status);
+        return [];
+      }
       var models = await resp.json();
       var result = [];
       await Promise.all(models.map(function(m) {
@@ -118,7 +127,10 @@
         });
       }));
       return result;
-    } catch (e) { return []; }
+    } catch (e) {
+      console.warn('WEA: model discovery error:', e);
+      return [];
+    }
   }
 
   // ========================================================

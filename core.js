@@ -776,8 +776,8 @@ const BimViewer = {
         // If split mode is active, set RIGHT and create left copy
         if (this.splitMode) {
           tileset.splitDirection = Cesium.SplitDirection.RIGHT;
-          if (window.BimViewerUI && typeof BimViewerUI.createGoogleTilesLeftCopy === 'function') {
-            BimViewerUI.createGoogleTilesLeftCopy();
+          if (window.GEOBIM_SPLIT_UI && typeof GEOBIM_SPLIT_UI.createGoogleTilesLeftCopy === 'function') {
+            GEOBIM_SPLIT_UI.createGoogleTilesLeftCopy();
           }
         }
 
@@ -815,8 +815,8 @@ const BimViewer = {
         // If split mode is active, set RIGHT and create left copy
         if (this.splitMode) {
           this.googleTiles.tileset.splitDirection = Cesium.SplitDirection.RIGHT;
-          if (window.BimViewerUI && typeof BimViewerUI.createGoogleTilesLeftCopy === 'function') {
-            BimViewerUI.createGoogleTilesLeftCopy();
+          if (window.GEOBIM_SPLIT_UI && typeof GEOBIM_SPLIT_UI.createGoogleTilesLeftCopy === 'function') {
+            GEOBIM_SPLIT_UI.createGoogleTilesLeftCopy();
           }
         }
       } else {
@@ -846,8 +846,8 @@ const BimViewer = {
           this.osmBuildings.enabled = true;
         }
         // Remove left copy when disabling
-        if (window.BimViewerUI && typeof BimViewerUI.removeGoogleTilesLeftCopy === 'function') {
-          BimViewerUI.removeGoogleTilesLeftCopy();
+        if (window.GEOBIM_SPLIT_UI && typeof GEOBIM_SPLIT_UI.removeGoogleTilesLeftCopy === 'function') {
+          GEOBIM_SPLIT_UI.removeGoogleTilesLeftCopy();
         }
       }
 

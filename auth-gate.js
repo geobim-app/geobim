@@ -209,9 +209,14 @@
   // LOGOUT
   // =====================================
   window.authGateLogout = function() {
-    firebaseAuth.signOut().then(function() {
-      window.location.reload();
-    });
+    firebaseAuth.signOut()
+      .then(function() {
+        window.location.reload();
+      })
+      .catch(function(err) {
+        console.warn('Sign-out failed, reloading anyway:', err);
+        window.location.reload();
+      });
   };
 
   console.log('Auth gate loaded – email/password login required.');
