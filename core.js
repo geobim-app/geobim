@@ -1460,7 +1460,7 @@ const BimViewer = {
 
       this.viewer.scene.primitives.add(model);
 
-      const defaultAnimSpeed = 5.0;
+      const defaultAnimSpeed = 0.3;
       let hasAnimations = !!modelDef.animated;
 
       // Auto-detect animations: try to add all, check if any were found
@@ -1518,7 +1518,7 @@ const BimViewer = {
         type: 'GLB',
         isGLB: true,
         animated: hasAnimations,
-        animSpeed: defaultAnimSpeed,
+        animSpeed: 0.3,
         animPlaying: hasAnimations,
         position: { ...position },
         heading: initialHeading,
@@ -1620,7 +1620,7 @@ const BimViewer = {
       assetData.animPlaying = false;
     } else {
       // Play — restart with current speed
-      this._restartGLBAnimations(assetData, assetData.animSpeed || 5.0);
+      this._restartGLBAnimations(assetData, assetData.animSpeed || 0.3);
       assetData.animPlaying = true;
     }
 
@@ -1628,35 +1628,82 @@ const BimViewer = {
     if (btn) btn.textContent = assetData.animPlaying ? '⏸ Pause' : '▶ Play';
   },
 
-  showFullGLBModel(assetId) {
+  // Step through GLB animation stages manually (prev/next)
+  glbStageStep(assetId, direction) {
     const assetData = this.loadedAssets.get(assetId);
     if (!assetData || !assetData.isGLB || !assetData.model) return;
 
     const model = assetData.model;
-    model.activeAnimations.removeAll();
 
-    // Add all animations with a startTime far in the past so they've already
-    // completed — CLAMP_AND_STOP keeps the last frame (all elements at scale 1)
-    requestAnimationFrame(() => {
-      try {
-        const now = BimViewer.viewer.clock.currentTime;
-        const pastStart = Cesium.JulianDate.addSeconds(now, -3600, new Cesium.JulianDate());
-        model.activeAnimations.addAll({
-          loop: Cesium.ModelAnimationLoop.NONE,
-          multiplier: 1.0,
-          startTime: pastStart
-        });
-      } catch (e) {
-        console.warn('⚠️ showFullGLBModel failed:', e.message);
+    // Read longest duration from a ModelAnimation. Tries public `.duration`
+    // first, falls back to private `_duration`. Returns 0 if unavailable.
+    const readDur = (anim) => {
+      const d = (anim && (anim.duration || anim._duration)) || 0;
+      return Number.isFinite(d) ? d : 0;
+    };
+
+    // Detect total animation duration (cached after first successful read)
+    if (!assetData._stageDuration) {
+      let maxDur = 0;
+      // Prefer reading from currently active animations (set up at load time)
+      for (let i = 0; i < model.activeAnimations.length; i++) {
+        const d = readDur(model.activeAnimations.get(i));
+        if (d > maxDur) maxDur = d;
       }
-    });
+      // Fallback: probe by adding once with multiplier 0
+      if (maxDur === 0) {
+        try {
+          model.activeAnimations.removeAll();
+          const probe = model.activeAnimations.addAll({
+            loop: Cesium.ModelAnimationLoop.NONE,
+            multiplier: 0.0
+          });
+          for (const a of probe) {
+            const d = readDur(a);
+            if (d > maxDur) maxDur = d;
+          }
+        } catch (e) {
+          console.warn('⚠️ glbStageStep duration probe failed:', e.message);
+        }
+      }
+      if (maxDur > 0) {
+        assetData._stageDuration = maxDur;
+        console.log(`🎬 Animation duration: ${maxDur.toFixed(3)}s`);
+      } else {
+        assetData._stageDuration = 10; // safe fallback
+      }
+    }
 
+    const totalDuration = assetData._stageDuration;
+    const totalStages = Math.max(1, Math.round(totalDuration));
+
+    // First click: if currently playing, jump to current pose's stage instead
+    // of jumping to 0. Otherwise start at end (fully built).
+    if (assetData._currentStage === undefined) {
+      assetData._currentStage = totalStages;
+    }
+    assetData._currentStage = Math.max(0, Math.min(totalStages, assetData._currentStage + direction));
+
+    // Clamp slightly below duration so loop:NONE doesn't auto-remove the
+    // animation when targetTime equals duration exactly.
+    const rawTime = (assetData._currentStage / Math.max(1, totalStages)) * totalDuration;
+    const targetTime = Math.min(rawTime, totalDuration - 0.001);
+
+    // Freeze the pose by re-adding all animations with a constant animationTime
+    // callback. Reuses _restartGLBAnimations which defers addAll to next frame
+    // (prevents Cesium crash mid-render).
+    this._restartGLBAnimations(assetData, 0, {
+      loop: Cesium.ModelAnimationLoop.NONE,
+      animationTime: () => targetTime
+    });
     assetData.animPlaying = false;
+
     const btn = document.getElementById(`glb_playpause_${assetId}`);
     if (btn) btn.textContent = '▶ Play';
+    const label = document.getElementById(`glb_stage_${assetId}`);
+    if (label) label.textContent = `Stage ${assetData._currentStage} / ${totalStages}`;
 
-    this.updateStatus('Showing full model (all elements)', 'success');
-    console.log(`🏗️ GLB ${assetId}: All elements visible (end frame)`);
+    console.log(`🎬 Stage ${assetData._currentStage}/${totalStages}  t=${targetTime.toFixed(3)}s`);
   },
 
   unloadAsset(assetId) {
