@@ -179,23 +179,50 @@
         <div>
           <label class="cd-label-sm">Component</label>
           <select id="inspectionComponent" class="cd-select-sm">
-            <option value="superstructure">Superstructure</option>
-            <option value="substructure">Substructure</option>
-            <option value="bearings">Bearings</option>
-            <option value="joints">Joints</option>
-            <option value="drainage">Drainage</option>
-            <option value="equipment">Equipment</option>
+            <optgroup label="Superstructure">
+              <option value="deck">Deck</option>
+              <option value="girder">Girder / Beam</option>
+              <option value="arch">Arch / Truss</option>
+              <option value="parapet">Parapet / Railing</option>
+            </optgroup>
+            <optgroup label="Substructure">
+              <option value="abutment">Abutment</option>
+              <option value="pier">Pier / Column</option>
+              <option value="foundation">Foundation</option>
+            </optgroup>
+            <optgroup label="Secondary Elements">
+              <option value="bearings">Bearings</option>
+              <option value="joints">Expansion Joints</option>
+              <option value="drainage">Drainage</option>
+              <option value="slope_protection">Slope Protection</option>
+            </optgroup>
           </select>
         </div>
         <div>
           <label class="cd-label-sm">Damage</label>
           <select id="inspectionDamageType" class="cd-select-sm">
-            <option value="crack">Crack</option>
-            <option value="spalling">Spalling</option>
-            <option value="corrosion">Corrosion</option>
-            <option value="deformation">Deformation</option>
-            <option value="leakage">Leakage</option>
-            <option value="other">Other</option>
+            <optgroup label="Concrete">
+              <option value="crack">Crack</option>
+              <option value="spalling">Spalling</option>
+              <option value="delamination">Delamination</option>
+              <option value="honeycombing">Honeycombing</option>
+            </optgroup>
+            <optgroup label="Steel / Rebar">
+              <option value="exposed_rebar">Exposed Rebar</option>
+              <option value="corrosion">Corrosion</option>
+              <option value="rust_staining">Rust Staining</option>
+            </optgroup>
+            <optgroup label="Water / Movement">
+              <option value="moisture">Moisture / Leakage</option>
+              <option value="settlement">Settlement / Deformation</option>
+              <option value="joint_failure">Joint Failure</option>
+            </optgroup>
+            <optgroup label="Surface / Other">
+              <option value="surface_wear">Surface Wear</option>
+              <option value="impact_damage">Impact Damage</option>
+              <option value="vegetation">Vegetation / Fouling</option>
+              <option value="other">Other</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -215,6 +242,7 @@
   <!-- Demo Modes — must load before splash/auth -->
   <script src="demo.js"></script>
   <script src="wea-demo.js"></script>
+  <script src="bridge-inspector.js"></script>
 
   <!-- Splash Screen (before auth) -->
   <script src="splash-screen.js"></script>
@@ -234,6 +262,7 @@
   <script src="hideFeatures.js"></script>
   <script src="comments.js"></script>
   <script src="inspection.js"></script>
+  <script src="inspection-report.js"></script>
   <script src="geoid_terrain.js"></script>
   <script src="pointcloud.js"></script>
   <script src="ui-pointcloud-section.js"></script>
@@ -287,7 +316,6 @@
   <script src="ui.js"></script>
 
   <!-- 6. UI Extensions -->
-  <script src="ui-comments-extension.js"></script>
   <script src="ui-clipping-extension.js"></script>
   <script src="ui-z-offset-extension.js"></script>
   <script src="clipping-planes.js"></script>

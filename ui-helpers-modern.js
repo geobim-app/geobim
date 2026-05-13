@@ -71,34 +71,48 @@ BimViewer.toggleCommentsPanelCollapse = function() {
 BimViewer.makeFloatingPanelDraggable = function(panel, handle) {
   let isDragging = false, startX, startY, startLeft, startTop;
 
-  handle.addEventListener('mousedown', function(e) {
-    if (e.target.tagName === 'BUTTON') return;
+  function dragStart(clientX, clientY) {
     isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
+    startX = clientX;
+    startY = clientY;
     const rect = panel.getBoundingClientRect();
     startLeft = rect.left;
     startTop = rect.top;
     panel.style.transition = 'none';
+  }
+
+  function dragMove(clientX, clientY) {
+    if (!isDragging) return;
+    panel.style.left = (startLeft + clientX - startX) + 'px';
+    panel.style.top  = (startTop  + clientY - startY) + 'px';
+    panel.style.right  = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  function dragEnd() {
+    if (isDragging) { isDragging = false; panel.style.transition = ''; }
+  }
+
+  // Mouse
+  handle.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    dragStart(e.clientX, e.clientY);
     e.preventDefault();
   });
+  document.addEventListener('mousemove', function(e) { dragMove(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', dragEnd);
 
-  document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    panel.style.left = (startLeft + dx) + 'px';
-    panel.style.top = (startTop + dy) + 'px';
-    panel.style.right = 'auto';
-    panel.style.bottom = 'auto';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (isDragging) {
-      isDragging = false;
-      panel.style.transition = '';
-    }
-  });
+  // Touch
+  handle.addEventListener('touchstart', function(e) {
+    if (e.target.tagName === 'BUTTON' || e.touches.length !== 1) return;
+    dragStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (!isDragging || e.touches.length !== 1) return;
+    dragMove(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('touchend', dragEnd, { passive: true });
 };
 
 // ===============================
@@ -136,6 +150,12 @@ BimViewer.createLoadedAssetsPanel = function() {
       </div>
     </div>
     <div id="assetsPanelBody" class="floating-panel-body">
+      <div class="assets-panel-actions">
+        <button class="assets-action-btn" onclick="BimViewer.clampAllAssetsToTerrain()" title="Snap all 3D Tiles assets to terrain height">
+          <i data-lucide="mountain"></i>
+          <span>Clamp all to terrain</span>
+        </button>
+      </div>
       <div id="loadedAssetsList" class="floating-assets-list">
         <div class="modern-empty-state">
           <div class="modern-empty-state-icon">
@@ -148,6 +168,7 @@ BimViewer.createLoadedAssetsPanel = function() {
     </div>
   `;
   document.body.appendChild(panel);
+  if (window.lucide) lucide.createIcons({ nodes: [panel] });
 
   this.makeFloatingPanelDraggable(panel, panel.querySelector('#assetsPanelHeader'));
 };

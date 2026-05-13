@@ -114,7 +114,13 @@
   // FIRESTORE COLLECTION
   // =====================================
 
-  const FIRESTORE_COLLECTION = 'demo_comments';
+  const COMMENT_TTL_HOURS = 24;
+
+  // Bridge Inspector demo gets its own collection so its annotations don't leak
+  // into the main viewer (and vice versa).
+  const FIRESTORE_COLLECTION = window._bridgeInspectorMode
+    ? 'bridge_demo_comments'
+    : 'demo_comments';
 
   // =====================================
   // FIRESTORE INITIALIZATION (v6.0 DEMO)
@@ -166,7 +172,25 @@
   // FIRESTORE OPERATIONS
   // =====================================
 
+  BimViewer.deleteExpiredComments = async function() {
+    if (!this.comments.collection || !this.comments.db) return;
+    try {
+      const cutoff = new Date(Date.now() - COMMENT_TTL_HOURS * 60 * 60 * 1000).toISOString();
+      const expired = await this.comments.collection
+        .where('timestamp', '<', cutoff)
+        .get();
+      if (expired.empty) return;
+      const batch = this.comments.db.batch();
+      expired.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      console.log('Deleted ' + expired.size + ' expired comment(s) (>' + COMMENT_TTL_HOURS + 'h old)');
+    } catch (e) {
+      console.warn('Failed to delete expired comments:', e.message);
+    }
+  };
+
   BimViewer.loadCommentsFromStorage = async function() {
+    await this.deleteExpiredComments();
     try {
       const snapshot = await this.comments.collection
         .orderBy('timestamp', 'desc')
@@ -1556,7 +1580,7 @@
         const surfaceData = await this.getAccurateSurfacePosition(click.position);
         
         if (!surfaceData || !surfaceData.position) {
-          this.updateStatus('⚠️ Please RIGHT-CLICK on a 3D model or terrain surface!', 'error');
+          this.updateStatus('⚠️ Please right-click or long-press on a 3D model or terrain surface!', 'error');
           return;
         }
         
@@ -1604,8 +1628,74 @@
       }
       
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
-    
-    console.log('✅ RIGHT-CLICK-only handler installed!');
+
+    // Long-press (600ms) for touch devices — mirrors RIGHT_CLICK behaviour
+    var _lpTimer = null;
+    var _lpStart = null;
+    var _lpCanvas = this.viewer.scene.canvas;
+    var _self = this;
+
+    _lpCanvas.addEventListener('touchstart', function(e) {
+      if (e.touches.length !== 1) return;
+      _lpStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      _lpTimer = setTimeout(function() {
+        _lpTimer = null;
+        var rect = _lpCanvas.getBoundingClientRect();
+        var pos = new Cesium.Cartesian2(
+          _lpStart.x - rect.left,
+          _lpStart.y - rect.top
+        );
+        // Synthesise the same async handler as RIGHT_CLICK
+        (async function() {
+          if (!_self.comments.isAddingComment) return;
+          if (_self.measurement && _self.measurement.active) return;
+          try {
+            var surfaceData = await _self.getAccurateSurfacePosition(pos);
+            if (!surfaceData || !surfaceData.position) {
+              _self.updateStatus('⚠️ Please long-press on a 3D model or terrain surface!', 'error');
+              return;
+            }
+            var cartographic = Cesium.Cartographic.fromCartesian(surfaceData.position);
+            var lon = Cesium.Math.toDegrees(cartographic.longitude);
+            var lat = Cesium.Math.toDegrees(cartographic.latitude);
+            var height = cartographic.height;
+            if (_self.comments.annotationType === 'area' || _self.comments.annotationType === 'polyline') {
+              _self.addAreaPoint(lon, lat, height);
+              var pointCount = _self.comments.areaPoints.length;
+              var isPolyline = _self.comments.annotationType === 'polyline';
+              var minPoints = isPolyline ? 2 : 3;
+              _self.updateStatus(pointCount < minPoints
+                ? 'Point ' + pointCount + ' added - Need ' + (minPoints - pointCount) + ' more'
+                : 'Point ' + pointCount + ' added - Tap "Finish"', 'success');
+            } else if (_self.comments.annotationType === 'circle') {
+              if (!_self.comments.circleCenter) {
+                _self.addCircleCenter(lon, lat, height);
+                _self.updateStatus('⭕ Center set — long-press on the edge to set radius', 'success');
+              } else {
+                _self.finishCircleAnnotation(lon, lat, height);
+              }
+            } else {
+              _self.comments.currentPosition = { lon, lat, height };
+              _self.createPreviewMarker(lon, lat, height);
+              _self.openCommentDialog(pos);
+              _self.updateStatus('📍 Comment placed', 'success');
+            }
+          } catch (err) {
+            console.error('Long-press handler error:', err);
+          }
+        })();
+      }, 600);
+    }, { passive: true });
+
+    _lpCanvas.addEventListener('touchend',  function() { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } }, { passive: true });
+    _lpCanvas.addEventListener('touchmove', function(e) {
+      if (!_lpTimer || e.touches.length !== 1) return;
+      var dx = e.touches[0].clientX - _lpStart.x;
+      var dy = e.touches[0].clientY - _lpStart.y;
+      if (dx * dx + dy * dy > 100) { clearTimeout(_lpTimer); _lpTimer = null; }
+    }, { passive: true });
+
+    console.log('✅ Comment handler installed (right-click + long-press)');
   };
 
   // =====================================
@@ -1675,7 +1765,7 @@
   console.log('');
   console.log('Demo Mode:');
   console.log('   Comments stored in Firestore (shared across all users)');
-  console.log('   Collection: demo_comments');
+  console.log('   Collection: ' + FIRESTORE_COLLECTION);
   console.log('   Auth: Anonymous');
 
 })();

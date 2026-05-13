@@ -38,9 +38,27 @@
   
   // Apply INDIVIDUAL Z-Offset to a specific asset
   // Option A: Offset relative to ORIGINAL position (no terrain)
+  // Keep the Loaded-Assets card UI in sync with the current per-asset offset.
+  // Slider min/max is [-15, +15] for fine control; the real offset may exceed that
+  // (e.g. after Clamp to Terrain). We clamp the slider position but the input box
+  // and value display always show the true number.
+  BimViewer.syncZOffsetUI = function(assetId, offsetValue) {
+    const slider = document.getElementById(`zoffset_slider_${assetId}`);
+    const input = document.getElementById(`zoffset_input_${assetId}`);
+    const display = document.getElementById(`zoffset_value_${assetId}`);
+    if (slider) slider.value = Math.max(-15, Math.min(15, offsetValue));
+    if (input) input.value = offsetValue.toFixed(2);
+    if (display) {
+      display.textContent = `${offsetValue >= 0 ? '+' : ''}${offsetValue.toFixed(2)} m`;
+    }
+  };
+
   BimViewer.applyIndividualZOffset = async function(assetId, offsetMeters, isLiveUpdate = false) {
-    const asset = Array.from(this.loadedAssets.values()).find(a => a.id === assetId);
-    
+    // loadedAssets is keyed by String(assetId); the UI passes assetId as a string
+    // (via inline onclick template literal), while Ion assets store id as a Number.
+    // Use the Map lookup to stay consistent with toggleAssetVisibility / updateAssetOpacity.
+    const asset = this.loadedAssets.get(String(assetId));
+
     if (!asset || !asset.tileset) {
       console.error(`Asset ${assetId} not found`);
       return;
@@ -83,12 +101,17 @@
       
       // Store individual offset
       this.zOffset.individualOffsets.set(asset.tileset, offsetMeters);
-      
+
+      // Sync card UI (skip during live slider drag — the slider IS the source of truth)
+      if (!isLiveUpdate) {
+        this.syncZOffsetUI(String(assetId), offsetMeters);
+      }
+
       // Only log completion during non-live updates
       if (!isLiveUpdate) {
         console.log(`✅ ${asset.name}: Moved ${offsetMeters >= 0 ? '+' : ''}${offsetMeters}m from original position`);
       }
-      
+
     } catch (error) {
       console.error(`Error applying Z-offset to ${asset.name}:`, error);
       this.updateStatus(`Z-Offset error: ${error.message}`, 'error');
@@ -227,8 +250,8 @@
   
   // Reset asset to original position
   BimViewer.resetAssetZOffset = function(assetId) {
-    const asset = Array.from(this.loadedAssets.values()).find(a => a.id === assetId);
-    
+    const asset = this.loadedAssets.get(String(assetId));
+
     if (!asset || !asset.tileset) {
       console.error(`Asset ${assetId} not found`);
       return;
@@ -242,6 +265,85 @@
     }
   };
   
+  // ==================================================================
+  // CLAMP TO TERRAIN — align asset center to sampled terrain height,
+  // expressed as an individual Z-offset relative to original position.
+  // Only meaningful when a real terrain provider (e.g. Cesium World
+  // Terrain) is active — flat ellipsoid terrain just snaps to height 0.
+  // ==================================================================
+
+  BimViewer.clampAssetToTerrain = async function(assetId) {
+    const asset = this.loadedAssets.get(String(assetId));
+    if (!asset || !asset.tileset || asset.isGLB) {
+      console.warn('clampAssetToTerrain: not a 3D Tiles asset —', assetId);
+      return false;
+    }
+
+    const terrainProvider = this.viewer.terrainProvider;
+    if (!terrainProvider || terrainProvider instanceof Cesium.EllipsoidTerrainProvider) {
+      this.updateStatus('Activate Cesium World Terrain first', 'warning');
+      return false;
+    }
+
+    try {
+      const carto = Cesium.Cartographic.fromCartesian(asset.tileset.boundingSphere.center);
+      const results = await Cesium.sampleTerrainMostDetailed(terrainProvider, [Cesium.Cartographic.clone(carto)]);
+      const terrainHeight = results[0].height;
+      if (terrainHeight === undefined || terrainHeight === null) {
+        console.warn(`clampAssetToTerrain: no terrain sample at ${asset.name}`);
+        return false;
+      }
+
+      const currentOffset = this.zOffset.individualOffsets.get(asset.tileset) || 0;
+      // carto.height = original_center_height + currentOffset
+      // new_offset such that new_center_height = terrainHeight
+      const newOffset = currentOffset + (terrainHeight - carto.height);
+
+      await this.applyIndividualZOffset(assetId, newOffset);
+      console.log(`🏔️ ${asset.name}: clamped to terrain (offset ${newOffset.toFixed(2)}m)`);
+      return true;
+    } catch (e) {
+      console.error(`clampAssetToTerrain failed for ${asset.name}:`, e);
+      return false;
+    }
+  };
+
+  BimViewer.clampAllAssetsToTerrain = async function() {
+    const assets = Array.from(this.loadedAssets.values()).filter(a => !a.isGLB && a.tileset);
+    if (!assets.length) {
+      this.updateStatus('No 3D Tiles assets to clamp', 'warning');
+      return;
+    }
+
+    const terrainProvider = this.viewer.terrainProvider;
+    if (!terrainProvider || terrainProvider instanceof Cesium.EllipsoidTerrainProvider) {
+      this.updateStatus('Activate Cesium World Terrain first', 'warning');
+      return;
+    }
+
+    this.updateStatus(`Clamping ${assets.length} assets to terrain…`, 'loading');
+
+    // Single batched terrain query for all asset centers
+    const cartos = assets.map(a => Cesium.Cartographic.fromCartesian(a.tileset.boundingSphere.center));
+    let succeeded = 0;
+    try {
+      const sampled = await Cesium.sampleTerrainMostDetailed(terrainProvider, cartos.map(c => Cesium.Cartographic.clone(c)));
+      for (let i = 0; i < assets.length; i++) {
+        const asset = assets[i];
+        const terrainHeight = sampled[i].height;
+        if (terrainHeight === undefined || terrainHeight === null) continue;
+        const currentOffset = this.zOffset.individualOffsets.get(asset.tileset) || 0;
+        const newOffset = currentOffset + (terrainHeight - cartos[i].height);
+        await this.applyIndividualZOffset(asset.id, newOffset);
+        succeeded++;
+      }
+      this.updateStatus(`Clamped ${succeeded}/${assets.length} assets to terrain`, 'success');
+    } catch (e) {
+      console.error('clampAllAssetsToTerrain failed:', e);
+      this.updateStatus('Clamp to terrain failed — see console', 'error');
+    }
+  };
+
   console.log('✅ Z-Offset module v6.0 loaded (OPTION A - Relative to Original)');
   console.log('   📐 Uses Cesium.Cartesian3.fromRadians for perfect vertical direction');
   console.log('   ✅ NO terrain calculations - simple and fast');

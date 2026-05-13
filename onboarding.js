@@ -9,12 +9,13 @@
 (function() {
   'use strict';
 
-  var STORAGE_KEY = 'geobim_tour_v1';
+  var IS_BRIDGE_INSPECTOR = !!window._bridgeInspectorMode;
+  var STORAGE_KEY = IS_BRIDGE_INSPECTOR ? 'geobim_bridge_tour_v1' : 'geobim_tour_v1';
   var overlay = null;
   var tooltip = null;
   var currentStep = 0;
 
-  var steps = [
+  var defaultSteps = [
     {
       target: '#cesiumContainer',
       title: 'Welcome to geobim.app',
@@ -52,6 +53,59 @@
       position: 'center'
     }
   ];
+
+  var bridgeSteps = [
+    {
+      target: '#cesiumContainer',
+      title: 'Welcome to Bridge Inspector',
+      text: 'Four bridge models are pre-loaded. Use the next 30 minutes to inspect components, place condition annotations, measure dimensions, and save viewpoints — just like a real inspection workflow.',
+      position: 'center'
+    },
+    {
+      target: '#floatingAssetsPanel',
+      title: 'Loaded Bridges',
+      text: 'All bridge models live in this floating panel. Click 📍 on a card to fly to that bridge, 👁️ to toggle visibility, or expand the card to adjust opacity and vertical offset.',
+      position: 'left'
+    },
+    {
+      target: '.modern-section-header[data-section="comments"]',
+      title: 'Annotations',
+      text: 'Right-click anywhere on a bridge to drop a marker. Switch between Point, Circle, Polyline, or Area to highlight cracks, spalling, or zones that need attention.',
+      position: 'right'
+    },
+    {
+      target: '.modern-section-header[data-section="inspection"]',
+      title: 'Inspection Workflow',
+      text: 'When adding an annotation, enable the Inspection checkbox to attach a condition rating, the affected component (deck, bearings, piers...) and damage type. Markers are color-coded by severity.',
+      position: 'right'
+    },
+    {
+      target: '.modern-section-header[data-section="drawing"]',
+      title: 'Measure',
+      text: 'Capture distances, areas, and heights — useful for documenting gap widths, deflections, and structural dimensions on real geometry.',
+      position: 'right'
+    },
+    {
+      target: '.modern-section-header[data-section="visibility"]',
+      title: 'Visibility',
+      text: 'Hide obstructing elements (e.g. the deck slab) to inspect bearings or main girders beneath. Press H to enter Hide mode, then click elements you want to remove from view.',
+      position: 'right'
+    },
+    {
+      target: '.modern-section-header[data-section="views"]',
+      title: 'Saved Views',
+      text: 'Store key inspection viewpoints (e.g. "Bearing axis 10", "South pier head") so you can return to a specific perspective in one click.',
+      position: 'right'
+    },
+    {
+      target: null,
+      title: 'You\'re ready',
+      text: 'Your 30-minute Bridge Inspector demo starts now. Sign in for unlimited access and to inspect your own models on the full geobim.app platform.',
+      position: 'center'
+    }
+  ];
+
+  var steps = IS_BRIDGE_INSPECTOR ? bridgeSteps : defaultSteps;
 
   // ========================================================
   // OVERLAY + SPOTLIGHT
@@ -248,13 +302,15 @@
 
   function checkFirstVisit() {
     if (localStorage.getItem(STORAGE_KEY)) return;
-    // Wait for app to be fully loaded
+    // Wait for app to be fully loaded — and in bridge mode also wait for the
+    // asset-loading pill to disappear, otherwise the tour overlaps it visually.
     var check = setInterval(function() {
       var toolbar = document.getElementById('toolbar');
       var bottomBar = document.getElementById('bottomToolbar');
-      if (toolbar && bottomBar && toolbar.style.display !== 'none') {
+      var loadingActive = IS_BRIDGE_INSPECTOR && document.getElementById('bridgeLoadingPill');
+      if (toolbar && bottomBar && toolbar.style.display !== 'none' && !loadingActive) {
         clearInterval(check);
-        setTimeout(startTour, 1500);
+        setTimeout(startTour, IS_BRIDGE_INSPECTOR ? 600 : 1500);
       }
     }, 500);
   }

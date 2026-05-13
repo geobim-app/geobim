@@ -16,6 +16,24 @@
   function getContent() {
     return `
       <div class="modern-group">
+        <div class="modern-label">Type</div>
+        <div class="modern-btn-group annotation-type-grid">
+          <button id="annotationTypePoint" class="modern-btn modern-btn-icon-only active" onclick="BimViewer.setAnnotationType('point')" title="Point — right-click to place">
+            📍
+          </button>
+          <button id="annotationTypeCircle" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('circle')" title="Circle — right-click center, then radius">
+            ⭕
+          </button>
+          <button id="annotationTypePolyline" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('polyline')" title="Polyline — right-click 2+ points, ENTER to finish">
+            〰️
+          </button>
+          <button id="annotationTypeArea" class="modern-btn modern-btn-icon-only" onclick="BimViewer.setAnnotationType('area')" title="Area — right-click 3+ points, ENTER to finish">
+            ⬡
+          </button>
+        </div>
+      </div>
+
+      <div class="modern-group" style="margin-top: 12px;">
         <button id="toggleCommentMode" class="modern-btn modern-btn-primary" title="Click to place a comment marker">
           <span class="modern-btn-icon">💬</span>
           <span>Add Comment</span>
@@ -28,9 +46,25 @@
         </button>
       </div>
 
+      <div class="modern-group" style="margin-top: 8px;">
+        <div class="modern-btn-group">
+          <button id="toggleAllCommentsBtn" class="modern-btn modern-btn-small" onclick="BimViewer.toggleAllCommentsVisibility()" title="Show/hide all comments">
+            <span class="modern-btn-icon">👁️</span>
+            <span>Hide All</span>
+          </button>
+          <button id="deleteAllCommentsBtn" class="modern-btn modern-btn-small modern-btn-danger" onclick="BimViewer.deleteAllComments()" title="Delete all comments">
+            <span class="modern-btn-icon">🗑️</span>
+            <span>Delete All</span>
+          </button>
+        </div>
+      </div>
+
       <div class="modern-hint">
-        <strong>RIGHT-CLICK</strong> on 3D model to place comment<br>
-        <strong>LEFT-CLICK</strong> for element info • <strong>C</strong> to toggle • <strong>ESC</strong> to cancel
+        <strong>📍 Point:</strong> RIGHT-CLICK once<br>
+        <strong>⭕ Circle:</strong> RIGHT-CLICK center, then edge<br>
+        <strong>〰️ Polyline:</strong> RIGHT-CLICK 2+ pts → ENTER<br>
+        <strong>⬡ Area:</strong> RIGHT-CLICK 3+ pts → ENTER<br>
+        Shortcuts: <strong>C</strong> Point • <strong>A</strong> Area • <strong>ENTER</strong> Finish • <strong>ESC</strong> Cancel
       </div>
 
       <div class="modern-group" style="margin-top: 8px;">

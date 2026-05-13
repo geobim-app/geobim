@@ -105,7 +105,7 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('settings', '<i data-lucide="settings"></i>', 'Settings', typeof GEOBIM_SETTINGS_UI !== 'undefined' ? GEOBIM_SETTINGS_UI.getContent() : ''));
 
     // Action tools moved to bottom toolbar (Measure, Visibility, Lighting, Walk, About)
-    toolbar.appendChild(this.createSection('drawing', '<i data-lucide="ruler"></i>', 'Measure & Clip', typeof GEOBIM_DRAWING_UI !== 'undefined' ? GEOBIM_DRAWING_UI.getContent() : ''));
+    toolbar.appendChild(this.createSection('drawing', '<i data-lucide="ruler"></i>', 'Measure & Clip', typeof this.getDrawingContent === 'function' ? this.getDrawingContent() : typeof GEOBIM_DRAWING_UI !== 'undefined' ? GEOBIM_DRAWING_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('visibility', '<i data-lucide="eye"></i>', 'Visibility', typeof GEOBIM_VISIBILITY_UI !== 'undefined' ? GEOBIM_VISIBILITY_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('lighting', '<i data-lucide="sun"></i>', 'Lighting', typeof GEOBIM_LIGHTING_UI !== 'undefined' ? GEOBIM_LIGHTING_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('about', '<i data-lucide="info"></i>', 'About & Help', typeof GEOBIM_ABOUT_UI !== 'undefined' ? GEOBIM_ABOUT_UI.getContent() : ''));
@@ -376,6 +376,12 @@ const BimViewerUI = {
   },
 
   // ⭐ NEW: Create asset control WITH INTEGRATED Z-OFFSET
+  toggleAssetCard(assetId, evt) {
+    if (evt && evt.target && evt.target.closest('.modern-asset-controls button')) return;
+    const item = document.getElementById(`asset_${assetId}`);
+    if (item) item.classList.toggle('expanded');
+  },
+
   createAssetControls(assetId) {
     // Skip WEA assets — managed by WEA Shadow widget
     var ad = BimViewer.loadedAssets.get(assetId.toString());
@@ -416,16 +422,18 @@ const BimViewerUI = {
       BimViewer.zOffset.individualOffsets.get(assetData.tileset) : 0;
     
     assetDiv.innerHTML = `
-      <!-- Asset Header -->
-      <div class="modern-asset-header">
+      <!-- Asset Header (click to expand) -->
+      <div class="modern-asset-header" onclick="BimViewerUI.toggleAssetCard('${assetId}', event)">
         <div class="modern-asset-name" title="${assetData.name}">${assetData.name}</div>
         <div class="modern-asset-controls">
-          <button class="modern-icon-btn" onclick="BimViewer.zoomToAsset('${assetId}')" title="Fly to asset">📍</button>
-          <button class="modern-icon-btn" onclick="BimViewer.toggleAssetVisibility('${assetId}')" title="Show/hide asset">👁️</button>
-          <button class="modern-icon-btn modern-icon-btn-danger" onclick="BimViewer.unloadAsset('${assetId}')" title="Remove asset from viewer">🗑️</button>
+          <button class="modern-icon-btn" onclick="event.stopPropagation();BimViewer.zoomToAsset('${assetId}')" title="Fly to asset">📍</button>
+          <button class="modern-icon-btn" onclick="event.stopPropagation();BimViewer.toggleAssetVisibility('${assetId}')" title="Show/hide asset">👁️</button>
+          <button class="modern-icon-btn modern-icon-btn-danger" onclick="event.stopPropagation();BimViewer.unloadAsset('${assetId}')" title="Remove asset from viewer">🗑️</button>
+          <span class="modern-asset-chevron" aria-hidden="true"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></span>
         </div>
       </div>
 
+      <div class="modern-asset-details">
       <!-- Opacity Control -->
       <div class="modern-asset-opacity">
         <label class="modern-label-small">Opacity</label>
@@ -545,13 +553,14 @@ const BimViewerUI = {
                  value="${currentOffset.toFixed(2)}"
                  placeholder="0.00"
                  onchange="BimViewerUI.setAssetZOffsetFromInput('${assetId}', this.value)">
-          <button class="zoffset-reset-btn" 
+          <button class="zoffset-reset-btn"
                   onclick="BimViewerUI.setAssetZOffsetFromInput('${assetId}', 0)"
                   title="Reset to 0">
             ↺
           </button>
         </div>
       </div>
+      </div> <!-- /modern-asset-details -->
     `;
 
     container.appendChild(assetDiv);
@@ -660,10 +669,10 @@ const BimViewerUI = {
     // Clamp to valid range
     if (isNaN(offsetValue)) {
       offsetValue = 0;
-    } else if (offsetValue < -5) {
-      offsetValue = -5;
-    } else if (offsetValue > 5) {
-      offsetValue = 5;
+    } else if (offsetValue < -200) {
+      offsetValue = -200;
+    } else if (offsetValue > 200) {
+      offsetValue = 200;
     }
     
     const slider = document.getElementById(`zoffset_slider_${assetId}`);
@@ -772,10 +781,20 @@ const BimViewerUI = {
           asset.type === '3DTILES' || asset.type === 'GLTF'
         );
       } else {
-        // Demo — show curated assets with proper names from DEMO_ASSETS map
+        // Demo — show curated asset IDs, using live Ion names where available
+        var liveNameMap = new Map(allAssets.map(function(a) { return [Number(a.id), a.name]; }));
         assets = Array.from(DEMO_ASSETS, function(entry) {
-          return { id: entry[0], name: entry[1], type: '3DTILES' };
+          return {
+            id: entry[0],
+            name: liveNameMap.get(Number(entry[0])) || entry[1],
+            type: '3DTILES'
+          };
         });
+      }
+
+      // Optional per-mode allowlist (e.g. Bridge Inspector restricts to a curated set)
+      if (window._bridgeInspectorAssetFilter instanceof Set) {
+        assets = assets.filter(a => window._bridgeInspectorAssetFilter.has(String(a.id)));
       }
 
       console.log(`Loaded ${assets.length} assets (from ${allAssets.length} total)`);

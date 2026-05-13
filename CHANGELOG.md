@@ -6,6 +6,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.3] — 2026-05-13
+
+### Added
+
+- **Bridge Inspector demo** (`bridge-inspector.js`) — anonymous 30-min demo at `/bridge-inspector`; auto-loads 5 bridge assets (IFC, Reality Mesh, Pointcloud, RC Bridge, Dublin Bridge); session countdown, expired overlay
+- **IOT live button** in Loaded Assets card for Bridge Belgium — pulses teal, toggles FROST SensorThings panel; `#staToggleBtn` replaced by in-card control
+- **STA info flyout** — `ⓘ` button in Bridge Monitoring Live panel explains all 4 sensor types (Acceleration, Inclination, Temperature, Strain) with thresholds
+- **STA prefetch** — FROST data fetched as soon as Bridge Belgium loads so IOT button opens instantly; `$top` reduced 50 → 10
+- **Inspection report generator** (`inspection-report.js`) — "Export Report" button in Inspection sidebar opens a print-optimised HTML page (logo, summary stats, component breakdown, per-finding screenshots); `window.print()` → PDF
+- **Screenshot capture on inspection save** — `preserveDrawingBuffer: true` on Cesium Viewer; 480×270 JPEG thumbnail stored in Firestore with each inspection finding
+- **Comment TTL auto-cleanup** — `COMMENT_TTL_HOURS = 24`; expired docs deleted from Firestore via batch query before loading; applies to both `demo_comments` and `bridge_demo_comments`
+- **Tablet support**: long-press (600 ms) on Cesium canvas places annotations (mirrors RIGHT_CLICK); touch drag for all floating panels (`makeFloatingPanelDraggable`); `.cd-grid-3` collapses to single column on ≤768px; select min-height 44px
+
+### Fixed
+
+- **Clipping broken in all modes** — `ui-clipping-extension.js` overrode `BimViewerUI.getDrawingContent` but `ui.js` called `GEOBIM_DRAWING_UI.getContent()` instead; `ui.js` now prefers `this.getDrawingContent()` when available — clipping polygon and rectangle drawing now work
+- **Point cloud preset not applied** in Bridge Inspector — `hasTileContent` returns false for point clouds (`featuresLength === 0`), causing detection timeout; Bridge Pointcloud (4446751) is now force-marked and quality preset applied directly
+- **Ion asset names hardcoded** — `fetchAvailableAssets` now queries `api.cesium.com/v1/assets` with the static Ion token; `DEMO_ASSETS` map used only as fallback; names update automatically when changed in Ion
+
+### Changed
+
+- **Damage type dropdown** expanded from 6 → 14 structured options in 4 `<optgroup>`s (Concrete, Steel/Rebar, Water/Movement, Surface/Other)
+- **Component dropdown** expanded from 6 → 11 options in 3 groups (Superstructure, Substructure, Secondary Elements)
+- **Loaded Assets panel** height is now dynamic (`max-height: calc(100vh - 100px)`, `height: auto`) — panel grows and shrinks with expanded asset cards instead of fixed 500px cap
+- **Damage simulation button** (⚠ Damage) hidden by default in Bridge Inspector mode
+- **IoT toggle button** always hidden in Bridge Inspector (Pegel Deggendorf irrelevant to Belgian bridge)
+- **Bridge Inspector KEEP_SECTIONS** — removed `assets` (auto-loaded, selector hidden)
+
 ## [1.7.2] — 2026-05-07
 
 CesiumJS upgrade from 1.139.1 to 1.141 (skipping 1.140). Brings clipping performance fixes directly relevant to `clipping.js` / `clipping-planes.js`, plus general engine improvements.

@@ -51,6 +51,23 @@
     return cb && cb.checked;
   }
 
+  function captureScreenshot() {
+    try {
+      var canvas = BimViewer.viewer && BimViewer.viewer.scene && BimViewer.viewer.scene.canvas;
+      if (!canvas) return null;
+      var tw = 480;
+      var th = Math.round(tw * canvas.height / canvas.width);
+      var thumb = document.createElement('canvas');
+      thumb.width = tw;
+      thumb.height = th;
+      thumb.getContext('2d').drawImage(canvas, 0, 0, tw, th);
+      return thumb.toDataURL('image/jpeg', 0.5);
+    } catch (e) {
+      console.warn('Inspection: screenshot capture failed:', e.message);
+      return null;
+    }
+  }
+
   function getAssetId() {
     if (BimViewer.loadedAssets && BimViewer.loadedAssets.size > 0) {
       return String(BimViewer.loadedAssets.keys().next().value);
@@ -86,7 +103,8 @@
         conditionRating: ratingEl ? parseInt(ratingEl.value, 10) : 1,
         component: componentEl ? componentEl.value : 'superstructure',
         damageType: damageEl ? damageEl.value : 'other',
-        assetId: getAssetId()
+        assetId: getAssetId(),
+        screenshotDataUrl: captureScreenshot()
       };
 
       // Temporarily patch saveComment to merge inspection fields
@@ -204,19 +222,26 @@
         var saved = BimViewer.comments.comments[BimViewer.comments.comments.length - 1];
         if (saved && BimViewer.comments.collection) {
           try {
-            await BimViewer.comments.collection.doc(saved.id).update({
+            var updateData = {
               inspectionMode: true,
               conditionRating: commentData.conditionRating,
               component: commentData.component,
               damageType: commentData.damageType,
               assetId: commentData.assetId
-            });
+            };
+            if (commentData.screenshotDataUrl) {
+              updateData.screenshotDataUrl = commentData.screenshotDataUrl;
+            }
+            await BimViewer.comments.collection.doc(saved.id).update(updateData);
             // Update local copy
             saved.inspectionMode = true;
             saved.conditionRating = commentData.conditionRating;
             saved.component = commentData.component;
             saved.damageType = commentData.damageType;
             saved.assetId = commentData.assetId;
+            if (commentData.screenshotDataUrl) {
+              saved.screenshotDataUrl = commentData.screenshotDataUrl;
+            }
           } catch (e) {
             console.error('Inspection: failed to update Firestore:', e);
           }
@@ -358,8 +383,14 @@
     html += '<button onclick="GEOBIM_INSPECTION.openSummaryForAsset()" ';
     html += 'style="width: 100%; padding: 8px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; ';
     html += 'background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); ';
-    html += 'font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: all 0.2s ease;">';
+    html += 'font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 6px; transition: all 0.2s ease;">';
     html += 'Load Inspection Summary</button>';
+
+    html += '<button onclick="GEOBIM_INSPECTION.exportReport()" ';
+    html += 'style="width: 100%; padding: 8px 14px; border: 1px solid rgba(46,207,176,0.35); border-radius: 8px; ';
+    html += 'background: rgba(46,207,176,0.08); color: #2ECFB0; ';
+    html += 'font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: all 0.2s ease;">';
+    html += 'Export Report</button>';
 
     html += '<div id="inspectionSummaryContent"></div>';
 
@@ -380,7 +411,12 @@
   window.GEOBIM_INSPECTION = {
     isActive: isChecked,
     openSummaryForAsset: openSummaryForAsset,
-    getSummaryContent: getSummaryContent
+    getSummaryContent: getSummaryContent,
+    exportReport: function() {
+      if (typeof GEOBIM_INSPECTION_REPORT !== 'undefined') {
+        GEOBIM_INSPECTION_REPORT.generate(state.currentAssetId || getAssetId());
+      }
+    }
   };
 
   console.log('Inspection module v1.0 loaded');

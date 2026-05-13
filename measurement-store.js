@@ -18,7 +18,11 @@
 
 (function() {
 
-  const FIRESTORE_COLLECTION = 'demo_measurements';
+  // Bridge Inspector demo gets its own collection so demo measurements don't
+  // pollute the main viewer.
+  const FIRESTORE_COLLECTION = window._bridgeInspectorMode
+    ? 'bridge_demo_measurements'
+    : 'demo_measurements';
 
   // Colors per measurement type (matching measurement.js)
   const TYPE_COLORS = {

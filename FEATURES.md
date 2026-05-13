@@ -362,7 +362,6 @@
 | `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
 | `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
 | `ui-helpers-modern.js` | List rendering helpers for comments, hidden features, assets, saved views |
-| `ui-comments-extension.js` | Comments section UI controls |
 | `ui-clipping-extension.js` | Clipping section UI controls |
 | `ui-z-offset-extension.js` | Z-offset UI controls, global keyboard offset |
 | `ui-lighting-standalone.js` | Lighting UI integration |

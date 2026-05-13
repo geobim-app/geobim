@@ -9,6 +9,9 @@ RewriteRule ^demo/?$ /index.html?mode=demo [L,QSA]
 # /wea-shadow → index.html?mode=wea
 RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
 
+# /bridge-inspector → index.html?mode=bridge (30 min Bridge Inspector demo)
+RewriteRule ^bridge-inspector/?$ /index.html?mode=bridge [L,QSA]
+
 # Protect stats page + API
 <Files "stats.html">
   AuthType Basic

@@ -23,7 +23,8 @@ window.GEOBIM_SENSORTHINGS = (function() {
   // =====================================
 
   var API_BASE = 'https://frost.christoflorenz.de/v1.1';
-  var THINGS_URL = API_BASE + '/Things?$expand=Locations,Datastreams($expand=ObservedProperty,Observations($orderby=phenomenonTime%20desc;$top=1))&$top=50';
+  var THINGS_URL = API_BASE + '/Things?$expand=Locations,Datastreams($expand=ObservedProperty,Observations($orderby=phenomenonTime%20desc;$top=1))&$top=10';
+  var _prefetchedStations = null;
   var POLL_INTERVAL_MS = 60 * 1000; // 60 seconds (fallback only)
   var MQTT_URL = 'wss://frost.christoflorenz.de/mqtt';
   var MQTT_RECONNECT_DELAY = 5000;
@@ -483,9 +484,32 @@ window.GEOBIM_SENSORTHINGS = (function() {
       '<div id="staPanelHeader" class="floating-panel-header">' +
         '<span class="floating-panel-title">Bridge Monitoring Live</span>' +
         '<div class="floating-panel-controls">' +
+          '<button class="floating-panel-btn sta-info-btn" onclick="GEOBIM_SENSORTHINGS.toggleInfoFlyout()" title="What is this?">\u24D8</button>' +
           '<button class="floating-panel-btn sta-trigger-btn" onclick="GEOBIM_SENSORTHINGS.triggerDamage()" title="Simulate Damage Event">\u26A0 Damage</button>' +
           '<button class="floating-panel-btn" onclick="GEOBIM_SENSORTHINGS.closePanel()" title="Close">\u2715</button>' +
         '</div>' +
+      '</div>' +
+      '<div id="staInfoFlyout" class="sta-info-flyout" style="display:none;">' +
+        '<div class="sta-info-intro">Real-time sensor data from physical monitoring devices installed on this bridge. Values update every 5 seconds via MQTT.</div>' +
+        '<div class="sta-info-sensors">' +
+          '<div class="sta-info-sensor">' +
+            '<span class="sta-info-dot" style="background:#FF8C00;"></span>' +
+            '<div><strong>Acceleration</strong> \u00B7 m/s\u00B2 \u00B7 Vertical vibration at two mid-span points. Elevated values indicate dynamic overloading, resonance, or impact events. Alarm threshold: |a| &gt; 0.08 g.</div>' +
+          '</div>' +
+          '<div class="sta-info-sensor">' +
+            '<span class="sta-info-dot" style="background:#FF4444;"></span>' +
+            '<div><strong>Inclination</strong> \u00B7 \u00B0 \u00B7 Tilt angle at west and east piers. Monitors long-term settlement, scour, or foundation movement. Alarm threshold: |angle| &gt; 0.25\u00B0.</div>' +
+          '</div>' +
+          '<div class="sta-info-sensor">' +
+            '<span class="sta-info-dot" style="background:#2ECFB0;"></span>' +
+            '<div><strong>Temperature</strong> \u00B7 \u00B0C \u00B7 Bottom flange temperature. Thermal gradients cause expansion and stress \u2014 critical for interpreting strain readings.</div>' +
+          '</div>' +
+          '<div class="sta-info-sensor">' +
+            '<span class="sta-info-dot" style="background:#9B59B6;"></span>' +
+            '<div><strong>Strain</strong> \u00B7 \u03BCs \u00B7 Microstrain in the main girder at midspan. Direct measure of structural stress. Alarm threshold: &lt; \u221265 \u03BCs (excessive compression).</div>' +
+          '</div>' +
+        '</div>' +
+        '<button class="sta-info-close" onclick="GEOBIM_SENSORTHINGS.toggleInfoFlyout()">Got it</button>' +
       '</div>' +
       '<div id="staPanelBody" class="floating-panel-body" style="max-height:400px;overflow-y:auto;"></div>';
     document.body.appendChild(panel);
@@ -513,6 +537,57 @@ window.GEOBIM_SENSORTHINGS = (function() {
       '#staPanelBody table { width: 100%; }' +
       '#staPanelBody th, #staPanelBody td { padding: 4px 6px; font-size: 12px; }' +
       '#staPanelHeader { cursor: move; user-select: none; }' +
+      '.sta-info-btn {' +
+        'font-size: 14px !important;' +
+        'padding: 3px 8px !important;' +
+        'border-radius: 4px !important;' +
+        'opacity: 0.6;' +
+        'transition: opacity 0.2s;' +
+      '}' +
+      '.sta-info-btn:hover, .sta-info-btn.active { opacity: 1; }' +
+      '.sta-info-flyout {' +
+        'border-top: 1px solid rgba(255,255,255,0.08);' +
+        'padding: 14px 14px 10px;' +
+        'background: rgba(0,0,0,0.2);' +
+      '}' +
+      '.sta-info-intro {' +
+        'font-size: 11px;' +
+        'color: rgba(255,255,255,0.55);' +
+        'line-height: 1.5;' +
+        'margin-bottom: 12px;' +
+      '}' +
+      '.sta-info-sensors { display: flex; flex-direction: column; gap: 8px; }' +
+      '.sta-info-sensor {' +
+        'display: flex;' +
+        'gap: 10px;' +
+        'align-items: flex-start;' +
+        'font-size: 11px;' +
+        'color: rgba(255,255,255,0.7);' +
+        'line-height: 1.45;' +
+      '}' +
+      '.sta-info-sensor strong { color: rgba(255,255,255,0.92); }' +
+      '.sta-info-dot {' +
+        'width: 8px; height: 8px;' +
+        'border-radius: 50%;' +
+        'margin-top: 3px;' +
+        'flex-shrink: 0;' +
+      '}' +
+      '.sta-info-close {' +
+        'margin-top: 12px;' +
+        'padding: 5px 16px;' +
+        'border-radius: 6px;' +
+        'border: 1px solid rgba(46,207,176,0.35);' +
+        'background: rgba(46,207,176,0.1);' +
+        'color: #2ECFB0;' +
+        'font-size: 11px;' +
+        'font-weight: 600;' +
+        'cursor: pointer;' +
+        'font-family: inherit;' +
+        'transition: background 0.2s;' +
+        'display: block;' +
+        'width: 100%;' +
+      '}' +
+      '.sta-info-close:hover { background: rgba(46,207,176,0.2); }' +
       '.sta-trigger-btn {' +
         'font-size: 11px !important;' +
         'padding: 3px 10px !important;' +
@@ -864,27 +939,32 @@ window.GEOBIM_SENSORTHINGS = (function() {
     for (var i = 0; i < ids.length; i++) {
       state.entities[ids[i]].show = true;
     }
-    // Initial REST fetch, then start MQTT (or polling fallback)
+    // Initial REST fetch (or use prefetched cache), then start MQTT
     if (!state.mqttConnected && !state.intervalId) {
       state.mqttReconnectAttempted = false;
-      fetch(THINGS_URL)
-        .then(function(response) {
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          return response.json();
-        })
-        .then(function(json) {
-          var stations = parseThings(json);
-          for (var i = 0; i < stations.length; i++) {
-            createOrUpdateEntity(stations[i]);
-          }
-          console.log('STA: Initial fetch — ' + stations.length + ' stations');
-          // Now start MQTT with datastream mappings populated
-          startMqtt();
-        })
-        .catch(function(err) {
-          console.warn('STA: Initial fetch failed:', err.message);
-          startPollingFallback();
-        });
+
+      var applyStations = function(stations) {
+        for (var i = 0; i < stations.length; i++) {
+          createOrUpdateEntity(stations[i]);
+        }
+        console.log('STA: ' + stations.length + ' stations ready');
+        startMqtt();
+      };
+
+      if (_prefetchedStations) {
+        applyStations(_prefetchedStations);
+      } else {
+        fetch(THINGS_URL)
+          .then(function(response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+          })
+          .then(function(json) { applyStations(parseThings(json)); })
+          .catch(function(err) {
+            console.warn('STA: Initial fetch failed:', err.message);
+            startPollingFallback();
+          });
+      }
     }
     updateButton();
   }
@@ -1064,6 +1144,26 @@ window.GEOBIM_SENSORTHINGS = (function() {
   // PUBLIC API
   // =====================================
 
+  function prefetch() {
+    if (_prefetchedStations) return;
+    fetch(THINGS_URL)
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(json) {
+        _prefetchedStations = parseThings(json);
+        console.log('STA: Prefetched ' + _prefetchedStations.length + ' stations');
+      })
+      .catch(function(err) { console.warn('STA: Prefetch failed:', err); });
+  }
+
+  function toggleInfoFlyout() {
+    var flyout = document.getElementById('staInfoFlyout');
+    var btn = document.querySelector('.sta-info-btn');
+    if (!flyout) return;
+    var isOpen = flyout.style.display !== 'none';
+    flyout.style.display = isOpen ? 'none' : 'block';
+    if (btn) btn.classList.toggle('active', !isOpen);
+  }
+
   return {
     init: init,
     show: show,
@@ -1072,7 +1172,9 @@ window.GEOBIM_SENSORTHINGS = (function() {
     destroy: destroy,
     closePanel: closePanel,
     dismissDamage: dismissDamageFlyout,
-    triggerDamage: triggerDamage
+    triggerDamage: triggerDamage,
+    toggleInfoFlyout: toggleInfoFlyout,
+    prefetch: prefetch
   };
 
 })();

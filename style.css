@@ -891,7 +891,7 @@ body {
 .modern-asset-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -1849,13 +1849,15 @@ body {
   gap: 6px;
 }
 
-/* Floating Loaded Assets Panel */
+/* Floating Loaded Assets Panel — width adapts to content */
 #floatingAssetsPanel {
   position: fixed;
-  bottom: 20px;
-  left: 360px;
-  width: 340px;
-  max-height: 500px;
+  top: 80px;
+  right: 20px;
+  width: max-content;
+  min-width: 320px;
+  max-width: min(520px, calc(100vw - 380px));
+  max-height: calc(100vh - 100px);
   background: var(--bg-overlay, rgba(14, 17, 23, 0.82));
   backdrop-filter: blur(12px);
   border-radius: 12px;
@@ -1866,6 +1868,13 @@ body {
   display: none;
   flex-direction: column;
   overflow: hidden;
+}
+
+#floatingAssetsPanel .floating-panel-body {
+  max-height: none;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 #floatingAssetsPanel.visible {
@@ -1922,9 +1931,11 @@ body {
 
   #floatingAssetsPanel {
     width: calc(100vw - 20px);
-    left: 10px;
-    bottom: 68px; /* above bottom toolbar */
-    max-height: 350px;
+    min-width: 0;
+    max-width: none;
+    top: 60px;
+    right: 10px;
+    max-height: calc(100vh - 80px);
   }
 
   #weaShadowPanel {
@@ -2012,9 +2023,9 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   opacity: 1;
 }
 
-/* Assets panel slides up */
+/* Assets panel slides down from top */
 #floatingAssetsPanel {
-  transform: translateY(20px);
+  transform: translateY(-20px);
   opacity: 0;
 }
 #floatingAssetsPanel.visible {

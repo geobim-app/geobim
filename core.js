@@ -494,7 +494,8 @@ const BimViewer = {
         }),
         msaaSamples: 4,
         requestRenderMode: false,
-        maximumRenderTimeChange: Infinity
+        maximumRenderTimeChange: Infinity,
+        contextOptions: { webgl: { preserveDrawingBuffer: true } }
       });
       
       console.log('✅ Viewer created with World Terrain');
@@ -952,10 +953,25 @@ const BimViewer = {
       var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
 
       if (!isOAuth) {
-        // Demo token — can't query REST API, return curated asset stubs
-        // The VALID_ASSET_IDS filter in ui.js handles the selection
-        this.availableAssets = Array.from(typeof VALID_ASSET_IDS !== 'undefined' ? VALID_ASSET_IDS : []).map(function(id) {
-          return { id: id, name: 'Asset ' + id, type: '3DTILES' };
+        // Use static Ion token to fetch live names directly from Ion API
+        const staticToken = Cesium.Ion.defaultAccessToken;
+        if (staticToken) {
+          try {
+            const r = await fetch('https://api.cesium.com/v1/assets?limit=100', {
+              headers: { 'Authorization': 'Bearer ' + staticToken }
+            });
+            if (r.ok) {
+              const data = await r.json();
+              this.availableAssets = data.items || [];
+              return this.availableAssets;
+            }
+          } catch (e) {
+            console.warn('Ion API fetch failed, using DEMO_ASSETS fallback:', e.message);
+          }
+        }
+        // Fallback: use hardcoded DEMO_ASSETS names
+        this.availableAssets = Array.from(typeof DEMO_ASSETS !== 'undefined' ? DEMO_ASSETS : []).map(function(entry) {
+          return { id: entry[0], name: entry[1], type: '3DTILES' };
         });
         return this.availableAssets;
       }
