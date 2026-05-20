@@ -252,6 +252,101 @@
           asset pipeline. Both are open-source at their core and maintained by Cesium.
         </p>
 
+        <!-- ── Ecosystem flow diagram ── -->
+        <div class="ov-ecosystem" role="img" aria-label="Cesium platform flow: source data is uploaded to Cesium Ion, tiled to 3D Tiles, streamed to CesiumJS, and visualised in geobim.app">
+
+          <!-- Tier A: Source data -->
+          <div class="ov-eco-tier ov-eco-tier--data">
+            <div class="ov-eco-tier-label">Your 3D data</div>
+            <div class="ov-eco-tier-chips">
+              <span>IFC</span>
+              <span>Revit</span>
+              <span>LAS / LAZ</span>
+              <span>Photogrammetry</span>
+              <span>GLB / glTF</span>
+            </div>
+          </div>
+
+          <!-- Connector A → B -->
+          <div class="ov-eco-arrow">
+            <div class="ov-eco-arrow-line"></div>
+            <div class="ov-eco-arrow-circle"><i data-lucide="chevron-down"></i></div>
+            <div class="ov-eco-arrow-text">upload &amp; tile</div>
+          </div>
+
+          <!-- Tier B: Cesium Ion -->
+          <div class="ov-eco-tier ov-eco-tier--ion">
+            <div class="ov-eco-ion-side ov-eco-ion-side--left">
+              <span>Tiling &amp; hosting</span>
+              <span>Token-based access</span>
+              <span>OAuth2 PKCE connect</span>
+            </div>
+            <div class="ov-eco-ion-box">
+              <span class="ov-eco-ion-name">CESIUM ION</span>
+              <span class="ov-eco-ion-sub">SaaS · EU infrastructure</span>
+            </div>
+            <div class="ov-eco-ion-side ov-eco-ion-side--right">
+              <span>Global terrain</span>
+              <span>Bing imagery</span>
+              <span>Google 3D Tiles</span>
+            </div>
+          </div>
+
+          <!-- 3D Tiles connector node -->
+          <div class="ov-eco-3dt">
+            <div class="ov-eco-arrow-line"></div>
+            <div class="ov-eco-3dt-node">
+              <svg class="ov-eco-3dt-icon" width="26" height="22" viewBox="0 0 26 22" fill="none" aria-hidden="true">
+                <path d="M13 1 L22 6 L13 11 L4 6 Z"   fill="#2ECFB0"/>
+                <path d="M4 6 L13 11 L13 19 L4 14 Z"   fill="#2ECFB0" opacity="0.60"/>
+                <path d="M22 6 L22 14 L13 19 L13 11 Z" fill="#2ECFB0" opacity="0.78"/>
+              </svg>
+              <span class="ov-eco-3dt-name">3D Tiles</span>
+              <span class="ov-badge ov-badge--updated">OGC standard</span>
+            </div>
+            <div class="ov-eco-arrow-line"></div>
+            <div class="ov-eco-arrow-circle"><i data-lucide="chevron-down"></i></div>
+          </div>
+
+          <!-- Tier C: Runtime engines -->
+          <div class="ov-eco-tier ov-eco-tier--runtime">
+            <div class="ov-eco-runtime-group ov-eco-runtime-group--active">
+              <div class="ov-eco-group-label">Web · geobim.app</div>
+              <div class="ov-eco-runtime-box ov-eco-runtime-box--active">
+                <i data-lucide="globe"></i>
+                <span>CesiumJS 1.141</span>
+              </div>
+            </div>
+            <div class="ov-eco-runtime-divider"></div>
+            <div class="ov-eco-runtime-group">
+              <div class="ov-eco-group-label">Game engines &amp; XR</div>
+              <div class="ov-eco-runtime-row">
+                <div class="ov-eco-runtime-box ov-eco-runtime-box--muted">Cesium for Unreal</div>
+                <div class="ov-eco-runtime-box ov-eco-runtime-box--muted">Cesium for Unity</div>
+                <div class="ov-eco-runtime-box ov-eco-runtime-box--muted">Cesium for Omniverse</div>
+                <div class="ov-eco-runtime-box ov-eco-runtime-box--muted">+ more</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Connector C → D -->
+          <div class="ov-eco-arrow">
+            <div class="ov-eco-arrow-line"></div>
+            <div class="ov-eco-arrow-circle"><i data-lucide="chevron-down"></i></div>
+            <div class="ov-eco-arrow-text">built on CesiumJS</div>
+          </div>
+
+          <!-- Tier D: geobim.app -->
+          <div class="ov-eco-tier ov-eco-tier--app">
+            <img src="logo/logo_teal_transparent.svg" alt="" class="ov-eco-app-logo" aria-hidden="true">
+            <div>
+              <div class="ov-eco-app-name">geobim.app</div>
+              <div class="ov-eco-app-sub">Browser-native BIM/GIS viewer · IFC · Revit · Point clouds · Live sensors · v1.7.4</div>
+            </div>
+          </div>
+
+        </div><!-- /ov-ecosystem -->
+
         <div class="ov-platform-grid">
 
           <div class="ov-platform-card">
