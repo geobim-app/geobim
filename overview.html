@@ -169,58 +169,52 @@
             <div class="ov-tier-label">
               <span class="ov-tier-num" aria-hidden="true">3</span>
               <div class="ov-tier-text">
-                <div class="ov-tier-name">Asset hosting</div>
-                <div class="ov-tier-sub">SaaS · Self-hosted · Cloud</div>
+                <div class="ov-tier-name">User asset hosting</div>
+                <div class="ov-tier-sub">SaaS · Self-hosted · Cloud · Local</div>
               </div>
             </div>
             <div class="ov-tier-boxes">
               <details class="ov-box ov-box--primary">
                 <summary>
-                  Cesium Ion
+                  Cesium Ion SaaS
                   <span class="ov-badge ov-badge--new">OAuth2 v1.7</span>
                 </summary>
                 <div class="ov-box-detail">
-                  Cloud pipeline converting IFC, Revit and LAS/LAZ to streamable 3D Tiles.
-                  Token-based access control. Personal accounts connectable via OAuth2 PKCE
-                  (since v1.7.0). Token served server-side; EU infrastructure.
+                  Cloud tiling pipeline — converts IFC, Revit, LAS/LAZ and photogrammetry
+                  to streamable 3D Tiles. Token-based access control. Personal account
+                  connection via OAuth2 PKCE (v1.7.0). Token served server-side; EU infrastructure.
                 </div>
               </details>
               <details class="ov-box">
-                <summary>Google Photorealistic 3D Tiles</summary>
+                <summary>Cesium Ion Self-Hosted</summary>
                 <div class="ov-box-detail">
-                  Global photogrammetric 3D buildings (Ion Asset 2275207). Three quality
-                  presets. <code>skipLevelOfDetail</code> disabled to prevent seam artifacts.
-                  Shadows off (<code>KHR_materials_unlit</code> — no visual effect, saves GPU).
-                </div>
-              </details>
-              <details class="ov-box">
-                <summary>Bentley iTwin</summary>
-                <div class="ov-box-detail">
-                  Infrastructure iModels loaded via share key + iModel ID. Integrates into
-                  the same asset management UI as Ion assets (visibility, opacity, z-offset).
-                </div>
-              </details>
-              <details class="ov-box">
-                <summary>OSM Buildings</summary>
-                <div class="ov-box-detail">
-                  OpenStreetMap 3D building footprints as Cesium 3D Tiles (Ion Asset 96188).
-                  Auto-disabled when Google Photorealistic tiles are active.
-                </div>
-              </details>
-              <details class="ov-box">
-                <summary>Local server</summary>
-                <div class="ov-box-detail">
-                  Self-hosted 3D Tiles served via Apache, nginx or any static file server.
-                  Cesium Ion Self-Hosted runs the full tiling pipeline on-premises.
-                  geobim.app loads any reachable 3D Tiles endpoint — no Ion account required.
+                  Full Ion tiling pipeline deployed on-premises or in a private environment.
+                  Same API as SaaS — no internet dependency. Suited for air-gapped networks,
+                  enterprise data governance, and regulatory requirements.
                 </div>
               </details>
               <details class="ov-box">
                 <summary>Private cloud</summary>
                 <div class="ov-box-detail">
-                  3D Tiles hosted on AWS S3, Azure Blob Storage, or GCP Cloud Storage with
-                  CORS configured. Cesium Ion Self-Hosted also deploys into private cloud
-                  environments (air-gapped, VPN, enterprise firewall).
+                  Pre-tiled 3D Tiles hosted on AWS S3, Azure Blob Storage, or GCP Cloud Storage
+                  with CORS configured. geobim.app loads any reachable HTTPS endpoint —
+                  no Ion account required.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Local server</summary>
+                <div class="ov-box-detail">
+                  Static 3D Tiles served via Apache, nginx or any file server on localhost or
+                  LAN. Useful for development, offline fieldwork and sensitive project data
+                  that must not leave the network.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Bentley iTwin</summary>
+                <div class="ov-box-detail">
+                  Infrastructure iModels loaded via share key + iModel ID directly from
+                  Bentley's platform. Integrates into the same asset management UI as
+                  Ion assets (visibility, opacity, z-offset).
                 </div>
               </details>
             </div>
@@ -234,22 +228,29 @@
               <span class="ov-tier-num" aria-hidden="true">4</span>
               <div class="ov-tier-text">
                 <div class="ov-tier-name">Data sources</div>
-                <div class="ov-tier-sub">Formats · Open Data · APIs</div>
+                <div class="ov-tier-sub">Formats · Curated content · Live APIs</div>
               </div>
             </div>
             <div class="ov-tier-chips">
-              <span class="ov-chip">IFC (via Ion pipeline)</span>
-              <span class="ov-chip">Revit (via Ion pipeline)</span>
-              <span class="ov-chip">GLB / glTF</span>
-              <span class="ov-chip">LAS / LAZ point clouds</span>
+              <span class="ov-chip ov-chip--section">User data</span>
+              <span class="ov-chip">IFC</span>
+              <span class="ov-chip">Revit</span>
+              <span class="ov-chip">LAS / LAZ</span>
               <span class="ov-chip">Photogrammetry</span>
+              <span class="ov-chip">GLB / glTF</span>
+              <span class="ov-chip">CityGML</span>
+              <span class="ov-chip">FBX · OBJ · COLLADA</span>
+              <span class="ov-chip ov-chip--section">Curated content (Ion)</span>
+              <span class="ov-chip">Google Photorealistic 3D Tiles</span>
+              <span class="ov-chip">OSM Buildings</span>
               <span class="ov-chip">Cesium World Terrain</span>
               <span class="ov-chip">Cesium World Bathymetry</span>
-              <span class="ov-chip">NRW LoD2 (Geobasis NRW)</span>
-              <span class="ov-chip">Pegelonline REST API</span>
-              <span class="ov-chip">OGC SensorThings API</span>
-              <span class="ov-chip">WMS / WMTS / WFS</span>
               <span class="ov-chip">Bing Aerial / Roads</span>
+              <span class="ov-chip ov-chip--section">Open data &amp; APIs</span>
+              <span class="ov-chip">NRW LoD2 (Geobasis NRW)</span>
+              <span class="ov-chip">OGC SensorThings API</span>
+              <span class="ov-chip">Pegelonline REST API</span>
+              <span class="ov-chip">WMS / WMTS / WFS</span>
             </div>
           </div>
 

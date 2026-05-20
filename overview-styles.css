@@ -422,6 +422,22 @@ summary:focus-visible {
   white-space: nowrap;
 }
 
+/* Section label chip — breaks the chip list into groups */
+.ov-chip--section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  width: 100%;
+  flex-basis: 100%;
+  margin-top: var(--space-xs);
+}
+
 /* Arrow connectors between tiers */
 .ov-tier-arrow {
   width: 2px;
