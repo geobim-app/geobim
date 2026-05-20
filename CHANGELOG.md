@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.4] — 2026-05-20
+
+### Added
+
+- **System overview page** (`overview.html` + `overview-styles.css`) — standalone HTML/CSS infographic at `/overview.html`: 4-tier architecture diagram (expandable details boxes), Cesium platform section, 10 feature cards, 6 use-case cards; no build step, no external JS frameworks, Lucide icons, dark design using brand tokens
+
+### Fixed
+
+- **Version strings** in `splash-screen.js` and `about-feedback.js` corrected to 1.7.3 (were stuck at 1.7.2)
+
 ## [1.7.3] — 2026-05-13
 
 ### Added

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System overview — geobim.app v1.7.4</title>
+  <meta name="description" content="Architecture, features, and use cases of geobim.app — browser-native BIM/GIS viewer built on CesiumJS 1.141.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="overview-styles.css">
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════ -->
+  <header class="ov-header">
+    <div class="ov-container">
+      <div class="ov-header-inner">
+        <a href="/" class="ov-logo-link" title="Back to viewer">
+          <img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="ov-logo">
+        </a>
+        <div>
+          <h1 class="ov-headline">BIM × GIS = Geospatial Intelligence</h1>
+          <p class="ov-subline">
+            Browser-native visualisation of IFC, Revit, point clouds and 3D Tiles
+            in a georeferenced CesiumJS context. No plugins, no desktop install.
+          </p>
+          <div class="ov-header-meta">
+            <span class="ov-version">v1.7.4</span>
+            <span class="ov-tech">CesiumJS 1.141 · Vanilla JS · No build step</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════
+       QUICK NAV
+  ═══════════════════════════════════════ -->
+  <nav class="ov-quicknav" aria-label="Page sections">
+    <div class="ov-container">
+      <a href="#architecture"    class="ov-qnav-link">Architecture</a>
+      <a href="#cesium-platform" class="ov-qnav-link">Cesium platform</a>
+      <a href="#features"        class="ov-qnav-link">Features</a>
+      <a href="#use-cases"       class="ov-qnav-link">Use cases</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 1 — SYSTEM ARCHITECTURE
+    ═══════════════════════════════════════ -->
+    <section class="ov-section" id="architecture">
+      <div class="ov-container">
+        <h2 class="ov-section-title">System architecture</h2>
+        <p class="ov-section-desc">
+          Four-tier stack: browser runtime, hosted backend services, asset CDN, and upstream
+          data sources. Click any box to expand details.
+        </p>
+
+        <div class="ov-arch">
+
+          <!-- ── Tier 1: Frontend ── -->
+          <div class="ov-tier ov-tier--1">
+            <div class="ov-tier-label">
+              <span class="ov-tier-num" aria-hidden="true">1</span>
+              <div class="ov-tier-text">
+                <div class="ov-tier-name">Frontend</div>
+                <div class="ov-tier-sub">Browser · Vanilla JS</div>
+              </div>
+            </div>
+            <div class="ov-tier-boxes">
+              <details class="ov-box">
+                <summary>CesiumJS 1.141</summary>
+                <div class="ov-box-detail">
+                  Open-source WebGL geospatial rendering engine. WGS84 globe, per-frame
+                  3D Tiles LOD selection, hardware-accelerated GPU pick buffer, HBAO,
+                  PBR Neutral tone mapping, dynamic environment maps.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Viewer core</summary>
+                <div class="ov-box-detail">
+                  Central <code>BimViewer</code> object — Ion REST asset loading, Bentley iTwin
+                  share-key integration, 4 performance presets, Google/OSM/NRW LoD2 toggles,
+                  status message system.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>BIM tools</summary>
+                <div class="ov-box-detail">
+                  IFC entity filter (31 types), Revit category filter (34+), element picking
+                  via <code>pickAsync()</code>, clipping (polygon / rectangle / per-asset planes),
+                  annotations, measurements, inspection findings, BCF 2.1 export.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Rendering</summary>
+                <div class="ov-box-detail">
+                  Dynamic sun/shadow simulation, IBL (spherical harmonics + KTX2 cubemap),
+                  HBAO ambient occlusion. Post-processing: Bloom, Lens Flare, Vignette,
+                  Color Grading, one-click Cinematic preset (MSAA 4×).
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Navigation</summary>
+                <div class="ov-box-detail">
+                  Orbit camera (default), first-person WASD + mouse + Xbox controller
+                  with raycast wall collision, third-person animated Cesium_Man character
+                  with Unreal-style controls and dual terrain/tile floor clamping.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Sensor integration</summary>
+                <div class="ov-box-detail">
+                  OGC SensorThings API v1.1 via REST + MQTT WebSocket. Real-time sparkline
+                  charts, threshold-based damage detection with animated alerts.
+                  Pegelonline water level widget (Deggendorf).
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="ov-tier-arrow" aria-hidden="true"></div>
+
+          <!-- ── Tier 2: Backend ── -->
+          <div class="ov-tier ov-tier--2">
+            <div class="ov-tier-label">
+              <span class="ov-tier-num" aria-hidden="true">2</span>
+              <div class="ov-tier-text">
+                <div class="ov-tier-name">Backend</div>
+                <div class="ov-tier-sub">Hetzner VPS · Firebase</div>
+              </div>
+            </div>
+            <div class="ov-tier-boxes">
+              <details class="ov-box">
+                <summary>Firebase</summary>
+                <div class="ov-box-detail">
+                  Firestore stores annotations, area comments, measurements, saved views,
+                  and inspection findings (with JPEG thumbnails). Firebase Auth manages
+                  user sessions. Real-time cross-client sync via Firestore listeners.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>FROST SensorThings server</summary>
+                <div class="ov-box-detail">
+                  OGC SensorThings API v1.1 at <code>frost.christoflorenz.de</code>.
+                  Dockerised FROST-Server + PostGIS on Hetzner VPS. Proxied via Apache SSL.
+                  4 bridge datastreams: acceleration, inclination, temperature, strain.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>PHP APIs</summary>
+                <div class="ov-box-detail">
+                  Server-side Ion token delivery (<code>/api/ion-config.php</code>),
+                  WEA turbine model discovery, damage simulation trigger, GLB asset list.
+                  Credentials never sent to the browser.
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="ov-tier-arrow" aria-hidden="true"></div>
+
+          <!-- ── Tier 3: Asset Hosting ── -->
+          <div class="ov-tier ov-tier--3">
+            <div class="ov-tier-label">
+              <span class="ov-tier-num" aria-hidden="true">3</span>
+              <div class="ov-tier-text">
+                <div class="ov-tier-name">Asset hosting</div>
+                <div class="ov-tier-sub">3D Tiles · CDN</div>
+              </div>
+            </div>
+            <div class="ov-tier-boxes">
+              <details class="ov-box ov-box--primary">
+                <summary>
+                  Cesium Ion
+                  <span class="ov-badge ov-badge--new">OAuth2 v1.7</span>
+                </summary>
+                <div class="ov-box-detail">
+                  Cloud pipeline converting IFC, Revit and LAS/LAZ to streamable 3D Tiles.
+                  Token-based access control. Personal accounts connectable via OAuth2 PKCE
+                  (since v1.7.0). Token served server-side; EU infrastructure.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Google Photorealistic 3D Tiles</summary>
+                <div class="ov-box-detail">
+                  Global photogrammetric 3D buildings (Ion Asset 2275207). Three quality
+                  presets. <code>skipLevelOfDetail</code> disabled to prevent seam artifacts.
+                  Shadows off (<code>KHR_materials_unlit</code> — no visual effect, saves GPU).
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Bentley iTwin</summary>
+                <div class="ov-box-detail">
+                  Infrastructure iModels loaded via share key + iModel ID. Integrates into
+                  the same asset management UI as Ion assets (visibility, opacity, z-offset).
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>OSM Buildings</summary>
+                <div class="ov-box-detail">
+                  OpenStreetMap 3D building footprints as Cesium 3D Tiles (Ion Asset 96188).
+                  Auto-disabled when Google Photorealistic tiles are active.
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="ov-tier-arrow" aria-hidden="true"></div>
+
+          <!-- ── Tier 4: Data Sources ── -->
+          <div class="ov-tier ov-tier--4">
+            <div class="ov-tier-label">
+              <span class="ov-tier-num" aria-hidden="true">4</span>
+              <div class="ov-tier-text">
+                <div class="ov-tier-name">Data sources</div>
+                <div class="ov-tier-sub">Formats · Open Data · APIs</div>
+              </div>
+            </div>
+            <div class="ov-tier-chips">
+              <span class="ov-chip">IFC (via Ion pipeline)</span>
+              <span class="ov-chip">Revit (via Ion pipeline)</span>
+              <span class="ov-chip">GLB / glTF</span>
+              <span class="ov-chip">LAS / LAZ point clouds</span>
+              <span class="ov-chip">Photogrammetry</span>
+              <span class="ov-chip">Cesium World Terrain</span>
+              <span class="ov-chip">Cesium World Bathymetry</span>
+              <span class="ov-chip">NRW LoD2 (Geobasis NRW)</span>
+              <span class="ov-chip">Pegelonline REST API</span>
+              <span class="ov-chip">OGC SensorThings API</span>
+              <span class="ov-chip">WMS / WMTS / WFS</span>
+              <span class="ov-chip">Bing Aerial / Roads</span>
+            </div>
+          </div>
+
+        </div><!-- /ov-arch -->
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 2 — CESIUM PLATFORM
+    ═══════════════════════════════════════ -->
+    <section class="ov-section ov-section--alt" id="cesium-platform">
+      <div class="ov-container">
+        <h2 class="ov-section-title">Built on the Cesium platform</h2>
+        <p class="ov-section-desc">
+          geobim.app uses CesiumJS as its WebGL rendering engine and Cesium Ion as the 3D Tiles
+          asset pipeline. Both are open-source at their core and maintained by Cesium.
+        </p>
+
+        <div class="ov-platform-grid">
+
+          <div class="ov-platform-card">
+            <div class="ov-platform-icon"><i data-lucide="globe"></i></div>
+            <h3>CesiumJS</h3>
+            <p>
+              Open-source WebGL library for geospatial 3D (Apache 2.0). Renders a
+              WGS84-accurate globe at any scale — from a single building to the full
+              Earth — with per-frame level-of-detail streaming and hardware GPU readback.
+              Used by 200 000+ developers and adopted by NASA, ESA, and major AEC firms.
+            </p>
+            <div class="ov-platform-tags">
+              <span>Open source (Apache 2.0)</span>
+              <span>WGS84 precision</span>
+              <span>3D Tiles runtime</span>
+              <span>WebGL 2</span>
+            </div>
+          </div>
+
+          <div class="ov-platform-card ov-platform-card--accent">
+            <div class="ov-platform-icon"><i data-lucide="cloud-upload"></i></div>
+            <h3>Cesium Ion</h3>
+            <p>
+              Cloud pipeline that converts heterogeneous source data — IFC, Revit, LAS/LAZ
+              point clouds, photogrammetry — into optimised, streamable 3D Tiles. Handles
+              geometry processing, texture atlasing, feature metadata and per-token access
+              control. Free non-commercial tier; EU infrastructure available.
+            </p>
+            <div class="ov-platform-tags">
+              <span>IFC → 3D Tiles</span>
+              <span>Revit → 3D Tiles</span>
+              <span>LAS/LAZ → 3D Tiles</span>
+              <span>Token-based access</span>
+            </div>
+          </div>
+
+          <div class="ov-platform-card">
+            <div class="ov-platform-icon"><i data-lucide="layers"></i></div>
+            <h3>3D Tiles (OGC standard)</h3>
+            <p>
+              Open specification for streaming massive, heterogeneous 3D geospatial datasets
+              at any scale. Per-frame LOD selection, per-feature property storage, glTF
+              payload. Adopted as an OGC Community Standard and actively developed by Cesium.
+            </p>
+            <div class="ov-platform-tags">
+              <span>OGC Community Standard</span>
+              <span>glTF payload</span>
+              <span>Feature metadata</span>
+              <span>Streaming LOD</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 3 — FEATURES
+    ═══════════════════════════════════════ -->
+    <section class="ov-section" id="features">
+      <div class="ov-container">
+        <h2 class="ov-section-title">Features</h2>
+        <p class="ov-section-desc">
+          All features run in the browser without plugins. No build step, no desktop install.
+          Badges mark features introduced in a specific release.
+        </p>
+
+        <div class="ov-feature-grid">
+
+          <!-- 1: Asset import -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="package"></i></div>
+            <div class="ov-feature-body">
+              <h3>Asset import &amp; streaming</h3>
+              <p>
+                Load IFC, Revit and point cloud assets as 3D Tiles via Cesium Ion. GLB models
+                via direct URL. Bentley iTwin iModels via share key. Per-asset opacity slider,
+                visibility toggle, Z-offset (–70 m to +70 m) and unload with full cleanup.
+              </p>
+            </div>
+          </div>
+
+          <!-- 2: Layer manager -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="map"></i></div>
+            <div class="ov-feature-body">
+              <h3>Layer manager</h3>
+              <p>
+                6 basemap options (Bing Aerial, Roads, OSM, Google Satellite), configurable
+                terrain (World Terrain, Bathymetry, custom Ion asset), Google Photorealistic
+                3D Tiles (3 quality presets), OSM Buildings, NRW LoD2, custom WMS/WMTS/WFS.
+              </p>
+            </div>
+          </div>
+
+          <!-- 3: BIM filtering -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="filter"></i></div>
+            <div class="ov-feature-body">
+              <h3>BIM filtering &amp; selection</h3>
+              <p>
+                Filter 3D Tiles by 31 IFC entity classes or 34 Revit categories with
+                color-coded visibility. Source format is auto-detected from tile content.
+                Left-click element selection shows all IFC/Revit properties with search
+                and copy-to-clipboard.
+              </p>
+            </div>
+          </div>
+
+          <!-- 4: Annotations & Measurements -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="ruler"></i></div>
+            <div class="ov-feature-body">
+              <h3>Annotations &amp; measurements</h3>
+              <p>
+                Point and polygon annotations stored in Firestore with title, category and
+                priority. Five measurement tools: distance, area, height over terrain,
+                vertical distance, coordinate picker. EGM96 geoid lookup for orthometric
+                height. Firestore persistence. BCF 2.1 export.
+              </p>
+            </div>
+          </div>
+
+          <!-- 5: Clipping -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="scissors"></i></div>
+            <div class="ov-feature-body">
+              <h3>Clipping &amp; section planes</h3>
+              <p>
+                Draw arbitrary polygon or rectangle clipping masks on the globe. Per-asset
+                axis-aligned section planes (X, Y, Z) with distance sliders and flip control.
+                Terrain include/exclude toggle. Inverse clipping. Live polygon fill preview.
+              </p>
+            </div>
+          </div>
+
+          <!-- 6: Post-FX -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="sparkles"></i></div>
+            <div class="ov-feature-body">
+              <h3>
+                Rendering &amp; post-processing
+                <span class="ov-badge ov-badge--new">v1.7.0</span>
+              </h3>
+              <p>
+                Dynamic sun/shadow simulation, IBL (real-time spherical harmonics + KTX2
+                cubemap), HBAO. Post-processing: Bloom, Lens Flare, Vignette, Color Grading
+                (contrast, saturation, warmth). One-click Cinematic preset activates all
+                effects at MSAA 4×.
+              </p>
+            </div>
+          </div>
+
+          <!-- 7: Walk mode -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="person-standing"></i></div>
+            <div class="ov-feature-body">
+              <h3>Walk mode</h3>
+              <p>
+                First-person navigation (G key): WASD + mouse or Xbox controller, optional
+                raycast wall collision (6 rays, throttled 10×/sec), terrain clamping.
+                Third-person mode (V key): animated Cesium_Man character with Unreal-style
+                controls, dual floor clamping, fan collision. Player Start via T key.
+              </p>
+            </div>
+          </div>
+
+          <!-- 8: Point clouds -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="scan"></i></div>
+            <div class="ov-feature-body">
+              <h3>Point cloud support</h3>
+              <p>
+                Auto-detected from tile URI (.pnts) or asset metadata. Eye Dome Lighting
+                for depth perception. Color modes: RGB, height gradient, intensity, ASPRS
+                classification. Configurable point size, distance attenuation, geometric
+                error scale, and three rendering presets.
+              </p>
+            </div>
+          </div>
+
+          <!-- 9: Inspection -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="clipboard-list"></i></div>
+            <div class="ov-feature-body">
+              <h3>
+                Bridge inspection
+                <span class="ov-badge ov-badge--new">v1.7.4</span>
+              </h3>
+              <p>
+                Structured condition assessment with 14 damage types in 4 groups, 11
+                component categories, severity and priority. Screenshot capture on save
+                (480×270 JPEG in Firestore). PDF report export with summary stats,
+                component breakdown and per-finding screenshots.
+                Anonymous demo at <code>/bridge-inspector</code>.
+              </p>
+            </div>
+          </div>
+
+          <!-- 10: Ion Connect -->
+          <div class="ov-feature-card">
+            <div class="ov-feature-icon"><i data-lucide="plug"></i></div>
+            <div class="ov-feature-body">
+              <h3>
+                Cesium Ion connect
+                <span class="ov-badge ov-badge--new">v1.7.0</span>
+              </h3>
+              <p>
+                OAuth2 PKCE flow to link a personal Cesium Ion account. Browse and load
+                private 3D Tiles and GLB assets directly from the viewer asset panel.
+                Access token served server-side; OAuth token persisted in localStorage
+                with automatic 90-day refresh.
+              </p>
+            </div>
+          </div>
+
+        </div><!-- /ov-feature-grid -->
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 4 — USE CASES
+    ═══════════════════════════════════════ -->
+    <section class="ov-section ov-section--alt" id="use-cases">
+      <div class="ov-container">
+        <h2 class="ov-section-title">Use cases</h2>
+        <p class="ov-section-desc">
+          Typical applications across infrastructure, AEC, energy and public sector.
+        </p>
+
+        <div class="ov-usecase-grid">
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="hard-hat"></i></div>
+            <h3>Bridge &amp; infrastructure inspection</h3>
+            <p>
+              Structured condition assessment in a georeferenced 3D model. Inspectors
+              place findings directly on the asset, document damage type and severity,
+              capture screenshots, and export a PDF report.
+              Anonymous demo available at <code>/bridge-inspector</code>.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Infrastructure</span>
+              <span>Owner / operator</span>
+              <span>BIM manager</span>
+            </div>
+          </div>
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="factory"></i></div>
+            <h3>Industrial asset management</h3>
+            <p>
+              Load large Revit plant models, filter by system (MEP, structural, architectural),
+              annotate defects in 3D, and export BCF issues directly to authoring tools.
+              Walk mode enables first-person facility walkthroughs.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Industry</span>
+              <span>Asset manager</span>
+              <span>Facility management</span>
+            </div>
+          </div>
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="map-pin"></i></div>
+            <h3>Site walkthroughs</h3>
+            <p>
+              First-person and third-person navigation through BIM models at their real
+              geographic location. Useful for pre-construction design review, client
+              presentations, and on-site orientation — including rooftop access via
+              player-start placement.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Architecture</span>
+              <span>Construction</span>
+              <span>BIM coordinator</span>
+            </div>
+          </div>
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="globe"></i></div>
+            <h3>Public digital twins</h3>
+            <p>
+              Share georeferenced BIM models with contextual data: photorealistic city model,
+              live sensor feeds, terrain, and aerial imagery. Demo mode provides 30-minute
+              full-access sessions without login.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Public sector</span>
+              <span>Municipality</span>
+              <span>Urban planning</span>
+            </div>
+          </div>
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="wind"></i></div>
+            <h3>WEA shadow analysis</h3>
+            <p>
+              Parametric wind turbine shadow flicker simulation on real terrain. Adjust hub
+              height, rotor diameter, RPM and date range. Visual output directly in the
+              Cesium viewer for permitting documentation.
+              Anonymous demo at <code>/wea-shadow</code>.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Energy</span>
+              <span>Permitting authority</span>
+              <span>Project developer</span>
+            </div>
+          </div>
+
+          <div class="ov-usecase-card">
+            <div class="ov-usecase-icon"><i data-lucide="activity"></i></div>
+            <h3>Live structural monitoring</h3>
+            <p>
+              OGC SensorThings API + MQTT integration for real-time sensor data visualised
+              directly on the 3D model. Threshold-based anomaly detection triggers animated
+              alerts. Applicable to bridges, tunnels, dams and any instrumented structure.
+            </p>
+            <div class="ov-usecase-tags">
+              <span>Monitoring</span>
+              <span>Research</span>
+              <span>Infrastructure</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════ -->
+  <footer class="ov-footer">
+    <div class="ov-container">
+      <div class="ov-footer-grid">
+
+        <div class="ov-footer-col">
+          <div class="ov-footer-brand">geobim.app</div>
+          <p>Browser-native BIM/GIS viewer built on CesiumJS.<br>Geospatial context for IFC, Revit, point clouds and live sensor data.</p>
+        </div>
+
+        <div class="ov-footer-col">
+          <div class="ov-footer-label">License</div>
+          <p>
+            Business Source License 1.1<br>
+            Non-commercial use, research &amp; education permitted.<br>
+            Converts to MIT on 2030-03-01.
+          </p>
+        </div>
+
+        <div class="ov-footer-col">
+          <div class="ov-footer-label">Links</div>
+          <ul class="ov-footer-links">
+            <li><a href="/" >Open viewer</a></li>
+            <li><a href="/demo">Try demo (30 min)</a></li>
+            <li><a href="https://github.com/geobim-app/geobim" target="_blank" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+
+        <div class="ov-footer-col">
+          <div class="ov-footer-label">Contact</div>
+          <ul class="ov-footer-links">
+            <li><a href="mailto:info@geobim.app">info@geobim.app</a></li>
+            <li>Christof Lorenz</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="ov-footer-bottom">
+        <span>© 2026 Christof Lorenz — geobim.app</span>
+        <span>v1.7.4 · CesiumJS 1.141 · BSL 1.1</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+
+</body>
+</html>
