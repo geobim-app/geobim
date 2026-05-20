@@ -848,15 +848,10 @@ summary:focus-visible {
   overflow: hidden;
 }
 
-/* ── Tier A: source data ── */
+/* ── Tier A: source data (expanded grid) ── */
 .ov-eco-tier--data {
-  padding: var(--space-lg) var(--space-2xl);
+  padding: var(--space-lg) var(--space-2xl) var(--space-xl);
   background: var(--bg-card);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  text-align: center;
 }
 
 .ov-eco-tier-label {
@@ -865,13 +860,13 @@ summary:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-muted);
+  text-align: center;
 }
 
 .ov-eco-tier-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
-  justify-content: center;
 }
 
 .ov-eco-tier-chips span {
@@ -879,8 +874,41 @@ summary:focus-visible {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  font-size: 0.77rem;
+  font-size: 0.76rem;
   color: var(--text-secondary);
+}
+
+.ov-eco-data-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md) var(--space-xl);
+  margin-top: var(--space-md);
+}
+
+.ov-eco-data-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ov-eco-data-cat {
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-teal);
+}
+
+@media (max-width: 580px) {
+  .ov-eco-data-groups {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .ov-eco-data-groups {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Tier B: Cesium Ion ── */
