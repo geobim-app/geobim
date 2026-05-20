@@ -170,7 +170,7 @@
               <span class="ov-tier-num" aria-hidden="true">3</span>
               <div class="ov-tier-text">
                 <div class="ov-tier-name">Asset hosting</div>
-                <div class="ov-tier-sub">3D Tiles · CDN</div>
+                <div class="ov-tier-sub">SaaS · Self-hosted · Cloud</div>
               </div>
             </div>
             <div class="ov-tier-boxes">
@@ -205,6 +205,22 @@
                 <div class="ov-box-detail">
                   OpenStreetMap 3D building footprints as Cesium 3D Tiles (Ion Asset 96188).
                   Auto-disabled when Google Photorealistic tiles are active.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Local server</summary>
+                <div class="ov-box-detail">
+                  Self-hosted 3D Tiles served via Apache, nginx or any static file server.
+                  Cesium Ion Self-Hosted runs the full tiling pipeline on-premises.
+                  geobim.app loads any reachable 3D Tiles endpoint — no Ion account required.
+                </div>
+              </details>
+              <details class="ov-box">
+                <summary>Private cloud</summary>
+                <div class="ov-box-detail">
+                  3D Tiles hosted on AWS S3, Azure Blob Storage, or GCP Cloud Storage with
+                  CORS configured. Cesium Ion Self-Hosted also deploys into private cloud
+                  environments (air-gapped, VPN, enterprise firewall).
                 </div>
               </details>
             </div>
