@@ -14,7 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **WEA Rotor Animation**: Concrete PBR-Shader wird nicht mehr auf WEA-Modelle angewandt (Turbinen haben eigene PBR-Texturen); `model._ready` durch `model.ready` (public API) ersetzt; `_restartGLBAnimations` robuster: Safety-Guard für `duration=0`, Fallback auf `add({index:0})` und plain-`multiplier` wenn `addAll` keine Animationen findet; `readyEvent`-Handler überspringt `addAll`/`removeAll` für WEA-Modelle — mehrere Turbinen derselben GLB-URL teilen Cesiums `ResourceCache`, `removeAll()` einer Instanz löschte Animationen aller anderen (nur letzte WEA animierte)
+- **WEA Rotor Animation**: Concrete PBR-Shader wird nicht mehr auf WEA-Modelle angewandt (Turbinen haben eigene PBR-Texturen); `model._ready` durch `model.ready` (public API) ersetzt; `_restartGLBAnimations` robuster: Safety-Guard für `duration=0`, Fallback auf `add({index:0})` und plain-`multiplier` wenn `addAll` keine Animationen findet; `readyEvent`-Handler überspringt `addAll`/`removeAll` für WEA-Modelle; neues `_startWEAAnimation()` mit mutablem `state.speed`-Closure statt `removeAll()+addAll()` — mehrere Turbinen derselben GLB-URL teilen Cesiums `ResourceCache`, `removeAll()` einer Instanz löschte Animationen aller anderen; Pause = `state.speed = 0` (Rotor friert ein), Resume/Speed-Change = Variable aktualisieren, kein `removeAll()` mehr für WEA
 - **OpenStreetMap Basemap**: ersetzt deprecated `OpenStreetMapImageryProvider` + direkte OSM-Tile-Server durch `UrlTemplateImageryProvider` mit CARTO Voyager Tiles (OSM-Daten, CARTO-CDN, commercial use erlaubt, kein TOTP-Blocking)
 
 ### Added

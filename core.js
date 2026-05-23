@@ -1646,10 +1646,50 @@ const BimViewer = {
     });
   },
 
+  // WEA-specific: adds animations once with a mutable speed state in the closure.
+  // Never calls removeAll() — multiple turbines from the same URL share Cesium's
+  // ResourceCache; removeAll() on one instance clears all others.
+  // Pause = set state.speed = 0 (rotor freezes in place). Resume = restore speed.
+  _startWEAAnimation(assetData, speed) {
+    const model = assetData.model;
+    if (!model) return;
+    if (assetData._weaAnimState) {
+      // Already added — just update speed (callback reads state.speed each frame)
+      assetData._weaAnimState.speed = speed;
+      return;
+    }
+    const state = { speed: speed };
+    assetData._weaAnimState = state;
+    const startRealTime = performance.now() / 1000.0;
+    requestAnimationFrame(() => {
+      try {
+        model.activeAnimations.addAll({
+          loop: Cesium.ModelAnimationLoop.REPEAT,
+          multiplier: 1.0,
+          animationTime: function(duration) {
+            if (!duration || duration <= 0) return 0;
+            return ((performance.now() / 1000.0 - startRealTime) * state.speed) % duration;
+          }
+        });
+      } catch (e) {
+        console.warn('⚠️ WEA animation start failed:', e.message);
+      }
+    });
+  },
+
   setGLBAnimationSpeed(assetId, speed) {
     const assetData = this.loadedAssets.get(assetId);
     if (!assetData || !assetData.isGLB) return;
     assetData.animSpeed = speed;
+    if (assetData.isWEA) {
+      // Update mutable state in callback — no removeAll() needed
+      if (assetData._weaAnimState) {
+        assetData._weaAnimState.speed = assetData.animPlaying ? speed : 0;
+      } else if (assetData.animPlaying) {
+        this._startWEAAnimation(assetData, speed);
+      }
+      return;
+    }
     if (assetData.animPlaying) {
       this._restartGLBAnimations(assetData, speed);
     }
@@ -1658,6 +1698,21 @@ const BimViewer = {
   toggleGLBAnimation(assetId) {
     const assetData = this.loadedAssets.get(assetId);
     if (!assetData || !assetData.isGLB || !assetData.model) return;
+
+    if (assetData.isWEA) {
+      // WEA: never removeAll() — freeze/unfreeze via mutable state.speed instead
+      if (assetData.animPlaying) {
+        if (assetData._weaAnimState) assetData._weaAnimState.speed = 0;
+        assetData.animPlaying = false;
+      } else {
+        const speed = assetData.animSpeed || 0.3;
+        this._startWEAAnimation(assetData, speed);
+        assetData.animPlaying = true;
+      }
+      const btn = document.getElementById(`glb_playpause_${assetId}`);
+      if (btn) btn.textContent = assetData.animPlaying ? '⏸ Pause' : '▶ Play';
+      return;
+    }
 
     if (assetData.animPlaying) {
       // Pause — just remove all animations, model keeps rest pose (all visible)
