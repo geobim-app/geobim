@@ -245,21 +245,80 @@
     return rpm / (inst.wea.nativeRPM || 16.2);
   }
 
+  // ---- WEA rotor animation via scene.postUpdate (bypasses model.activeAnimations) ----
+  // Multiple turbines loaded from the same GLB URL share Cesium's ResourceCache.
+  // Any activeAnimations.addAll/removeAll call on one model instance affects all others.
+  // Using postUpdate + direct node._transform is reliable and per-instance.
+  // Spin axis: local Z of the blades node (GLTF Y-up convention for horizontal-axis turbines).
+
+  function _startWeaRotation(inst) {
+    _stopWeaRotation(inst); // clean up previous listener if any
+
+    var node = inst.bladesRuntimeNode;
+    if (!node) return;
+
+    var wea       = inst.wea;
+    var startTime = performance.now() / 1000.0;
+    var t  = new Cesium.Cartesian3(wea.bladesTranslation[0], wea.bladesTranslation[1], wea.bladesTranslation[2]);
+    var q0 = new Cesium.Quaternion(wea.bladesRotation[0],    wea.bladesRotation[1],    wea.bladesRotation[2],    wea.bladesRotation[3]);
+
+    inst._weaAnimListener = function() {
+      var node = inst.bladesRuntimeNode;
+      if (!node) return;
+      var ad        = inst.assetData;
+      var elapsed   = performance.now() / 1000.0 - startTime;
+      var radPerSec = ad.animSpeed * (wea.nativeRPM || 16.2) * Math.PI / 30.0;
+      var angle     = elapsed * radPerSec;
+
+      var qSpin  = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, angle, new Cesium.Quaternion());
+      var qTotal = Cesium.Quaternion.multiply(q0, qSpin, new Cesium.Quaternion());
+
+      var meshExtent = wea.rotorDiameter / wea.bladesBaseScale;
+      var sc  = inst.targetRotorDiameter / (meshExtent * (ad.scale || 1));
+      var s   = new Cesium.Cartesian3(sc, sc, sc);
+      var m   = Cesium.Matrix4.fromTranslationQuaternionRotationScale(t, qTotal, s, new Cesium.Matrix4());
+      try {
+        if (node._transform !== undefined) {
+          Cesium.Matrix4.clone(m, node._transform);
+          if (node._transformDirty !== undefined) node._transformDirty = true;
+        } else if (typeof node.transform !== 'undefined') {
+          node.transform = m;
+        }
+      } catch (e) {}
+    };
+
+    BimViewer.viewer.scene.postUpdate.addEventListener(inst._weaAnimListener);
+    console.log('WEA rotor started:', inst.assetId, 'speed:', inst.assetData.animSpeed);
+  }
+
+  function _stopWeaRotation(inst) {
+    if (inst._weaAnimListener) {
+      try { BimViewer.viewer.scene.postUpdate.removeEventListener(inst._weaAnimListener); } catch (e) {}
+      inst._weaAnimListener = null;
+    }
+  }
+
   function setAnimSpeed(assetId, rpm) {
     var inst = weaInstances[assetId];
     if (!inst) return;
     inst.targetRPM = rpm;
-    var mult = rpmToMultiplier(inst, rpm);
-    inst.assetData.animSpeed = mult;
-    if (inst.assetData.animPlaying) BimViewer.setGLBAnimationSpeed(assetId, mult);
+    inst.assetData.animSpeed = rpmToMultiplier(inst, rpm);
+    // Listener reads animSpeed live \u2014 no restart needed
     syncSliders(assetId);
   }
 
   function toggleAnimation(assetId) {
     var inst = weaInstances[assetId];
-    if (inst) inst.assetData.animSpeed = rpmToMultiplier(inst, inst.targetRPM);
-    BimViewer.toggleGLBAnimation(assetId);
     if (!inst) return;
+    inst.assetData.animSpeed = rpmToMultiplier(inst, inst.targetRPM);
+
+    if (inst.assetData.animPlaying) {
+      _stopWeaRotation(inst);
+      inst.assetData.animPlaying = false;
+    } else {
+      _startWeaRotation(inst);
+      inst.assetData.animPlaying = true;
+    }
     var btn = document.getElementById('wea_pp_' + assetId);
     if (btn) btn.textContent = inst.assetData.animPlaying ? '\u23F8 Stop Rotor' : '\u25B6 Start Rotor';
   }
