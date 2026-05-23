@@ -6,6 +6,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Atmosphere & Sky Presets** (`atmosphere.js`): neues Modul orchestriert `scene.skyAtmosphere` + Globe-Atmosphere + PostFX (Bloom, Color Grading) in 4 Presets — *Klarer Tag* (Standard), *Goldene Stunde* (warm/dramatisch), *Bewölkt* (desaturiert/Nebel), *Standard* (Cesium-Reset); wird automatisch mit "Klarer Tag" aktiviert
+- **WEA Shadow — Atmosphäre-Sektion**: 4 Preset-Buttons (2×2 Grid) im WEA-Panel; aktiver Button visuell hervorgehoben (`modern-btn-primary`)
+- **WEA Shadow — Layer Panel**: Google Maps Basemaps (Contour + Sat Labels via Cesium Ion) jetzt in der Basemap-Auswahl verfügbar
+
+### Fixed
+
+- **WEA Rotor Animation**: Concrete PBR-Shader wird nicht mehr auf WEA-Modelle angewandt (Turbinen haben eigene PBR-Texturen); `model._ready` durch `model.ready` (public API) ersetzt; `_restartGLBAnimations` robuster: Safety-Guard für `duration=0`, Fallback auf `add({index:0})` und plain-`multiplier` wenn `addAll` keine Animationen findet; `readyEvent`-Handler überspringt `addAll`/`removeAll` für WEA-Modelle — mehrere Turbinen derselben GLB-URL teilen Cesiums `ResourceCache`, `removeAll()` einer Instanz löschte Animationen aller anderen (nur letzte WEA animierte)
+- **OpenStreetMap Basemap**: ersetzt deprecated `OpenStreetMapImageryProvider` + direkte OSM-Tile-Server durch `UrlTemplateImageryProvider` mit CARTO Voyager Tiles (OSM-Daten, CARTO-CDN, commercial use erlaubt, kein TOTP-Blocking)
+
+### Added
+
+- **WEA Shadow — Day Animation (Play Day)**: Play-button animiert den Zeitslider automatisch durch den Tag; Speed-Selektor ×30/×60/×180/×360 (Echtzeit-Minuten pro Sekunde); `requestAnimationFrame`-Loop mit delta-time
+- **WEA Shadow — Add 2nd Turbine**: Lädt dasselbe Modell ein zweites Mal mit +0.005° Lon-Versatz (~400 m) relativ zur letzten geladenen Anlage; beide synchron durch "Play Day" animierbar
+- **WEA Shadow — Receptor (Immissionspunkt)**: "Set Receptor"-Button aktiviert Crosshair-Modus; Klick auf Karte setzt orangen Point-Entity + Label ("Receptor 1/2/…"); Liste im Panel mit Einzellöschung; `disableDepthTestDistance` für Sichtbarkeit vor Terrain
+- **WEA Shadow — Layer Manager Panel**: separates Floating Panel (draggable, `right: 330px`); Basemap-Radio-Buttons für alle 7 Basemaps (`BimLayerManager.switchBasemap()`); WMS/WMTS/WFS-Discover-Flow (URL → GetCapabilities → Layer-Picker → Add); geladene Layer mit Sichtbarkeits-Toggle und Remove; "Layer Manager"-Button im WEA-Panel; CSS `#weaLayerPanel` in `style.css`
+- **WEA Shadow — View from Receptor**: Auge-Icon neben jedem Receptor; Kamera fliegt auf Augenhöhe (Terrain + 1.7 m) und schaut präzise zur Nabenhöhe der nächsten WEA (Heading aus Lon/Lat-Delta, Pitch aus `atan2(ΔHöhe, Distanz)`); Sichtachsenprüfung für Behördenpräsentationen
+
 ## [1.7.4] — 2026-05-20
 
 ### Added

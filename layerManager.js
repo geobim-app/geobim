@@ -60,6 +60,13 @@
       // Register built-in basemaps
       this.basemapLayers = [
         {
+          id: 'bing-aerial-labels',
+          name: 'Bing Aerial with Labels',
+          providerFactory: () => Cesium.IonImageryProvider.fromAssetId(3),
+          layer: null,
+          active: false
+        },
+        {
           id: 'bing-aerial',
           name: 'Bing Aerial',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(2),
@@ -76,8 +83,11 @@
         {
           id: 'osm',
           name: 'OpenStreetMap',
-          providerFactory: () => Promise.resolve(new Cesium.OpenStreetMapImageryProvider({
-            url: 'https://a.tile.openstreetmap.org/'
+          providerFactory: () => Promise.resolve(new Cesium.UrlTemplateImageryProvider({
+            url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+            subdomains: ['a', 'b', 'c', 'd'],
+            maximumLevel: 19,
+            credit: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>'
           })),
           layer: null,
           active: false
@@ -124,7 +134,7 @@
       });
 
       // Activate default basemap
-      await this.switchBasemap('bing-aerial');
+      await this.switchBasemap('bing-aerial-labels');
 
       // Populate UI now that layers are registered
       this.populateUI();

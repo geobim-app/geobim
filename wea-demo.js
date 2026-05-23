@@ -81,16 +81,6 @@
     if (window.BimWEA && window.BimViewer && BimViewer.viewer) {
       BimWEA.toggle();
       clearInterval(openWea);
-      // Inject logo above panel header
-      var header = document.getElementById('weaPanelHeader');
-      if (header && !document.getElementById('weaPanelLogo')) {
-        var logo = document.createElement('a');
-        logo.id = 'weaPanelLogo';
-        logo.href = '/';
-        logo.title = 'geobim.app';
-        logo.innerHTML = '<img src="logo/logo_mono_light.svg" alt="geobim.app">';
-        header.parentNode.insertBefore(logo, header);
-      }
       console.log('WEA Demo: panel auto-opened');
     }
   }, 500);
@@ -148,13 +138,7 @@
       'body.wea-demo-active #cesiumContainer{top:37px !important;}' +
       /* Hide status toasts (e.g. "20 assets available") */
       'body.wea-demo-active .status-indicator{display:none !important;}' +
-      /* Logo above WEA panel header */
-      '#weaPanelLogo{' +
-        'display:block;padding:10px 12px 6px;text-align:center;' +
-        'border-bottom:1px solid rgba(255,255,255,0.06);' +
-      '}' +
-      '#weaPanelLogo img{width:100%;height:auto;opacity:0.5;transition:opacity 0.3s;}' +
-      '#weaPanelLogo:hover img{opacity:0.8;}';
+      '';
 
     document.head.appendChild(style);
 

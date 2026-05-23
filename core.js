@@ -1483,8 +1483,27 @@ const BimViewer = {
       // Uses wall-clock time so animations play even when scene clock is paused (shadow timeline)
       model.readyEvent.addEventListener(() => {
         try {
+          const assetData = this.loadedAssets.get(assetId);
+
+          // WEA models: skip addAll/removeAll — multiple turbines from the same GLB URL share
+          // Cesium's ResourceCache, so removeAll() on one instance clears all others too.
+          // Mark as animated directly; _restartGLBAnimations handles playback when user starts.
+          if (assetData && assetData.isWEA) {
+            assetData.animated = true;
+            assetData.animPlaying = false;
+            hasAnimations = true;
+            console.log(`🎬 WEA animation capability confirmed for ${modelDef.name}`);
+            const cardEl = document.getElementById(`asset_${assetId}`);
+            if (cardEl && window.BimViewerUI) {
+              cardEl.remove();
+              BimViewerUI.createAssetControls(assetId);
+            }
+            return;
+          }
+
           const startRealTime = performance.now() / 1000.0;
           const wallClockAnimTime = function(duration, seconds) {
+            if (!duration || duration <= 0) return 0;
             const elapsed = performance.now() / 1000.0 - startRealTime;
             return (elapsed * defaultAnimSpeed) % duration;
           };
@@ -1496,14 +1515,7 @@ const BimViewer = {
           if (anims.length > 0) {
             hasAnimations = true;
             model._glbAnimCount = anims.length;
-            const assetData = this.loadedAssets.get(assetId);
-
-            // WEA models: detect animations but don't play — user starts manually
-            if (assetData && assetData.isWEA) {
-              model.activeAnimations.removeAll();
-              assetData.animated = true;
-              assetData.animPlaying = false;
-            } else if (assetData) {
+            if (assetData) {
               assetData.animated = true;
               assetData.animPlaying = true;
             }
@@ -1544,8 +1556,10 @@ const BimViewer = {
         isWEA: !!modelDef.isWEA
       };
 
-      // Apply PBR concrete shader by default
-      model.customShader = this._getConcreteShader();
+      // Apply PBR concrete shader for non-WEA models (turbines have own PBR textures)
+      if (!modelDef.isWEA) {
+        model.customShader = this._getConcreteShader();
+      }
 
       this.loadedAssets.set(assetId, assetData);
 
@@ -1599,20 +1613,35 @@ const BimViewer = {
     // Wall-clock based animation time — immune to scene clock changes
     const startRealTime = performance.now() / 1000.0;
     const wallClockAnimTime = function(duration, seconds) {
+      if (!duration || duration <= 0) return 0;
       const elapsed = performance.now() / 1000.0 - startRealTime;
       return (elapsed * multiplier) % duration;
     };
 
     requestAnimationFrame(() => {
       try {
-        const addOpts = {
-          loop: (opts && opts.loop !== undefined) ? opts.loop : Cesium.ModelAnimationLoop.REPEAT,
-          multiplier: 1.0,  // multiplier handled by wallClockAnimTime
-          animationTime: (opts && opts.animationTime) ? opts.animationTime : wallClockAnimTime
-        };
-        model.activeAnimations.addAll(addOpts);
+        const loop = (opts && opts.loop !== undefined) ? opts.loop : Cesium.ModelAnimationLoop.REPEAT;
+        const animTime = (opts && opts.animationTime) ? opts.animationTime : wallClockAnimTime;
+
+        // addAll returns the added ModelAnimation objects; 0 means model has no animations
+        const added = model.activeAnimations.addAll({ loop, multiplier: 1.0, animationTime: animTime });
+
+        if (added.length === 0 && !opts) {
+          // Fallback: try by index (some Cesium builds need explicit index)
+          try {
+            model.activeAnimations.add({ index: 0, loop, multiplier: 1.0, animationTime: animTime });
+          } catch (e2) {
+            // Last resort: plain multiplier (depends on scene clock, but better than nothing)
+            model.activeAnimations.addAll({ loop, multiplier });
+          }
+        }
       } catch (e) {
-        console.warn('⚠️ _restartGLBAnimations failed:', e.message);
+        // Plain multiplier fallback — scene-clock-dependent but functional
+        try {
+          model.activeAnimations.addAll({ loop: Cesium.ModelAnimationLoop.REPEAT, multiplier });
+        } catch (e2) {
+          console.warn('⚠️ _restartGLBAnimations failed:', e.message);
+        }
       }
     });
   },

@@ -23,12 +23,23 @@
   var PANEL_ID = 'weaShadowPanel';
   var WEA_NODE_TOWER = 'Main Unit';
   var WEA_NODE_BLADES = 'Blades';
-  var DEFAULT_POSITION = { lon: 9.9368, lat: 50.4983, height: 0 };
+  var DEFAULT_POSITION = { lon: 11.508, lat: 49.262, height: 0 };
 
   // State
   var weaInstances = {};
   var weaModelDefs = [];
   var panelCreated = false;
+
+  // Day animation
+  var dayPlayActive = false;
+  var dayPlayRAF = null;
+  var dayPlayLastTime = null;
+
+  // Immission points
+  var immissionMode = false;
+  var immissionHandler = null;
+  var immissionPoints = [];
+  var immissionCounter = 0;
 
   // ========================================================
   // GLB ANALYSIS
@@ -249,7 +260,6 @@
     if (inst) inst.assetData.animSpeed = rpmToMultiplier(inst, inst.targetRPM);
     BimViewer.toggleGLBAnimation(assetId);
     if (!inst) return;
-    inst.assetData.animPlaying = !inst.assetData.animPlaying;
     var btn = document.getElementById('wea_pp_' + assetId);
     if (btn) btn.textContent = inst.assetData.animPlaying ? '\u23F8 Stop Rotor' : '\u25B6 Start Rotor';
   }
@@ -326,7 +336,7 @@
 
   async function loadWEA(modelDef) {
     if (!modelDef.defaultPosition) modelDef.defaultPosition = { ...DEFAULT_POSITION };
-    modelDef.defaultHeading = modelDef.defaultHeading || 248;
+    modelDef.defaultHeading = modelDef.defaultHeading || 180;
     modelDef.isWEA = true;
     await BimViewer.loadGLBAsset(modelDef);
 
@@ -340,8 +350,8 @@
     var wea = modelDef._weaData || await fetchAndAnalyze(modelDef.file);
     if (!wea) return;
 
-    var defaultHub = 131;
-    var defaultRotor = 138;
+    var defaultHub = 199;
+    var defaultRotor = 172;
     var modelScale = defaultHub / wea.hubHeight;
 
     var inst = {
@@ -369,7 +379,7 @@
       if (inst.bladesRuntimeNode) setRotorDiameter(assetId, inst.targetRotorDiameter);
       refreshPanel();
     };
-    if (model._ready || model.ready) requestAnimationFrame(attachNode);
+    if (model.ready) requestAnimationFrame(attachNode);
     else model.readyEvent.addEventListener(function() { requestAnimationFrame(attachNode); });
 
     refreshPanel();
@@ -474,6 +484,407 @@
   }
 
   // ========================================================
+  // DAY ANIMATION
+  // ========================================================
+
+  function startDayPlay() {
+    dayPlayActive = true;
+    dayPlayLastTime = null;
+    var btn = document.getElementById('weaPlayDayBtn');
+    if (btn) btn.textContent = '⏸ Pause';
+
+    function frame(ts) {
+      if (!dayPlayActive) return;
+      if (dayPlayLastTime !== null) {
+        var dtSec = (ts - dayPlayLastTime) / 1000;
+        var speedEl = document.getElementById('weaPlaySpeed');
+        var speed = parseInt((speedEl && speedEl.value) || 60);
+        var slider = document.getElementById('weaTimeSlider');
+        if (slider) {
+          var next = (parseInt(slider.value) + dtSec * speed) % 1440;
+          slider.value = Math.round(next);
+          onTimeSlider(slider.value);
+        }
+      }
+      dayPlayLastTime = ts;
+      dayPlayRAF = requestAnimationFrame(frame);
+    }
+    dayPlayRAF = requestAnimationFrame(frame);
+  }
+
+  function stopDayPlay() {
+    dayPlayActive = false;
+    if (dayPlayRAF) { cancelAnimationFrame(dayPlayRAF); dayPlayRAF = null; }
+    dayPlayLastTime = null;
+    var btn = document.getElementById('weaPlayDayBtn');
+    if (btn) btn.textContent = '▶ Play Day';
+  }
+
+  function toggleDayPlay() {
+    if (dayPlayActive) stopDayPlay();
+    else startDayPlay();
+  }
+
+  // ========================================================
+  // ADD SECOND WEA
+  // ========================================================
+
+  function addSecondWEA() {
+    var sel = document.getElementById('weaModelSelector');
+    if (!sel || !sel.value) return;
+    var def = weaModelDefs.find(function(m) { return m.id === sel.value; });
+    if (!def) return;
+    var defCopy = Object.assign({}, def);
+    var keys = Object.keys(weaInstances);
+    var baseLon = DEFAULT_POSITION.lon;
+    var baseLat = DEFAULT_POSITION.lat;
+    if (keys.length > 0) {
+      var last = weaInstances[keys[keys.length - 1]];
+      baseLon = last.assetData.position.lon;
+      baseLat = last.assetData.position.lat;
+    }
+    defCopy.id = def.id + '_' + Date.now();
+    defCopy.name = def.name + ' 2';
+    defCopy.defaultPosition = { lon: baseLon + 0.005, lat: baseLat, height: 0 };
+    defCopy.defaultHeading = def.defaultHeading || 180;
+    loadWEA(defCopy);
+  }
+
+  // ========================================================
+  // IMMISSION POINTS
+  // ========================================================
+
+  function enableImmissionMode() {
+    immissionMode = true;
+    var canvas = BimViewer.viewer.scene.canvas;
+    canvas.style.cursor = 'crosshair';
+    immissionHandler = new Cesium.ScreenSpaceEventHandler(canvas);
+    immissionHandler.setInputAction(function(event) {
+      if (!immissionMode) return;
+      var ray = BimViewer.viewer.camera.getPickRay(event.position);
+      var cartesian = BimViewer.viewer.scene.globe.pick(ray, BimViewer.viewer.scene);
+      if (!cartesian) cartesian = BimViewer.viewer.camera.pickEllipsoid(event.position);
+      if (!cartesian) return;
+      var carto = Cesium.Cartographic.fromCartesian(cartesian);
+      placeImmissionPoint(
+        Cesium.Math.toDegrees(carto.longitude),
+        Cesium.Math.toDegrees(carto.latitude),
+        carto.height || 0
+      );
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    var btn = document.getElementById('weaImmissionBtn');
+    if (btn) { btn.textContent = '✖ Click on map…'; btn.style.color = '#FF8C00'; }
+  }
+
+  function disableImmissionMode() {
+    immissionMode = false;
+    if (immissionHandler) { immissionHandler.destroy(); immissionHandler = null; }
+    var canvas = BimViewer.viewer && BimViewer.viewer.scene && BimViewer.viewer.scene.canvas;
+    if (canvas) canvas.style.cursor = '';
+    var btn = document.getElementById('weaImmissionBtn');
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="map-pin" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>Set Receptor';
+      btn.style.color = '';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function toggleImmission() {
+    if (!BimViewer.viewer) return;
+    if (immissionMode) disableImmissionMode();
+    else enableImmissionMode();
+  }
+
+  function placeImmissionPoint(lon, lat, terrainH) {
+    immissionCounter++;
+    var label = 'Receptor ' + immissionCounter;
+    var id = 'immission_' + immissionCounter;
+    var entity = BimViewer.viewer.entities.add({
+      id: id,
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
+      point: {
+        pixelSize: 14,
+        color: Cesium.Color.fromCssColorString('#FF8C00'),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      },
+      label: {
+        text: label,
+        font: '13px sans-serif',
+        fillColor: Cesium.Color.fromCssColorString('#FF8C00'),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(0, -18),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+    immissionPoints.push({ id: id, entity: entity, lon: lon, lat: lat, label: label, terrainH: terrainH || 0 });
+    disableImmissionMode();
+    refreshPanel();
+  }
+
+  function removeImmissionPoint(id) {
+    for (var i = 0; i < immissionPoints.length; i++) {
+      if (immissionPoints[i].id === id) {
+        BimViewer.viewer.entities.remove(immissionPoints[i].entity);
+        immissionPoints.splice(i, 1);
+        break;
+      }
+    }
+    refreshPanel();
+  }
+
+  function viewFromReceptor(id) {
+    var pt = immissionPoints.find(function(p) { return p.id === id; });
+    if (!pt) return;
+    var keys = Object.keys(weaInstances);
+    if (keys.length === 0) return;
+
+    // Find nearest WEA
+    var targetInst = weaInstances[keys[0]];
+    var nearestDist = Infinity;
+    for (var k = 0; k < keys.length; k++) {
+      var inst = weaInstances[keys[k]];
+      var dLon = inst.assetData.position.lon - pt.lon;
+      var dLat = inst.assetData.position.lat - pt.lat;
+      var d = dLon * dLon + dLat * dLat;
+      if (d < nearestDist) { nearestDist = d; targetInst = inst; }
+    }
+
+    var weaPos = targetInst.assetData.position;
+    var R = 6371000;
+    var latRad = pt.lat * Math.PI / 180;
+    var distM = Math.sqrt(
+      Math.pow((weaPos.lat - pt.lat) * Math.PI / 180 * R, 2) +
+      Math.pow((weaPos.lon - pt.lon) * Math.PI / 180 * R * Math.cos(latRad), 2)
+    );
+
+    // Bearing: clockwise from north
+    var dLonM = (weaPos.lon - pt.lon) * Math.PI / 180 * R * Math.cos(latRad);
+    var dLatM = (weaPos.lat - pt.lat) * Math.PI / 180 * R;
+    var headingRad = Math.atan2(dLonM, dLatM);
+
+    var eyeH = pt.terrainH + 1.7;
+    var weaTerrainH = targetInst.terrainHeight || 0;
+    var deltaH = (weaTerrainH + targetInst.targetHubHeight) - eyeH;
+    var pitchRad = Math.atan2(deltaH, distM);
+    BimViewer.viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, eyeH),
+      orientation: { heading: headingRad, pitch: pitchRad, roll: 0 },
+      duration: 2
+    });
+  }
+
+  function renderImmissionSection() {
+    var list = document.getElementById('weaImmissionList');
+    if (!list) return;
+    if (immissionPoints.length === 0) { list.innerHTML = ''; return; }
+    var hasWEA = Object.keys(weaInstances).length > 0;
+    var html = '<div style="margin-bottom: 8px; border: 1px solid rgba(255,140,0,0.2); border-radius: 6px; padding: 6px;">' +
+      '<div style="font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Receptors</div>';
+    for (var i = 0; i < immissionPoints.length; i++) {
+      var pt = immissionPoints[i];
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; padding: 2px 0;">' +
+        '<span style="font-size:10px; color:#FF8C00;">' + pt.label + '</span>' +
+        '<span style="font-size:9px; color:rgba(255,255,255,0.3); margin: 0 4px;">' + pt.lon.toFixed(5) + ', ' + pt.lat.toFixed(5) + '</span>' +
+        '<div style="display:flex; gap:2px;">' +
+          (hasWEA ? '<button class="modern-icon-btn" onclick="BimWEA.viewFromReceptor(\'' + pt.id + '\')" title="View from receptor"><i data-lucide="eye" style="width:12px;height:12px;"></i></button>' : '') +
+          '<button class="modern-icon-btn" onclick="BimWEA.removeImmission(\'' + pt.id + '\')" title="Remove">✕</button>' +
+        '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+    list.innerHTML = html;
+  }
+
+  // ========================================================
+  // LAYER PANEL
+  // ========================================================
+
+  var LAYER_PANEL_ID = 'weaLayerPanel';
+  var layerPanelCreated = false;
+
+  function createLayerPanel() {
+    if (layerPanelCreated) return;
+    layerPanelCreated = true;
+
+    var panel = document.createElement('div');
+    panel.id = LAYER_PANEL_ID;
+    panel.innerHTML =
+      '<div id="weaLayerPanelHeader" class="floating-panel-header">' +
+        '<span class="floating-panel-title">Layer Manager</span>' +
+        '<div class="floating-panel-controls">' +
+          '<button class="floating-panel-btn" onclick="BimWEA.toggleLayerCollapse()" title="Minimize">−</button>' +
+          '<button class="floating-panel-btn" onclick="BimWEA.toggleLayerPanel()" title="Close">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="weaLayerPanelBody" class="floating-panel-body">' +
+
+        // Basemap
+        '<div style="margin-bottom: 10px;">' +
+          '<div style="font-size:9px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px;">Basemap</div>' +
+          '<div id="weaLayerBasemapList"></div>' +
+        '</div>' +
+
+        // WMS / WMTS / WFS
+        '<div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">' +
+          '<div style="font-size:9px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px;">WMS / WMTS / WFS</div>' +
+          '<div style="display:flex; gap:4px; margin-bottom:4px;">' +
+            '<input type="url" id="weaLayerWmsUrl" class="zoffset-input-box" style="flex:1; font-size:10px;" placeholder="Service URL...">' +
+            '<button class="modern-btn modern-btn-small" onclick="BimWEA.discoverWMS()">Discover</button>' +
+          '</div>' +
+          '<div id="weaLayerWmsStatus" style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:3px;"></div>' +
+          '<div id="weaLayerWmsPicker" style="display:none; max-height:110px; overflow-y:auto; margin-bottom:6px; border:1px solid rgba(255,255,255,0.06); border-radius:5px; padding:4px;"></div>' +
+          '<div id="weaLayerWmsList"></div>' +
+        '</div>' +
+
+      '</div>';
+
+    document.body.appendChild(panel);
+    if (window.lucide) lucide.createIcons();
+
+    if (typeof BimViewer.makeFloatingPanelDraggable === 'function') {
+      BimViewer.makeFloatingPanelDraggable(panel, document.getElementById('weaLayerPanelHeader'));
+    }
+
+    refreshLayerPanel();
+  }
+
+  function refreshLayerPanel() {
+    renderBasemapList();
+    renderWMSList();
+  }
+
+  var LAYER_PANEL_BASEMAPS = ['bing-aerial-labels', 'osm', 'google-contour', 'google-sat-labels'];
+
+  function renderBasemapList() {
+    var container = document.getElementById('weaLayerBasemapList');
+    if (!container || !window.LayerManager) return;
+    var html = '';
+    LayerManager.basemapLayers
+      .filter(function(b) { return LAYER_PANEL_BASEMAPS.indexOf(b.id) !== -1; })
+      .forEach(function(b) {
+        html +=
+          '<label style="display:flex; align-items:center; gap:6px; padding:2px 0; cursor:pointer;">' +
+            '<input type="radio" name="weaBasemap" value="' + b.id + '"' + (b.active ? ' checked' : '') +
+              ' onchange="BimWEA.switchBasemap(\'' + b.id + '\')" style="accent-color:var(--brand-teal);">' +
+            '<span style="font-size:10px;">' + b.name + '</span>' +
+          '</label>';
+      });
+    container.innerHTML = html;
+  }
+
+  function renderWMSList() {
+    var container = document.getElementById('weaLayerWmsList');
+    if (!container || !window.LayerManager) return;
+    var layers = LayerManager.wmsLayers;
+    if (layers.length === 0) { container.innerHTML = ''; return; }
+    var html = '<div style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:3px;">Loaded</div>';
+    layers.forEach(function(w) {
+      html +=
+        '<div style="display:flex; align-items:center; gap:4px; padding:2px 0;">' +
+          '<button class="modern-icon-btn" onclick="BimWEA.toggleWMS(\'' + w.id + '\')" title="Toggle visibility">' +
+            '<i data-lucide="' + (w.visible !== false ? 'eye' : 'eye-off') + '" style="width:12px;height:12px;"></i>' +
+          '</button>' +
+          '<span style="font-size:10px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + w.name + '">' + w.name + '</span>' +
+          '<button class="modern-icon-btn" onclick="BimWEA.removeWMS(\'' + w.id + '\')" title="Remove">✕</button>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function discoverWMS() {
+    if (!window.LayerManager) return;
+    var urlEl = document.getElementById('weaLayerWmsUrl');
+    var statusEl = document.getElementById('weaLayerWmsStatus');
+    var pickerEl = document.getElementById('weaLayerWmsPicker');
+    if (!urlEl || !urlEl.value.trim()) return;
+
+    if (statusEl) statusEl.textContent = 'Discovering…';
+    if (pickerEl) { pickerEl.style.display = 'none'; pickerEl.innerHTML = ''; }
+
+    try {
+      await LayerManager.discoverWmsLayers(urlEl.value.trim());
+      var discovered = LayerManager.wmsDiscovered || [];
+      if (discovered.length === 0) {
+        if (statusEl) statusEl.textContent = 'No layers found.';
+        return;
+      }
+      if (statusEl) statusEl.textContent = discovered.length + ' layer(s) found — click to add:';
+      var html = '';
+      discovered.forEach(function(l, i) {
+        var typeLabel = (l.type || 'wms').toUpperCase();
+        html +=
+          '<div style="display:flex; align-items:center; gap:4px; padding:2px 0;">' +
+            '<span style="font-size:9px; color:rgba(255,255,255,0.3); min-width:28px;">' + typeLabel + '</span>' +
+            '<span style="font-size:10px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + (l.title || l.name) + '">' + (l.title || l.name) + '</span>' +
+            '<button class="modern-btn modern-btn-small" onclick="BimWEA.addDiscoveredLayer(' + i + ')" style="min-width:24px;">➕</button>' +
+          '</div>';
+      });
+      if (pickerEl) { pickerEl.innerHTML = html; pickerEl.style.display = 'block'; }
+    } catch(e) {
+      if (statusEl) statusEl.textContent = 'Discovery failed.';
+    }
+  }
+
+  async function addDiscoveredLayer(index) {
+    if (!window.LayerManager) return;
+    await LayerManager.addDiscoveredWmsLayer(index);
+    await LayerManager.switchBasemap('none');
+    refreshLayerPanel();
+  }
+
+  function switchBasemap(id) {
+    if (!window.LayerManager) return;
+    LayerManager.switchBasemap(id).then(function() { renderBasemapList(); });
+  }
+
+  function toggleWMSLayer(id) {
+    if (!window.LayerManager) return;
+    LayerManager.toggleWmsLayer(id);
+    renderWMSList();
+  }
+
+  function removeWMSLayer(id) {
+    if (!window.LayerManager) return;
+    LayerManager.removeWmsLayer(id);
+    renderWMSList();
+  }
+
+  function showLayerPanel() {
+    createLayerPanel();
+    var p = document.getElementById(LAYER_PANEL_ID);
+    if (p) p.classList.add('visible');
+    refreshLayerPanel();
+  }
+
+  function toggleLayerPanel() {
+    createLayerPanel();
+    var p = document.getElementById(LAYER_PANEL_ID);
+    if (!p) return;
+    if (p.classList.contains('visible')) {
+      p.classList.remove('visible');
+    } else {
+      p.classList.add('visible');
+      refreshLayerPanel();
+    }
+  }
+
+  function toggleLayerCollapse() {
+    var body = document.getElementById('weaLayerPanelBody');
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    var btn = document.querySelector('#' + LAYER_PANEL_ID + ' .floating-panel-btn');
+    if (btn) btn.textContent = body.classList.contains('collapsed') ? '+' : '−';
+  }
+
+  // ========================================================
   // FLOATING PANEL
   // ========================================================
 
@@ -499,6 +910,10 @@
           '<button id="weaLoadBtn" class="modern-btn modern-btn-primary" style="margin-top: 6px; width:100%;">' +
             '<span class="modern-btn-icon">\u2795</span>' +
             '<span>Load Turbine</span>' +
+          '</button>' +
+          '<button class="modern-btn modern-btn-small" style="margin-top: 4px; width:100%;" onclick="BimWEA.addSecondWEA()">' +
+            '<span class="modern-btn-icon">\u2795</span>' +
+            '<span>Add 2nd Turbine</span>' +
           '</button>' +
         '</div>' +
 
@@ -526,7 +941,35 @@
             '</div>' +
           '</div>' +
 
+          // Play Day animation
+          '<div style="margin-top: 6px; display: flex; gap: 4px;">' +
+            '<button id="weaPlayDayBtn" class="modern-btn modern-btn-small" style="flex:1;" onclick="BimWEA.toggleDayPlay()">▶ Play Day</button>' +
+            '<select id="weaPlaySpeed" class="modern-select" style="width:72px; font-size:10px;" title="Playback speed">' +
+              '<option value="30">\xD730</option>' +
+              '<option value="60" selected>\xD760</option>' +
+              '<option value="180">\xD7180</option>' +
+              '<option value="360">\xD7360</option>' +
+            '</select>' +
+          '</div>' +
+
         '</div>' +
+
+        // Measure button
+        '<div style="margin-bottom: 8px;">' +
+          '<button class="modern-btn modern-btn-small" style="width:100%;" onclick="BimViewer.toggleMeasurementPanel()">' +
+            '<i data-lucide="ruler" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>' +
+            'Measure' +
+          '</button>' +
+        '</div>' +
+
+        // Receptor / Immission point
+        '<div style="margin-bottom: 4px;">' +
+          '<button id="weaImmissionBtn" class="modern-btn modern-btn-small" style="width:100%;" onclick="BimWEA.toggleImmission()">' +
+            '<i data-lucide="map-pin" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>' +
+            'Set Receptor' +
+          '</button>' +
+        '</div>' +
+        '<div id="weaImmissionList" style="margin-bottom: 4px;"></div>' +
 
         // Context: OSM Buildings + Terrain Asset
         '<div style="margin-bottom: 8px;">' +
@@ -535,10 +978,38 @@
           '</button>' +
         '</div>' +
 
+        // Layer Manager
+        '<div style="margin-bottom: 8px;">' +
+          '<button class="modern-btn modern-btn-small" style="width:100%;" onclick="BimWEA.toggleLayerPanel()">' +
+            '<i data-lucide="layers" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>' +
+            'Layer Manager' +
+          '</button>' +
+        '</div>' +
+
+        // Atmosphere presets
+        '<div style="margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px;">' +
+          '<div style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Atmosphäre</div>' +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">' +
+            '<button class="modern-btn modern-btn-small modern-btn-primary" id="weaAtmPreset_clearDay" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'clearDay\')">' +
+              '<i data-lucide="sun" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Klarer Tag' +
+            '</button>' +
+            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_goldenHour" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'goldenHour\')">' +
+              '<i data-lucide="sun-dim" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Goldene Std.' +
+            '</button>' +
+            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_overcast" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'overcast\')">' +
+              '<i data-lucide="cloud" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Bewölkt' +
+            '</button>' +
+            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_standard" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'standard\')">' +
+              '<i data-lucide="rotate-ccw" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Standard' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+
         '<div id="weaInstanceList"></div>' +
       '</div>';
 
     document.body.appendChild(panel);
+    if (window.lucide) lucide.createIcons();
 
     // Make draggable
     if (typeof BimViewer.makeFloatingPanelDraggable === 'function') {
@@ -656,11 +1127,13 @@
     var keys = Object.keys(weaInstances);
     if (keys.length === 0) {
       list.innerHTML = '<div style="text-align:center; padding:8px; font-size:10px; color:rgba(255,255,255,0.25);">No turbines loaded</div>';
-      return;
+    } else {
+      var html = '';
+      for (var i = 0; i < keys.length; i++) html += renderInstanceCard(weaInstances[keys[i]]);
+      list.innerHTML = html;
     }
-    var html = '';
-    for (var i = 0; i < keys.length; i++) html += renderInstanceCard(weaInstances[keys[i]]);
-    list.innerHTML = html;
+    renderImmissionSection();
+    if (window.lucide) lucide.createIcons();
   }
 
   // ========================================================
@@ -738,7 +1211,23 @@
     flyTo: function(id) { BimViewer.zoomToAsset(id); },
     remove: removeWEA,
     load: loadWEA,
-    instances: weaInstances
+    instances: weaInstances,
+    // Day animation
+    toggleDayPlay: toggleDayPlay,
+    // Second turbine
+    addSecondWEA: addSecondWEA,
+    // Immission points
+    toggleImmission: toggleImmission,
+    removeImmission: removeImmissionPoint,
+    viewFromReceptor: viewFromReceptor,
+    // Layer panel
+    toggleLayerPanel: toggleLayerPanel,
+    toggleLayerCollapse: toggleLayerCollapse,
+    switchBasemap: switchBasemap,
+    discoverWMS: discoverWMS,
+    addDiscoveredLayer: addDiscoveredLayer,
+    toggleWMS: toggleWMSLayer,
+    removeWMS: removeWMSLayer
   };
 
   if (document.readyState === 'complete') setTimeout(init, 1000);

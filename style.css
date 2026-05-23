@@ -1892,33 +1892,65 @@ body {
   position: fixed;
   top: 80px;
   right: 20px;
-  width: 340px;
-  max-height: none;
-  background: rgba(14, 17, 23, 0.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  width: 300px;
+  max-height: calc(100vh - 100px);
+  background: rgba(14, 17, 23, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
   z-index: 200;
   font-size: 13px;
   color: var(--text-primary, #e2e8f0);
-  display: none;
+  display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.18s ease;
   opacity: 0;
-  transform: translateY(-10px);
+  pointer-events: none;
 }
 
 #weaShadowPanel .floating-panel-body {
   max-height: none;
-  overflow-y: visible;
+  overflow-y: auto;
 }
 
 #weaShadowPanel.visible {
-  display: flex;
   opacity: 1;
-  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#weaLayerPanel {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  width: 240px;
+  max-height: calc(100vh - 100px);
+  background: rgba(14, 17, 23, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  z-index: 200;
+  font-size: 13px;
+  color: var(--text-primary, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.18s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#weaLayerPanel .floating-panel-body {
+  max-height: none;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+#weaLayerPanel.visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 @media (max-width: 768px) {
@@ -2033,12 +2065,3 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   opacity: 1;
 }
 
-/* WEA panel slides in from right */
-#weaShadowPanel {
-  transform: translateX(20px);
-  opacity: 0;
-}
-#weaShadowPanel.visible {
-  transform: translateX(0);
-  opacity: 1;
-}

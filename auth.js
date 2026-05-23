@@ -140,8 +140,6 @@
       if (cesiumContainer) cesiumContainer.style.display = 'block';
       if (toolbar) toolbar.style.display = 'block';
       if (sidebarToggle) sidebarToggle.style.display = 'block';
-      var bottomToolbar = document.getElementById('bottomToolbar');
-      if (bottomToolbar) bottomToolbar.style.display = 'flex';
 
       // Comments module is initialized later by index.html after viewer is ready
     },

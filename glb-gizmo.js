@@ -244,6 +244,7 @@
   // ---- Drag logic ----
 
   async function onLeftDown(movement) {
+    if (window.BimViewer && typeof BimViewer.isMeasuring === 'function' && BimViewer.isMeasuring()) return;
     var viewer = BimViewer.viewer;
     var picked = await viewer.scene.pickAsync(movement.position);
     if (!picked) {
@@ -308,8 +309,8 @@
     var viewer = BimViewer.viewer;
 
     if (!gizmo.dragging || !gizmo.selectedAssetId) {
-      // Hover feedback
-      if (gizmo.active) {
+      // Hover feedback — skip when measurement tool is active
+      if (gizmo.active && !(window.BimViewer && typeof BimViewer.isMeasuring === 'function' && BimViewer.isMeasuring())) {
         var hovered = viewer.scene.pick(movement.endPosition);
         if (hovered && hovered.id && hovered.id._gizmoAxis) {
           viewer.canvas.style.cursor = 'grab';
