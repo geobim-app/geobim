@@ -249,7 +249,9 @@
   // Multiple turbines loaded from the same GLB URL share Cesium's ResourceCache.
   // Any activeAnimations.addAll/removeAll call on one model instance affects all others.
   // Using postUpdate + direct node._transform is reliable and per-instance.
-  // Spin axis: local Z of the blades node (GLTF Y-up convention for horizontal-axis turbines).
+  // Spin axis: local Y of the blades node.
+  // Verified from GLB keyframes: delta q = q0_conj*q1 = [0,+0.028,0,0.9996] → local Y.
+  // In parent space this corresponds to -Z (hub faces -Z of nacelle frame).
 
   function _startWeaRotation(inst) {
     _stopWeaRotation(inst); // clean up previous listener if any
@@ -270,7 +272,7 @@
       var radPerSec = ad.animSpeed * (wea.nativeRPM || 16.2) * Math.PI / 30.0;
       var angle     = elapsed * radPerSec;
 
-      var qSpin  = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, angle, new Cesium.Quaternion());
+      var qSpin  = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, angle, new Cesium.Quaternion());
       var qTotal = Cesium.Quaternion.multiply(q0, qSpin, new Cesium.Quaternion());
 
       var meshExtent = wea.rotorDiameter / wea.bladesBaseScale;
