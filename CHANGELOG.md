@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Web-Root `.git`-Schutz** (`.htaccess`): Zugriff auf VCS-Metadaten und sensible Dotfiles geblockt (`RewriteRule (^|/)\.(git|svn|hg|env)(/|$) - [F,L]`); verhindert das Auslesen von z. B. `/.git/config` aus dem Web-Root (der Web-Root ist ein Live-git-Checkout)
+
 ### Added
 
 - **Atmosphere & Sky Presets** (`atmosphere.js`): neues Modul orchestriert `scene.skyAtmosphere` + Globe-Atmosphere + PostFX (Bloom, Color Grading) in 4 Presets — *Klarer Tag*, *Goldene Stunde* (warm/dramatisch), *Bewölkt* (desaturiert/Nebel), *Standard* (Cesium-Reset); wird automatisch mit "Standard" aktiviert

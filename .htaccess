@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Block access to VCS metadata and sensitive dotfiles (e.g. /.git/config leaks credentials)
+RewriteRule (^|/)\.(git|svn|hg|env)(/|$) - [F,L]
+
 # Pass Basic Auth to PHP-FPM
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
