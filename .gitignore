@@ -14,3 +14,9 @@ cesium/
 cesium_sdk/
 model/
 assets/
+
+# Local artifacts in web root (not part of the app)
+helsinki.html
+geoid.jpg
+geoid_result.png
+geoBIM_Zusammenfassung.pdf
