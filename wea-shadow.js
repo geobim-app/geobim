@@ -23,7 +23,7 @@
   var PANEL_ID = 'weaShadowPanel';
   var WEA_NODE_TOWER = 'Main Unit';
   var WEA_NODE_BLADES = 'Blades';
-  var DEFAULT_POSITION = { lon: 11.508, lat: 49.262, height: 0 };
+  var DEFAULT_POSITION = { lon: 24.9586981, lat: 60.2042955, height: 0 };
 
   // State
   var weaInstances = {};
@@ -357,12 +357,22 @@
       }
     } catch (e) { console.warn('WEA: Terrain asset failed:', e.message); }
 
+    // Load Ion asset 4510773 (Buildings context)
+    try {
+      if (!BimViewer.loadedAssets.has('4510773')) {
+        await BimViewer.loadSelectedAsset(4510773, 'Buildings', { noFlyTo: true, silent: true });
+      }
+    } catch (e) { console.warn('WEA: Buildings asset failed:', e.message); }
+
     // Enable shadows on OSM buildings
     if (BimViewer.osmBuildings && BimViewer.osmBuildings.tileset) {
       BimViewer.osmBuildings.tileset.shadows = Cesium.ShadowMode.ENABLED;
     }
 
-    if (btn) { btn.textContent = '\u2705 Buildings & Terrain loaded'; }
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="house" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>Buildings loaded';
+      if (window.lucide) lucide.createIcons();
+    }
   }
 
   function removeWEA(assetId) {
@@ -770,6 +780,13 @@
   var LAYER_PANEL_ID = 'weaLayerPanel';
   var layerPanelCreated = false;
 
+  // One-click WMS presets (CORS-enabled services that work directly in the browser)
+  var HELSINKI_WMS_URL = 'https://kartta.hel.fi/ws/geoserver/avoindata/wms';
+  var WMS_PRESETS = [
+    { label: 'Helsinki Map', url: HELSINKI_WMS_URL, layer: 'avoindata:Kantakartta', title: 'Helsinki Base Map' },
+    { label: 'Cadastre', url: HELSINKI_WMS_URL, layer: 'avoindata:Kiinteistokartta', title: 'Helsinki Cadastre' }
+  ];
+
   function createLayerPanel() {
     if (layerPanelCreated) return;
     layerPanelCreated = true;
@@ -795,8 +812,15 @@
         // WMS / WMTS / WFS
         '<div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">' +
           '<div style="font-size:9px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px;">WMS / WMTS / WFS</div>' +
+          '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:5px;">' +
+            WMS_PRESETS.map(function(p, i) {
+              return '<button class="modern-btn modern-btn-small" onclick="BimWEA.addPresetWms(' + i + ')" style="font-size:10px;">' +
+                '<i data-lucide="map" style="width:11px;height:11px;margin-right:4px;vertical-align:middle;"></i>' + p.label +
+              '</button>';
+            }).join('') +
+          '</div>' +
           '<div style="display:flex; gap:4px; margin-bottom:4px;">' +
-            '<input type="url" id="weaLayerWmsUrl" class="zoffset-input-box" style="flex:1; font-size:10px;" placeholder="Service URL...">' +
+            '<input type="url" id="weaLayerWmsUrl" class="zoffset-input-box" style="flex:1; font-size:10px;" placeholder="Service URL..." value="' + HELSINKI_WMS_URL + '">' +
             '<button class="modern-btn modern-btn-small" onclick="BimWEA.discoverWMS()">Discover</button>' +
           '</div>' +
           '<div id="weaLayerWmsStatus" style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:3px;"></div>' +
@@ -897,6 +921,22 @@
   async function addDiscoveredLayer(index) {
     if (!window.LayerManager) return;
     await LayerManager.addDiscoveredWmsLayer(index);
+    await LayerManager.switchBasemap('none');
+    refreshLayerPanel();
+  }
+
+  async function addPresetWms(index) {
+    if (!window.LayerManager) return;
+    var preset = WMS_PRESETS[index];
+    if (!preset) return;
+    // Reuse the discovery-add pipeline by injecting a single known layer
+    LayerManager.wmsDiscovered = [{
+      name: preset.layer,
+      title: preset.title,
+      type: 'wms',
+      url: preset.url
+    }];
+    await LayerManager.addDiscoveredWmsLayer(0);
     await LayerManager.switchBasemap('none');
     refreshLayerPanel();
   }
@@ -1035,7 +1075,8 @@
         // Context: OSM Buildings + Terrain Asset
         '<div style="margin-bottom: 8px;">' +
           '<button id="weaLoadContext" class="modern-btn modern-btn-small" style="width:100%;" onclick="BimWEA.loadContext()">' +
-            '\uD83C\uDFD8\uFE0F Load Buildings & Terrain' +
+            '<i data-lucide="house" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>' +
+            'Buildings' +
           '</button>' +
         '</div>' +
 
@@ -1045,25 +1086,6 @@
             '<i data-lucide="layers" style="width:13px;height:13px;margin-right:5px;vertical-align:middle;"></i>' +
             'Layer Manager' +
           '</button>' +
-        '</div>' +
-
-        // Atmosphere presets
-        '<div style="margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px;">' +
-          '<div style="font-size:9px; color:rgba(255,255,255,0.3); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Atmosphäre</div>' +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">' +
-            '<button class="modern-btn modern-btn-small modern-btn-primary" id="weaAtmPreset_clearDay" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'clearDay\')">' +
-              '<i data-lucide="sun" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Klarer Tag' +
-            '</button>' +
-            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_goldenHour" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'goldenHour\')">' +
-              '<i data-lucide="sun-dim" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Goldene Std.' +
-            '</button>' +
-            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_overcast" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'overcast\')">' +
-              '<i data-lucide="cloud" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Bewölkt' +
-            '</button>' +
-            '<button class="modern-btn modern-btn-small" id="weaAtmPreset_standard" onclick="BimAtmosphere && BimAtmosphere.applyPreset(\'standard\')">' +
-              '<i data-lucide="rotate-ccw" style="width:11px;height:11px;margin-right:3px;vertical-align:middle;"></i>Standard' +
-            '</button>' +
-          '</div>' +
         '</div>' +
 
         '<div id="weaInstanceList"></div>' +
@@ -1287,6 +1309,7 @@
     switchBasemap: switchBasemap,
     discoverWMS: discoverWMS,
     addDiscoveredLayer: addDiscoveredLayer,
+    addPresetWms: addPresetWms,
     toggleWMS: toggleWMSLayer,
     removeWMS: removeWMSLayer
   };

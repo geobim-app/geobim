@@ -19,6 +19,7 @@
 
 // Curated demo assets from the geobim.app Ion account (ID → display name)
 const DEMO_ASSETS = new Map([
+  [4872841, 'Porsche 911'],
   [4538820, 'Construction Stages (Bridge)'],
   [4533896, 'RC_Bridge'],
   [4510773, 'BIMcollab (IFC)'],

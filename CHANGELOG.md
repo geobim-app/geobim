@@ -8,9 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Atmosphere & Sky Presets** (`atmosphere.js`): neues Modul orchestriert `scene.skyAtmosphere` + Globe-Atmosphere + PostFX (Bloom, Color Grading) in 4 Presets — *Klarer Tag* (Standard), *Goldene Stunde* (warm/dramatisch), *Bewölkt* (desaturiert/Nebel), *Standard* (Cesium-Reset); wird automatisch mit "Klarer Tag" aktiviert
-- **WEA Shadow — Atmosphäre-Sektion**: 4 Preset-Buttons (2×2 Grid) im WEA-Panel; aktiver Button visuell hervorgehoben (`modern-btn-primary`)
+- **Atmosphere & Sky Presets** (`atmosphere.js`): neues Modul orchestriert `scene.skyAtmosphere` + Globe-Atmosphere + PostFX (Bloom, Color Grading) in 4 Presets — *Klarer Tag*, *Goldene Stunde* (warm/dramatisch), *Bewölkt* (desaturiert/Nebel), *Standard* (Cesium-Reset); wird automatisch mit "Standard" aktiviert
 - **WEA Shadow — Layer Panel**: Google Maps Basemaps (Contour + Sat Labels via Cesium Ion) jetzt in der Basemap-Auswahl verfügbar
+- **WEA Shadow — WMS One-Click-Presets**: Buttons "Helsinki Map" + "Cadastre" im Layer-Bereich (`addPresetWms`); laden Helsinki GeoServer WMS-Layer (`avoindata:Kantakartta` / `Kiinteistokartta`) direkt ohne Discovery; WMS-URL-Feld mit Helsinki-Service vorbelegt
+- **WEA Shadow — Buildings-Kontext**: "Load Buildings & Terrain" lädt zusätzlich Ion-Asset `4510773` (BIMcollab IFC) als Gebäudekontext; Button mit Lucide-`house`-Icon statt Emoji
+- **Demo-Asset**: "Porsche 911" (Ion-Asset `4872841`) in `DEMO_ASSETS` (`ui.js`)
+
+### Changed
+
+- **Atmosphäre-Default**: Auto-Init wendet nicht mehr "Klarer Tag", sondern "Standard" an (`atmosphere.js`)
+- **WEA Shadow — Default-Position**: von Wasserkuppe/Bayern (`11.508, 49.262`) nach Helsinki (`24.9587, 60.2043`) verschoben (`wea-shadow.js`)
+- **WEA Shadow — Panel aufgeräumt**: Atmosphäre-Preset-Sektion (2×2 Grid) aus dem WEA-Panel entfernt
+- **InfoBox-Position**: von oben-rechts nach unten-links verschoben, Slide-In jetzt von links (`style.css`)
 
 ### Fixed
 

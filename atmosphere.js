@@ -164,13 +164,13 @@ window.BimAtmosphere = (function () {
   }
 
   // ----------------------------------------------------------------
-  // AUTO-INIT: wait for viewer + postfx, then apply clearDay default
+  // AUTO-INIT: wait for viewer + postfx, then apply standard default
   // ----------------------------------------------------------------
   var _waitInterval = setInterval(function () {
     if (window.BimViewer && BimViewer.viewer && window.GEOBIM_POSTFX) {
       clearInterval(_waitInterval);
-      applyPreset('clearDay');
-      console.log('✅ BimAtmosphere ready — default: clearDay');
+      applyPreset('standard');
+      console.log('✅ BimAtmosphere ready — default: standard');
     }
   }, 500);
 
