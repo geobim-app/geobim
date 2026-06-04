@@ -12,6 +12,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **WEA Shadow — Guided Tour** (`onboarding.js`): die bestehende Onboarding-Tour unterstützt jetzt den WEA-Standalone-Modus (`window._weaDemoMode`); eigenes 9-Schritt-Step-Array (Welcome → Panel → Turbine laden → Schatten → Datum/Zeit → Play Day → Immissionsanalyse → Gebäudekontext → Sign-in-CTA) mit eigenem `localStorage`-Key (`geobim_wea_tour_v1`); Auto-Start wartet im WEA-Modus auf `#weaShadowPanel.visible` statt auf die (ausgeblendete) Sidebar
 - **Atmosphere & Sky Presets** (`atmosphere.js`): neues Modul orchestriert `scene.skyAtmosphere` + Globe-Atmosphere + PostFX (Bloom, Color Grading) in 4 Presets — *Klarer Tag*, *Goldene Stunde* (warm/dramatisch), *Bewölkt* (desaturiert/Nebel), *Standard* (Cesium-Reset); wird automatisch mit "Standard" aktiviert
 - **WEA Shadow — Layer Panel**: Google Maps Basemaps (Contour + Sat Labels via Cesium Ion) jetzt in der Basemap-Auswahl verfügbar
 - **WEA Shadow — WMS One-Click-Presets**: Buttons "Helsinki Map" + "Cadastre" im Layer-Bereich (`addPresetWms`); laden Helsinki GeoServer WMS-Layer (`avoindata:Kantakartta` / `Kiinteistokartta`) direkt ohne Discovery; WMS-URL-Feld mit Helsinki-Service vorbelegt

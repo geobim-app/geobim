@@ -10,7 +10,10 @@
   'use strict';
 
   var IS_BRIDGE_INSPECTOR = !!window._bridgeInspectorMode;
-  var STORAGE_KEY = IS_BRIDGE_INSPECTOR ? 'geobim_bridge_tour_v1' : 'geobim_tour_v1';
+  var IS_WEA = !!window._weaDemoMode;
+  var STORAGE_KEY = IS_BRIDGE_INSPECTOR ? 'geobim_bridge_tour_v1'
+                  : IS_WEA ? 'geobim_wea_tour_v1'
+                  : 'geobim_tour_v1';
   var overlay = null;
   var tooltip = null;
   var currentStep = 0;
@@ -105,7 +108,66 @@
     }
   ];
 
-  var steps = IS_BRIDGE_INSPECTOR ? bridgeSteps : defaultSteps;
+  var weaSteps = [
+    {
+      target: '#cesiumContainer',
+      title: 'Welcome to Wind Shadow Analysis',
+      text: 'Simulate the shadow flicker of wind turbines on real terrain. The next 30 minutes are yours — place turbines, cast their shadows, and run a compliance-style daily analysis. Left-click + drag to rotate, scroll to zoom.',
+      position: 'center'
+    },
+    {
+      target: '#weaShadowPanel',
+      title: 'WEA Shadow Panel',
+      text: 'Everything happens in this floating panel. It is draggable — move it anywhere you like. Each control below is one step of the workflow.',
+      position: 'left'
+    },
+    {
+      target: '#weaLoadBtn',
+      title: 'Load a Turbine',
+      text: 'Adds a wind turbine (default: Enercon E-138 EP3) at the current location. You can adjust hub height, rotor diameter and RPM per turbine, and place several at once.',
+      position: 'left'
+    },
+    {
+      target: '#weaShadowToggle',
+      title: 'Cast Shadows',
+      text: 'Toggle the sun-driven shadows on. The rotor blades cast a moving shadow onto the ground and surrounding buildings — exactly what causes shadow flicker.',
+      position: 'left'
+    },
+    {
+      target: '#weaTimeSlider',
+      title: 'Date & Time',
+      text: 'Pick a date and drag the time slider to move the sun across the sky. Watch how the shadow length and direction change through the day and the seasons.',
+      position: 'left'
+    },
+    {
+      target: '#weaPlayDayBtn',
+      title: 'Play the Day',
+      text: 'Animate the full daylight cycle to see where and how long the shadow sweeps across each location — the basis for shadow-flicker duration.',
+      position: 'left'
+    },
+    {
+      target: '#weaImmissionBtn',
+      title: 'Immission Analysis',
+      text: 'Compute the shadow impact at receptor points — the kind of assessment used for BImSchG shadow-flicker compliance in Germany.',
+      position: 'left'
+    },
+    {
+      target: '#weaLoadContext',
+      title: 'Building Context',
+      text: 'Load surrounding buildings so shadows fall onto real structures, not just flat ground — more realistic immission results.',
+      position: 'left'
+    },
+    {
+      target: null,
+      title: 'You\'re ready',
+      text: 'Your 30-minute demo starts now. Sign in for unlimited access and to run wind shadow analyses on your own sites within the full geobim.app platform.',
+      position: 'center'
+    }
+  ];
+
+  var steps = IS_BRIDGE_INSPECTOR ? bridgeSteps
+            : IS_WEA ? weaSteps
+            : defaultSteps;
 
   // ========================================================
   // OVERLAY + SPOTLIGHT
@@ -272,12 +334,14 @@
     overlay.style.display = 'block';
     tooltip.style.display = 'block';
 
-    // Make sure sidebar is visible for tour
-    var toolbar = document.getElementById('toolbar');
-    var toggle = document.getElementById('sidebarToggle');
-    if (toolbar && toolbar.classList.contains('collapsed')) {
-      toolbar.classList.remove('collapsed');
-      if (toggle) toggle.classList.remove('at-edge');
+    // Make sure sidebar is visible for tour (the WEA demo has no sidebar)
+    if (!IS_WEA) {
+      var toolbar = document.getElementById('toolbar');
+      var toggle = document.getElementById('sidebarToggle');
+      if (toolbar && toolbar.classList.contains('collapsed')) {
+        toolbar.classList.remove('collapsed');
+        if (toggle) toggle.classList.remove('at-edge');
+      }
     }
 
     showStep(0);
@@ -305,12 +369,20 @@
     // Wait for app to be fully loaded — and in bridge mode also wait for the
     // asset-loading pill to disappear, otherwise the tour overlaps it visually.
     var check = setInterval(function() {
-      var toolbar = document.getElementById('toolbar');
-      var bottomBar = document.getElementById('bottomToolbar');
-      var loadingActive = IS_BRIDGE_INSPECTOR && document.getElementById('bridgeLoadingPill');
-      if (toolbar && bottomBar && toolbar.style.display !== 'none' && !loadingActive) {
+      var ready;
+      if (IS_WEA) {
+        // WEA demo hides the sidebar, so wait for the WEA panel to be open instead.
+        var panel = document.getElementById('weaShadowPanel');
+        ready = panel && panel.classList.contains('visible');
+      } else {
+        var toolbar = document.getElementById('toolbar');
+        var bottomBar = document.getElementById('bottomToolbar');
+        var loadingActive = IS_BRIDGE_INSPECTOR && document.getElementById('bridgeLoadingPill');
+        ready = toolbar && bottomBar && toolbar.style.display !== 'none' && !loadingActive;
+      }
+      if (ready) {
         clearInterval(check);
-        setTimeout(startTour, IS_BRIDGE_INSPECTOR ? 600 : 1500);
+        setTimeout(startTour, IS_BRIDGE_INSPECTOR || IS_WEA ? 600 : 1500);
       }
     }, 500);
   }
