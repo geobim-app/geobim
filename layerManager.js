@@ -107,6 +107,20 @@
           active: false
         },
         {
+          id: 'zeltingen-ortho',
+          name: 'Zeltingen_Ortho',
+          // Local XYZ tile pyramid (gdal2tiles --xyz), served by Apache — no Ion
+          providerFactory: () => Promise.resolve(new Cesium.UrlTemplateImageryProvider({
+            url: 'data/tiles/zeltingen_ortho/{z}/{x}/{y}.png',
+            rectangle: Cesium.Rectangle.fromDegrees(6.99085, 49.94099, 7.04881, 49.99587),
+            minimumLevel: 12,
+            maximumLevel: 19,
+            credit: 'DOP20 © GeoBasis-DE / LVermGeoRP (dl-de/by-2-0), 2023'
+          })),
+          layer: null,
+          active: false
+        },
+        {
           id: 'none',
           name: 'No Basemap',
           providerFactory: null,
@@ -118,7 +132,9 @@
       // Register default terrain
       this.terrainLayers = [
         { id: 'world', name: 'Cesium World Terrain', assetId: null, active: true },
-        { id: 'terrain_2426648', name: 'Cesium World Bathymetry', assetId: 2426648, active: false }
+        { id: 'terrain_2426648', name: 'Cesium World Bathymetry', assetId: 2426648, active: false },
+        // Local quantized-mesh terrain (cesium-terrain-builder), served by Apache — no Ion
+        { id: 'zeltingen-dgm', name: 'Zeltingen_DGM', url: 'data/tiles/zeltingen_dgm', active: false }
       ];
 
       // Disable 3D Tiles when leaving 3D mode
@@ -257,6 +273,15 @@
           this.viewer.scene.setTerrain(Cesium.Terrain.fromWorldTerrain());
           if (BimViewer.terrain) {
             BimViewer.terrain.current = 'worldTerrain';
+          }
+        } else if (target.url) {
+          // Local quantized-mesh terrain served by Apache (no Ion)
+          const provider = await Cesium.CesiumTerrainProvider.fromUrl(target.url, {
+            requestVertexNormals: true
+          });
+          this.viewer.terrainProvider = provider;
+          if (BimViewer.terrain) {
+            BimViewer.terrain.current = 'url_' + target.id;
           }
         } else {
           const provider = await Cesium.CesiumTerrainProvider.fromIonAssetId(target.assetId);
