@@ -96,6 +96,7 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('assets', '<i data-lucide="box"></i>', 'Assets', typeof GEOBIM_ASSETS_UI !== 'undefined' ? GEOBIM_ASSETS_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('layers', '<i data-lucide="layers"></i>', 'Layer Manager', typeof GEOBIM_LAYER_UI !== 'undefined' ? GEOBIM_LAYER_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('pointcloud', '<i data-lucide="cloud"></i>', 'Point Cloud Settings', typeof GEOBIM_POINTCLOUD_UI !== 'undefined' ? GEOBIM_POINTCLOUD_UI.getContent() : ''));
+    toolbar.appendChild(this.createSection('splat', '<i data-lucide="sparkles"></i>', 'Gaussian Splats', typeof GEOBIM_SPLAT_UI !== 'undefined' ? GEOBIM_SPLAT_UI.getContent() : ''));
     // Data/browse tools stay in sidebar
     toolbar.appendChild(this.createSection('comments', '<i data-lucide="message-square"></i>', 'Annotations', typeof GEOBIM_COMMENTS_UI !== 'undefined' ? GEOBIM_COMMENTS_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('inspection', '<i data-lucide="search"></i>', 'Inspection', typeof GEOBIM_INSPECTION !== 'undefined' ? GEOBIM_INSPECTION.getSummaryContent() : ''));
@@ -554,6 +555,11 @@ const BimViewerUI = {
                  value="${currentOffset.toFixed(2)}"
                  placeholder="0.00"
                  onchange="BimViewerUI.setAssetZOffsetFromInput('${assetId}', this.value)">
+          <button class="zoffset-clamp-btn"
+                  onclick="BimViewer.clampAssetToTerrain('${assetId}')"
+                  title="Auf Gelände setzen (Clamp to terrain)">
+            <i data-lucide="mountain" style="width:13px;height:13px;"></i>
+          </button>
           <button class="zoffset-reset-btn"
                   onclick="BimViewerUI.setAssetZOffsetFromInput('${assetId}', 0)"
                   title="Reset to 0">

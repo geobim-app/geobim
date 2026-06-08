@@ -1,0 +1,97 @@
+/* ============================================================
+   Splat — Gaussian Splatting sidebar-section styles for geobim.app
+   Copyright (c) 2026 geobim.app — BSL 1.1 (Change Date 2030-03-01 → MIT)
+   Used inside the "Gaussian Splats" sidebar section (ui-splat-section.js).
+   Reuses the shared .modern-* control system.
+   ============================================================ */
+
+.splat-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+.splat-check input {
+  accent-color: var(--brand-teal, #2ECFB0);
+}
+
+.splat-empty {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 6px 2px;
+}
+
+.splat-status {
+  font-size: 11px;
+  min-height: 14px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.splat-status-ok { color: var(--brand-teal, #2ECFB0); }
+.splat-status-error { color: #ff6b6b; }
+
+/* Instance row */
+.splat-row {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.splat-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.splat-row-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.splat-row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.splat-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.splat-ctrl label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.splat-ctrl input[type="range"] {
+  flex: 1;
+}
+
+.splat-ctrl-val {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  width: 42px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.splat-row-hidden .splat-row-name {
+  opacity: 0.4;
+}
