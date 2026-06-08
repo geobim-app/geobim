@@ -164,6 +164,31 @@
   transform: rotate(180deg) scale(0.95);
 }
 
+/* Per-asset "clamp to terrain" button — matches reset button sizing */
+.zoffset-clamp-btn {
+  background: rgba(46, 207, 176, 0.12);
+  color: var(--brand-teal, #2ECFB0);
+  border: 1px solid rgba(46, 207, 176, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoffset-clamp-btn:hover {
+  background: rgba(46, 207, 176, 0.28);
+  border-color: rgba(46, 207, 176, 0.5);
+}
+
+.zoffset-clamp-btn:active {
+  background: rgba(46, 207, 176, 0.45);
+  transform: scale(0.95);
+}
+
 /* Asset Item Enhancement */
 .modern-asset-item {
   background: rgba(0, 0, 0, 0.3);
