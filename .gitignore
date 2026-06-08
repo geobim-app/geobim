@@ -15,6 +15,9 @@ cesium_sdk/
 model/
 assets/
 
+# Local geodata + generated tile pyramids (served by Apache, not part of the app code)
+data/
+
 # Local artifacts in web root (not part of the app)
 helsinki.html
 geoid.jpg

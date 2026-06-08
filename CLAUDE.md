@@ -31,7 +31,7 @@ index.html
 ├── hideFeatures.js        → Elemente per Click verstecken (H / Shift+H)
 ├── comments.js            → 3D-Kommentare, Firestore, Annotations, BCF Export
 ├── inspection.js          → Brückeninspektions-Erweiterung für Comments
-├── measurement.js         → Distanz/Fläche/Höhe (Cesium Ion Measurement SDK)
+├── measurement.js         → Distanz/Fläche/Höhe (Eigenimplementierung, kein Ion-SDK)
 ├── measurement-store.js   → Persistenz für Messungen (Firestore)
 ├── clipping.js            → Polygon/Rectangle Clipping
 ├── clipping-planes.js     → Per-Asset Section Planes (X/Y/Z)
