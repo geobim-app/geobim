@@ -140,26 +140,44 @@
     console.log(`📷 View saved to slot ${slot}`);
   };
 
+  // Duration (seconds) of the optional smooth camera flight between views.
+  BimViewer.SMOOTH_VIEW_DURATION = 3.0;
+
   BimViewer.loadView = function(slot) {
     const viewState = this.savedViews.get(slot);
     if (!viewState) {
       this.updateStatus(`No view saved in slot ${slot}`, 'error');
       return;
     }
-    
-    this.viewer.camera.setView({
-      destination: viewState.position,
-      orientation: {
-        direction: viewState.direction,
-        up: viewState.up
-      }
-    });
-    
-    this.viewer.camera.position = Cesium.Cartesian3.clone(viewState.position);
-    this.viewer.camera.direction = Cesium.Cartesian3.clone(viewState.direction);
-    this.viewer.camera.up = Cesium.Cartesian3.clone(viewState.up);
-    this.viewer.camera.right = Cesium.Cartesian3.clone(viewState.right);
-    
+
+    if (this.smoothViewTransition) {
+      // Smooth flight: flyTo converts the stored direction/up into
+      // heading/pitch/roll internally (Cesium Camera.flyTo). Do NOT snap the
+      // camera vectors afterwards — that would defeat the animation.
+      this.viewer.camera.flyTo({
+        destination: viewState.position,
+        orientation: {
+          direction: viewState.direction,
+          up: viewState.up
+        },
+        duration: this.SMOOTH_VIEW_DURATION
+      });
+    } else {
+      // Default: instant snap.
+      this.viewer.camera.setView({
+        destination: viewState.position,
+        orientation: {
+          direction: viewState.direction,
+          up: viewState.up
+        }
+      });
+
+      this.viewer.camera.position = Cesium.Cartesian3.clone(viewState.position);
+      this.viewer.camera.direction = Cesium.Cartesian3.clone(viewState.direction);
+      this.viewer.camera.up = Cesium.Cartesian3.clone(viewState.up);
+      this.viewer.camera.right = Cesium.Cartesian3.clone(viewState.right);
+    }
+
     if (viewState.googleTilesEnabled !== this.googleTiles.enabled) {
       this.toggleGoogle3DTiles();
     }

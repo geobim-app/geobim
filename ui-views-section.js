@@ -20,6 +20,9 @@
           <span class="modern-btn-icon">💾</span>
           <span>Save Current View</span>
         </button>
+        <label class="modern-check" title="Fly smoothly to a view (≈3s) instead of jumping">
+          <input type="checkbox" id="smoothViewChk" /> Smooth transition
+        </label>
       </div>
 
       <div class="modern-hint">
@@ -33,6 +36,11 @@
   function initHandlers() {
     document.getElementById('saveCurrentView')?.addEventListener('click', () => {
       BimViewer.saveView();
+    });
+    // Optional smooth camera flight between saved views (off by default —
+    // snap stays the default). Read by BimViewer.loadView (features.js).
+    document.getElementById('smoothViewChk')?.addEventListener('change', (e) => {
+      BimViewer.smoothViewTransition = e.target.checked;
     });
   }
 

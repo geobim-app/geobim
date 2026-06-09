@@ -24,41 +24,41 @@
   function getContent() {
     return `
       <div class="modern-group">
-        <div class="modern-label">Quelle</div>
+        <div class="modern-label">Source</div>
         <input id="splatUrlInput" class="modern-input" type="text"
-               placeholder="tileset.json-URL oder Ion-Asset-ID"
+               placeholder="tileset.json URL or Ion asset ID"
                onkeydown="if(event.key==='Enter')BimSplat.loadFromInput()" />
         <label class="splat-check">
-          <input type="checkbox" id="splatClampChk" checked /> Auf Gelände setzen
+          <input type="checkbox" id="splatClampChk" checked /> Clamp to terrain
         </label>
         <button class="modern-btn modern-btn-primary" onclick="BimSplat.loadFromInput()">
-          <span class="modern-btn-icon">➕</span><span>Splat laden</span>
+          <span class="modern-btn-icon">➕</span><span>Load splat</span>
         </button>
         <button class="modern-btn modern-btn-small" onclick="BimSplat.loadDemo()">
           <i data-lucide="sparkles" style="width:12px;height:12px;margin-right:5px;vertical-align:middle;"></i>
-          <span>Demo laden (Wilhelmina)</span>
+          <span>Load demo (Wilhelmina)</span>
         </button>
         <button class="modern-btn modern-btn-small" onclick="BimSplat.loadCochem()">
           <i data-lucide="castle" style="width:12px;height:12px;margin-right:5px;vertical-align:middle;"></i>
-          <span>Demo laden (Cochem)</span>
+          <span>Load demo (Cochem)</span>
         </button>
         <div id="splatStatus" class="splat-status"></div>
       </div>
 
       <div class="modern-divider">
-        <span class="modern-divider-text">Geladene Splats</span>
+        <span class="modern-divider-text">Loaded splats</span>
       </div>
 
       <div class="modern-group">
         <div id="splatList">
-          <div class="splat-empty">Noch keine Splats geladen.</div>
+          <div class="splat-empty">No splats loaded yet.</div>
         </div>
       </div>
 
       <div class="modern-hint">
-        <strong>✨ Gaussian Splats</strong> werden als native 3D Tiles geladen
+        <strong>✨ Gaussian Splats</strong> are loaded as native 3D Tiles
         (glTF <em>KHR_gaussian_splatting</em>).<br>
-        <strong>Auf Gelände setzen</strong> korrigiert den Ellipsoid-/Terrain-Höhenversatz.
+        <strong>Clamp to terrain</strong> corrects the ellipsoid/terrain height offset.
       </div>
     `;
   }

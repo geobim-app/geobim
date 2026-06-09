@@ -35,7 +35,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **WEA Shadow Analysis** — Wind turbine shadow flicker simulation with parametric turbines
 - **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), HBAO ambient occlusion, time-of-day control
 - **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
-- **3D Gaussian Splatting** — Photorealistic splat reconstructions as native Cesium 3D Tiles (`KHR_gaussian_splatting`), self-hosted or via Ion, with an interactive move/scale/rotate gizmo
+- **3D Gaussian Splatting** — Photorealistic splat reconstructions as native Cesium 3D Tiles (`KHR_gaussian_splatting`), self-hosted or via Ion, with an interactive move/scale/rotate gizmo (gizmo applies to self-hosted splats only; Ion-loaded splats carry their georeference in the tile content — reposition those via the normal asset pipeline)
 - **Saved Views** — Capture and restore camera positions with scene state
 - **Split-Screen** — Side-by-side comparison mode
 - **Z-Offset** — Vertical repositioning of assets (-70m to +70m)

@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Saved Views — optionaler weicher Übergang** (`features.js`, `ui-views-section.js`, `style.css`): neue Checkbox „Smooth transition" (standardmäßig **aus**) im Saved-Views-Tab. Ist sie aktiv, fliegt die Kamera beim Laden einer Ansicht weich in ~3 s zum Ziel (`camera.flyTo`, Dauer in `BimViewer.SMOOTH_VIEW_DURATION`) statt hart zu springen — eine Art Kamerafahrt zwischen gespeicherten Ansichten. Im Smooth-Pfad wird das nachträgliche Vektor-Snapping bewusst übersprungen (würde die Animation überschreiben); Default bleibt der instantane `setView`-Sprung. `flyTo` konvertiert die gespeicherten `direction`/`up`-Vektoren intern zu Heading/Pitch/Roll. Neue wiederverwendbare CSS-Klasse `.modern-check`
+
+### Changed
+
+- **3D Gaussian Splatting — UI vollständig auf Englisch** (`ui-splat-section.js`, `splat-ui.js`, `splat.js`): die „Gaussian Splats"-Sidebar-Sektion ist jetzt durchgängig englisch — Labels (Source, Height, Rotation, Scale), Buttons (Load splat, Load demo, Clamp to terrain), Tooltips, Status-/Fehlermeldungen (inkl. CORS/404-Klartext)
+
+### Docs
+
+- **README.md / FEATURES.md**: Hinweis ergänzt, dass das Splat-Gizmo (Move/Rotate/Height) nur für self-hosted Splats wirkt — Ion-geladene Splats tragen ihre Georeferenzierung im Tile-Inhalt (ECEF-gebackene Geometrie, Identity-`root.transform`), sodass der Gizmo-Anker am Erdmittelpunkt landet und keine sichtbare Wirkung hat; solche Splats über die normale Asset-Pipeline (Z-Offset) repositionieren
+
 ## [1.8.0] — 2026-06-09
 
 ### Security

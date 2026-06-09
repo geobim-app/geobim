@@ -792,6 +792,21 @@ body {
   padding-right: 4px;
 }
 
+/* Inline checkbox + label row (reusable across modern sidebar sections) */
+.modern-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs, 6px);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  margin: var(--space-xs, 6px) 0;
+}
+
+.modern-check input {
+  accent-color: var(--brand-teal, #2ECFB0);
+}
+
 .modern-assets-list::-webkit-scrollbar,
 .modern-comments-list::-webkit-scrollbar,
 .modern-hidden-list::-webkit-scrollbar,

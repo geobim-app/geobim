@@ -35,7 +35,7 @@
     s.className = 'splat-status' + (kind ? ' splat-status-' + kind : '');
   }
   function lastError() {
-    return (window.BimViewer && BimViewer.splat && BimViewer.splat.lastError) || 'Laden fehlgeschlagen';
+    return (window.BimViewer && BimViewer.splat && BimViewer.splat.lastError) || 'Load failed';
   }
 
   // ---- Loaded-splat list rendering ------------------------------
@@ -46,7 +46,7 @@
 
     var map = instances();
     if (!map || map.size === 0) {
-      list.innerHTML = '<div class="splat-empty">Noch keine Splats geladen.</div>';
+      list.innerHTML = '<div class="splat-empty">No splats loaded yet.</div>';
       return;
     }
 
@@ -66,13 +66,13 @@
             '<span class="splat-row-name" title="' + esc(inst.source || '') + '">' + esc(inst.name || id) + '</span>' +
             '<div class="splat-row-actions">' +
               '<button class="modern-icon-btn' + (gizOn ? ' active' : '') + '" id="splat_giz_' + id + '" ' +
-                'onclick="BimSplat.toggleGizmo(\'' + id + '\')" title="Gizmo: verschieben/drehen/höhe">' +
+                'onclick="BimSplat.toggleGizmo(\'' + id + '\')" title="Gizmo: move/rotate/height">' +
                 '<i data-lucide="move-3d" style="width:13px;height:13px;"></i></button>' +
-              '<button class="modern-icon-btn" onclick="BimSplat.flyTo(\'' + id + '\')" title="Hinfliegen">' +
+              '<button class="modern-icon-btn" onclick="BimSplat.flyTo(\'' + id + '\')" title="Fly to">' +
                 '<i data-lucide="crosshair" style="width:13px;height:13px;"></i></button>' +
-              '<button class="modern-icon-btn" onclick="BimSplat.toggleVis(\'' + id + '\')" title="Ein-/Ausblenden">' +
+              '<button class="modern-icon-btn" onclick="BimSplat.toggleVis(\'' + id + '\')" title="Show/hide">' +
                 '<i data-lucide="' + (hidden ? 'eye-off' : 'eye') + '" style="width:13px;height:13px;"></i></button>' +
-              '<button class="modern-icon-btn modern-icon-btn-danger" onclick="BimSplat.remove(\'' + id + '\')" title="Entfernen">' +
+              '<button class="modern-icon-btn modern-icon-btn-danger" onclick="BimSplat.remove(\'' + id + '\')" title="Remove">' +
                 '<i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>' +
             '</div>' +
           '</div>' +
@@ -85,23 +85,23 @@
           '</div>' +
 
           '<div class="splat-ctrl">' +
-            '<label>Höhe</label>' +
+            '<label>Height</label>' +
             '<input type="range" id="splat_h_' + id + '" min="-50" max="50" step="0.5" value="' + h + '" class="modern-slider-small" ' +
               'oninput="BimSplat.onHeight(\'' + id + '\', this.value)" />' +
             '<span class="splat-ctrl-val" id="splat_h_v_' + id + '">' + h.toFixed(1) + 'm</span>' +
-            '<button class="modern-icon-btn" onclick="BimSplat.clamp(\'' + id + '\')" title="Auf Gelände setzen">' +
+            '<button class="modern-icon-btn" onclick="BimSplat.clamp(\'' + id + '\')" title="Clamp to terrain">' +
               '<i data-lucide="mountain" style="width:13px;height:13px;"></i></button>' +
           '</div>' +
 
           '<div class="splat-ctrl">' +
-            '<label>Drehung</label>' +
+            '<label>Rotation</label>' +
             '<input type="range" id="splat_r_' + id + '" min="0" max="360" step="1" value="' + rot + '" class="modern-slider-small" ' +
               'oninput="BimSplat.onRot(\'' + id + '\', this.value)" />' +
             '<span class="splat-ctrl-val" id="splat_r_v_' + id + '">' + Math.round(rot) + '°</span>' +
           '</div>' +
 
           '<div class="splat-ctrl">' +
-            '<label>Größe</label>' +
+            '<label>Scale</label>' +
             '<input type="range" id="splat_sc_' + id + '" min="-1" max="2" step="0.02" value="' + Math.log10(sc) + '" class="modern-slider-small" ' +
               'oninput="BimSplat.onScale(\'' + id + '\', this.value)" />' +
             '<span class="splat-ctrl-val" id="splat_sc_v_' + id + '">' + sc.toFixed(2) + 'x</span>' +
@@ -121,33 +121,33 @@
     loadFromInput: async function() {
       var input = el('splatUrlInput');
       var val = input ? input.value.trim() : '';
-      if (!val) { status('Bitte URL oder Ion-ID eingeben.', 'error'); return; }
+      if (!val) { status('Please enter a URL or Ion ID.', 'error'); return; }
       var clamp = el('splatClampChk') ? el('splatClampChk').checked : true;
       var opts = { clampToTerrain: clamp, sse: 16 };
       if (/^\d+$/.test(val)) opts.ionAssetId = Number(val);
       else opts.url = val;
-      status('Lädt…');
+      status('Loading…');
       var inst = await BimViewer.loadSplat(opts);
       if (inst) {
         if (input) input.value = '';
-        status('Geladen.', 'ok');
+        status('Loaded.', 'ok');
       } else {
-        status('Fehler: ' + lastError(), 'error');
+        status('Error: ' + lastError(), 'error');
       }
       render();
     },
 
     loadDemo: async function() {
-      status('Lädt Demo…');
+      status('Loading demo…');
       var inst = await BimViewer.loadSplatDemo();
-      status(inst ? 'Geladen.' : ('Fehler: ' + lastError()), inst ? 'ok' : 'error');
+      status(inst ? 'Loaded.' : ('Error: ' + lastError()), inst ? 'ok' : 'error');
       render();
     },
 
     loadCochem: async function() {
-      status('Lädt Cochem…');
+      status('Loading Cochem…');
       var inst = await BimViewer.loadSplatCochem();
-      status(inst ? 'Geladen.' : ('Fehler: ' + lastError()), inst ? 'ok' : 'error');
+      status(inst ? 'Loaded.' : ('Error: ' + lastError()), inst ? 'ok' : 'error');
       render();
     },
 

@@ -147,11 +147,11 @@
       }
     } catch (err) {
       // Self-hosted sources commonly fail on CORS / 404 / non-tileset URLs.
-      var msg = (err && (err.message || err.toString())) || 'Unbekannter Fehler';
+      var msg = (err && (err.message || err.toString())) || 'Unknown error';
       if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
-        msg = 'Netzwerk/CORS-Fehler — Server muss Access-Control-Allow-Origin senden';
+        msg = 'Network/CORS error — server must send Access-Control-Allow-Origin';
       } else if (/404|Not Found/i.test(msg)) {
-        msg = 'tileset.json nicht gefunden (404) — URL prüfen';
+        msg = 'tileset.json not found (404) — check the URL';
       }
       s.lastError = msg;
       console.error('[splat] failed to load:', err);
