@@ -95,3 +95,10 @@
 .splat-row-hidden .splat-row-name {
   opacity: 0.4;
 }
+
+/* Active state for the gizmo toggle button (splat-gizmo.js) */
+.splat-row-actions .modern-icon-btn.active {
+  background: var(--brand-teal, #2ECFB0);
+  color: #06241e;
+  border-color: var(--brand-teal, #2ECFB0);
+}

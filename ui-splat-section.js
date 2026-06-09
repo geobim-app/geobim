@@ -38,6 +38,10 @@
           <i data-lucide="sparkles" style="width:12px;height:12px;margin-right:5px;vertical-align:middle;"></i>
           <span>Demo laden (Wilhelmina)</span>
         </button>
+        <button class="modern-btn modern-btn-small" onclick="BimSplat.loadCochem()">
+          <i data-lucide="castle" style="width:12px;height:12px;margin-right:5px;vertical-align:middle;"></i>
+          <span>Demo laden (Cochem)</span>
+        </button>
         <div id="splatStatus" class="splat-status"></div>
       </div>
 

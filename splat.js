@@ -84,6 +84,13 @@
       Cesium.Matrix4.multiplyByMatrix3(m, rot, m);
     }
 
+    // Uniform scale — superspl.at / 3DGS reconstructions arrive in arbitrary
+    // (non-metric) units. Post-multiplied so it scales the local geometry
+    // around the georef origin, independent of the world-space height offset.
+    if (inst.scale && inst.scale !== 1) {
+      Cesium.Matrix4.multiplyByUniformScale(m, inst.scale, m);
+    }
+
     if (inst.heightM) {
       var origin = originOf(inst);
       var normal = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(origin, new Cesium.Cartesian3());
@@ -107,6 +114,7 @@
   //   ionAssetId?    number  Cesium Ion asset id
   //   sse?           number  maximumScreenSpaceError (default 16)
   //   heightM?       number  vertical offset along ellipsoid normal
+  //   scale?         number  uniform scale factor (default 1; non-metric splats)
   //   orientation?   {x,y,z} degrees, ENU-local rotation fix
   //   show?          bool    initial visibility (default true)
   //   flyTo?         bool    fly camera to the tileset (default true)
@@ -156,6 +164,16 @@
     v.scene.primitives.add(tileset);
     shieldFromLighting(tileset);
 
+    // Gaussian splat tiles aggregate into ONE primitive that only rebuilds on
+    // camera move (Cesium 1.141). When finer tiles stream in — e.g. after the
+    // user lowers SSE — force the primitive to re-aggregate + request a render,
+    // otherwise the extra detail never becomes visible without orbiting first.
+    tileset.tileLoad.addEventListener(function() {
+      var gsp = tileset.gaussianSplatPrimitive;
+      if (gsp) gsp._dirty = true;
+      if (BimViewer.viewer) BimViewer.viewer.scene.requestRender();
+    });
+
     if (opts.show === false) tileset.show = false;
 
     var inst = {
@@ -166,13 +184,15 @@
       type: 'SPLAT',
       baseline: Cesium.Matrix4.clone(tileset.root.transform, new Cesium.Matrix4()),
       heightM: opts.heightM || 0,
+      scale: opts.scale || 1,
+      view: opts.view || null,   // optional saved camera view {destination, orientation}
       orientation: opts.orientation ? { x: opts.orientation.x || 0, y: opts.orientation.y || 0, z: opts.orientation.z || 0 }
                                     : { x: 0, y: 0, z: 0 },
       sse: tileset.maximumScreenSpaceError
     };
     s.instances.set(id, inst);
 
-    if (inst.heightM || inst.orientation.x || inst.orientation.y || inst.orientation.z) {
+    if (inst.heightM || (inst.scale && inst.scale !== 1) || inst.orientation.x || inst.orientation.y || inst.orientation.z) {
       applyTransform(inst);
     }
 
@@ -185,7 +205,11 @@
     if (window.BimSplat && BimSplat.refresh) BimSplat.refresh();
 
     if (opts.flyTo !== false) {
-      try { await v.flyTo(tileset, { duration: 1.5 }); } catch (e) { /* user may interrupt */ }
+      if (inst.view) {
+        try { v.camera.flyTo({ destination: inst.view.destination, orientation: inst.view.orientation, duration: 2.0 }); } catch (e) { /* user may interrupt */ }
+      } else {
+        try { await v.flyTo(tileset, { duration: 1.5 }); } catch (e) { /* user may interrupt */ }
+      }
     }
     return inst;
   };
@@ -213,6 +237,12 @@
     if (!inst) return;
     inst.sse = sse;
     inst.tileset.maximumScreenSpaceError = sse;
+    // The GaussianSplatPrimitive only re-aggregates its splat buffers when the
+    // camera view matrix changes (Cesium 1.141 GaussianSplatPrimitive.update
+    // short-circuits otherwise). Force a rebuild so SSE changes take effect
+    // immediately, without the user having to orbit the camera first.
+    var gsp = inst.tileset.gaussianSplatPrimitive;
+    if (gsp) gsp._dirty = true;
     if (viewer()) viewer().scene.requestRender();
   };
 
@@ -224,6 +254,15 @@
     applyTransform(inst);
   };
 
+  // Uniform scale factor (non-cumulative). 3DGS reconstructions are often
+  // not in metric units, so the splat arrives too small/large vs. terrain.
+  BimViewer.setSplatScale = function(id, factor) {
+    var inst = state().instances.get(id);
+    if (!inst || !(factor > 0)) return;
+    inst.scale = factor;
+    applyTransform(inst);
+  };
+
   // Orientation fix in degrees (ENU-local). Pass {x,y,z}; omitted axes keep current.
   BimViewer.setSplatOrientation = function(id, deg) {
     var inst = state().instances.get(id);
@@ -232,6 +271,50 @@
     if (deg.y != null) inst.orientation.y = deg.y;
     if (deg.z != null) inst.orientation.z = deg.z;
     applyTransform(inst);
+  };
+
+  // Move the splat horizontally to a new lon/lat (degrees). Keeps the
+  // converter's source-coordinate reorientation + heading + scale + the
+  // vertical heightM offset intact: the baseline is decomposed ONCE into
+  // ENU-placement × reorient, then re-anchored at the new lon/lat. Used by
+  // the splat gizmo's globe-drag (splat-gizmo.js).
+  BimViewer.setSplatPosition = function(id, lon, lat) {
+    var inst = state().instances.get(id);
+    if (!inst || lon == null || lat == null) return;
+    if (!inst._reorient) {
+      var anchor0 = Cesium.Matrix4.getTranslation(inst.baseline, new Cesium.Cartesian3());
+      var carto0 = Cesium.Cartographic.fromCartesian(anchor0);
+      inst._anchorHeight = carto0.height;
+      var enu0Inv = Cesium.Matrix4.inverse(
+        Cesium.Transforms.eastNorthUpToFixedFrame(anchor0), new Cesium.Matrix4());
+      inst._reorient = Cesium.Matrix4.multiply(enu0Inv, inst.baseline, new Cesium.Matrix4());
+    }
+    var anchor = Cesium.Cartesian3.fromDegrees(lon, lat, inst._anchorHeight);
+    var enu = Cesium.Transforms.eastNorthUpToFixedFrame(anchor);
+    inst.baseline = Cesium.Matrix4.multiply(enu, inst._reorient, new Cesium.Matrix4());
+    applyTransform(inst);
+  };
+
+  // Read the live placement of a splat (for the gizmo). origin = the
+  // rendered root.transform translation (anchor + heightM lift), so gizmo
+  // handles sit on the splat. lon/lat/anchorHeight describe the ground anchor.
+  BimViewer.getSplatState = function(id) {
+    var inst = state().instances.get(id);
+    if (!inst) return null;
+    var anchor = Cesium.Matrix4.getTranslation(inst.baseline, new Cesium.Cartesian3());
+    var carto = Cesium.Cartographic.fromCartesian(anchor);
+    var origin = inst.tileset && inst.tileset.root
+      ? Cesium.Matrix4.getTranslation(inst.tileset.root.transform, new Cesium.Cartesian3())
+      : anchor;
+    return {
+      lon: Cesium.Math.toDegrees(carto.longitude),
+      lat: Cesium.Math.toDegrees(carto.latitude),
+      anchorHeight: carto.height,
+      heightM: inst.heightM || 0,
+      heading: (inst.orientation && inst.orientation.z) || 0,
+      scale: inst.scale || 1,
+      origin: origin
+    };
   };
 
   // Lift the splat so its origin sits on the terrain surface. Needed
@@ -267,14 +350,21 @@
 
   BimViewer.flyToSplat = function(id) {
     var inst = state().instances.get(id);
-    if (inst && viewer()) viewer().flyTo(inst.tileset, { duration: 1.5 });
+    if (!inst || !viewer()) return;
+    // Prefer the saved view (e.g. the tuned demo framing); otherwise frame
+    // the tileset's bounding sphere.
+    if (inst.view) {
+      viewer().camera.flyTo({ destination: inst.view.destination, orientation: inst.view.orientation, duration: 1.5 });
+    } else {
+      viewer().flyTo(inst.tileset, { duration: 1.5 });
+    }
   };
 
   BimViewer.listSplats = function() {
     var out = [];
     state().instances.forEach(function(inst) {
       out.push({ id: inst.id, name: inst.name, source: inst.source,
-                 sse: inst.sse, heightM: inst.heightM, orientation: inst.orientation,
+                 sse: inst.sse, heightM: inst.heightM, scale: inst.scale, orientation: inst.orientation,
                  visible: inst.tileset.show });
     });
     console.table(out);
@@ -287,6 +377,24 @@
     // Wilhelmina georef origin sits at the object's mid-height (~1 m half),
     // so +1 m lifts the base onto the terrain. Fine-tune via the slider.
     return BimViewer.loadSplat({ id: 'demo', name: 'Wilhelmina (demo)', url: DEMO_URL, sse: 8, clampToTerrain: true, heightM: 1.0 });
+  };
+
+  // Convenience: load the self-hosted Cochem castle splat (demo). The full
+  // placement (position / heading / scale / height) is baked into the
+  // tileset.json root.transform, so NO clamp/orientation is applied — we
+  // just frame it with a tuned start view.
+  BimViewer.loadSplatCochem = async function() {
+    return BimViewer.loadSplat({
+      id: 'cochem', name: 'Reichsburg Cochem (Demo)',
+      url: 'data/tiles/gauss/cochem_tiles/tileset.json',
+      sse: 16, clampToTerrain: false,
+      // Saved start view — used for the initial flight AND the per-row
+      // "fly to" button (BimViewer.flyToSplat reuses inst.view).
+      view: {
+        destination: Cesium.Cartesian3.fromRadians(0.12508136911631626, 0.8751318985419936, 296.61639887276027),
+        orientation: { heading: 6.283185307179571, pitch: -0.500558977308736, roll: 6.2831853071795765 }
+      }
+    });
   };
 
 })(window.BimViewer = window.BimViewer || {});

@@ -56,12 +56,18 @@
       var hidden = inst.tileset && inst.tileset.show === false;
       var sse = inst.sse != null ? inst.sse : 16;
       var h = inst.heightM || 0;
+      var rot = inst.orientation ? (inst.orientation.z || 0) : 0;
+      var sc = inst.scale || 1;
+      var gizOn = window.BimGizmoSplat && BimGizmoSplat.isSelected(id);
 
       html +=
         '<div class="splat-row' + (hidden ? ' splat-row-hidden' : '') + '">' +
           '<div class="splat-row-head">' +
             '<span class="splat-row-name" title="' + esc(inst.source || '') + '">' + esc(inst.name || id) + '</span>' +
             '<div class="splat-row-actions">' +
+              '<button class="modern-icon-btn' + (gizOn ? ' active' : '') + '" id="splat_giz_' + id + '" ' +
+                'onclick="BimSplat.toggleGizmo(\'' + id + '\')" title="Gizmo: verschieben/drehen/höhe">' +
+                '<i data-lucide="move-3d" style="width:13px;height:13px;"></i></button>' +
               '<button class="modern-icon-btn" onclick="BimSplat.flyTo(\'' + id + '\')" title="Hinfliegen">' +
                 '<i data-lucide="crosshair" style="width:13px;height:13px;"></i></button>' +
               '<button class="modern-icon-btn" onclick="BimSplat.toggleVis(\'' + id + '\')" title="Ein-/Ausblenden">' +
@@ -80,7 +86,7 @@
 
           '<div class="splat-ctrl">' +
             '<label>Höhe</label>' +
-            '<input type="range" min="-50" max="50" step="0.5" value="' + h + '" class="modern-slider-small" ' +
+            '<input type="range" id="splat_h_' + id + '" min="-50" max="50" step="0.5" value="' + h + '" class="modern-slider-small" ' +
               'oninput="BimSplat.onHeight(\'' + id + '\', this.value)" />' +
             '<span class="splat-ctrl-val" id="splat_h_v_' + id + '">' + h.toFixed(1) + 'm</span>' +
             '<button class="modern-icon-btn" onclick="BimSplat.clamp(\'' + id + '\')" title="Auf Gelände setzen">' +
@@ -89,9 +95,16 @@
 
           '<div class="splat-ctrl">' +
             '<label>Drehung</label>' +
-            '<input type="range" min="0" max="360" step="1" value="' + (inst.orientation ? (inst.orientation.z || 0) : 0) + '" class="modern-slider-small" ' +
+            '<input type="range" id="splat_r_' + id + '" min="0" max="360" step="1" value="' + rot + '" class="modern-slider-small" ' +
               'oninput="BimSplat.onRot(\'' + id + '\', this.value)" />' +
-            '<span class="splat-ctrl-val" id="splat_r_v_' + id + '">' + (inst.orientation ? (inst.orientation.z || 0) : 0) + '°</span>' +
+            '<span class="splat-ctrl-val" id="splat_r_v_' + id + '">' + Math.round(rot) + '°</span>' +
+          '</div>' +
+
+          '<div class="splat-ctrl">' +
+            '<label>Größe</label>' +
+            '<input type="range" id="splat_sc_' + id + '" min="-1" max="2" step="0.02" value="' + Math.log10(sc) + '" class="modern-slider-small" ' +
+              'oninput="BimSplat.onScale(\'' + id + '\', this.value)" />' +
+            '<span class="splat-ctrl-val" id="splat_sc_v_' + id + '">' + sc.toFixed(2) + 'x</span>' +
           '</div>' +
         '</div>';
     });
@@ -131,6 +144,13 @@
       render();
     },
 
+    loadCochem: async function() {
+      status('Lädt Cochem…');
+      var inst = await BimViewer.loadSplatCochem();
+      status(inst ? 'Geladen.' : ('Fehler: ' + lastError()), inst ? 'ok' : 'error');
+      render();
+    },
+
     flyTo: function(id) { BimViewer.flyToSplat(id); },
 
     toggleVis: function(id) {
@@ -141,8 +161,44 @@
     },
 
     remove: function(id) {
+      if (window.BimGizmoSplat) BimGizmoSplat.notifyRemoved(id);
       BimViewer.removeSplat(id);
       render();
+    },
+
+    // Toggle the interactive 3D gizmo (splat-gizmo.js) for this splat.
+    toggleGizmo: function(id) {
+      if (!window.BimGizmoSplat) return;
+      BimGizmoSplat.toggle(id);
+    },
+
+    // Reflect gizmo select/deselect on the row button (called by the gizmo).
+    onGizmoChange: function(id, active) {
+      var btn = el('splat_giz_' + id);
+      if (btn) btn.classList.toggle('active', !!active);
+    },
+
+    // Logarithmic scale slider: value is log10(factor).
+    onScale: function(id, val) {
+      var factor = Math.pow(10, Number(val));
+      BimViewer.setSplatScale(id, factor);
+      var v = el('splat_sc_v_' + id);
+      if (v) v.textContent = factor.toFixed(2) + 'x';
+    },
+
+    // Push live state back into this row's sliders (called during gizmo drag).
+    syncRow: function(id) {
+      var st = (window.BimViewer && BimViewer.getSplatState) ? BimViewer.getSplatState(id) : null;
+      if (!st) return;
+      var hr = el('splat_h_' + id), hv = el('splat_h_v_' + id);
+      if (hr) hr.value = st.heightM;
+      if (hv) hv.textContent = st.heightM.toFixed(1) + 'm';
+      var rr = el('splat_r_' + id), rv = el('splat_r_v_' + id);
+      if (rr) rr.value = st.heading;
+      if (rv) rv.textContent = Math.round(st.heading) + '°';
+      var scr = el('splat_sc_' + id), scv = el('splat_sc_v_' + id);
+      if (scr && st.scale > 0) scr.value = Math.log10(st.scale);
+      if (scv) scv.textContent = st.scale.toFixed(2) + 'x';
     },
 
     onSSE: function(id, val) {
