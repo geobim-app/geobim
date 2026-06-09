@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-06-09
+
 ### Security
 
 - **Web-Root `.git`-Schutz** (`.htaccess`): Zugriff auf VCS-Metadaten und sensible Dotfiles geblockt (`RewriteRule (^|/)\.(git|svn|hg|env)(/|$) - [F,L]`); verhindert das Auslesen von z. B. `/.git/config` aus dem Web-Root (der Web-Root ist ein Live-git-Checkout)

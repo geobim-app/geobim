@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.7.4';
+  var APP_VERSION = '1.8.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
@@ -86,6 +86,7 @@
           '<div class="splash-feature-list">' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3D7;&#xFE0F;</span><div><strong>IFC &amp; Revit Models</strong><span>Load BIM models as 3D Tiles via Cesium Ion</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2601;&#xFE0F;</span><div><strong>Point Clouds</strong><span>LAS/LAZ point clouds with EDL and color modes</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2728;</span><div><strong>3D Gaussian Splatting</strong><span>Photorealistic splat captures as native 3D Tiles, with move/scale/rotate gizmo</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F50D;</span><div><strong>IFC / Revit Filter</strong><span>Filter 30+ entity types by category</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4CF;</span><div><strong>Measurement Tools</strong><span>Distance, area and height measurements</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2702;&#xFE0F;</span><div><strong>Clipping Planes</strong><span>Draw polygons to clip buildings and terrain</span></div></div>' +

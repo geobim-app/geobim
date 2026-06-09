@@ -188,6 +188,19 @@
 
 ---
 
+## 3D Gaussian Splatting
+
+| Feature | Description | Files |
+|---|---|---|
+| Splat loading | Load 3D Gaussian Splat reconstructions as native Cesium 3D Tiles (glTF `KHR_gaussian_splatting`, GPU-decoded since CesiumJS 1.135). Source via self-hosted `tileset.json` URL or Cesium Ion asset id. | `splat.js` |
+| Isolated registry | Splats live in `BimViewer.splat.instances` (not `loadedAssets`) and are shielded from the lighting monitor, IBL, IFC/Revit filters and PBR shaders, which would otherwise break splat rendering. | `splat.js` |
+| Placement | Per-instance height (along ellipsoid normal), terrain clamp, ENU-local orientation (x/y/z), uniform scale, and horizontal position — all non-cumulative via a stored baseline transform. | `splat.js` |
+| Interactive gizmo | Select a splat from the sidebar list, then drag handles to move (globe), change height, or rotate; scale via slider. Esc deselects. | `splat-gizmo.js` |
+| Saved view | A splat can carry a saved camera view used for the initial flight and the per-row "fly to" button. | `splat.js` |
+| Sidebar UI | "Gaussian Splats" section: URL/Ion-id input, terrain-clamp checkbox, demo buttons (Wilhelmina, Reichsburg Cochem), per-instance detail (SSE) / height / rotation / scale sliders, gizmo toggle. | `ui-splat-section.js`, `splat-ui.js`, `splat-styles.css` |
+
+---
+
 ## 14. Performance Management
 
 | Feature | Description | Files |

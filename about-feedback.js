@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.7.4';
+  const APP_VERSION = '1.8.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -100,6 +100,13 @@
                 <div>
                   <strong>Point Clouds</strong>
                   <span>LAS/LAZ point clouds with EDL and color modes</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon">✨</span>
+                <div>
+                  <strong>3D Gaussian Splatting</strong>
+                  <span>Photorealistic splat captures as native 3D Tiles, with move/scale/rotate gizmo</span>
                 </div>
               </div>
               <div class="about-feature-item">
