@@ -105,6 +105,41 @@
     if (viewer()) viewer().scene.requestRender();
   }
 
+  // ---- Attribution / credits (dataset license compliance) -------
+  // Some datasets (e.g. Teleportour / Andrii Shramko drone scans) require
+  // explicit, always-visible attribution with active links. The tileset.json
+  // carries it under asset.extras.attribution {html, licenseUrl}; we surface
+  // it as an on-screen Cesium Credit while the splat is loaded & visible.
+  function creditDisplay() {
+    var v = viewer();
+    if (!v) return null;
+    return v.creditDisplay
+        || (v.cesiumWidget && v.cesiumWidget.creditDisplay)
+        || (v.scene && v.scene.frameState && v.scene.frameState.creditDisplay)
+        || null;
+  }
+
+  function buildAttribution(inst, tileset) {
+    var ex = tileset && tileset.asset && tileset.asset.extras;
+    var attr = ex && ex.attribution;
+    if (!attr || !attr.html) return;
+    inst.attribution = attr;
+    try { inst.credit = new Cesium.Credit(attr.html, true); /* showOnScreen */ }
+    catch (e) { console.warn('[splat] could not build attribution credit', e); }
+  }
+
+  function showCredit(inst, on) {
+    var cd = creditDisplay();
+    if (!cd || !inst || !inst.credit) return;
+    try {
+      if (on && !inst._creditShown && cd.addStaticCredit) {
+        cd.addStaticCredit(inst.credit); inst._creditShown = true;
+      } else if (!on && inst._creditShown && cd.removeStaticCredit) {
+        cd.removeStaticCredit(inst.credit); inst._creditShown = false;
+      }
+    } catch (e) { /* credit API variance across Cesium versions — non-fatal */ }
+  }
+
   // ---- Public API ------------------------------------------------
 
   // Load a splat tileset.
@@ -164,16 +199,6 @@
     v.scene.primitives.add(tileset);
     shieldFromLighting(tileset);
 
-    // Gaussian splat tiles aggregate into ONE primitive that only rebuilds on
-    // camera move (Cesium 1.141). When finer tiles stream in — e.g. after the
-    // user lowers SSE — force the primitive to re-aggregate + request a render,
-    // otherwise the extra detail never becomes visible without orbiting first.
-    tileset.tileLoad.addEventListener(function() {
-      var gsp = tileset.gaussianSplatPrimitive;
-      if (gsp) gsp._dirty = true;
-      if (BimViewer.viewer) BimViewer.viewer.scene.requestRender();
-    });
-
     if (opts.show === false) tileset.show = false;
 
     var inst = {
@@ -195,6 +220,11 @@
     if (inst.heightM || (inst.scale && inst.scale !== 1) || inst.orientation.x || inst.orientation.y || inst.orientation.z) {
       applyTransform(inst);
     }
+
+    // Required dataset attribution (license compliance) — shown on screen
+    // whenever the splat is loaded & visible.
+    buildAttribution(inst, tileset);
+    if (tileset.show !== false) showCredit(inst, true);
 
     console.log('✨ Splat loaded:', id, '(' + inst.source + ')');
 
@@ -218,6 +248,7 @@
     var s = state();
     var inst = s.instances.get(id);
     if (!inst) return false;
+    showCredit(inst, false);
     try { viewer().scene.primitives.remove(inst.tileset); } catch (e) { /* already gone */ }
     s.instances.delete(id);
     console.log('🗑️ Splat removed:', id);
@@ -229,20 +260,19 @@
     var inst = state().instances.get(id);
     if (!inst) return;
     inst.tileset.show = !!visible;
+    showCredit(inst, !!visible);
     if (viewer()) viewer().scene.requestRender();
   };
 
+  // Programmatic SSE setter (no UI slider — on Cesium 1.141 a large splat
+  // tileset's LOD is governed by the internal splat budget, which auto-scales
+  // SSE to stay within the GPU texture cap, so manual values have little to no
+  // visible effect on big tilesets). Kept as a console/API hook.
   BimViewer.setSplatSSE = function(id, sse) {
     var inst = state().instances.get(id);
     if (!inst) return;
     inst.sse = sse;
     inst.tileset.maximumScreenSpaceError = sse;
-    // The GaussianSplatPrimitive only re-aggregates its splat buffers when the
-    // camera view matrix changes (Cesium 1.141 GaussianSplatPrimitive.update
-    // short-circuits otherwise). Force a rebuild so SSE changes take effect
-    // immediately, without the user having to orbit the camera first.
-    var gsp = inst.tileset.gaussianSplatPrimitive;
-    if (gsp) gsp._dirty = true;
     if (viewer()) viewer().scene.requestRender();
   };
 

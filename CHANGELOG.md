@@ -8,10 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **3D Gaussian Splatting — Datensatz-Attribution / Lizenz** (`splat.js`, `FEATURES.md`): eine Splat-`tileset.json` kann jetzt verpflichtende Autoren-/Lizenzangaben unter `asset.extras.attribution` (`text`, `html`, `licenseUrl`, `required`) tragen. `loadSplat` liest das über `tileset.asset.extras` und zeigt `html` als **immer sichtbare, anklickbare Cesium-On-Screen-Credit** (unten rechts) an, solange der Splat geladen & sichtbar ist (ein-/ausgeblendet via `addStaticCredit`/`removeStaticCredit` in Load/Show/Hide/Remove). Erfüllt Lizenzen, die explizite Attribution mit aktiven Links verlangen (z. B. Teleportour / Andrii Shramko Drohnenscans); reist mit den Daten und funktioniert für jeden self-hosted Datensatz. Wiederverwendbares Template in `FEATURES.md`
 - **Saved Views — optionaler weicher Übergang** (`features.js`, `ui-views-section.js`, `style.css`): neue Checkbox „Smooth transition" (standardmäßig **aus**) im Saved-Views-Tab. Ist sie aktiv, fliegt die Kamera beim Laden einer Ansicht weich in ~3 s zum Ziel (`camera.flyTo`, Dauer in `BimViewer.SMOOTH_VIEW_DURATION`) statt hart zu springen — eine Art Kamerafahrt zwischen gespeicherten Ansichten. Im Smooth-Pfad wird das nachträgliche Vektor-Snapping bewusst übersprungen (würde die Animation überschreiben); Default bleibt der instantane `setView`-Sprung. `flyTo` konvertiert die gespeicherten `direction`/`up`-Vektoren intern zu Heading/Pitch/Roll. Neue wiederverwendbare CSS-Klasse `.modern-check`
 
 ### Changed
 
+- **3D Gaussian Splatting — Detail/SSE-Slider entfernt** (`splat-ui.js`, `splat.js`): der Per-Instanz-„Detail"-Slider wurde entfernt — auf CesiumJS 1.141 steuert bei großen Splat-Tilesets der interne Splat-Budget-Mechanismus das LOD (skaliert den SSE automatisch auf die GPU-Textur-Kapazität), sodass ein manuell gesetzter `maximumScreenSpaceError` praktisch keine sichtbare Wirkung hat. Dabei toten Code aufgeräumt: der `tileset.gaussianSplatPrimitive._dirty`-Poke (die Property existiert in 1.141 nicht mehr — stammte aus der 1.132-Ära). `BimViewer.setSplatSSE(id, n)` bleibt als Konsolen-/API-Hook erhalten
 - **3D Gaussian Splatting — UI vollständig auf Englisch** (`ui-splat-section.js`, `splat-ui.js`, `splat.js`): die „Gaussian Splats"-Sidebar-Sektion ist jetzt durchgängig englisch — Labels (Source, Height, Rotation, Scale), Buttons (Load splat, Load demo, Clamp to terrain), Tooltips, Status-/Fehlermeldungen (inkl. CORS/404-Klartext)
 
 ### Docs

@@ -54,7 +54,6 @@
     map.forEach(function(inst) {
       var id = inst.id;
       var hidden = inst.tileset && inst.tileset.show === false;
-      var sse = inst.sse != null ? inst.sse : 16;
       var h = inst.heightM || 0;
       var rot = inst.orientation ? (inst.orientation.z || 0) : 0;
       var sc = inst.scale || 1;
@@ -75,13 +74,6 @@
               '<button class="modern-icon-btn modern-icon-btn-danger" onclick="BimSplat.remove(\'' + id + '\')" title="Remove">' +
                 '<i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>' +
             '</div>' +
-          '</div>' +
-
-          '<div class="splat-ctrl">' +
-            '<label>Detail</label>' +
-            '<input type="range" min="2" max="32" step="1" value="' + sse + '" class="modern-slider-small" ' +
-              'oninput="BimSplat.onSSE(\'' + id + '\', this.value)" />' +
-            '<span class="splat-ctrl-val" id="splat_sse_v_' + id + '">' + sse + '</span>' +
           '</div>' +
 
           '<div class="splat-ctrl">' +
@@ -199,12 +191,6 @@
       var scr = el('splat_sc_' + id), scv = el('splat_sc_v_' + id);
       if (scr && st.scale > 0) scr.value = Math.log10(st.scale);
       if (scv) scv.textContent = st.scale.toFixed(2) + 'x';
-    },
-
-    onSSE: function(id, val) {
-      BimViewer.setSplatSSE(id, Number(val));
-      var v = el('splat_sse_v_' + id);
-      if (v) v.textContent = val;
     },
 
     onHeight: function(id, val) {

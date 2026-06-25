@@ -197,7 +197,38 @@
 | Placement | Per-instance height (along ellipsoid normal), terrain clamp, ENU-local orientation (x/y/z), uniform scale, and horizontal position — all non-cumulative via a stored baseline transform. | `splat.js` |
 | Interactive gizmo | Select a splat from the sidebar list, then drag handles to move (globe), change height, or rotate; scale via slider. Esc deselects. **Note:** the gizmo (and move/rotate/height) only works for self-hosted splats whose georeferencing is baked into `tileset.json` `root.transform`. Ion-loaded splats typically carry their georeference in the tile content (ECEF-baked geometry, identity root transform), so the gizmo anchor falls at the earth's centre and has no visible effect — reposition Ion splats via the normal asset pipeline (z-offset) instead. | `splat-gizmo.js` |
 | Saved view | A splat can carry a saved camera view used for the initial flight and the per-row "fly to" button. | `splat.js` |
-| Sidebar UI | "Gaussian Splats" section: URL/Ion-id input, terrain-clamp checkbox, demo buttons (Wilhelmina, Reichsburg Cochem), per-instance detail (SSE) / height / rotation / scale sliders, gizmo toggle. | `ui-splat-section.js`, `splat-ui.js`, `splat-styles.css` |
+| Dataset attribution | A splat `tileset.json` can carry mandatory author/license attribution under `asset.extras.attribution`. It is surfaced as an always-visible, clickable Cesium on-screen credit (bottom-right) while the splat is loaded & visible — for licenses (e.g. Teleportour / Andrii Shramko drone scans) that require explicit attribution with active links. Travels with the data; works for any self-hosted dataset. | `splat.js` |
+| Sidebar UI | "Gaussian Splats" section: URL/Ion-id input, terrain-clamp checkbox, demo buttons (Wilhelmina, Reichsburg Cochem), per-instance height / rotation / scale sliders, gizmo toggle. | `ui-splat-section.js`, `splat-ui.js`, `splat-styles.css` |
+
+> **Note:** there is no runtime "Detail/SSE" slider — on CesiumJS 1.141 a large splat tileset's LOD is governed by the internal splat budget (auto-scales SSE to the GPU texture cap), so a manual SSE value has little to no visible effect. `BimViewer.setSplatSSE(id, n)` remains as a console/API hook.
+
+### Dataset attribution template
+
+To attach required author/license attribution to any self-hosted splat, add an
+`extras.attribution` block to the `asset` object in its `tileset.json` (Cesium
+returns it via `tileset.asset.extras`; `splat.js` turns `html` into an on-screen
+credit). Ship the full license text alongside the tiles (e.g. `LICENSE.txt`) and
+link it from `html` / `licenseUrl`:
+
+```json
+{
+  "asset": {
+    "version": "1.1",
+    "extras": {
+      "attribution": {
+        "text": "3D scanning data created and provided by Andrii Shramko, Teleportour.",
+        "html": "3D scanning data created and provided by <a href=\"https://www.linkedin.com/in/andrii-shramko/\" target=\"_blank\" rel=\"noopener\">Andrii Shramko</a>, <a href=\"https://www.linkedin.com/company/teleportour/\" target=\"_blank\" rel=\"noopener\">Teleportour</a> (<a href=\"https://teleportour.com\" target=\"_blank\" rel=\"noopener\">teleportour.com</a>) — <a href=\"https://geobim.app/data/tiles/gauss/<dataset>/LICENSE.txt\" target=\"_blank\" rel=\"noopener\">License (no releases)</a>",
+        "licenseUrl": "https://geobim.app/data/tiles/gauss/<dataset>/LICENSE.txt",
+        "required": true
+      }
+    }
+  }
+}
+```
+
+The credit appears whenever the splat is loaded & visible and is removed on
+hide/remove. Keep `html` self-contained (absolute URLs) so it stays valid wherever
+the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
