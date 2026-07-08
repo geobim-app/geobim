@@ -499,7 +499,27 @@ const BimViewer = {
       });
       
       console.log('✅ Viewer created with World Terrain');
-      
+
+      // Geocoder must use the default (server) Ion token, NOT the active login token.
+      // OAuth app tokens (client_id 1899) are scoped to 'assets:list assets:read' only —
+      // they 404 on the /v1/geocode endpoint. The default token has geocode rights, so we
+      // bind a dedicated IonGeocoderService to it, independent of who is logged in.
+      try {
+        const geocodeToken = (typeof BimIonAuth !== 'undefined' && BimIonAuth.getDefaultToken())
+          || Cesium.Ion.defaultAccessToken;
+        if (this.viewer.geocoder && geocodeToken) {
+          this.viewer.geocoder.viewModel._geocoderServices = [
+            new Cesium.IonGeocoderService({
+              scene: this.viewer.scene,
+              accessToken: geocodeToken
+            })
+          ];
+          console.log('✅ Geocoder bound to default Ion token (geocode scope)');
+        }
+      } catch (geocoderError) {
+        console.warn('⚠️ Could not bind geocoder to default token:', geocoderError.message);
+      }
+
       this.viewer.scene.renderError.addEventListener((scene, error) => {
         console.error('🔴 Cesium Rendering Error:', error);
 
