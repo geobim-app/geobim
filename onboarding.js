@@ -14,6 +14,22 @@
   var STORAGE_KEY = IS_BRIDGE_INSPECTOR ? 'geobim_bridge_tour_v1'
                   : IS_WEA ? 'geobim_wea_tour_v1'
                   : 'geobim_tour_v1';
+
+  // Tour language (text only — the GUI stays in its native language).
+  // Trigger via ?lang=ja; falls back to the browser locale.
+  var LANG = (function() {
+    try {
+      var p = new URLSearchParams(window.location.search).get('lang');
+      if (p) return p.toLowerCase().indexOf('ja') === 0 ? 'ja' : 'en';
+      return (navigator.language || '').toLowerCase().indexOf('ja') === 0 ? 'ja' : 'en';
+    } catch (e) { return 'en'; }
+  })();
+
+  // Tour navigation button labels per language.
+  var LABELS = {
+    en: { back: 'Back', next: 'Next', done: 'Got it!', skip: 'Skip' },
+    ja: { back: '戻る', next: '次へ', done: '完了', skip: 'スキップ' }
+  };
   var overlay = null;
   var tooltip = null;
   var currentStep = 0;
@@ -165,8 +181,66 @@
     }
   ];
 
+  // Japanese WEA tour — same targets/positions as weaSteps, translated text only.
+  var weaStepsJA = [
+    {
+      target: '#cesiumContainer',
+      title: '風影解析へようこそ',
+      text: '実際の地形上で風力タービンの影のちらつき（シャドーフリッカー）をシミュレートします。これからの30分間は自由にお使いいただけます。タービンを配置し、影を投影し、コンプライアンス相当の1日解析を実行できます。左クリック＋ドラッグで回転、スクロールでズームします。',
+      position: 'center'
+    },
+    {
+      target: '#weaShadowPanel',
+      title: 'WEA 影パネル',
+      text: 'すべての操作はこのフローティングパネルで行います。ドラッグして好きな場所へ移動できます。以下の各コントロールがワークフローの各ステップに対応しています。',
+      position: 'left'
+    },
+    {
+      target: '#weaLoadBtn',
+      title: 'タービンを読み込む',
+      text: '現在の位置に風力タービン（既定：Enercon E-138 EP3）を追加します。タービンごとにハブ高さ・ローター直径・回転数（RPM）を調整でき、複数台を配置できます。',
+      position: 'left'
+    },
+    {
+      target: '#weaShadowToggle',
+      title: '影を投影する',
+      text: '太陽に基づく影をオンにします。ローターブレードが地面や周囲の建物に動く影を落とします——これがシャドーフリッカーの原因です。',
+      position: 'left'
+    },
+    {
+      target: '#weaTimeSlider',
+      title: '日付と時刻',
+      text: '日付を選び、時刻スライダーをドラッグして太陽を空に沿って動かします。影の長さと向きが1日や季節を通じてどのように変化するかを確認できます。',
+      position: 'left'
+    },
+    {
+      target: '#weaPlayDayBtn',
+      title: '1日を再生',
+      text: '日中サイクル全体をアニメーション再生し、影が各地点をどこへ・どれだけの時間スイープするかを確認します——シャドーフリッカー継続時間の基礎となります。',
+      position: 'left'
+    },
+    {
+      target: '#weaImmissionBtn',
+      title: 'イミッシオン解析',
+      text: '受影点における影の影響を計算します——ドイツの BImSchG（連邦イミッシオン防止法）のシャドーフリッカー適合性評価で用いられる種類の評価です。',
+      position: 'left'
+    },
+    {
+      target: '#weaLoadContext',
+      title: '建物コンテキスト',
+      text: '周囲の建物を読み込み、影が平らな地面だけでなく実際の構造物に落ちるようにします——より現実的なイミッシオン結果が得られます。',
+      position: 'left'
+    },
+    {
+      target: null,
+      title: '準備完了',
+      text: '30分間のデモが始まります。サインインすると、完全な geobim.app プラットフォーム上で、ご自身のサイトについて無制限に風影解析を実行できます。',
+      position: 'center'
+    }
+  ];
+
   var steps = IS_BRIDGE_INSPECTOR ? bridgeSteps
-            : IS_WEA ? weaSteps
+            : IS_WEA ? (LANG === 'ja' ? weaStepsJA : weaSteps)
             : defaultSteps;
 
   // ========================================================
@@ -263,11 +337,11 @@
       '<p>' + step.text + '</p>' +
       '<div class="tour-btns">' +
         '<div class="tour-dots">' + dots + '</div>' +
-        (index > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="BimTour.prev()">Back</button>' : '') +
+        (index > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="BimTour.prev()">' + LABELS[LANG].back + '</button>' : '') +
         '<button class="tour-btn tour-btn-primary" onclick="BimTour.next()">' +
-          (index < steps.length - 1 ? 'Next' : 'Got it!') +
+          (index < steps.length - 1 ? LABELS[LANG].next : LABELS[LANG].done) +
         '</button>' +
-        (index < steps.length - 1 ? '<button class="tour-skip" onclick="BimTour.end()">Skip</button>' : '') +
+        (index < steps.length - 1 ? '<button class="tour-skip" onclick="BimTour.end()">' + LABELS[LANG].skip + '</button>' : '') +
       '</div>';
 
     // Position tooltip

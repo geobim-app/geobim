@@ -761,8 +761,16 @@
       // Handle IFC/Feature selection
       this.handleIFCSelection(movement);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    
-    console.log('✅ Click handler initialized');
+
+    // Ctrl+Click → force metadata inspection (InfoBox) even while the move-gizmo is active
+    handler.setInputAction((movement) => {
+      if (this.isMeasuring && this.isMeasuring()) return;
+      if (this.isMeasurementPanelOpen && this.isMeasurementPanelOpen()) return;
+      if (this.drawing.active) return;
+      this.handleIFCSelection(movement, true);
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK, Cesium.KeyboardEventModifier.CTRL);
+
+    console.log('✅ Click handler initialized (Ctrl+Click = inspect)');
     
     // Initialize hide features AFTER click handler is ready
     if (typeof this.initHideFeatures === 'function') {
@@ -772,14 +780,20 @@
     }
   };
 
-  BimViewer.handleIFCSelection = async function(movement) {
+  BimViewer.handleIFCSelection = async function(movement, forceInspect) {
     try {
-      // Skip if gizmo is active and handling this click
-      if (window.BimGizmo && BimGizmo.gizmo.active) {
+      // While gizmo Transform mode is ON, a plain click drives the gizmo (select/move
+      // regular 3D Tiles), not element inspection. Ctrl+Click (forceInspect) still
+      // opens the InfoBox so metadata stays reachable while positioning.
+      if (!forceInspect && window.BimGizmo && BimGizmo.gizmo && BimGizmo.gizmo.transformMode) return;
+
+      // Skip if gizmo is active and handling this click — unless user Ctrl+clicked to inspect
+      if (!forceInspect && window.BimGizmo && BimGizmo.gizmo.active) {
         const gizmoPick = await this.viewer.scene.pickAsync(movement.position);
         if (gizmoPick) {
-          // Gizmo handle or GLB model — let gizmo handle it
+          // Gizmo handle or GLB model — let gizmo handle it (no InfoBox while positioning)
           if (gizmoPick.id && gizmoPick.id._gizmoAxis) return;
+          if (gizmoPick instanceof Cesium.ModelFeature) return;
           if (gizmoPick.primitive instanceof Cesium.Model) return;
         }
       }
@@ -798,6 +812,17 @@
           console.warn('⚠️ Could not reset previous feature:', error.message);
         }
         this.selectedFeature = undefined;
+      }
+
+      // Reset previous GLB model-feature highlight (same treatment as IFC/Revit features)
+      if (this.selectedModelFeature) {
+        try {
+          this.selectedModelFeature.color = this.selectedModelOriginalColor || Cesium.Color.WHITE;
+          if (this.silhouette.enabled) {
+            this.selectedModelFeature.silhouetteSize = 0.0;
+          }
+        } catch (error) {}
+        this.selectedModelFeature = undefined;
       }
 
       // Pick feature at click position (non-blocking GPU readback)
@@ -853,6 +878,47 @@
         
         const elementType = properties.className || properties.IfcEntity || properties.element_type || properties.building || 'Element';
         this.updateStatus(`Element selected: ${elementType}`, 'success');
+      } else if (picked && picked instanceof Cesium.ModelFeature) {
+        // GLB Model feature with EXT_structural_metadata (e.g. SAF structural elements)
+        console.log('🎯 ModelFeature picked:', picked);
+
+        // Highlight the picked element — same treatment as IFC/Revit features
+        try {
+          this.selectedModelOriginalColor = Cesium.Color.clone(
+            picked.color, this.selectedModelOriginalColor);
+          picked.color = Cesium.Color.LIME;
+          if (this.silhouette.enabled && this.silhouette.stage) {
+            picked.silhouetteColor = this.silhouette.color;
+            picked.silhouetteSize = this.silhouette.strength;
+          }
+          this.selectedModelFeature = picked;
+        } catch (error) {
+          console.warn('⚠️ Could not highlight model feature:', error.message);
+        }
+
+        // Extract metadata properties — same API as Cesium3DTileFeature
+        const properties = {};
+        let ids = [];
+        try {
+          ids = picked.getPropertyIds();
+          console.log(`📋 ModelFeature: ${ids.length} properties:`, ids);
+        } catch (error) {
+          console.warn('⚠️ Could not get model feature property IDs:', error.message);
+        }
+        ids.forEach(id => {
+          try {
+            const value = picked.getProperty(id);
+            if (value !== undefined && value !== null) {
+              properties[id] = value;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Could not get property ${id}:`, error.message);
+          }
+        });
+
+        this.displayIFCProperties(properties);
+        const label = properties.name || properties.type || 'Element';
+        this.updateStatus(`Element selected: ${label}`, 'success');
       } else if (picked && picked.id && picked.id.properties) {
         // DataSource entity (WFS, GeoJSON, etc.)
         console.log('🎯 DataSource entity picked:', picked.id.name || picked.id.id);

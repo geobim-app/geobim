@@ -1142,6 +1142,13 @@ const BimViewer = {
         await this.applyIFCFilter();
       }
 
+      // Gizmo Step 1: capture live placement baseline from root.transform origin.
+      // Non-destructive — does NOT write modelMatrix, so the native placement is
+      // untouched until the gizmo (or z-offset) edits assetData.placement.
+      if (typeof this.initAssetPlacement === 'function') {
+        this.initAssetPlacement(assetData);
+      }
+
       if (typeof BimViewer.updateZOffsetAssetsList === 'function') {
         setTimeout(() => BimViewer.updateZOffsetAssetsList(), 100);
       }
@@ -1410,6 +1417,8 @@ const BimViewer = {
   glbModelOverrides: {
     'infrafem_sofistik_csm': { name: 'infraFEM Sofistik CSM',
       defaultPosition: { lon: -79.8864, lat: 40.023979, height: 204.0863013479 }, defaultHeading: 130, defaultScale: 1.0 },
+    'skyscraper': { name: 'Skyscraper',
+      defaultPosition: { lon: 11.5222925, lat: 48.1461854, height: 568.25 }, defaultHeading: 0, defaultScale: 0.2576 },
     'brooklyn_blender': { name: 'Brooklyn Bridge (Blender)' },
     'cube_10meter': { name: 'Cube 10m' },
     'freecad': { name: 'FreeCAD' },
@@ -1617,6 +1626,67 @@ const BimViewer = {
     const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(origin, hpr);
     Cesium.Matrix4.multiplyByUniformScale(modelMatrix, assetData.scale || 1.0, modelMatrix);
     assetData.model.modelMatrix = modelMatrix;
+    // Scale is baked into modelMatrix above; force model.scale = 1 so it isn't
+    // applied a second time (load sets model.scale = defaultScale). Without this,
+    // models with defaultScale != 1 shrink by scale² on every reposition.
+    assetData.model.scale = 1.0;
+  },
+
+  // ---- Generic asset placement (regular 3D Tiles) — Gizmo Step 1 ----
+  // Mirror of updateGLBPosition for non-GLB tilesets. Ion assets bake their
+  // georef into root.transform (kept read-only); we compose an ENU frame at the
+  // target placement with inverse(root.transform) so the tileset origin lands
+  // exactly where requested. Pattern proven in animationManager.js:232.
+  // LIVE ONLY (no Firestore persistence yet). Non-cumulative: always rebuilt
+  // from assetData.placement, so gizmo Z-axis and z-offset can share the field.
+  initAssetPlacement(assetData) {
+    const tileset = assetData && assetData.tileset;
+    if (!tileset || !tileset.root || !tileset.root.transform) return null;
+
+    // Prefer the root.transform ECEF origin (Ion georef frame). Fall back to the
+    // bounding-sphere center for tilesets whose geometry carries ECEF coords with
+    // an identity root.transform.
+    let originECEF = Cesium.Matrix4.getTranslation(tileset.root.transform, new Cesium.Cartesian3());
+    if (!originECEF || Cesium.Cartesian3.magnitude(originECEF) < 1.0) {
+      originECEF = tileset.boundingSphere && tileset.boundingSphere.center
+        ? Cesium.Cartesian3.clone(tileset.boundingSphere.center) : null;
+    }
+    if (!originECEF || Cesium.Cartesian3.magnitude(originECEF) < 1.0) return null;
+
+    const carto = Cesium.Cartographic.fromCartesian(originECEF);
+    if (!carto) return null;
+
+    assetData.placement = {
+      position: {
+        lon: Cesium.Math.toDegrees(carto.longitude),
+        lat: Cesium.Math.toDegrees(carto.latitude),
+        height: carto.height
+      },
+      heading: 0
+    };
+    console.log(`📐 Placement baseline for ${assetData.name}: ` +
+      `${assetData.placement.position.lon.toFixed(5)}, ${assetData.placement.position.lat.toFixed(5)}, ` +
+      `h=${assetData.placement.position.height.toFixed(2)}`);
+    return assetData.placement;
+  },
+
+  updateAssetPlacement(assetId) {
+    const assetData = this.loadedAssets.get(assetId);
+    if (!assetData || assetData.isGLB || !assetData.tileset) return;
+
+    const tileset = assetData.tileset;
+    if (!tileset.root || !tileset.root.transform) return;
+
+    const p = assetData.placement;
+    if (!p) return;
+
+    const heading = Cesium.Math.toRadians(p.heading || 0);
+    const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+    const origin = Cesium.Cartesian3.fromDegrees(p.position.lon, p.position.lat, p.position.height);
+    const enu = Cesium.Transforms.headingPitchRollToFixedFrame(origin, hpr);
+
+    const rootInverse = Cesium.Matrix4.inverse(tileset.root.transform, new Cesium.Matrix4());
+    tileset.modelMatrix = Cesium.Matrix4.multiply(enu, rootInverse, new Cesium.Matrix4());
   },
 
   // Restart all GLB animations with a new multiplier (multiplier is read-only,

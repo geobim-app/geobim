@@ -1,12 +1,21 @@
 // ============================================================
-// GLB Gizmo — Interactive move/rotate/height for GLB models
-// Click GLB to select, drag to move, Z-handle for height,
-// ring for heading rotation. Syncs with UI sliders.
+// Asset Gizmo — Interactive move/rotate/height for placed assets
+// GLB models: click to select (always on), drag to move, Z-handle
+// for height, ring for heading rotation. Syncs with UI sliders.
+// Regular 3D Tiles (IFC/Revit/iTwin/CityGML/local): selectable only
+// while Transform mode is ON, moved via BimViewer.updateAssetPlacement
+// (modelMatrix), highlighted with a bounding outline (no silhouette
+// API on tilesets). Splats stay on the separate splat-gizmo.js.
+// LIVE ONLY — no persistence yet.
 // ============================================================
 
 (function() {
   'use strict';
 
+  // Axis colours — Cesium Ion Location Editor convention: X=east=red,
+  // Y=north=green, Z=up=blue; rotation ring=yellow.
+  var HANDLE_COLOR_X = Cesium.Color.fromCssColorString('#ff4d4d');
+  var HANDLE_COLOR_Y = Cesium.Color.fromCssColorString('#4dd44d');
   var HANDLE_COLOR_Z = Cesium.Color.fromCssColorString('#4488ff');
   var HANDLE_COLOR_Z_HOVER = Cesium.Color.fromCssColorString('#66bbff');
   var HANDLE_COLOR_ROT = Cesium.Color.fromCssColorString('#ffcc00');
@@ -14,15 +23,16 @@
   var SILHOUETTE_COLOR = Cesium.Color.CYAN;
   var SILHOUETTE_SIZE = 2.0;
 
-  // Handle sizing
-  var Z_HANDLE_LENGTH = 25;     // meters above model
-  var ROTATION_RING_RADIUS = 20; // meters
+  // Handle sizing (meters; auto-scaled per-frame by camera distance)
+  var AXIS_LENGTH = 25;          // length of each translation arrow
+  var ROTATION_RING_RADIUS = 20; // heading ring radius
   var ROTATION_RING_SEGMENTS = 48;
 
   var gizmo = {
     active: false,
+    transformMode: false,   // when ON, regular 3D Tiles become click-selectable
     selectedAssetId: null,
-    activeAxis: null,       // 'xy' | 'z' | 'heading'
+    activeAxis: null,       // 'xy' | 'x' | 'y' | 'z' | 'heading'
     dragging: false,
     entities: [],
     handler: null,
@@ -41,8 +51,55 @@
     return BimViewer.loadedAssets ? BimViewer.loadedAssets.get(assetId) : null;
   }
 
+  // ---- Placement adapter (GLB vs regular tileset) ----
+  // GLB stores placement on ad.position / ad.heading; regular tilesets on
+  // ad.placement.position / ad.placement.heading (see core.js initAssetPlacement).
+  // These helpers let the drag/handle code stay type-agnostic.
+  function getPos(ad) {
+    if (!ad) return null;
+    return ad.isGLB ? ad.position : (ad.placement && ad.placement.position);
+  }
+
+  function getHeading(ad) {
+    if (!ad) return 0;
+    return ad.isGLB ? (ad.heading || 0) : ((ad.placement && ad.placement.heading) || 0);
+  }
+
+  function setHeading(ad, deg) {
+    if (!ad) return;
+    if (ad.isGLB) ad.heading = deg;
+    else if (ad.placement) ad.placement.heading = deg;
+  }
+
+  function applyPlacement(assetId, ad) {
+    if (ad.isGLB) BimViewer.updateGLBPosition(assetId);
+    else if (typeof BimViewer.updateAssetPlacement === 'function') BimViewer.updateAssetPlacement(assetId);
+  }
+
+  // A regular 3D Tiles asset that the gizmo can move (excludes GLB, and any
+  // tileset without a placement baseline; splats live outside loadedAssets).
+  function isMovableTileset(ad) {
+    return !!(ad && !ad.isGLB && ad.tileset && ad.placement && ad.placement.position);
+  }
+
+  // Resolve a scene pick to a movable-tileset assetId (or null).
+  function findTilesetAssetId(picked) {
+    if (!picked) return null;
+    var t = null;
+    if (picked.primitive instanceof Cesium.Cesium3DTileset) t = picked.primitive;
+    else if (picked.tileset) t = picked.tileset;                        // Cesium3DTileFeature
+    else if (picked.content && picked.content.tileset) t = picked.content.tileset;
+    if (!t) return null;
+    var found = null;
+    BimViewer.loadedAssets.forEach(function(ad, id) {
+      if (isMovableTileset(ad) && ad.tileset === t) found = id;
+    });
+    return found;
+  }
+
   function getModelOrigin(assetData) {
-    var p = assetData.position;
+    var p = getPos(assetData);
+    if (!p) return Cesium.Cartesian3.ZERO;
     return Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.height);
   }
 
@@ -57,6 +114,8 @@
   function syncUI(assetId) {
     var ad = getAssetData(assetId);
     if (!ad) return;
+    // Only GLB assets have glb_* slider inputs; tilesets have no panel yet.
+    if (!ad.isGLB) return;
 
     var fields = {
       lon:     { val: ad.position.lon.toFixed(6) },
@@ -84,51 +143,60 @@
 
   // ---- Handle entities ----
 
-  function createHandles(viewer, assetId) {
-    removeHandles(viewer);
-    var ad = getAssetData(assetId);
-    if (!ad) return;
+  // One translation arrow (line + tip point) along a local ENU unit direction.
+  // localUnit: (1,0,0)=east/X, (0,1,0)=north/Y, (0,0,1)=up/Z.
+  function addAxisArrow(viewer, assetId, axisKey, localUnit, color) {
+    function tipWorld() {
+      var ad2 = getAssetData(assetId);
+      if (!ad2) return null;
+      var origin = getModelOrigin(ad2);
+      var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+      var local = Cesium.Cartesian3.multiplyByScalar(localUnit, AXIS_LENGTH, new Cesium.Cartesian3());
+      return { origin: origin, tip: Cesium.Matrix4.multiplyByPoint(enu, local, new Cesium.Cartesian3()) };
+    }
 
-    // Z-handle (vertical arrow)
-    var zLine = viewer.entities.add({
+    var line = viewer.entities.add({
       polyline: {
         positions: new Cesium.CallbackProperty(function() {
-          var ad2 = getAssetData(assetId);
-          if (!ad2) return [];
-          var origin = getModelOrigin(ad2);
-          var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
-          var top = Cesium.Matrix4.multiplyByPoint(enu, new Cesium.Cartesian3(0, 0, Z_HANDLE_LENGTH), new Cesium.Cartesian3());
-          return [origin, top];
+          var w = tipWorld();
+          return w ? [w.origin, w.tip] : [];
         }, false),
         width: 6,
-        material: new Cesium.ColorMaterialProperty(HANDLE_COLOR_Z),
+        material: new Cesium.ColorMaterialProperty(color),
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
-    zLine._gizmoAxis = 'z';
-    zLine._gizmoAssetId = assetId;
-    gizmo.entities.push(zLine);
+    line._gizmoAxis = axisKey;
+    line._gizmoAssetId = assetId;
+    gizmo.entities.push(line);
 
-    // Z-handle tip (point)
-    var zTip = viewer.entities.add({
+    var tip = viewer.entities.add({
       position: new Cesium.CallbackProperty(function() {
-        var ad2 = getAssetData(assetId);
-        if (!ad2) return Cesium.Cartesian3.ZERO;
-        var origin = getModelOrigin(ad2);
-        var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
-        return Cesium.Matrix4.multiplyByPoint(enu, new Cesium.Cartesian3(0, 0, Z_HANDLE_LENGTH), new Cesium.Cartesian3());
+        var w = tipWorld();
+        return w ? w.tip : Cesium.Cartesian3.ZERO;
       }, false),
       point: {
         pixelSize: 16,
-        color: HANDLE_COLOR_Z,
+        color: color,
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
-    zTip._gizmoAxis = 'z';
-    zTip._gizmoAssetId = assetId;
-    gizmo.entities.push(zTip);
+    tip._gizmoAxis = axisKey;
+    tip._gizmoAssetId = assetId;
+    gizmo.entities.push(tip);
+  }
+
+  function createHandles(viewer, assetId) {
+    removeHandles(viewer);
+    var ad = getAssetData(assetId);
+    if (!ad) return;
+
+    // Three translation arrows — Ion-style X (east), Y (north), Z (up).
+    addAxisArrow(viewer, assetId, 'x', new Cesium.Cartesian3(1, 0, 0), HANDLE_COLOR_X);
+    addAxisArrow(viewer, assetId, 'y', new Cesium.Cartesian3(0, 1, 0), HANDLE_COLOR_Y);
+    addAxisArrow(viewer, assetId, 'z', new Cesium.Cartesian3(0, 0, 1), HANDLE_COLOR_Z);
 
     // Rotation ring
     var ringEntity = viewer.entities.add({
@@ -164,7 +232,7 @@
           if (!ad2) return [];
           var origin = getModelOrigin(ad2);
           var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
-          var headRad = Cesium.Math.toRadians(ad2.heading || 0);
+          var headRad = Cesium.Math.toRadians(getHeading(ad2));
           // Heading: 0=North, CW. In ENU: North=+Y, East=+X
           var ex = ROTATION_RING_RADIUS * Math.sin(headRad);
           var ey = ROTATION_RING_RADIUS * Math.cos(headRad);
@@ -191,6 +259,33 @@
     gizmo.entities = [];
   }
 
+  // Tilesets have no silhouette API, so mark selection with a bounding outline.
+  // Follows the live world-space boundingSphere so it tracks gizmo moves.
+  function createTilesetOutline(viewer, assetId) {
+    var outline = viewer.entities.add({
+      position: new Cesium.CallbackProperty(function() {
+        var ad = getAssetData(assetId);
+        if (!ad || !ad.tileset || !ad.tileset.boundingSphere) return Cesium.Cartesian3.ZERO;
+        return ad.tileset.boundingSphere.center;
+      }, false),
+      ellipsoid: {
+        radii: new Cesium.CallbackProperty(function() {
+          var ad = getAssetData(assetId);
+          var r = (ad && ad.tileset && ad.tileset.boundingSphere) ? ad.tileset.boundingSphere.radius : 1;
+          return new Cesium.Cartesian3(r, r, r);
+        }, false),
+        fill: false,
+        outline: true,
+        outlineColor: SILHOUETTE_COLOR.withAlpha(0.8),
+        outlineWidth: 2,
+        slicePartitions: 12,
+        stackPartitions: 12
+      }
+    });
+    outline._gizmoOutline = true;
+    gizmo.entities.push(outline);
+  }
+
   // ---- Selection ----
 
   function selectModel(assetId) {
@@ -203,20 +298,26 @@
     }
 
     var ad = getAssetData(assetId);
-    if (!ad || !ad.isGLB || !ad.model) return;
+    if (!ad) return;
+    var isGLB = ad.isGLB && ad.model;
+    var isTileset = isMovableTileset(ad);
+    if (!isGLB && !isTileset) return;
 
     gizmo.selectedAssetId = assetId;
     gizmo.active = true;
 
-    // Highlight
-    gizmo._prevSilhouetteSize = ad.model.silhouetteSize;
-    gizmo._prevSilhouetteColor = ad.model.silhouetteColor;
-    ad.model.silhouetteColor = SILHOUETTE_COLOR;
-    ad.model.silhouetteSize = SILHOUETTE_SIZE;
+    // Highlight \u2014 GLB uses silhouette, tilesets use a bounding outline
+    if (isGLB) {
+      gizmo._prevSilhouetteSize = ad.model.silhouetteSize;
+      gizmo._prevSilhouetteColor = ad.model.silhouetteColor;
+      ad.model.silhouetteColor = SILHOUETTE_COLOR;
+      ad.model.silhouetteSize = SILHOUETTE_SIZE;
+    }
 
     createHandles(viewer, assetId);
+    if (isTileset) createTilesetOutline(viewer, assetId);
     viewer.canvas.style.cursor = 'pointer';
-    console.log('\uD83C\uDFAF Gizmo: selected ' + ad.name);
+    console.log('\uD83C\uDFAF Gizmo: selected ' + ad.name + (isTileset ? ' (3D Tiles)' : ''));
   }
 
   function deselectModel() {
@@ -225,7 +326,7 @@
 
     if (gizmo.selectedAssetId) {
       var ad = getAssetData(gizmo.selectedAssetId);
-      if (ad && ad.model) {
+      if (ad && ad.isGLB && ad.model) {
         ad.model.silhouetteSize = gizmo._prevSilhouetteSize || 0;
         if (gizmo._prevSilhouetteColor) {
           ad.model.silhouetteColor = gizmo._prevSilhouetteColor;
@@ -277,6 +378,20 @@
       }
     }
 
+    // Check regular 3D Tiles asset — only while Transform mode is ON, so normal
+    // element inspection (IFC InfoBox, hide, comments) keeps working when OFF.
+    if (gizmo.transformMode) {
+      var tilesetAssetId = findTilesetAssetId(picked);
+      if (tilesetAssetId) {
+        if (gizmo.selectedAssetId === tilesetAssetId) {
+          startDrag('xy', movement.position);
+        } else {
+          selectModel(tilesetAssetId);
+        }
+        return;
+      }
+    }
+
     // Clicked something else — deselect
     deselectModel();
   }
@@ -286,15 +401,18 @@
     var ad = getAssetData(gizmo.selectedAssetId);
     if (!ad) return;
 
+    var startPos = getPos(ad);
+    if (!startPos) return;
+
     gizmo.activeAxis = axis;
     gizmo.dragging = true;
     gizmo.dragStartScreenY = screenPosition.y;
     gizmo.dragStartPosition = {
-      lon: ad.position.lon,
-      lat: ad.position.lat,
-      height: ad.position.height
+      lon: startPos.lon,
+      lat: startPos.lat,
+      height: startPos.height
     };
-    gizmo.dragStartHeading = ad.heading || 0;
+    gizmo.dragStartHeading = getHeading(ad);
     gizmo.dragStartCartesian = viewer.scene.pickPosition(screenPosition) || null;
 
     if (axis === 'heading') {
@@ -321,6 +439,8 @@
           } else {
             viewer.canvas.style.cursor = 'pointer';
           }
+        } else if (gizmo.transformMode && gizmo.selectedAssetId && findTilesetAssetId(hovered) === gizmo.selectedAssetId) {
+          viewer.canvas.style.cursor = 'move';
         } else {
           viewer.canvas.style.cursor = gizmo.active ? 'pointer' : '';
         }
@@ -330,6 +450,9 @@
 
     var ad = getAssetData(gizmo.selectedAssetId);
     if (!ad) return;
+
+    var pos = getPos(ad);
+    if (!pos) return;
 
     var axis = gizmo.activeAxis;
 
@@ -346,9 +469,36 @@
       if (!cartesian) return;
 
       var carto = Cesium.Cartographic.fromCartesian(cartesian);
-      ad.position.lon = Cesium.Math.toDegrees(carto.longitude);
-      ad.position.lat = Cesium.Math.toDegrees(carto.latitude);
+      pos.lon = Cesium.Math.toDegrees(carto.longitude);
+      pos.lat = Cesium.Math.toDegrees(carto.latitude);
       // Keep current height (don't snap to terrain)
+
+    } else if (axis === 'x' || axis === 'y') {
+      // Axis-constrained horizontal translation (Ion-style single arrow).
+      // Project the picked world point onto the east (x) / north (y) axis line
+      // through the drag-start origin, then keep the original height.
+      var aray = viewer.camera.getPickRay(movement.endPosition);
+      if (!aray) return;
+      var apick = viewer.scene.globe.pick(aray, viewer.scene) || viewer.scene.pickPosition(movement.endPosition);
+      if (!apick) return;
+
+      var start = gizmo.dragStartPosition;
+      var originC = Cesium.Cartesian3.fromDegrees(start.lon, start.lat, start.height);
+      var enuA = Cesium.Transforms.eastNorthUpToFixedFrame(originC);
+      var localUnit = (axis === 'x') ? new Cesium.Cartesian3(1, 0, 0) : new Cesium.Cartesian3(0, 1, 0);
+      var axisPointW = Cesium.Matrix4.multiplyByPoint(enuA, localUnit, new Cesium.Cartesian3());
+      var axisDir = Cesium.Cartesian3.subtract(axisPointW, originC, new Cesium.Cartesian3());
+      Cesium.Cartesian3.normalize(axisDir, axisDir);
+
+      var rel = Cesium.Cartesian3.subtract(apick, originC, new Cesium.Cartesian3());
+      var d = Cesium.Cartesian3.dot(rel, axisDir);
+      var moved = Cesium.Cartesian3.add(originC,
+        Cesium.Cartesian3.multiplyByScalar(axisDir, d, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+      var mCarto = Cesium.Cartographic.fromCartesian(moved);
+      pos.lon = Cesium.Math.toDegrees(mCarto.longitude);
+      pos.lat = Cesium.Math.toDegrees(mCarto.latitude);
+      // Keep original height (horizontal move only)
+      pos.height = start.height;
 
     } else if (axis === 'z') {
       // Vertical drag — screen Y delta to height delta
@@ -357,18 +507,18 @@
       var origin = getModelOrigin(ad);
       var cameraDist = Cesium.Cartesian3.distance(viewer.camera.positionWC, origin);
       var metersPerPixel = cameraDist * 0.001; // rough approximation
-      ad.position.height = gizmo.dragStartPosition.height + deltaY * metersPerPixel;
+      pos.height = gizmo.dragStartPosition.height + deltaY * metersPerPixel;
 
     } else if (axis === 'heading') {
       var currentAngle = screenToAngle(viewer, ad, movement.endPosition);
       if (currentAngle !== null && gizmo.dragStartAngle !== null) {
         var deltaAngle = currentAngle - gizmo.dragStartAngle;
         var deltaDeg = Cesium.Math.toDegrees(deltaAngle);
-        ad.heading = (gizmo.dragStartHeading - deltaDeg + 360) % 360;
+        setHeading(ad, (gizmo.dragStartHeading - deltaDeg + 360) % 360);
       }
     }
 
-    BimViewer.updateGLBPosition(gizmo.selectedAssetId);
+    applyPlacement(gizmo.selectedAssetId, ad);
     syncUI(gizmo.selectedAssetId);
   }
 
@@ -395,7 +545,41 @@
   function onKeyDown(e) {
     if (e.key === 'Escape' && gizmo.active) {
       deselectModel();
+      return;
     }
+
+    // Toggle Transform mode with 'X' — guard against typing fields, modifiers,
+    // and walk mode (per CLAUDE.md keyboard-handler rule).
+    var tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (window.BimFirstPerson && typeof BimFirstPerson.isActive === 'function' && BimFirstPerson.isActive()) return;
+    if (e.key === 'x' || e.key === 'X') {
+      toggleTransformMode();
+    }
+  }
+
+  // ---- Transform mode (global click-pick gate for regular 3D Tiles) ----
+
+  function setTransformMode(on) {
+    gizmo.transformMode = !!on;
+    // Leaving transform mode drops a tileset selection (GLB stays selectable always).
+    if (!gizmo.transformMode && gizmo.selectedAssetId) {
+      var ad = getAssetData(gizmo.selectedAssetId);
+      if (ad && !ad.isGLB) deselectModel();
+    }
+    if (window.BimViewer && typeof BimViewer.updateStatus === 'function') {
+      BimViewer.updateStatus(
+        'Transform mode ' + (gizmo.transformMode ? 'ON — click an asset to move it (X to exit)' : 'OFF'),
+        gizmo.transformMode ? 'success' : 'info');
+    }
+    var btn = document.getElementById('gizmoTransformBtn');
+    if (btn) btn.classList.toggle('active', gizmo.transformMode);
+    console.log('🔧 Gizmo transform mode: ' + (gizmo.transformMode ? 'ON' : 'OFF'));
+  }
+
+  function toggleTransformMode() {
+    setTransformMode(!gizmo.transformMode);
   }
 
   // ---- Scale handles with camera distance ----
@@ -409,9 +593,9 @@
     var origin = getModelOrigin(ad);
     var cameraDist = Cesium.Cartesian3.distance(viewer.camera.positionWC, origin);
 
-    // Scale handles proportional to camera distance
+    // Scale handles proportional to camera distance (screen-constant feel)
     var scaleFactor = Math.max(0.5, cameraDist * 0.03);
-    Z_HANDLE_LENGTH = scaleFactor;
+    AXIS_LENGTH = scaleFactor;
     ROTATION_RING_RADIUS = scaleFactor * 0.8;
   }
 
@@ -435,7 +619,7 @@
     // Update handle sizes on each frame
     viewer.scene.preRender.addEventListener(updateHandleSizes);
 
-    console.log('\u2705 GLB Gizmo initialized (click GLB to select, drag to move, Z-handle for height, ring for heading)');
+    console.log('\u2705 Asset Gizmo initialized (click GLB to select; press X for Transform mode to move 3D Tiles; drag to move, Z-handle for height, ring for heading)');
   }
 
   // Expose
@@ -443,6 +627,9 @@
     gizmo: gizmo,
     selectModel: selectModel,
     deselectModel: deselectModel,
+    setTransformMode: setTransformMode,
+    toggleTransformMode: toggleTransformMode,
+    isTransformMode: function() { return gizmo.transformMode; },
     init: init
   };
 
