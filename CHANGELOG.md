@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-07-12
+
 ### Added
 
 - **3D Gaussian Splatting — Datensatz-Attribution / Lizenz** (`splat.js`, `FEATURES.md`): eine Splat-`tileset.json` kann jetzt verpflichtende Autoren-/Lizenzangaben unter `asset.extras.attribution` (`text`, `html`, `licenseUrl`, `required`) tragen. `loadSplat` liest das über `tileset.asset.extras` und zeigt `html` als **immer sichtbare, anklickbare Cesium-On-Screen-Credit** (unten rechts) an, solange der Splat geladen & sichtbar ist (ein-/ausgeblendet via `addStaticCredit`/`removeStaticCredit` in Load/Show/Hide/Remove). Erfüllt Lizenzen, die explizite Attribution mit aktiven Links verlangen (z. B. Teleportour / Andrii Shramko Drohnenscans); reist mit den Daten und funktioniert für jeden self-hosted Datensatz. Wiederverwendbares Template in `FEATURES.md`
