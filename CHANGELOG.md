@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-07-12
+
 ### Added
 
 - **Asset-Gizmo für reguläre 3D Tiles — Ion-Location-Editor-Look** (`glb-gizmo.js`, `core.js`, `features.js`) — _WIP, live only:_ das bisherige GLB-Gizmo wurde zu einem generischen Asset-Gizmo verallgemeinert, das jetzt auch reguläre 3D-Tiles-Assets (IFC/Revit/iTwin/CityGML/lokale Tiles) verschiebt/dreht, nicht nur GLB. Neuer **Transform-Modus** (Taste **X**, `BimGizmo.setTransformMode/toggleTransformMode`): solange AN, selektiert ein Klick jedes bewegliche Asset per Pick und die normale Element-Inspektion ist unterdrückt (Ctrl+Click erzwingt weiterhin die InfoBox); solange AUS, verhält sich alles normal und GLB bleibt wie gehabt immer selektierbar. Optik am Cesium Ion Location Editor orientiert: **drei farbige Achsen-Pfeile** (X=Ost=rot, Y=Nord=grün, Z=hoch=blau) mit achsen-beschränktem Ziehen + gelber heading-Ring; kamera-skalierte, bildschirm-feste Handle-Größe. Tilesets werden statt per Silhouette (fehlt bei Tilesets) mit einer Bounding-Outline markiert. Transform via `core.js` `updateAssetPlacement` (`modelMatrix = ENU(pos,heading) × inverse(root.transform)`, non-cumulativ aus `assetData.placement`), Baseline beim Laden über `initAssetPlacement`. _Offen:_ Toolbar-Button, Kegel-Pfeilspitzen, pitch/roll-Ringe, z-offset.js-Reconciliation, Persistenz

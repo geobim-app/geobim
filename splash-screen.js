@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.8.0';
+  var APP_VERSION = '1.9.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
@@ -94,7 +94,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F5FA;&#xFE0F;</span><div><strong>Layer Manager</strong><span>Basemaps, terrain, imagery overlays, WMS/WMTS/WFS</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4E1;</span><div><strong>IoT / SensorThings</strong><span>Live sensor data via OGC SensorThings API + MQTT</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2600;&#xFE0F;</span><div><strong>Advanced Lighting</strong><span>Sun simulation, shadows, IBL, tone mapping</span></div></div>' +
-            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4F7;</span><div><strong>Saved Views</strong><span>Save and restore camera positions</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4F7;</span><div><strong>Saved Views</strong><span>Save and restore camera positions, with optional smooth fly-to transition</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F6B6;</span><div><strong>Walk Mode</strong><span>First-person navigation with WASD, mouse or Xbox controller</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3AE;</span><div><strong>Third-Person Mode</strong><span>Animated character with Unreal Engine-style controls</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F32C;&#xFE0F;</span><div><strong>WEA Shadow Analysis</strong><span>Wind turbine shadow flicker simulation</span></div></div>' +

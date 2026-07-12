@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.8.0';
+  const APP_VERSION = '1.9.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -162,7 +162,7 @@
                 <span class="about-feature-icon">📷</span>
                 <div>
                   <strong>Saved Views</strong>
-                  <span>Save and restore camera positions</span>
+                  <span>Save and restore camera positions, with optional smooth fly-to transition</span>
                 </div>
               </div>
               <div class="about-feature-item">
