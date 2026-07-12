@@ -38,7 +38,8 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **3D Gaussian Splatting** — Photorealistic splat reconstructions as native Cesium 3D Tiles (`KHR_gaussian_splatting`), self-hosted or via Ion, with an interactive move/scale/rotate gizmo (gizmo applies to self-hosted splats only; Ion-loaded splats carry their georeference in the tile content — reposition those via the normal asset pipeline)
 - **Saved Views** — Capture and restore camera positions with scene state
 - **Split-Screen** — Side-by-side comparison mode
-- **Z-Offset** — Vertical repositioning of assets (-70m to +70m)
+- **Asset Placement** — Move & rotate any 3D Tiles asset (IFC/Revit/iTwin/CityGML/local) or GLB model in place via an Ion-style gizmo (colored axis arrows + heading ring). Toggle **Transform mode** with the toolbar button or **X**; height stays in sync with the Z-Offset slider (live only, like the GLB gizmo)
+- **Z-Offset** — Vertical repositioning of assets (-70m to +70m), shared with the placement gizmo's height handle
 - **Performance Presets** — 4 levels from Performance to Ultra with tileset-level tuning
 - **Cesium Ion Connect** — Link your own Cesium Ion account via OAuth2, load your private assets
 - **Post-Processing Effects** — Bloom, lens flare, vignette, color grading with Cinematic preset

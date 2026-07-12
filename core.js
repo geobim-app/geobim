@@ -1647,7 +1647,13 @@ const BimViewer = {
     // bounding-sphere center for tilesets whose geometry carries ECEF coords with
     // an identity root.transform.
     let originECEF = Cesium.Matrix4.getTranslation(tileset.root.transform, new Cesium.Cartesian3());
-    if (!originECEF || Cesium.Cartesian3.magnitude(originECEF) < 1.0) {
+    // `trusted` = origin came from a real root.transform translation (Ion georef
+    // frame), so ENU(origin,h=0) × inverse(root.transform) ≈ identity and the
+    // placement can safely become the single writer of modelMatrix (z-offset
+    // reconciliation). The bounding-sphere fallback re-orients to ENU on first
+    // edit, so those assets stay on the legacy z-offset translation path.
+    let trusted = !!(originECEF && Cesium.Cartesian3.magnitude(originECEF) >= 1.0);
+    if (!trusted) {
       originECEF = tileset.boundingSphere && tileset.boundingSphere.center
         ? Cesium.Cartesian3.clone(tileset.boundingSphere.center) : null;
     }
@@ -1662,7 +1668,11 @@ const BimViewer = {
         lat: Cesium.Math.toDegrees(carto.latitude),
         height: carto.height
       },
-      heading: 0
+      heading: 0,
+      // Original georef height — the zero-offset reference so the z-offset slider
+      // ("relative to original") and the gizmo Z-handle share placement.height.
+      baseHeight: carto.height,
+      trusted: trusted
     };
     console.log(`📐 Placement baseline for ${assetData.name}: ` +
       `${assetData.placement.position.lon.toFixed(5)}, ${assetData.placement.position.lat.toFixed(5)}, ` +

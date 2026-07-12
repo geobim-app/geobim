@@ -120,6 +120,26 @@
   
   // Core function - OPTION A: Simple offset relative to original (no terrain)
   BimViewer.applyZOffsetToAsset = function(asset, offsetMeters, originalCartographic, isLiveUpdate = false) {
+    // ── Gizmo reconciliation ──────────────────────────────────────────────
+    // When the asset carries a *trusted* placement baseline (root.transform-
+    // derived, see core.js initAssetPlacement), height is a field shared with
+    // the gizmo Z-handle. Route the offset through placement.height +
+    // updateAssetPlacement — the single modelMatrix writer — instead of the
+    // legacy translation-matrix path, so slider and gizmo never fight over
+    // tileset.modelMatrix. offset is measured from placement.baseHeight, which
+    // preserves the "relative to original position" semantics.
+    if (asset.placement && asset.placement.position && asset.placement.trusted &&
+        typeof this.updateAssetPlacement === 'function') {
+      return new Promise((resolve) => {
+        if (asset.placement.baseHeight === undefined || asset.placement.baseHeight === null) {
+          asset.placement.baseHeight = asset.placement.position.height;
+        }
+        asset.placement.position.height = asset.placement.baseHeight + offsetMeters;
+        this.updateAssetPlacement(String(asset.id));
+        resolve(asset.name);
+      });
+    }
+
     return new Promise((resolve, reject) => {
       try {
         if (!originalCartographic) {
@@ -257,6 +277,20 @@
       return;
     }
     
+    // Trusted-placement assets reset via the shared placement.height field so
+    // the gizmo and the modelMatrix stay consistent (see applyZOffsetToAsset).
+    if (asset.placement && asset.placement.position && asset.placement.trusted &&
+        typeof this.updateAssetPlacement === 'function') {
+      if (asset.placement.baseHeight !== undefined && asset.placement.baseHeight !== null) {
+        asset.placement.position.height = asset.placement.baseHeight;
+      }
+      this.updateAssetPlacement(String(assetId));
+      this.zOffset.individualOffsets.delete(asset.tileset);
+      this.syncZOffsetUI(String(assetId), 0);
+      console.log(`♻️ ${asset.name} reset to original position (placement)`);
+      return;
+    }
+
     const originalMatrix = this.zOffset.originalPositions.get(asset.tileset);
     if (originalMatrix) {
       asset.tileset.modelMatrix = originalMatrix;

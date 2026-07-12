@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.9.0';
+  var APP_VERSION = '1.10.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
@@ -95,6 +95,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4E1;</span><div><strong>IoT / SensorThings</strong><span>Live sensor data via OGC SensorThings API + MQTT</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2600;&#xFE0F;</span><div><strong>Advanced Lighting</strong><span>Sun simulation, shadows, IBL, tone mapping</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4F7;</span><div><strong>Saved Views</strong><span>Save and restore camera positions, with optional smooth fly-to transition</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4CD;</span><div><strong>Asset Placement</strong><span>Move &amp; rotate 3D Tiles and GLB models in place (Transform mode, X)</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F6B6;</span><div><strong>Walk Mode</strong><span>First-person navigation with WASD, mouse or Xbox controller</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3AE;</span><div><strong>Third-Person Mode</strong><span>Animated character with Unreal Engine-style controls</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F32C;&#xFE0F;</span><div><strong>WEA Shadow Analysis</strong><span>Wind turbine shadow flicker simulation</span></div></div>' +
@@ -126,6 +127,7 @@
             '<div class="splash-shortcut"><kbd>H</kbd><span>Toggle hide mode (click to hide elements)</span></div>' +
             '<div class="splash-shortcut"><kbd>Shift + H</kbd><span>Restore all hidden elements</span></div>' +
             '<div class="splash-shortcut"><kbd>C</kbd><span>Toggle comment mode</span></div>' +
+            '<div class="splash-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets)</span></div>' +
             '<div class="splash-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>' +
 
             '<div class="splash-shortcut-group">Selection</div>' +

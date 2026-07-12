@@ -155,14 +155,18 @@
       return { origin: origin, tip: Cesium.Matrix4.multiplyByPoint(enu, local, new Cesium.Cartesian3()) };
     }
 
+    // Ion-style arrow: PolylineArrowMaterial draws a tapered arrowhead (cone
+    // look) at the tip while keeping disableDepthTest so the handle stays on top
+    // of the model — a real cone (cylinder geometry) has no depth-test override
+    // and would vanish inside the tileset.
     var line = viewer.entities.add({
       polyline: {
         positions: new Cesium.CallbackProperty(function() {
           var w = tipWorld();
           return w ? [w.origin, w.tip] : [];
         }, false),
-        width: 6,
-        material: new Cesium.ColorMaterialProperty(color),
+        width: 14,
+        material: new Cesium.PolylineArrowMaterialProperty(color),
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
@@ -170,13 +174,14 @@
     line._gizmoAssetId = assetId;
     gizmo.entities.push(line);
 
+    // Small knob at the tip — clear grab target for the axis.
     var tip = viewer.entities.add({
       position: new Cesium.CallbackProperty(function() {
         var w = tipWorld();
         return w ? w.tip : Cesium.Cartesian3.ZERO;
       }, false),
       point: {
-        pixelSize: 16,
+        pixelSize: 11,
         color: color,
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
@@ -531,9 +536,25 @@
     viewer.scene.screenSpaceCameraController.enableInputs = true;
     viewer.canvas.style.cursor = gizmo.active ? 'pointer' : '';
 
+    var ad = getAssetData(gizmo.selectedAssetId);
+
+    // Keep the Loaded-Assets z-offset slider in sync after a gizmo height move.
+    // Height is shared with the z-offset system for trusted-placement tilesets
+    // (see core.js initAssetPlacement / z-offset.js applyZOffsetToAsset), so the
+    // card must reflect the new offset = placement.height − baseHeight.
+    if (ad && !ad.isGLB && ad.placement && ad.placement.trusted && ad.placement.position &&
+        ad.tileset && BimViewer.zOffset) {
+      var base = (ad.placement.baseHeight !== undefined && ad.placement.baseHeight !== null)
+        ? ad.placement.baseHeight : ad.placement.position.height;
+      var offset = ad.placement.position.height - base;
+      BimViewer.zOffset.individualOffsets.set(ad.tileset, offset);
+      if (typeof BimViewer.syncZOffsetUI === 'function') {
+        BimViewer.syncZOffsetUI(String(gizmo.selectedAssetId), offset);
+      }
+    }
+
     // Notify SIB module of position change
     if (gizmo.selectedAssetId && window.BimSIB && typeof BimSIB.onPositionChanged === 'function') {
-      var ad = getAssetData(gizmo.selectedAssetId);
       if (ad && ad.isSIB) {
         BimSIB.onPositionChanged(gizmo.selectedAssetId, ad);
       }

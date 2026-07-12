@@ -136,6 +136,10 @@ const BimViewerUI = {
         <i data-lucide="person-standing"></i>
         <span class="bottom-toolbar-label">Walk</span>
       </button>
+      <button class="bottom-toolbar-btn" id="gizmoTransformBtn" title="Transform Mode — move/rotate assets (X)">
+        <i data-lucide="move-3d"></i>
+        <span class="bottom-toolbar-label">Transform</span>
+      </button>
       <div class="bottom-toolbar-sep"></div>
       <button class="bottom-toolbar-btn" id="bottomHelpBtn" title="About & Help">
         <i data-lucide="info"></i>
@@ -202,6 +206,18 @@ const BimViewerUI = {
               try { canvas.requestPointerLock(); } catch (_) {}
             }
           }
+        }
+      });
+    }
+
+    // Transform button — direct toggle of the asset gizmo's Transform mode.
+    // BimGizmo.setTransformMode already toggles this button's .active class.
+    const transformBtn = document.getElementById('gizmoTransformBtn');
+    if (transformBtn) {
+      transformBtn.addEventListener('click', () => {
+        transformBtn.blur(); // keep keyboard shortcuts (incl. X) working
+        if (window.BimGizmo && typeof BimGizmo.toggleTransformMode === 'function') {
+          BimGizmo.toggleTransformMode();
         }
       });
     }

@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.9.0';
+  const APP_VERSION = '1.10.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -166,6 +166,13 @@
                 </div>
               </div>
               <div class="about-feature-item">
+                <span class="about-feature-icon">📍</span>
+                <div>
+                  <strong>Asset Placement</strong>
+                  <span>Move &amp; rotate 3D Tiles and GLB models in place (Transform mode, X)</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
                 <span class="about-feature-icon">🚶</span>
                 <div>
                   <strong>Walk Mode</strong>
@@ -239,6 +246,7 @@
               <div class="about-shortcut"><kbd>H</kbd><span>Toggle hide mode (click to hide elements)</span></div>
               <div class="about-shortcut"><kbd>Shift + H</kbd><span>Restore all hidden elements</span></div>
               <div class="about-shortcut"><kbd>C</kbd><span>Toggle comment mode</span></div>
+              <div class="about-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets)</span></div>
               <div class="about-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>
 
               <div class="about-shortcut-group-title">Selection</div>
