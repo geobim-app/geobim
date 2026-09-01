@@ -40,7 +40,7 @@
         tileset: null,
         active: false,
         loading: false,
-        heightOffset: 100,
+        heightOffset: null, // computed live in _alignNrwTilesetToTerrain()
         credit: 'Bezirksregierung K\u00f6ln / Geobasis NRW \u2014 dl-de/zero-2-0'
       }
     ],
@@ -1467,23 +1467,55 @@
         entry.tileset = await Cesium.Cesium3DTileset.fromUrl(entry.url, {
           maximumScreenSpaceError: 16
         });
+        // Stay hidden until correctly positioned — see the alignment
+        // comment below for why. _alignNrwTilesetToTerrain flips this back
+        // to true itself once it has applied a real height.
+        entry.tileset.show = false;
         this.viewer.scene.primitives.add(entry.tileset);
 
-        // Height offset: DHHN2016 Normalhöhen → WGS84 Ellipsoid (100m for NRW,
-        // empirically validated at Kölner Dom: 47m geoid + ~55m orthometric base)
-        if (entry.heightOffset) {
-          var carto = Cesium.Cartographic.fromCartesian(
-            entry.tileset.boundingSphere.center
-          );
-          var translation = new Cesium.Cartesian3();
-          Cesium.Cartesian3.subtract(
-            Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, entry.heightOffset),
-            Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0),
-            translation
-          );
-          entry.tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
-          console.log('3D Tiles height offset applied: ' + entry.heightOffset + 'm');
-        }
+        // Height alignment: raw content sits at ~0m WGS84 ellipsoidal
+        // height (confirmed by decoding real glTF vertices at two NRW
+        // locations with very different elevation — Kölner Dom and Kahler
+        // Asten — both came out ~0-15m local, i.e. real terrain elevation
+        // isn't baked in). Without correction the buildings render buried
+        // under Cesium World Terrain (invisible from above) — a plain
+        // identity modelMatrix was tried and is NOT correct, despite
+        // earlier live "looks fine" feedback that turned out to not have
+        // actually been testing an uncorrected tileset. See
+        // project_nrw_lod2_offset.md for the full back-and-forth. Sample
+        // the real ground height under the current view and shift the
+        // tileset to match; re-align on camera moveEnd so it tracks
+        // wherever the user navigates across NRW's ~900m elevation range.
+        //
+        // Staying hidden (show=false) until the first successful alignment
+        // matters specifically for a close-up initial camera view: while
+        // still at the raw ~0m position, the tileset's bounding volume can
+        // sit ~100-800m away from where it belongs — negligible next to a
+        // whole-globe camera distance, but easily enough to fall outside
+        // the view frustum entirely at close zoom. Once Cesium's traversal
+        // decides a tileset isn't visible on a given frame it doesn't
+        // request its content, and nothing forces a fresh look until some
+        // other trigger (e.g. a camera move) comes along — confirmed live:
+        // loading while already zoomed in produced no visible tiles despite
+        // a normal, correct alignment log a moment later, while loading
+        // from the default/global view (negligible error relative to
+        // distance) always worked, and once visible, further zooming never
+        // broke it again. Hiding the tileset until it's positioned removes
+        // the bad-first-impression traversal entirely instead of chasing
+        // ways to force a re-evaluation after the fact.
+        await this._alignNrwTilesetToTerrain(entry);
+        entry.terrainAlignRemove = this.viewer.camera.moveEnd.addEventListener(() => {
+          this._alignNrwTilesetToTerrain(entry);
+        });
+        // Extra nudge for "zoom in, then toggle the layer" — right after
+        // (re-)enabling at a closer view, both the tileset's own detail
+        // tiles AND fresh terrain at that spot may still be loading, so
+        // the very first alignment attempt(s) can legitimately have
+        // nothing to sample yet even after the retries below. Once the
+        // tileset itself reports its initial tiles are in, try once more.
+        entry.tileset.initialTilesLoaded.addEventListener(() => {
+          this._alignNrwTilesetToTerrain(entry);
+        });
 
         // Semantic coloring by surfaceType (roof/wall/ground)
         entry.tileset.style = new Cesium.Cesium3DTileStyle({
@@ -1553,13 +1585,137 @@
         entry.clickHandler.destroy();
         entry.clickHandler = null;
       }
+      if (entry.terrainAlignRemove) {
+        entry.terrainAlignRemove();
+        entry.terrainAlignRemove = null;
+      }
       if (entry.tileset) {
         this.viewer.scene.primitives.remove(entry.tileset);
       }
       entry.tileset = null;
       entry.active = false;
+      entry._lastAlignCarto = null;
       this.updateTilesetUI();
       console.log('3D Tiles layer disabled:', entry.name);
+    },
+
+    // Shifts entry.tileset vertically so it sits on whatever is actually
+    // rendered as ground under the current view. See the comment in
+    // enableTileset() for why this can't be a fixed constant. Re-run on
+    // every camera moveEnd while the layer is active. retriesLeft only
+    // applies before the first successful alignment — e.g. terrain tiles
+    // at the current spot aren't loaded yet right when the layer is
+    // enabled. Without a retry, a failed first attempt left the tileset
+    // at its raw (buried, invisible) position forever unless the user
+    // happened to pan the camera afterward — moveEnd was the only other
+    // trigger, and doing nothing after enabling is a completely normal
+    // way to look at the layer.
+    //
+    // The in-progress lock is the tileset INSTANCE itself
+    // (entry._aligningTileset), not a plain boolean. A disable+quick
+    // re-enable creates a brand new Cesium3DTileset object; a boolean lock
+    // reset in disableTileset() can still race against a late-resolving
+    // orphaned call from the OLD instance clearing it back to "busy" (or
+    // "free") out of turn once it finally settles, stomping on whatever
+    // the fresh call for the NEW instance is doing. Comparing against the
+    // specific instance sidesteps that entirely: an old call's finally
+    // only ever clears the lock if it still owns it, which becomes false
+    // the moment a fresh call for a new instance takes over.
+    async _alignNrwTilesetToTerrain(entry, retriesLeft) {
+      var tileset = entry.tileset;
+      if (!tileset || entry._aligningTileset === tileset) return;
+      if (retriesLeft === undefined) {
+        // 12 × 500ms = 6s budget to cover fresh terrain/tileset loading
+        // right after (re-)enabling at a closer zoom level.
+        retriesLeft = entry._lastAlignCarto ? 0 : 12;
+      }
+      entry._aligningTileset = tileset;
+
+      try {
+        // Reference point = camera's own lon/lat (nadir), NOT a forward
+        // ray-cast from screen center. A forward ray is heading/pitch/zoom
+        // dependent — at a low, oblique viewing angle it can travel many
+        // kilometers before hitting the ground, so a small rotation or
+        // scroll-zoom swings the sampled point (and therefore the terrain
+        // height, and therefore the whole tileset's vertical position)
+        // across areas with completely different elevation. The camera's
+        // own position only moves with actual navigation, not with
+        // heading/pitch, so it stays stable while looking around.
+        var carto = Cesium.Cartographic.clone(this.viewer.camera.positionCartographic);
+        if (!carto) {
+          carto = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center);
+        }
+
+        // Skip re-aligning for small movements (most zoom/tilt/pan-in-place
+        // gestures) — only re-sample once the camera has actually moved to
+        // a meaningfully different spot in NRW. Avoids visible jitter and
+        // avoids hammering sampleHeightMostDetailed on every moveEnd.
+        if (entry._lastAlignCarto) {
+          var moved = Cesium.Cartesian3.distance(
+            Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0),
+            Cesium.Cartesian3.fromRadians(entry._lastAlignCarto.longitude, entry._lastAlignCarto.latitude, 0)
+          );
+          if (moved < 300) return;
+        }
+
+        // Sample whatever is actually rendered as ground there — Cesium
+        // World Terrain, a local terrain asset, OR Google 3D Tiles (which
+        // replaces terrain entirely when active). sampleTerrainMostDetailed
+        // only ever asks the terrain provider, so it silently returns ~0m
+        // under Google 3D Tiles instead of Google's real surface height —
+        // sampleHeightMostDetailed asks the scene itself (terrain + 3D
+        // Tiles), which covers both. Exclude our own tileset so its
+        // current (possibly still wrong) position can't occlude the real
+        // ground and feed back a bogus height.
+        var sampled = await this.viewer.scene.sampleHeightMostDetailed(
+          [Cesium.Cartographic.clone(carto)],
+          [tileset]
+        );
+        // The tileset may have been disabled (and possibly re-enabled as a
+        // fresh instance) while sampleHeightMostDetailed was in flight —
+        // don't apply a stale result to whatever's current now.
+        if (entry.tileset !== tileset) return;
+
+        var groundHeight = sampled[0].height;
+        // Real NRW elevation runs roughly -5m (mining subsidence) to
+        // +880m (Kahler Asten) ellipsoidal; a generous margin around that
+        // catches genuine data while rejecting outliers. Observed live:
+        // sampleHeightMostDetailed occasionally returns a wild transient
+        // value (e.g. -2823.6m) presumably while a tile mid-load hasn't
+        // settled yet — treat that the same as "not sampleable" and retry,
+        // rather than briefly snapping the whole tileset somewhere absurd.
+        if (groundHeight === undefined || groundHeight < -100 || groundHeight > 1000) {
+          this._retryAlignNrwTileset(entry, retriesLeft);
+          return;
+        }
+
+        var translation = new Cesium.Cartesian3();
+        Cesium.Cartesian3.subtract(
+          Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, groundHeight),
+          Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0),
+          translation
+        );
+        tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+        tileset.show = true; // safe to become visible/traversed now
+        entry.heightOffset = groundHeight;
+        entry._lastAlignCarto = carto;
+        console.log('NRW LoD2 aligned to ground: ' + groundHeight.toFixed(1) + 'm');
+      } catch (e) {
+        console.warn('NRW LoD2 terrain alignment failed:', e);
+        this._retryAlignNrwTileset(entry, retriesLeft);
+      } finally {
+        if (entry._aligningTileset === tileset) {
+          entry._aligningTileset = null;
+        }
+      }
+    },
+
+    _retryAlignNrwTileset(entry, retriesLeft) {
+      if (!retriesLeft || retriesLeft <= 0 || !entry.active) return;
+      var self = this;
+      setTimeout(function() {
+        self._alignNrwTilesetToTerrain(entry, retriesLeft - 1);
+      }, 500);
     },
 
     updateTilesetUI() {

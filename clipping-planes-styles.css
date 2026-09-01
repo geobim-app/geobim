@@ -22,6 +22,12 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* GLB only — flags that the axes follow the model frame, not east/north */
+.clip-frame-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .clip-reset-btn {
   background: none;
   border: none;

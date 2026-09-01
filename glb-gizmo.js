@@ -41,6 +41,18 @@
     dragStartPosition: null,
     dragStartHeading: null,
     dragStartAngle: null,
+    // Pivot snapshot for a heading drag — frozen at drag start so the
+    // counter-translation can't chase its own moving target.
+    dragStartPivot: null,
+    dragPivotEnu: null,       // ENU frame at the pivot
+    dragOriginLocal: null,    // transform origin expressed in that frame
+    dragLastAngle: null,      // for unwrapping the atan2 branch cut
+    dragTotalAngle: 0,
+    // Grab-offset state for xy / z drags
+    dragStartGround: null,
+    dragStartOriginC: null,
+    dragAxisDir: null,
+    dragAxisStartS: null,
     _prevSilhouetteSize: 0,
     _prevSilhouetteColor: null
   };
@@ -97,17 +109,77 @@
     return found;
   }
 
+  // The transform origin — the point the modelMatrix is built around.
   function getModelOrigin(assetData) {
     var p = getPos(assetData);
     if (!p) return Cesium.Cartesian3.ZERO;
     return Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.height);
   }
 
-  function screenToAngle(viewer, assetData, screenPos) {
+  // World-space centre of the rendered geometry, or null while the bounding
+  // volume isn't available yet.
+  function getVisualCenter(assetData) {
+    if (!assetData) return null;
+    try {
+      if (assetData.isGLB) {
+        if (!assetData.model || !assetData.model.ready) return null;
+        var mbs = assetData.model.boundingSphere;
+        return (mbs && mbs.center) ? mbs.center : null;
+      }
+      var tbs = assetData.tileset && assetData.tileset.boundingSphere;
+      return (tbs && tbs.center) ? tbs.center : null;
+    } catch (e) {
+      return null;   // bounding volume not ready yet
+    }
+  }
+
+  // Where the handles sit, and what heading rotation turns around.
+  //
+  // The transform origin is the georef origin of the source model — for IFC and
+  // Revit exports that is the project base / survey point, routinely hundreds of
+  // metres from the geometry. Anchoring there put the arrows and the ring far
+  // off the asset and made rotation swing it along a wide arc.
+  //
+  // Pivot = the visual centre horizontally, at the transform origin's height, so
+  // the ring lies on the ground under the model and the Z arrow still starts
+  // exactly where placement.height points (keeps the z-offset slider coherent).
+  function getGizmoPivot(assetData) {
     var origin = getModelOrigin(assetData);
-    var originScreen = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, origin);
+    var center = getVisualCenter(assetData);
+    if (!center) return origin;
+    var cc = Cesium.Cartographic.fromCartesian(center);
+    var oc = Cesium.Cartographic.fromCartesian(origin);
+    if (!cc || !oc) return origin;
+    return Cesium.Cartesian3.fromRadians(cc.longitude, cc.latitude, oc.height);
+  }
+
+  function screenToAngle(viewer, originWorld, screenPos) {
+    if (!originWorld) return null;
+    var originScreen = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, originWorld);
     if (!originScreen) return null;
     return Math.atan2(screenPos.y - originScreen.y, screenPos.x - originScreen.x);
+  }
+
+  // Signed distance along `axisDir` (unit, world) from `originC` to the point on
+  // that axis line closest to the mouse ray — the standard closest-approach of
+  // two skew lines. Returns null when the ray runs near-parallel to the axis,
+  // where the projection is ill-conditioned.
+  function projectRayOntoAxis(viewer, screenPos, originC, axisDir) {
+    var ray = viewer.camera.getPickRay(screenPos);
+    if (!ray) return null;
+    var v = Cesium.Cartesian3.normalize(ray.direction, new Cesium.Cartesian3());
+    var w0 = Cesium.Cartesian3.subtract(originC, ray.origin, new Cesium.Cartesian3());
+    var b = Cesium.Cartesian3.dot(axisDir, v);
+    var denom = 1.0 - b * b;
+    if (Math.abs(denom) < 1e-6) return null;
+    return (b * Cesium.Cartesian3.dot(v, w0) - Cesium.Cartesian3.dot(axisDir, w0)) / denom;
+  }
+
+  // Ground point under the cursor (terrain first, depth buffer as fallback).
+  function pickGround(viewer, screenPos) {
+    var ray = viewer.camera.getPickRay(screenPos);
+    if (!ray) return null;
+    return viewer.scene.globe.pick(ray, viewer.scene) || viewer.scene.pickPosition(screenPos) || null;
   }
 
   // Sync UI inputs from assetData (after gizmo drag)
@@ -149,16 +221,24 @@
     function tipWorld() {
       var ad2 = getAssetData(assetId);
       if (!ad2) return null;
-      var origin = getModelOrigin(ad2);
+      var origin = getGizmoPivot(ad2);
       var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
       var local = Cesium.Cartesian3.multiplyByScalar(localUnit, AXIS_LENGTH, new Cesium.Cartesian3());
       return { origin: origin, tip: Cesium.Matrix4.multiplyByPoint(enu, local, new Cesium.Cartesian3()) };
     }
 
     // Ion-style arrow: PolylineArrowMaterial draws a tapered arrowhead (cone
-    // look) at the tip while keeping disableDepthTest so the handle stays on top
-    // of the model — a real cone (cylinder geometry) has no depth-test override
-    // and would vanish inside the tileset.
+    // look) at the tip — a real cone (cylinder geometry) would be occluded
+    // inside the tileset with no way to override it.
+    //
+    // KNOWN LIMITATION — the shafts are occluded by geometry they sit inside.
+    // disableDepthTestDistance below does nothing: PolylineGraphics has no such
+    // property (point/billboard/label only). depthFailMaterial doesn't help
+    // either — CallbackProperty positions force PolylineGeometryUpdater onto its
+    // dynamic path, which renders via PolylineCollection (no depth-fail support
+    // at all) and never forwards the property. Fixing it means rebuilding the
+    // handles as a Primitive with depthFailAppearance: static local geometry,
+    // per-frame modelMatrix = ENU(pivot) × rotZ × scale.
     var line = viewer.entities.add({
       polyline: {
         positions: new Cesium.CallbackProperty(function() {
@@ -209,7 +289,7 @@
         positions: new Cesium.CallbackProperty(function() {
           var ad2 = getAssetData(assetId);
           if (!ad2) return [];
-          var origin = getModelOrigin(ad2);
+          var origin = getGizmoPivot(ad2);
           var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
           var points = [];
           for (var i = 0; i <= ROTATION_RING_SEGMENTS; i++) {
@@ -235,7 +315,7 @@
         positions: new Cesium.CallbackProperty(function() {
           var ad2 = getAssetData(assetId);
           if (!ad2) return [];
-          var origin = getModelOrigin(ad2);
+          var origin = getGizmoPivot(ad2);
           var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
           var headRad = Cesium.Math.toRadians(getHeading(ad2));
           // Heading: 0=North, CW. In ENU: North=+Y, East=+X
@@ -420,8 +500,42 @@
     gizmo.dragStartHeading = getHeading(ad);
     gizmo.dragStartCartesian = viewer.scene.pickPosition(screenPosition) || null;
 
+    var originC = Cesium.Cartesian3.fromDegrees(startPos.lon, startPos.lat, startPos.height);
+    gizmo.dragStartOriginC = originC;
+
     if (axis === 'heading') {
-      gizmo.dragStartAngle = screenToAngle(viewer, ad, screenPosition);
+      // Freeze the pivot for the whole drag and express the transform origin in
+      // its ENU frame — everything below rotates that one vector.
+      var pivot = getGizmoPivot(ad);
+      gizmo.dragStartPivot = pivot;
+      gizmo.dragPivotEnu = Cesium.Transforms.eastNorthUpToFixedFrame(pivot);
+      var pivotEnuInv = Cesium.Matrix4.inverse(gizmo.dragPivotEnu, new Cesium.Matrix4());
+      gizmo.dragOriginLocal = Cesium.Matrix4.multiplyByPoint(pivotEnuInv, originC, new Cesium.Cartesian3());
+      gizmo.dragStartAngle = screenToAngle(viewer, pivot, screenPosition);
+      gizmo.dragLastAngle = gizmo.dragStartAngle;
+      gizmo.dragTotalAngle = 0;
+
+    } else if (axis === 'xy') {
+      // Remember where on the ground the grab started, so the model keeps its
+      // offset to the cursor instead of teleporting its origin under it.
+      gizmo.dragStartGround = pickGround(viewer, screenPosition);
+
+    } else if (axis === 'x' || axis === 'y' || axis === 'z') {
+      // All three arrows drag the same way: project the cursor ray onto the axis
+      // line and track the delta from the grab point, so the spot grabbed on the
+      // arrow stays under the cursor.
+      var aDir;
+      if (axis === 'z') {
+        aDir = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(originC, new Cesium.Cartesian3());
+      } else {
+        var enuA = Cesium.Transforms.eastNorthUpToFixedFrame(originC);
+        var lu = (axis === 'x') ? new Cesium.Cartesian3(1, 0, 0) : new Cesium.Cartesian3(0, 1, 0);
+        var axisPtW = Cesium.Matrix4.multiplyByPoint(enuA, lu, new Cesium.Cartesian3());
+        aDir = Cesium.Cartesian3.subtract(axisPtW, originC, new Cesium.Cartesian3());
+        Cesium.Cartesian3.normalize(aDir, aDir);
+      }
+      gizmo.dragAxisDir = aDir || null;
+      gizmo.dragAxisStartS = aDir ? projectRayOntoAxis(viewer, screenPosition, originC, aDir) : null;
     }
 
     viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -463,63 +577,86 @@
 
     if (axis === 'xy') {
       // Drag on globe — raycast to terrain/ellipsoid
-      var ray = viewer.camera.getPickRay(movement.endPosition);
-      if (!ray) return;
-
-      var cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-      if (!cartesian) {
-        // Fallback: pickPosition (uses depth buffer)
-        cartesian = viewer.scene.pickPosition(movement.endPosition);
-      }
+      var cartesian = pickGround(viewer, movement.endPosition);
       if (!cartesian) return;
 
-      var carto = Cesium.Cartographic.fromCartesian(cartesian);
+      var carto;
+      if (gizmo.dragStartGround && gizmo.dragStartOriginC) {
+        // Move by the cursor's ground delta, preserving the grab offset. Setting
+        // the origin straight to the cursor would jump the asset by however far
+        // its georef origin sits from the geometry.
+        var gDelta = Cesium.Cartesian3.subtract(cartesian, gizmo.dragStartGround, new Cesium.Cartesian3());
+        var movedO = Cesium.Cartesian3.add(gizmo.dragStartOriginC, gDelta, new Cesium.Cartesian3());
+        carto = Cesium.Cartographic.fromCartesian(movedO);
+      } else {
+        carto = Cesium.Cartographic.fromCartesian(cartesian);
+      }
+      if (!carto) return;
       pos.lon = Cesium.Math.toDegrees(carto.longitude);
       pos.lat = Cesium.Math.toDegrees(carto.latitude);
       // Keep current height (don't snap to terrain)
+      pos.height = gizmo.dragStartPosition.height;
 
-    } else if (axis === 'x' || axis === 'y') {
-      // Axis-constrained horizontal translation (Ion-style single arrow).
-      // Project the picked world point onto the east (x) / north (y) axis line
-      // through the drag-start origin, then keep the original height.
-      var aray = viewer.camera.getPickRay(movement.endPosition);
-      if (!aray) return;
-      var apick = viewer.scene.globe.pick(aray, viewer.scene) || viewer.scene.pickPosition(movement.endPosition);
-      if (!apick) return;
+    } else if (axis === 'x' || axis === 'y' || axis === 'z') {
+      // Axis-constrained translation (Ion-style single arrow). The cursor ray is
+      // projected onto the axis line through the drag-start origin and only the
+      // delta since the grab is applied — exact metres, terrain-independent, and
+      // no jump when the arrow is grabbed away from its base. The Z handle used
+      // to guess metres from screen-Y × camera distance, which drifted with zoom
+      // and view angle; X/Y used a terrain pick that needed loaded terrain.
+      if (!gizmo.dragAxisDir || gizmo.dragAxisStartS === null || !gizmo.dragStartOriginC) return;
+      var s = projectRayOntoAxis(viewer, movement.endPosition, gizmo.dragStartOriginC, gizmo.dragAxisDir);
+      if (s === null) return;   // ray near-parallel to the axis — keep the last value
+      var along = s - gizmo.dragAxisStartS;
 
-      var start = gizmo.dragStartPosition;
-      var originC = Cesium.Cartesian3.fromDegrees(start.lon, start.lat, start.height);
-      var enuA = Cesium.Transforms.eastNorthUpToFixedFrame(originC);
-      var localUnit = (axis === 'x') ? new Cesium.Cartesian3(1, 0, 0) : new Cesium.Cartesian3(0, 1, 0);
-      var axisPointW = Cesium.Matrix4.multiplyByPoint(enuA, localUnit, new Cesium.Cartesian3());
-      var axisDir = Cesium.Cartesian3.subtract(axisPointW, originC, new Cesium.Cartesian3());
-      Cesium.Cartesian3.normalize(axisDir, axisDir);
-
-      var rel = Cesium.Cartesian3.subtract(apick, originC, new Cesium.Cartesian3());
-      var d = Cesium.Cartesian3.dot(rel, axisDir);
-      var moved = Cesium.Cartesian3.add(originC,
-        Cesium.Cartesian3.multiplyByScalar(axisDir, d, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-      var mCarto = Cesium.Cartographic.fromCartesian(moved);
-      pos.lon = Cesium.Math.toDegrees(mCarto.longitude);
-      pos.lat = Cesium.Math.toDegrees(mCarto.latitude);
-      // Keep original height (horizontal move only)
-      pos.height = start.height;
-
-    } else if (axis === 'z') {
-      // Vertical drag — screen Y delta to height delta
-      var deltaY = gizmo.dragStartScreenY - movement.endPosition.y;
-      // Scale: pixels to meters. Approximate based on camera distance.
-      var origin = getModelOrigin(ad);
-      var cameraDist = Cesium.Cartesian3.distance(viewer.camera.positionWC, origin);
-      var metersPerPixel = cameraDist * 0.001; // rough approximation
-      pos.height = gizmo.dragStartPosition.height + deltaY * metersPerPixel;
+      if (axis === 'z') {
+        pos.height = gizmo.dragStartPosition.height + along;
+      } else {
+        var movedC = Cesium.Cartesian3.add(gizmo.dragStartOriginC,
+          Cesium.Cartesian3.multiplyByScalar(gizmo.dragAxisDir, along, new Cesium.Cartesian3()),
+          new Cesium.Cartesian3());
+        var mCarto = Cesium.Cartographic.fromCartesian(movedC);
+        if (!mCarto) return;
+        pos.lon = Cesium.Math.toDegrees(mCarto.longitude);
+        pos.lat = Cesium.Math.toDegrees(mCarto.latitude);
+        pos.height = gizmo.dragStartPosition.height;   // horizontal move only
+      }
 
     } else if (axis === 'heading') {
-      var currentAngle = screenToAngle(viewer, ad, movement.endPosition);
-      if (currentAngle !== null && gizmo.dragStartAngle !== null) {
-        var deltaAngle = currentAngle - gizmo.dragStartAngle;
-        var deltaDeg = Cesium.Math.toDegrees(deltaAngle);
-        setHeading(ad, (gizmo.dragStartHeading - deltaDeg + 360) % 360);
+      var currentAngle = screenToAngle(viewer, gizmo.dragStartPivot, movement.endPosition);
+      if (currentAngle !== null && gizmo.dragLastAngle !== null) {
+        // Accumulate unwrapped per-frame increments: a raw difference against the
+        // start angle jumps by a full turn when the drag crosses atan2's ±180°
+        // seam, which would now fling the asset around the pivot.
+        var inc = currentAngle - gizmo.dragLastAngle;
+        while (inc > Math.PI) inc -= 2 * Math.PI;
+        while (inc < -Math.PI) inc += 2 * Math.PI;
+        gizmo.dragTotalAngle += inc;
+        gizmo.dragLastAngle = currentAngle;
+
+        // Screen angles grow clockwise (window Y points down) and heading grows
+        // clockwise from north, so the two run in the same direction. The old
+        // minus here turned the asset against the cursor; splat-gizmo.js always
+        // used a plus, and the heading indicator confirms the plus is right.
+        var dh = Cesium.Math.toDegrees(gizmo.dragTotalAngle);
+        setHeading(ad, ((gizmo.dragStartHeading + dh) % 360 + 360) % 360);
+
+        // The modelMatrix rotates about the transform origin, so counter-rotate
+        // that origin around the pivot by the same angle. Net effect: the pivot
+        // holds still and the asset spins in place.
+        if (gizmo.dragPivotEnu && gizmo.dragOriginLocal) {
+          var rot = Cesium.Matrix3.fromRotationZ(-Cesium.Math.toRadians(dh));
+          var vRot = Cesium.Matrix3.multiplyByVector(rot, gizmo.dragOriginLocal, new Cesium.Cartesian3());
+          var newOriginC = Cesium.Matrix4.multiplyByPoint(gizmo.dragPivotEnu, vRot, new Cesium.Cartesian3());
+          var nCarto = Cesium.Cartographic.fromCartesian(newOriginC);
+          if (nCarto) {
+            pos.lon = Cesium.Math.toDegrees(nCarto.longitude);
+            pos.lat = Cesium.Math.toDegrees(nCarto.latitude);
+            // Turning about the local up axis must not change height — pin it so
+            // the shared z-offset value can't drift across repeated drags.
+            pos.height = gizmo.dragStartPosition.height;
+          }
+        }
       }
     }
 
@@ -533,6 +670,16 @@
 
     gizmo.dragging = false;
     gizmo.activeAxis = null;
+    // Drop the per-drag snapshots so a stale pivot can't leak into the next drag.
+    gizmo.dragStartPivot = null;
+    gizmo.dragPivotEnu = null;
+    gizmo.dragOriginLocal = null;
+    gizmo.dragLastAngle = null;
+    gizmo.dragTotalAngle = 0;
+    gizmo.dragStartGround = null;
+    gizmo.dragStartOriginC = null;
+    gizmo.dragAxisDir = null;
+    gizmo.dragAxisStartS = null;
     viewer.scene.screenSpaceCameraController.enableInputs = true;
     viewer.canvas.style.cursor = gizmo.active ? 'pointer' : '';
 
@@ -611,7 +758,7 @@
     var ad = getAssetData(gizmo.selectedAssetId);
     if (!ad) return;
 
-    var origin = getModelOrigin(ad);
+    var origin = getGizmoPivot(ad);
     var cameraDist = Cesium.Cartesian3.distance(viewer.camera.positionWC, origin);
 
     // Scale handles proportional to camera distance (screen-constant feel)
