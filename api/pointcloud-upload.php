@@ -1,6 +1,6 @@
 <?php
 // geoBIM.app — Point cloud upload endpoint.
-// Accepts a LAS/LAZ file (+ optional lon/lat/height/heading), stages it under
+// Accepts a LAS/LAZ/E57 file (+ optional lon/lat/height/heading), stages it under
 // model/_staging/<jobId>/, and spawns a detached background worker
 // (scripts/convert_pointcloud.py) that runs py3dtiles and — once done — drops
 // the tiled result into model/<slug>/, where it's auto-discovered by
@@ -54,8 +54,8 @@ if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
 
 $origName = $_FILES['file']['name'];
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-if (!in_array($ext, ['las', 'laz'], true)) {
-    fail('Only .las/.laz files are supported');
+if (!in_array($ext, ['las', 'laz', 'e57'], true)) {
+    fail('Only .las/.laz/.e57 files are supported');
 }
 
 $name = trim($_POST['name'] ?? pathinfo($origName, PATHINFO_FILENAME));

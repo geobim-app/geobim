@@ -3,8 +3,10 @@
 geoBIM.app — Point cloud conversion worker.
 
 Invoked as a detached background process by api/pointcloud-upload.php (one
-process per upload). Runs `py3dtiles convert` on a staged LAS/LAZ file, then
-— if the caller supplied a position — patches the resulting tileset.json's
+process per upload). Runs `py3dtiles convert` on a staged LAS/LAZ/E57 file
+(LAZ and E57 are pre-converted to LAS first — see the two branches in
+main() for why), then — if the caller supplied a position — patches the
+resulting tileset.json's
 root.transform to place it at that real-world position (composing with
 py3dtiles' own local recentering, not replacing it), matching exactly what
 core.js's _loadGLBPointCloudAsTileset() does client-side for GLB point
@@ -104,6 +106,56 @@ def ecef_heading_transform(lon_deg, lat_deg, height, heading_deg, old_transform)
     return list(new_c0) + [0] + list(new_c1) + [0] + list(new_c2) + [0] + list(new_c3) + [1]
 
 
+def convert_e57_to_las(e57_path, las_path):
+    """py3dtiles doesn't read E57 at all (only .las/.laz/.xyz/.ply) — pre-convert
+    via pye57 (pip-installable, bundles libE57Format, no system package needed).
+    E57 files can hold multiple scan stations, each in its own local frame;
+    pye57's read_scan(transform=True) applies each scan's pose to the file's
+    global reference frame for us, so multi-scan files merge correctly instead
+    of overlapping at the origin — verified against a synthetic 2-scan file
+    before wiring this in for real. Falls back to intensity-derived grayscale
+    when a scan carries no RGB (E57s often have one or the other, sometimes
+    both — Union_Station.e57 test file has both)."""
+    import pye57
+    import numpy as np
+    import laspy
+
+    e57 = pye57.E57(e57_path)
+    xs, ys, zs, rs, gs, bs = [], [], [], [], [], []
+    for i in range(e57.scan_count):
+        fields = set(e57.get_header(i).point_fields)
+        has_color = {"colorRed", "colorGreen", "colorBlue"} <= fields
+        has_intensity = "intensity" in fields
+        d = e57.read_scan(i, colors=has_color, intensity=has_intensity,
+                           transform=True, ignore_missing_fields=True)
+        xs.append(d["cartesianX"]); ys.append(d["cartesianY"]); zs.append(d["cartesianZ"])
+        if has_color:
+            rs.append(d["colorRed"].astype(np.uint16) * 257)  # 8-bit -> 16-bit range
+            gs.append(d["colorGreen"].astype(np.uint16) * 257)
+            bs.append(d["colorBlue"].astype(np.uint16) * 257)
+        elif has_intensity:
+            inten = d["intensity"].astype(np.float64)
+            lo, hi = inten.min(), inten.max()
+            gray = (((inten - lo) / (hi - lo)) * 65535).astype(np.uint16) if hi > lo \
+                else np.zeros(len(inten), dtype=np.uint16)
+            rs.append(gray); gs.append(gray); bs.append(gray)
+        else:
+            gray = np.full(len(d["cartesianX"]), 32768, dtype=np.uint16)
+            rs.append(gray); gs.append(gray); bs.append(gray)
+    e57.close()
+
+    x = np.concatenate(xs); y = np.concatenate(ys); z = np.concatenate(zs)
+    r = np.concatenate(rs); g = np.concatenate(gs); b = np.concatenate(bs)
+
+    header = laspy.LasHeader(point_format=laspy.PointFormat(3), version="1.2")
+    header.offsets = [float(x.min()), float(y.min()), float(z.min())]
+    header.scales = [0.001, 0.001, 0.001]
+    las = laspy.LasData(header)
+    las.x = x; las.y = y; las.z = z
+    las.red = r; las.green = g; las.blue = b
+    las.write(las_path)
+
+
 def patch_root_transform(tileset_path, lon, lat, height, heading):
     with open(tileset_path) as f:
         ts = json.load(f)
@@ -138,17 +190,24 @@ def main():
     try:
         write_status(job_dir, "converting")
 
-        # py3dtiles' own .laz reading path is pathologically slow/hangs — verified
-        # directly: a 2.2M-point .laz that never finished in 90s (with --disable-
-        # processpool and -v, still zero output) converted the identical points as
-        # plain .las in 7.9s. lazrs/laspy decompression itself is fast (confirmed
-        # separately), so the fix is to decompress ourselves first and hand
-        # py3dtiles an uncompressed .las it's actually fast with.
+        # py3dtiles only reads .las/.laz/.xyz/.ply — anything else gets
+        # pre-converted to .las ourselves before handing it off.
         original_input_path = input_path
         if input_path.lower().endswith(".laz"):
+            # py3dtiles' own .laz reading path is pathologically slow/hangs —
+            # verified directly: a 2.2M-point .laz that never finished in 90s
+            # (with --disable-processpool and -v, still zero output) converted
+            # the identical points as plain .las in 7.9s. lazrs/laspy
+            # decompression itself is fast (confirmed separately), so the fix
+            # is to decompress ourselves first and hand py3dtiles an
+            # uncompressed .las it's actually fast with.
             las_path = os.path.splitext(input_path)[0] + ".las"
             import laspy
             laspy.read(input_path).write(las_path)
+            input_path = las_path
+        elif input_path.lower().endswith(".e57"):
+            las_path = os.path.splitext(input_path)[0] + ".las"
+            convert_e57_to_las(input_path, las_path)
             input_path = las_path
 
         log_path = os.path.join(job_dir, "convert.log")
