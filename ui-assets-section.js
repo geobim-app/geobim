@@ -35,11 +35,11 @@
 
       <div id="glbSection" style="display: none;">
         <div class="modern-divider">
-          <span class="modern-divider-text">🧪 Local GLB Models</span>
+          <span class="modern-divider-text">🧪 Local Models (GLB / 3D Tiles)</span>
         </div>
         <div class="modern-group">
           <select id="glbModelSelector" class="modern-select" size="1">
-            <option value="" disabled selected>Select a GLB model...</option>
+            <option value="" disabled selected>Select a model...</option>
           </select>
           <button id="importGLBModel" class="modern-btn modern-btn-primary" style="margin-top: 6px;">
             <span class="modern-btn-icon">➕</span>

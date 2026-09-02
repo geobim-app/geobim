@@ -1617,7 +1617,90 @@ const BimViewer = {
     return this.glbModels;
   },
 
+  // Load a self-hosted 3D Tiles tileset (e.g. py3dtiles output, discovered by
+  // api/models.php alongside GLBs — see fetchGLBModels/loadGLBAsset). Unlike the
+  // GLB point-cloud wrapper (_loadGLBPointCloudAsTileset), there's no synthetic
+  // tileset.json to build: it already exists on disk with its own root.transform,
+  // so position/heading come from that file, not from `position` — reposition
+  // afterwards the same way as any other tileset asset (gizmo or the heading
+  // slider on the asset card, both drive updateAssetPlacement()).
+  async loadTilesetAsset(modelDef, position) {
+    const assetId = 'glb_' + modelDef.id;
+    if (this.loadedAssets.has(assetId)) {
+      this.updateStatus('Model already loaded', 'warning');
+      return;
+    }
+
+    this.updateStatus(`Loading ${modelDef.name}...`, 'loading');
+
+    try {
+      const tileset = await Cesium.Cesium3DTileset.fromUrl(modelDef.file);
+      this.viewer.scene.primitives.add(tileset);
+
+      const assetData = {
+        id: assetId,
+        name: modelDef.name,
+        model: null,
+        tileset: tileset,
+        visible: true,
+        opacity: 1.0,
+        type: '3DTILES',
+        isGLB: false,
+        isPointCloud: false,
+        modelDef: modelDef,
+        isWEA: false
+      };
+
+      this.loadedAssets.set(assetId, assetData);
+
+      if (typeof this.initAssetPlacement === 'function') {
+        this.initAssetPlacement(assetData);
+      }
+
+      this.viewer.camera.flyToBoundingSphere(tileset.boundingSphere, { duration: 1.5 });
+
+      if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
+        BimViewerUI.createAssetControls(assetId);
+      }
+
+      this.updateStatus(`Loaded: ${modelDef.name}`, 'success');
+      console.log(`✅ Self-hosted tileset loaded: ${modelDef.name}`);
+
+      // Point-cloud detection needs tile content, which (unlike the tileset.json
+      // structure itself) loads lazily as tiles come into view — retry a couple
+      // times shortly after, same reasoning as the Ion-asset loading path.
+      const detectPointCloud = () => {
+        if (assetData.isPointCloud) return true;
+        if (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(tileset)) {
+          assetData.isPointCloud = true;
+          console.log(`☁️ Asset ${assetId} detected as point cloud`);
+          if (typeof this.applyPointCloudSettings === 'function') {
+            this.applyPointCloudSettings(tileset);
+          }
+          return true;
+        }
+        return false;
+      };
+      if (!detectPointCloud()) {
+        setTimeout(detectPointCloud, 1500);
+        setTimeout(detectPointCloud, 4000);
+      }
+
+    } catch (error) {
+      console.error('❌ Tileset load failed:', error);
+      this.updateStatus(`Tileset load failed: ${error.message}`, 'error');
+    }
+  },
+
   async loadGLBAsset(modelDef, position) {
+    // Self-hosted 3D Tiles tilesets (api/models.php marks them type: 'TILESET',
+    // discovered alongside GLBs so both share one dropdown/one entry point) go
+    // through a completely different loader — no glTF to inspect or wrap, it's
+    // already a tileset.
+    if (modelDef.type === 'TILESET') {
+      return this.loadTilesetAsset(modelDef, position);
+    }
+
     const assetId = 'glb_' + modelDef.id;
     if (this.loadedAssets.has(assetId)) {
       this.updateStatus('Model already loaded', 'warning');
