@@ -54,25 +54,29 @@
     console.log('✅ Point Cloud Settings initialized');
   };
 
-  // Apply settings to all loaded tilesets
+  // Apply settings to all loaded point clouds — both 3D Tiles tilesets and
+  // native GLB point clouds (mesh primitive mode POINTS, see core.js loadGLBAsset)
   BimViewer.applyPointCloudSettingsToAllTilesets = function() {
     if (!this.loadedAssets) return;
-    
-    let tilesetCount = 0;
-    
+
+    let pointCloudCount = 0;
+
     this.loadedAssets.forEach((assetData, assetId) => {
       const tileset = assetData.tileset;
       if (tileset && this.isPointCloudTileset(tileset)) {
         this.applyPointCloudSettings(tileset);
-        tilesetCount++;
+        pointCloudCount++;
+      } else if (assetData.isGLB && assetData.isPointCloud && assetData.model) {
+        this.applyPointCloudSettingsToModel(assetData.model);
+        pointCloudCount++;
       }
     });
-    
-    if (tilesetCount > 0) {
-      console.log(`☁️ Applied point cloud settings to ${tilesetCount} tileset(s)`);
+
+    if (pointCloudCount > 0) {
+      console.log(`☁️ Applied point cloud settings to ${pointCloudCount} point cloud asset(s)`);
     }
-    
-    return tilesetCount;
+
+    return pointCloudCount;
   };
 
   // Check if a tileset is a point cloud
@@ -204,9 +208,63 @@
       this.applyColorMode(tileset, settings.colorMode);
       
       console.log('☁️ Point cloud settings applied to tileset (RGB colors preserved)');
-      
+
     } catch (error) {
       console.error('❌ Error applying point cloud settings:', error);
+    }
+  };
+
+  // Apply point cloud settings to a GLB point cloud (Cesium.Model, not a 3D Tiles
+  // tileset — see core.js loadGLBAsset). Two things never carry over regardless of how
+  // this is called: (1) Eye Dome Lighting — Cesium only implements that post-process
+  // (`_pointCloudEyeDomeLighting`) on Cesium3DTileset/TimeDynamicPointCloud, Model has no
+  // equivalent in 1.141; (2) `Cesium3DTileStyle` color modes (height/intensity/
+  // classification) — those read 3D Tiles batch-table properties that a plain glTF point
+  // cloud (POSITION + COLOR_0 only) doesn't have, so GLB point clouds always render their
+  // original per-vertex RGB.
+  BimViewer.applyPointCloudSettingsToModel = function(model) {
+    if (!model) {
+      console.warn('⚠️ No GLB model provided');
+      return;
+    }
+
+    try {
+      const settings = this.pointCloudSettings;
+
+      // IMPORTANT: always assign a *new* PointCloudShading instance, never mutate the
+      // fields of the existing one in place. Model.pointCloudShading is defined with a
+      // setter — `set(e) { e !== this._pointCloudShading && this.resetDrawCommands(); … }`
+      // — that only rebuilds the render pipeline (and with it the HAS_POINT_CLOUD_ATTENUATION
+      // / HAS_POINT_CLOUD_BACK_FACE_CULLING shader defines) when the object *reference*
+      // changes. Unlike Cesium3DTileset — which diffs attenuation/backFaceCulling against
+      // the previous frame internally and resets on its own — Model has no such per-frame
+      // check, so `model.pointCloudShading.baseResolution = x` (mutating the existing
+      // object) is silently invisible to it after the very first assignment. Every setting
+      // below (Point Size, Attenuation, Max Attenuation, Geometric Error Scale, Back Face
+      // Culling) previously stopped working after that first call for exactly this reason.
+      model.pointCloudShading = new Cesium.PointCloudShading({
+        attenuation: settings.attenuationEnabled,
+        geometricErrorScale: settings.geometricErrorScale,
+        // Cesium's own "undefined -> use tileset.memoryAdjustedScreenSpaceError (~16px)"
+        // fallback only exists for Cesium3DTileset. A standalone Model has no tileset behind
+        // it, so its internal fallback there is a hardcoded 1px instead — the vertex shader
+        // computes `min(attenuatedSize, maximumAttenuation)`, so every point would be capped
+        // at ~1px no matter what Point Size / Geometric Error Scale are set to. Mirror the
+        // tileset default explicitly so those controls have a visible effect.
+        maximumAttenuation: settings.maximumAttenuation !== undefined ? settings.maximumAttenuation : 16,
+        baseResolution: settings.pointSize,
+        backFaceCulling: settings.backFaceCulling,
+        // No-op on Model (see file-level comment above) — set anyway so pointCloudShading
+        // stays consistent with tileset state, and for if/when Cesium adds Model support.
+        eyeDomeLighting: settings.edlEnabled,
+        eyeDomeLightingStrength: settings.edlStrength,
+        eyeDomeLightingRadius: settings.edlRadius
+      });
+
+      console.log('☁️ Point cloud settings applied to GLB model (RGB colors preserved)');
+
+    } catch (error) {
+      console.error('❌ Error applying point cloud settings to GLB model:', error);
     }
   };
 
@@ -295,13 +353,17 @@
       });
     }
     
+    if (mode !== 'rgb') {
+      console.log('☁️ Color mode (height/intensity/classification) needs 3D Tiles batch-table properties — GLB point clouds keep their per-vertex RGB');
+    }
+
     const modeLabels = {
       rgb: 'Original RGB Colors',
       height: 'Height-based Colors',
       intensity: 'Intensity-based Colors',
       classification: 'Classification Colors'
     };
-    
+
     this.updateStatus(`Color mode: ${modeLabels[mode]}`, 'success');
     console.log(`☁️ Color Mode changed to: ${mode}`);
   };
@@ -492,6 +554,13 @@
             id: assetId,
             name: assetData.name,
             hasEDL: tileset.pointCloudShading?.eyeDomeLighting || false
+          });
+        } else if (assetData.isGLB && assetData.isPointCloud && assetData.model) {
+          pointCloudCount++;
+          info.push({
+            id: assetId,
+            name: assetData.name,
+            hasEDL: assetData.model.pointCloudShading?.eyeDomeLighting || false
           });
         }
       });

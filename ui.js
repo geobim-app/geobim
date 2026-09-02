@@ -533,11 +533,28 @@ const BimViewerUI = {
           </button>
         </div>
         ` : ''}
+        ${!assetData.isPointCloud ? `
         <div style="margin-top: 6px;">
           <button id="glb_pbr_${assetId}" class="modern-btn modern-btn-small ${assetData.pbrEnabled ? 'active' : ''}" style="width:100%;"
                   onclick="BimViewer.toggleGLBPbr('${assetId}')">
             🪨 PBR ${assetData.pbrEnabled ? 'On' : 'Off'}
           </button>
+        </div>
+        ` : ''}
+      </div>
+      ` : ''}
+
+      ${(!assetData.isGLB && assetData.tileset && assetData.placement) ? `
+      <!-- Tileset heading (gizmo ring is depth-tested and gets buried inside dense
+           geometry — e.g. point clouds — with no way to force it on top; see
+           glb-gizmo.js's addAxisArrow comment. This is the reliable fallback. -->
+      <div class="modern-group">
+        <div class="modern-slider-group">
+          <label class="modern-label-small">Heading (°)</label>
+          <input type="range" min="0" max="360" step="1" value="${assetData.placement.heading || 0}"
+                 id="tileset_heading_${assetId}" class="modern-slider-small"
+                 oninput="BimViewerUI.updateTilesetHeading('${assetId}', this.value)">
+          <span id="tileset_heading_val_${assetId}" class="modern-value-small">${Math.round(assetData.placement.heading || 0)}°</span>
         </div>
       </div>
       ` : ''}
@@ -642,6 +659,24 @@ const BimViewerUI = {
     }
 
     BimViewer.updateGLBPosition(assetId);
+  },
+
+  // Tileset heading — numeric fallback for the gizmo's rotation ring, which is a
+  // depth-tested Cesium Entity polyline (disableDepthTestDistance is a no-op on
+  // PolylineGraphics) and gets buried inside dense geometry, most noticeably point
+  // clouds. Mirrors updateGLBParam('heading', ...) but for assetData.placement.
+  updateTilesetHeading(assetId, value) {
+    const assetData = BimViewer.loadedAssets.get(assetId);
+    if (!assetData || assetData.isGLB || !assetData.placement) return;
+
+    const v = parseFloat(value);
+    assetData.placement.heading = v;
+    const headingVal = document.getElementById(`tileset_heading_val_${assetId}`);
+    if (headingVal) headingVal.textContent = Math.round(v) + '°';
+
+    if (typeof BimViewer.updateAssetPlacement === 'function') {
+      BimViewer.updateAssetPlacement(assetId);
+    }
   },
 
   // ⭐ NEW: Update asset Z-Offset (with debouncing)

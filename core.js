@@ -1383,9 +1383,173 @@ const BimViewer = {
     return this._glbConcreteShader;
   },
 
+  // Detect whether a GLB is a point cloud (mesh primitive mode 0 = POINTS) by
+  // partially fetching its binary JSON chunk via HTTP Range — avoids downloading
+  // the full (often huge) point cloud twice just to inspect it. When it is one,
+  // also returns a bounding sphere (from the POSITION accessors' min/max, in the
+  // glTF's own local coordinate space) so callers can wrap it in a synthetic 3D
+  // Tiles tileset without a second pass over the file — see loadGLBAsset().
+  async _inspectGLBForPointCloud(url) {
+    const notFound = { isPointCloud: false, boundingSphere: null };
+    try {
+      const readRange = async (range) => {
+        const resp = await fetch(url, { headers: { Range: range } });
+        if (!resp.ok && resp.status !== 206) return null;
+        return resp.arrayBuffer();
+      };
+
+      let buf = await readRange('bytes=0-131071'); // first 128 KB
+      if (!buf || buf.byteLength < 20) return notFound;
+      let dv = new DataView(buf);
+
+      if (dv.getUint32(0, true) !== 0x46546c67) return notFound; // magic 'glTF'
+      const chunkLength = dv.getUint32(12, true);
+      const chunkType = dv.getUint32(16, true);
+      if (chunkType !== 0x4e4f534a) return notFound; // chunk type 'JSON'
+
+      let jsonBytes;
+      if (20 + chunkLength <= buf.byteLength) {
+        jsonBytes = new Uint8Array(buf, 20, chunkLength);
+      } else {
+        const buf2 = await readRange(`bytes=20-${20 + chunkLength - 1}`);
+        if (!buf2) return notFound;
+        jsonBytes = new Uint8Array(buf2);
+      }
+
+      const gltf = JSON.parse(new TextDecoder('utf-8').decode(jsonBytes));
+      if (!Array.isArray(gltf.meshes) || !Array.isArray(gltf.accessors)) return notFound;
+
+      let isPointCloud = false;
+      const min = [Infinity, Infinity, Infinity];
+      const max = [-Infinity, -Infinity, -Infinity];
+
+      gltf.meshes.forEach(mesh => {
+        if (!Array.isArray(mesh.primitives)) return;
+        mesh.primitives.forEach(p => {
+          if (p.mode !== 0) return; // 0 = POINTS
+          isPointCloud = true;
+          const acc = gltf.accessors[p.attributes && p.attributes.POSITION];
+          if (acc && Array.isArray(acc.min) && Array.isArray(acc.max)) {
+            for (let i = 0; i < 3; i++) {
+              min[i] = Math.min(min[i], acc.min[i]);
+              max[i] = Math.max(max[i], acc.max[i]);
+            }
+          }
+        });
+      });
+
+      if (!isPointCloud) return notFound;
+
+      if (!isFinite(min[0])) {
+        // Point primitives present but no accessor min/max published (spec allows
+        // omitting it) — generous placeholder sphere so the tileset still loads,
+        // just with looser culling.
+        return { isPointCloud: true, boundingSphere: { center: [0, 0, 0], radius: 1000 } };
+      }
+
+      const center = [0, 1, 2].map(i => (min[i] + max[i]) / 2);
+      const radius = Math.sqrt([0, 1, 2].reduce((sum, i) => sum + (max[i] - center[i]) ** 2, 0));
+      return { isPointCloud: true, boundingSphere: { center, radius } };
+    } catch (err) {
+      console.warn('⚠️ Point-cloud detection failed, defaulting to mesh rendering:', err.message);
+      return notFound;
+    }
+  },
+
+  // Wrap a point-cloud GLB in a minimal, in-memory 3D Tiles 1.1 tileset (glTF used
+  // directly as tile content — no re-encoding, no server round-trip: the tileset.json
+  // is a `data:` URI built entirely client-side) and load it as a real Cesium3DTileset
+  // instead of a standalone Cesium.Model. Verified against the CesiumJS 1.141 source
+  // (and manually against this exact file) that Cesium's point cloud rendering features
+  // — distance attenuation AND Eye Dome Lighting — only fully activate on
+  // Cesium3DTileset; a standalone Model gets working attenuation but EDL never
+  // activates at all (no `_pointCloudEyeDomeLighting` equivalent exists on Model).
+  // Once wrapped, the asset is a completely ordinary tileset asset (assetData.tileset,
+  // isGLB: false) — gizmo, clipping planes, z-offset and applyPointCloudSettings() all
+  // already handle that path natively, no special-casing needed anywhere else.
+  async _loadGLBPointCloudAsTileset(assetId, modelDef, position, boundingSphereLocal) {
+    const initialHeading = modelDef.defaultHeading || 0;
+    const initialScale = modelDef.defaultScale || 1.0;
+    const url = modelDef.file;
+
+    const enu = Cesium.Transforms.headingPitchRollToFixedFrame(
+      Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
+      new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(initialHeading), 0, 0)
+    );
+    // 3D Tiles has no separate "scale" option like Cesium.Model does — bake it into
+    // the root transform instead (local-space scale applied before the ENU rotation).
+    const rootTransform = Cesium.Matrix4.multiply(
+      enu, Cesium.Matrix4.fromUniformScale(initialScale), new Cesium.Matrix4()
+    );
+
+    const [cx, cy, cz] = boundingSphereLocal.center;
+    const radius = boundingSphereLocal.radius;
+    // tileset.json is a data: URI with no real base path, so content.uri must be
+    // absolute — relative resolution against "no base" would otherwise fail.
+    const absoluteGlbUrl = new URL(url, window.location.href).href;
+
+    const tilesetJson = {
+      asset: { version: '1.1' },
+      geometricError: Math.max(radius * 2, 1),
+      root: {
+        transform: Cesium.Matrix4.toArray(rootTransform),
+        boundingVolume: { sphere: [cx, cy, cz, radius] },
+        geometricError: 0, // finest (only) available resolution — always select this tile
+        refine: 'REPLACE',
+        content: { uri: absoluteGlbUrl }
+      }
+    };
+    const dataUri = 'data:application/json;base64,' +
+      btoa(unescape(encodeURIComponent(JSON.stringify(tilesetJson))));
+
+    const tileset = await Cesium.Cesium3DTileset.fromUrl(dataUri);
+    this.viewer.scene.primitives.add(tileset);
+
+    const assetData = {
+      id: assetId,
+      name: modelDef.name,
+      model: null,
+      tileset: tileset,        // real Cesium3DTileset — not a GLB from here on
+      visible: true,
+      opacity: 1.0,
+      type: '3DTILES',
+      isGLB: false,
+      isPointCloud: true,
+      position: { ...position },
+      heading: initialHeading,
+      scale: initialScale,
+      modelDef: modelDef,
+      isWEA: false
+    };
+
+    this.loadedAssets.set(assetId, assetData);
+
+    if (typeof this.applyPointCloudSettings === 'function') {
+      this.applyPointCloudSettings(tileset); // same function real Ion point clouds use
+    }
+    if (typeof this.initAssetPlacement === 'function') {
+      this.initAssetPlacement(assetData); // gizmo placement baseline, same as any tileset
+    }
+
+    this.viewer.camera.flyToBoundingSphere(tileset.boundingSphere, { duration: 1.5 });
+
+    if (window.BimViewerUI && typeof BimViewerUI.createAssetControls === 'function') {
+      BimViewerUI.createAssetControls(assetId);
+    }
+
+    this.updateStatus(`Loaded: ${modelDef.name}`, 'success');
+    console.log(`✅ GLB point cloud wrapped as 3D Tiles: ${modelDef.name} at ` +
+      `${position.lon.toFixed(5)}, ${position.lat.toFixed(5)} (native EDL/attenuation)`);
+
+    return assetData;
+  },
+
   toggleGLBPbr(assetId) {
     const assetData = this.loadedAssets.get(assetId);
     if (!assetData || !assetData.isGLB || !assetData.model) return;
+    // Point clouds have no surface to apply a PBR material to — the concrete shader
+    // would just overwrite their per-vertex COLOR_0 with flat grey again.
+    if (assetData.isPointCloud) return;
 
     if (assetData.pbrEnabled) {
       assetData.model.customShader = undefined;
@@ -1419,6 +1583,8 @@ const BimViewer = {
       defaultPosition: { lon: -79.8864, lat: 40.023979, height: 204.0863013479 }, defaultHeading: 130, defaultScale: 1.0 },
     'skyscraper': { name: 'Skyscraper',
       defaultPosition: { lon: 11.5222925, lat: 48.1461854, height: 568.25 }, defaultHeading: 0, defaultScale: 0.2576 },
+    'hotel': { name: 'Hotel',
+      defaultPosition: { lon: 18.73748115603791, lat: 47.79377114600743, height: 146.6570135151963 }, defaultHeading: 0, defaultScale: 1.0 },
     'brooklyn_blender': { name: 'Brooklyn Bridge (Blender)' },
     'cube_10meter': { name: 'Cube 10m' },
     'freecad': { name: 'FreeCAD' },
@@ -1484,9 +1650,30 @@ const BimViewer = {
         }
       }
 
+      const url = modelDef.file;
+
+      // Detect point clouds up front — BEFORE loading anything — so a large point
+      // cloud never gets downloaded twice (once as a Model that gets discarded, once
+      // as tileset content). If it is one, wrap it as a 3D Tiles tileset instead of a
+      // plain Model (see _loadGLBPointCloudAsTileset for why); only fall through to
+      // the Model path below if that wrapping itself fails, keeping isPointCloudGLB
+      // true so the Model-side point-cloud handling further down still applies as a
+      // safety net (skip the concrete PBR shader, keep original vertex RGB).
+      let isPointCloudGLB = false;
+      if (!modelDef.isWEA) {
+        const inspection = await this._inspectGLBForPointCloud(url);
+        isPointCloudGLB = inspection.isPointCloud;
+        if (isPointCloudGLB) {
+          try {
+            return await this._loadGLBPointCloudAsTileset(assetId, modelDef, position, inspection.boundingSphere);
+          } catch (tilesetError) {
+            console.warn(`⚠️ Point-cloud tileset wrapping failed for ${modelDef.name}, falling back to GLB Model rendering:`, tilesetError.message);
+          }
+        }
+      }
+
       const initialHeading = modelDef.defaultHeading || 0;
       const initialScale = modelDef.defaultScale || 1.0;
-      const url = modelDef.file;
       const modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
         Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.height),
         new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(initialHeading), 0, 0)
@@ -1580,14 +1767,22 @@ const BimViewer = {
         position: { ...position },
         heading: initialHeading,
         scale: initialScale,
-        pbrEnabled: true,
+        pbrEnabled: !isPointCloudGLB,
         modelDef: modelDef,
-        isWEA: !!modelDef.isWEA
+        isWEA: !!modelDef.isWEA,
+        isPointCloud: isPointCloudGLB
       };
 
-      // Apply PBR concrete shader for non-WEA models (turbines have own PBR textures)
-      if (!modelDef.isWEA) {
+      // Apply PBR concrete shader for non-WEA, non-point-cloud models (turbines have own
+      // PBR textures; point clouds carry per-vertex RGB via COLOR_0 that the procedural
+      // concrete material would otherwise overwrite, rendering them monochrome).
+      if (!modelDef.isWEA && !isPointCloudGLB) {
         model.customShader = this._getConcreteShader();
+      } else if (isPointCloudGLB) {
+        console.log(`🎨 GLB point cloud detected for ${modelDef.name} — keeping original vertex colors`);
+        if (typeof this.applyPointCloudSettingsToModel === 'function') {
+          this.applyPointCloudSettingsToModel(model);
+        }
       }
 
       this.loadedAssets.set(assetId, assetData);
