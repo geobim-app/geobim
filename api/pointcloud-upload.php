@@ -15,6 +15,13 @@
 // this more broadly.
 header('Content-Type: application/json');
 
+// Deliberately modest while usage is low-volume/single-user — flock()-serialized
+// conversion in convert_pointcloud.py already prevents concurrent jobs from
+// overloading the server, this cap is about not tying up the queue for a long
+// time or eating disk space on one huge upload. Raise later based on real
+// usage. Keep in sync with api/.user.ini's upload_max_filesize.
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+
 function fail($message, $code = 400) {
     http_response_code($code);
     echo json_encode(['error' => $message]);
@@ -25,9 +32,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     fail('POST only', 405);
 }
 
-if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-    $err = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
-    fail('Upload failed (error code ' . $err . ') — check file size against the server limit');
+if (!isset($_FILES['file'])) {
+    // post_max_size exceeded empties $_FILES/$_POST entirely rather than
+    // reporting a per-file error — Content-Length is the only signal left.
+    $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($contentLength > MAX_UPLOAD_BYTES) {
+        fail('File too large — 200 MB limit for now');
+    }
+    fail('Upload failed (no file received)');
+}
+if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+    $err = $_FILES['file']['error'];
+    if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
+        fail('File too large — 200 MB limit for now');
+    }
+    fail('Upload failed (error code ' . $err . ')');
+}
+if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
+    fail('File too large — 200 MB limit for now');
 }
 
 $origName = $_FILES['file']['name'];
