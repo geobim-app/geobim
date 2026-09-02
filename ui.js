@@ -559,6 +559,19 @@ const BimViewerUI = {
       </div>
       ` : ''}
 
+      ${(assetData.modelDef && assetData.modelDef.type === 'TILESET') ? `
+      <!-- Self-hosted tileset (uploaded/converted via pointcloud-upload.js) —
+           delete permanently removes it from model/ on the server, not just
+           from this scene. -->
+      <div class="modern-group">
+        <button class="modern-btn modern-btn-small modern-btn-danger" style="width:100%;"
+                onclick="BimViewerUI.deleteTilesetAsset('${assetId}')" title="Permanently delete this tileset from the server">
+          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+          <span>Delete from Server</span>
+        </button>
+      </div>
+      ` : ''}
+
       <!-- 🏔️ Z-OFFSET CONTROLS (COMPACT VERSION -15m to +15m) -->
       <div class="modern-asset-zoffset" ${assetData.isGLB ? 'style="display:none;"' : ''}>
         <div class="zoffset-label-row">
@@ -676,6 +689,38 @@ const BimViewerUI = {
 
     if (typeof BimViewer.updateAssetPlacement === 'function') {
       BimViewer.updateAssetPlacement(assetId);
+    }
+  },
+
+  // Permanently delete a self-hosted tileset (uploaded/converted via
+  // pointcloud-upload.js) from the server — not just from the current scene.
+  async deleteTilesetAsset(assetId) {
+    const assetData = BimViewer.loadedAssets.get(assetId);
+    if (!assetData || !assetData.modelDef || assetData.modelDef.type !== 'TILESET') return;
+
+    if (!confirm(`Permanently delete "${assetData.name}" from the server? This cannot be undone.`)) {
+      return;
+    }
+
+    const slug = assetData.modelDef.id;
+    BimViewer.updateStatus(`Deleting ${assetData.name}...`, 'loading');
+
+    try {
+      const resp = await fetch(`api/pointcloud-delete.php?slug=${encodeURIComponent(slug)}`, { method: 'POST' });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(body.error || `HTTP ${resp.status}`);
+      }
+
+      BimViewer.unloadAsset(assetId);
+      BimViewer.glbModels = BimViewer.glbModels.filter(m => m.id !== slug);
+      // Drop the now-stale <option> from the "Local Models" dropdown, if present.
+      const opt = document.querySelector(`#glbModelSelector option[value="${slug}"]`);
+      if (opt) opt.remove();
+
+      BimViewer.updateStatus(`Deleted: ${assetData.name}`, 'success');
+    } catch (err) {
+      BimViewer.updateStatus(`Delete failed: ${err.message}`, 'error');
     }
   },
 

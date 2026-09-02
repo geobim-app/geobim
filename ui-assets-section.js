@@ -43,8 +43,30 @@
           </select>
           <button id="importGLBModel" class="modern-btn modern-btn-primary" style="margin-top: 6px;">
             <span class="modern-btn-icon">➕</span>
-            <span>Load GLB</span>
+            <span>Load from Server</span>
           </button>
+        </div>
+
+        <div class="modern-divider">
+          <span class="modern-divider-text">☁️ Upload Point Cloud (LAS/LAZ)</span>
+        </div>
+        <div class="modern-group">
+          <input type="file" id="pointcloudFileInput" accept=".las,.laz" style="display:none;">
+          <button type="button" id="pointcloudFilePickBtn" class="modern-btn modern-btn-small" style="width:100%;">
+            <span class="modern-btn-icon">📁</span>
+            <span id="pointcloudFileLabel">Choose LAS/LAZ file...</span>
+          </button>
+          <input type="text" id="pointcloudNameInput" class="zoffset-input-box" placeholder="Name" style="width:100%; margin-top:6px; box-sizing:border-box;">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:6px;">
+            <input type="number" id="pointcloudLonInput" class="zoffset-input-box" placeholder="Long (optional)" step="0.0001">
+            <input type="number" id="pointcloudLatInput" class="zoffset-input-box" placeholder="Lat (optional)" step="0.0001">
+          </div>
+          <div class="modern-hint" style="margin-top:2px;">Leave Long/Lat empty to place it wherever the main view is currently looking</div>
+          <button id="uploadPointCloudBtn" class="modern-btn modern-btn-primary" style="margin-top: 6px; width:100%;">
+            <span class="modern-btn-icon">☁️</span>
+            <span>Convert &amp; Upload</span>
+          </button>
+          <div id="pointcloudUploadStatus" class="modern-hint" style="margin-top:4px;"></div>
         </div>
       </div>
 
@@ -142,6 +164,78 @@
       if (!selector || !selector.value) return;
       const modelDef = BimViewer.glbModels.find(m => m.id === selector.value);
       if (modelDef) BimViewer.loadGLBAsset(modelDef);
+    });
+
+    document.getElementById('pointcloudFilePickBtn')?.addEventListener('click', () => {
+      document.getElementById('pointcloudFileInput')?.click();
+    });
+
+    document.getElementById('pointcloudFileInput')?.addEventListener('change', (e) => {
+      const label = document.getElementById('pointcloudFileLabel');
+      const nameInput = document.getElementById('pointcloudNameInput');
+      const file = e.target.files?.[0];
+      if (label) label.textContent = file ? file.name : 'Choose LAS/LAZ file...';
+      // Pre-fill the name field from the filename, but don't clobber a name
+      // the user already typed by hand.
+      if (file && nameInput && !nameInput.value) {
+        nameInput.value = file.name.replace(/\.(las|laz)$/i, '');
+      }
+    });
+
+    document.getElementById('uploadPointCloudBtn')?.addEventListener('click', async () => {
+      const fileInput = document.getElementById('pointcloudFileInput');
+      const nameInput = document.getElementById('pointcloudNameInput');
+      const lonInput = document.getElementById('pointcloudLonInput');
+      const latInput = document.getElementById('pointcloudLatInput');
+      const statusEl = document.getElementById('pointcloudUploadStatus');
+      const btn = document.getElementById('uploadPointCloudBtn');
+
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        if (statusEl) statusEl.textContent = 'Select a .las/.laz file first';
+        return;
+      }
+
+      let lon = lonInput?.value !== '' ? parseFloat(lonInput.value) : NaN;
+      let lat = latInput?.value !== '' ? parseFloat(latInput.value) : NaN;
+      let height = 0;
+
+      // No explicit coordinates typed — fall back to wherever the main view is
+      // currently looking (same pick-ray-onto-globe logic loadGLBAsset() itself
+      // uses as its own default). Better than leaving the tileset unpositioned,
+      // which — uncorrected — renders at the raw local origin near the planet's
+      // core; see project memory on the GLB point cloud work for why that matters.
+      if (isNaN(lon) || isNaN(lat)) {
+        const viewer = BimViewer.viewer;
+        const cam = viewer.camera;
+        const ray = cam.getPickRay(new Cesium.Cartesian2(
+          viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2
+        ));
+        const hit = viewer.scene.globe.pick(ray, viewer.scene);
+        if (hit) {
+          const carto = Cesium.Cartographic.fromCartesian(hit);
+          lon = Cesium.Math.toDegrees(carto.longitude);
+          lat = Cesium.Math.toDegrees(carto.latitude);
+          height = carto.height || 0;
+        }
+      }
+
+      btn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Uploading...';
+
+      try {
+        await BimViewer.uploadPointCloud(file, {
+          name: nameInput?.value || undefined,
+          lon: isNaN(lon) ? null : lon,
+          lat: isNaN(lat) ? null : lat,
+          height: height,
+          heading: 0
+        });
+      } catch (err) {
+        if (statusEl) statusEl.textContent = `Failed: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+      }
     });
   }
 
