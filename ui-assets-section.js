@@ -48,13 +48,13 @@
         </div>
 
         <div class="modern-divider">
-          <span class="modern-divider-text">☁️ Upload Point Cloud (LAS/LAZ/E57)</span>
+          <span class="modern-divider-text">☁️ Upload Point Cloud (LAS/LAZ/E57/PLY)</span>
         </div>
         <div class="modern-group">
-          <input type="file" id="pointcloudFileInput" accept=".las,.laz,.e57" style="display:none;">
+          <input type="file" id="pointcloudFileInput" accept=".las,.laz,.e57,.ply" style="display:none;">
           <button type="button" id="pointcloudFilePickBtn" class="modern-btn modern-btn-small" style="width:100%;">
             <span class="modern-btn-icon">📁</span>
-            <span id="pointcloudFileLabel">Choose LAS/LAZ/E57 file...</span>
+            <span id="pointcloudFileLabel">Choose LAS/LAZ/E57/PLY file...</span>
           </button>
           <input type="text" id="pointcloudNameInput" class="zoffset-input-box" placeholder="Name" style="width:100%; margin-top:6px; box-sizing:border-box;">
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:6px;">
@@ -174,11 +174,11 @@
       const label = document.getElementById('pointcloudFileLabel');
       const nameInput = document.getElementById('pointcloudNameInput');
       const file = e.target.files?.[0];
-      if (label) label.textContent = file ? file.name : 'Choose LAS/LAZ/E57 file...';
+      if (label) label.textContent = file ? file.name : 'Choose LAS/LAZ/E57/PLY file...';
       // Pre-fill the name field from the filename, but don't clobber a name
       // the user already typed by hand.
       if (file && nameInput && !nameInput.value) {
-        nameInput.value = file.name.replace(/\.(las|laz)$/i, '');
+        nameInput.value = file.name.replace(/\.(las|laz|e57|ply)$/i, '');
       }
     });
 
@@ -192,7 +192,7 @@
 
       const file = fileInput?.files?.[0];
       if (!file) {
-        if (statusEl) statusEl.textContent = 'Select a .las/.laz file first';
+        if (statusEl) statusEl.textContent = 'Select a .las/.laz/.e57/.ply file first';
         return;
       }
 

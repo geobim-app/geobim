@@ -12,7 +12,7 @@
 
 // ===============================
 // POINT CLOUD UPLOAD MODULE
-// Browser upload of raw LAS/LAZ point clouds -> server-side py3dtiles
+// Browser upload of raw LAS/LAZ/E57/PLY point clouds -> server-side py3dtiles
 // conversion (api/pointcloud-upload.php + scripts/convert_pointcloud.py,
 // queued one-at-a-time on the server) -> auto-discovered as a TILESET asset
 // (api/models.php) once done, loadable exactly like any self-hosted tileset.
@@ -32,7 +32,7 @@
     opts = opts || {};
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', opts.name || file.name.replace(/\.(las|laz)$/i, ''));
+    formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply)$/i, ''));
     if (opts.lon !== undefined && opts.lon !== null && !isNaN(opts.lon)) {
       formData.append('lon', opts.lon);
       formData.append('lat', opts.lat);

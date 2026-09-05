@@ -3,9 +3,10 @@
 geoBIM.app — Point cloud conversion worker.
 
 Invoked as a detached background process by api/pointcloud-upload.php (one
-process per upload). Runs `py3dtiles convert` on a staged LAS/LAZ/E57 file
+process per upload). Runs `py3dtiles convert` on a staged LAS/LAZ/E57/PLY file
 (LAZ and E57 are pre-converted to LAS first — see the two branches in
-main() for why), then — if the caller supplied a position — patches the
+main() for why; PLY needs no pre-conversion, py3dtiles reads it natively
+same as LAS), then — if the caller supplied a position — patches the
 resulting tileset.json's
 root.transform to place it at that real-world position (composing with
 py3dtiles' own local recentering, not replacing it), matching exactly what
