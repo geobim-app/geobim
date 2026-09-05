@@ -22,7 +22,6 @@
 | Feature | Description | Files |
 |---|---|---|
 | Cesium Ion Asset Loading | Load 3D Tiles from Ion via REST API. Curated whitelist of valid asset IDs. Tile content polling after flyTo. | `core.js`, `ui.js` |
-| iTwin Model Integration | Load Bentley iTwin iModels via share keys and iModel IDs. | `core.js` |
 | Asset Visibility Toggle | Show/hide individual loaded assets. | `core.js`, `ui.js` |
 | Asset Opacity Control | Adjust transparency per asset (0–1 slider). | `core.js`, `ui.js` |
 | Asset Unloading | Remove assets from viewer with full cleanup of UI and references. | `core.js`, `ui.js` |
@@ -48,9 +47,9 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| IFC Entity Filter | Filter 3D Tiles by 31 IFC entity classes (IfcWall, IfcDoor, IfcColumn, etc.) with color-coded visualization. OR-logic show conditions. | `features.js`, `core.js` |
+| IFC Entity Filter | Filter 3D Tiles by 32 IFC entity classes (IfcWall, IfcDoor, IfcColumn, etc.) with color-coded visualization. OR-logic show conditions. | `features.js`, `core.js` |
 | IFC Auto-Detection | Auto-detect IFC property name (className, IfcEntity, etc.) from tile content with value validation. Falls back to `className` if detection fails. | `features.js`, `core.js` |
-| Revit Category Filter | Filter by 34+ Revit categories with English/German name mapping (e.g., "Wände" → "Walls"). | `features.js`, `core.js` |
+| Revit Category Filter | Filter by 36 Revit categories with English/German name mapping (e.g., "Wände" → "Walls"). | `features.js`, `core.js` |
 | Select/Deselect All | Bulk toggle all IFC entities or Revit categories on/off. | `features.js` |
 | Manual Property Override | Override auto-detected IFC property name per asset via dropdown. | `features.js` |
 
