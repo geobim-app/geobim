@@ -593,7 +593,13 @@
         edlRadius: 2.0,
         pointSize: 3.0,
         attenuationEnabled: true,
-        maximumAttenuation: 3.0,
+        // Was 3.0 — that's the hard cap in gl_PointSize = min(attenuatedSize, maximumAttenuation),
+        // so points could never exceed 3px no matter the distance, geometricErrorScale, or Point
+        // Size — near and far points ended up looking almost the same size, undermining the whole
+        // point of attenuation as a depth cue (the Performance preset's cap of 5.0 was even looser).
+        // undefined lets Cesium's own tileset.memoryAdjustedScreenSpaceError fallback (~16px) apply
+        // instead, so nearby points can actually grow while distant ones still shrink normally.
+        maximumAttenuation: undefined,
         geometricErrorScale: 1.0,
         backFaceCulling: false,
         colorMode: 'rgb',
