@@ -6,8 +6,12 @@ Invoked as a detached background process by api/pointcloud-upload.php (one
 process per upload). Runs `py3dtiles convert` on a staged LAS/LAZ/E57/PLY file
 (LAZ and E57 are pre-converted to LAS first — see the two branches in
 main() for why; PLY needs no pre-conversion, py3dtiles reads it natively
-same as LAS), then — if the caller supplied a position — patches the
-resulting tileset.json's
+same as LAS — but only if `plyfile` is installed in this venv; py3dtiles
+doesn't declare it as a hard dependency, so a fresh `py3dtiles[las]` install
+lacks it and every .ply upload fails with "support not found for files" in
+convert.log, exit code 1. `/opt/py3dtiles/venv/bin/pip install plyfile` fixes
+it — hit and fixed once already, 2026-09-06), then — if the caller supplied
+a position — patches the resulting tileset.json's
 root.transform to place it at that real-world position (composing with
 py3dtiles' own local recentering, not replacing it), matching exactly what
 core.js's _loadGLBPointCloudAsTileset() does client-side for GLB point
