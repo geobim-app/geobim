@@ -193,16 +193,27 @@
         
         // Attenuation
         tileset.pointCloudShading.attenuation = settings.attenuationEnabled;
-        if (settings.maximumAttenuation !== undefined) {
-          tileset.pointCloudShading.maximumAttenuation = settings.maximumAttenuation;
-        }
-        
+        // Always assign, even when undefined ("None" on the slider, or Reset/a preset
+        // that clears it) — pointCloudShading is mutated in place here (same object
+        // reused across calls, not replaced), so a guarded `if (!== undefined)` leaves
+        // a previously set cap permanently stuck on the tileset: the UI shows "None"
+        // but the old numeric maximumAttenuation keeps being applied every frame.
+        // Explicit undefined restores Cesium's own tileset.memoryAdjustedScreenSpaceError
+        // (~16px) fallback, same as never having set it.
+        tileset.pointCloudShading.maximumAttenuation = settings.maximumAttenuation;
+
         // Geometric Error Scale
         tileset.pointCloudShading.geometricErrorScale = settings.geometricErrorScale;
+
+        // Back Face Culling — must be set on pointCloudShading, not the tileset itself.
+        // tileset.backFaceCulling is an unrelated general mesh/triangle-culling flag
+        // (propagated to each tile's internal Model, gated by glTF `doubleSided`) with
+        // no effect on point rendering; the point-specific HAS_POINT_CLOUD_BACK_FACE_CULLING
+        // shader path reads pointCloudShading.backFaceCulling instead — verified against
+        // decompiled Cesium 1.141 (cesium_sdk/cesium/Build/Cesium/Cesium.js). The toggle
+        // was silently a no-op for every real (Ion/self-hosted) point cloud tileset.
+        tileset.pointCloudShading.backFaceCulling = settings.backFaceCulling;
       }
-      
-      // Back Face Culling
-      tileset.backFaceCulling = settings.backFaceCulling;
       
       // Apply color mode
       this.applyColorMode(tileset, settings.colorMode);
