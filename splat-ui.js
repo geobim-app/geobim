@@ -10,7 +10,7 @@
 // the loaded-splat list into #splatList. Logic lives in splat.js;
 // this file is presentation + wiring only.
 //
-// Tested with CesiumJS 1.141
+// Tested with CesiumJS 1.145
 // ============================================================
 
 (function() {

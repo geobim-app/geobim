@@ -19,7 +19,7 @@
 //   • ring           → heading rotation    (BimViewer.setSplatOrientation)
 // Scale stays on the sidebar slider (like the GLB gizmo).
 //
-// Tested with CesiumJS 1.141
+// Tested with CesiumJS 1.145
 // ============================================================
 
 (function() {

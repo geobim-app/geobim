@@ -14,7 +14,7 @@
 // Rotor Ø     → Blades node scale (CesiumJS internal API)
 // Clamp to terrain, origin = tower base
 //
-// Tested with CesiumJS 1.141
+// Tested with CesiumJS 1.145
 // ============================================================
 
 (function() {

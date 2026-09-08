@@ -25,7 +25,7 @@
 // Tuning: maximumScreenSpaceError ~8–24, per-instance height offset
 // (along ellipsoid normal) and ENU-local orientation fix.
 //
-// Tested with CesiumJS 1.141
+// Tested with CesiumJS 1.145
 // ============================================================
 
 (function(BimViewer) {
