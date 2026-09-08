@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **WEA-Standardposition** (`wea-shadow.js`, `DEFAULT_POSITION`): von Helsinki (24.9587°/60.2043°) auf 11.490589°/49.216664° (Bayern), Höhe 610.4 m, geändert — Ausgangspunkt für neu platzierte Turbinen. Die Helsinki-WMS-Kartenlayer (Kantakartta/Kiinteistökartta) bleiben als optionale Basemap-Presets bestehen, sind unabhängig von der Standardposition
+
 ## [1.11.0] — 2026-09-08
 
 Point cloud upload & conversion: browser upload of LAS/LAZ/E57/PLY scans, server-side py3dtiles tiling, self-hosted 3D Tiles tilesets in the Assets panel. Plus CesiumJS 1.145 upgrade and a round of point-cloud-settings bugfixes.

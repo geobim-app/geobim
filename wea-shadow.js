@@ -23,7 +23,7 @@
   var PANEL_ID = 'weaShadowPanel';
   var WEA_NODE_TOWER = 'Main Unit';
   var WEA_NODE_BLADES = 'Blades';
-  var DEFAULT_POSITION = { lon: 24.9586981, lat: 60.2042955, height: 0 };
+  var DEFAULT_POSITION = { lon: 11.490589, lat: 49.216664, height: 610.4 };
 
   // State
   var weaInstances = {};
