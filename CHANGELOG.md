@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-09-08
+
+Point cloud upload & conversion: browser upload of LAS/LAZ/E57/PLY scans, server-side py3dtiles tiling, self-hosted 3D Tiles tilesets in the Assets panel. Plus CesiumJS 1.145 upgrade and a round of point-cloud-settings bugfixes.
+
 ### Added
 
 - **PLY-Unterstützung für den Punktwolken-Upload** (`api/pointcloud-upload.php`, `pointcloud-upload.js`, `ui-assets-section.js`, `scripts/convert_pointcloud.py`): `py3dtiles` liest `.ply` nativ — bestätigt über `py3dtiles convert --help` sowie den mitgelieferten `reader/ply_reader.py` (nutzt `plyfile`, liest binäre wie ASCII-PLYs, optionale `red`/`green`/`blue`-Vertex-Properties für Farbe) — anders als `.laz`/`.e57` also ganz ohne Vorkonvertierungsschritt. Upload-Whitelist (PHP), `accept`-Attribut, Button-/Statustexte und Divider-Beschriftung entsprechend erweitert. Dabei nebenbei behoben: die Namens-Vorbefüllung aus dem Dateinamen strippte bisher nur `.las`/`.laz` — `.e57`-Uploads behielten die Endung im automatisch vorgeschlagenen Namen; die Regex deckt jetzt alle vier unterstützten Endungen ab.
