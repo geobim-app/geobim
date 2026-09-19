@@ -100,6 +100,9 @@
       </div>
 
       <div class="modern-group">
+        <select id="wmsPresetSelect" class="modern-select" style="margin-bottom: 6px;">
+          <option value="">Quick preset…</option>
+        </select>
         <div class="layer-add-overlay">
           <div style="display: flex; gap: 6px;">
             <input id="wmsUrl" type="text" class="modern-input" placeholder="WMS / WMTS / WFS Service URL">
@@ -119,7 +122,7 @@
       </div>
 
       <div class="modern-hint">
-        Paste a GetCapabilities URL or base service URL. WMS/WMTS (imagery) and WFS (vector features) are auto-discovered.
+        Pick a verified quick preset, or paste a GetCapabilities URL / base service URL. WMS/WMTS (imagery) and WFS (vector features) are auto-discovered.
       </div>
 
       <div class="modern-divider">
@@ -254,6 +257,18 @@
       if (typeof LayerManager !== 'undefined') {
         LayerManager.discoverWmsLayers(url);
       }
+    });
+
+    document.getElementById('wmsPresetSelect')?.addEventListener('change', (e) => {
+      const index = e.target.value;
+      if (index === '' || typeof LayerManager === 'undefined') return;
+      const preset = LayerManager.wmsPresets[parseInt(index, 10)];
+      if (!preset) return;
+
+      const urlInput = document.getElementById('wmsUrl');
+      if (urlInput) urlInput.value = preset.url;
+      LayerManager.discoverWmsLayers(preset.url);
+      e.target.value = ''; // reset to placeholder so the same preset can be re-picked
     });
 
     document.getElementById('wmsLayerPickerList')?.addEventListener('click', (e) => {

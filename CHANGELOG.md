@@ -6,9 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Quick-Preset-Dropdown für OGC Services** (`layerManager.js` `wmsPresets`/`updateWmsPresetUI()`, `ui-layer-section.js`): einzeln per echtem HTTP-Request verifizierte WMS/WMTS/WFS-Dienste als gruppiertes `<select>` im Layers-Panel. Auswahl füllt die URL automatisch und startet `discoverWmsLayers()` — kein Copy/Paste mehr nötig. Aktuell 59 Presets: 6 international (NASA GIBS, basemap.at, IGN France Géoplateforme, swisstopo, USGS National Map, GEBCO), 28 Rheinland-Pfalz, 15 Bayern (siehe `docs/RLP_Geodienste_Test.pdf`/`docs/Bayern_Geodienste_Test.pdf`), 7 Niederlande/PDOK (Luchtfoto, BGT, BRT Achtergrondkaart, AHN, Kadastrale kaart, BAG) sowie 3 Norwegen/Kartverket (Topo, Topo Graustufen, WMTS-Tilecache). Hinweis PDOK: `Kadastrale kaart`/`BAG` haben server-seitige `MaxScaleDenominator`-Grenzen (6001/8000) — rendern erst bei ausreichend nahem Zoom, kein geobim.app-Bug. Norwegen: `wms.nib` (Luftbild) und `wms.matrikkel` (Kataster) bewusst nicht aufgenommen — Ersteres lehnt anonyme Requests mit IP-Whitelist-Fehler ab, Letzteres liefert 200 OK aber ein leeres Bild (ungeklärt, vermutlich Zugriffsbeschränkung trotz öffentlicher Auflistung)
+
 ### Changed
 
 - **WEA-Standardposition** (`wea-shadow.js`, `DEFAULT_POSITION`): von Helsinki (24.9587°/60.2043°) auf 11.490589°/49.216664° (Bayern), Höhe 610.4 m, geändert — Ausgangspunkt für neu platzierte Turbinen. Die Helsinki-WMS-Kartenlayer (Kantakartta/Kiinteistökartta) bleiben als optionale Basemap-Presets bestehen, sind unabhängig von der Standardposition
+- **WMS GetMap/GetFeatureInfo senden jetzt explizit den ersten deklarierten `<Style>`-Namen** statt immer `STYLES=` leer zu lassen (`layerManager.js`, `discoverWmsLayers()`, `addDiscoveredWmsLayer()`, `queryWmsFeatureInfo()`): robuster gegenüber Diensten mit mehreren benannten Styles ohne dokumentiertes Default-Verhalten. Kein bekannter Bug dadurch behoben — bei den PDOK-Diensten (Auslöser dieser Änderung) stellte sich der ursprünglich vermutete Zusammenhang mit leerem `STYLES=` bei Gegentest als falsch heraus, die eigentliche Ursache für leere Tiles war server-seitiges `MaxScaleDenominator`
+
+### Removed
+
+- **NRW LoD2 3D-Tiles-Preset** (`layerManager.js` `tilesetLayers`): Preset-Eintrag samt zugehöriger Alignment-Logik-Aktivierung aus dem 3D-Layers-Picker entfernt. `_alignNrwTilesetToTerrain()` und die übrigen NRW-spezifischen Funktionen bleiben im Code (nicht mehr erreichbar, keine funktionale Auswirkung) für den Fall einer Wiederaufnahme
+
+### Fixed
+
+- **WMTS-TileMatrixSet-Auswahl schlug bei nicht-exakten Namensvarianten fehl** (`layerManager.js`, `discoverWmsLayers()` WMTS-Zweig, `addDiscoveredWmsLayer()`): die TMS-Präferenzliste verglich Kartennamen exakt gegen eine feste Liste (`googlemapscompatible`, `smerc`, `epsg:3857`, `epsg3857`, `webmercatorquad`) statt per Substring — Kartverkets (Norwegen) schlichtes `webmercator` matchte keinen Eintrag und fiel auf den ersten verlinkten TileMatrixSet zurück, der für mehrsprachige Layer eine norwegische UTM-Zone statt Web Mercator sein kann (von Cesium nicht renderbar). Gefunden beim Testen von `cache.kartverket.no`. Fix: Substring-Match gegen gängige Marker (`3857`, `webmercator`, `googlemapscompatible`, `smerc`, `google3857`) plus Regex für IGN Frankreichs `PM`/`PM_x_y`-Namensschema, an beiden Stellen (TMS-Auswahl und Tiling-Scheme-Erkennung) synchron gehalten
 
 ## [1.11.0] — 2026-09-08
 

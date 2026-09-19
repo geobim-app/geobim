@@ -20,6 +20,56 @@
 
   console.log('Loading Layer Manager module v1.0...');
 
+  // Reads the <OnlineResource> href for a given WMS Capability/Request
+  // operation (e.g. 'GetMap', 'GetFeatureInfo'). Returns null if absent.
+  // Some proxies (notably German Mapbender-based geoportals) serve
+  // GetCapabilities from one URL but declare a different host for the
+  // actual GetMap/GetFeatureInfo requests — this must be honored instead
+  // of reusing the URL the user typed in.
+  function extractOgcOnlineResource(xml, operationName) {
+    var opEl = xml.querySelector('Request > ' + operationName + ', Capability > Request > ' + operationName);
+    if (!opEl) return null;
+    var resEl = opEl.querySelector('DCPType HTTP Get OnlineResource');
+    if (!resEl) return null;
+    var href = resEl.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
+               resEl.getAttribute('xlink:href') ||
+               resEl.getAttribute('href');
+    if (!href) return null;
+    href = href.trim();
+    // Strip a trailing bare '?' left over from templated proxy URLs
+    if (href.endsWith('?')) href = href.slice(0, -1);
+    // Capabilities documents from some (older) German geoportal WMS
+    // instances still declare their GetMap/GetFeatureInfo endpoint as
+    // plain http:// even though the server also serves https:// — geobim.app
+    // is https-only, so an http:// tile request is blocked as mixed content
+    // before it ever reaches the network. Upgrade the scheme when we're
+    // running on https ourselves.
+    if (href.indexOf('http://') === 0 && window.location.protocol === 'https:') {
+      href = 'https://' + href.slice('http://'.length);
+    }
+    return href || null;
+  }
+
+  // Resolves a WMS GetMap/GetFeatureInfo endpoint through the server-side
+  // redirect resolver (api/wms-resolve-redirect.php). Some services declare
+  // an endpoint that 30x-redirects to a different path (server migration),
+  // and browsers require CORS headers on that intermediate redirect response
+  // itself to follow it cross-origin — many servers only set them on the
+  // final response, so the whole chain gets blocked client-side. Resolving
+  // server-side sidesteps that entirely. Falls back to the original URL on
+  // any failure (network issue, endpoint unreachable, etc.).
+  async function resolveWmsRedirect(url) {
+    try {
+      var resp = await fetch('/api/wms-resolve-redirect.php?url=' + encodeURIComponent(url));
+      if (!resp.ok) return url;
+      var data = await resp.json();
+      return data.resolvedUrl || url;
+    } catch (e) {
+      console.warn('WMS redirect resolution failed, using original URL:', e);
+      return url;
+    }
+  }
+
   window.LayerManager = {
 
     // State
@@ -30,19 +80,85 @@
     wmsLayers: [],          // { id, name, url, type, layerName, layer, visible, alpha }
     wmsDiscovered: [],      // cached discovered layers from GetCapabilities
     wmsDiscoveredUrl: null, // URL of last discovery
-    tilesetLayers: [
-      {
-        id: 'nrw-lod2',
-        name: 'NRW LoD2',
-        nameEN: 'NRW LoD2 Buildings',
-        description: 'Gebäudemodelle Nordrhein-Westfalen (Open Data)',
-        url: 'https://ogc-api.nrw.de/3dg/v1/collections/building/3dtiles',
-        tileset: null,
-        active: false,
-        loading: false,
-        heightOffset: null, // computed live in _alignNrwTilesetToTerrain()
-        credit: 'Bezirksregierung K\u00f6ln / Geobasis NRW \u2014 dl-de/zero-2-0'
-      }
+    tilesetLayers: [],
+    // One-click WMS/WMTS/WFS presets for the OGC Services picker — every
+    // entry has been verified with a real GetCapabilities + GetMap/GetTile
+    // request (see docs/RLP_Geodienste_Test.pdf and docs/Bayern_Geodienste_Test.pdf
+    // for the full compatibility write-up of the two German catalogs).
+    // Selecting one fills the URL field and runs discoverWmsLayers() —
+    // no copy/paste needed. `group` becomes an <optgroup> label.
+    wmsPresets: [
+      // --- International ---
+      { group: 'International', label: 'NASA GIBS — Global Satellite Imagery (WMTS)', url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi' },
+      { group: 'International', label: 'basemap.at — Austria Orthophoto/Map (WMTS)', url: 'https://basemap.at/wmts/1.0.0/WMTSCapabilities.xml' },
+      { group: 'International', label: 'IGN France Géoplateforme (WMTS)', url: 'https://data.geopf.fr/wmts' },
+      { group: 'International', label: 'swisstopo — Switzerland Maps/Orthophoto (WMS)', url: 'https://wms.geo.admin.ch/' },
+      { group: 'International', label: 'USGS National Map — US Imagery (WMS)', url: 'https://basemap.nationalmap.gov/arcgis/services/USGSImageryOnly/MapServer/WMSServer' },
+      { group: 'International', label: 'GEBCO — Global Bathymetry (WMS)', url: 'https://wms.gebco.net/mapserv' },
+      // --- Rheinland-Pfalz (lvermgeo.rlp.de) ---
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK5 (1:5,000)', url: 'https://geo4.service24.rlp.de/wms/dtk5_rp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK25 (1:25,000)', url: 'https://geo4.service24.rlp.de/wms/rp_dtk25.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK50 (1:50,000)', url: 'https://geo4.service24.rlp.de/wms/rp_dtk50.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK100 (1:100,000)', url: 'https://geo4.service24.rlp.de/wms/rp_dtk100.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Overview Map 1:250,000', url: 'https://geo4.service24.rlp.de/wms/rp_uek250.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Overview Map RP', url: 'https://geo4.service24.rlp.de/wms/uekrlp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Map Sheet Index', url: 'https://geo5.service24.rlp.de/wms/blattschnitt_rp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Hillshade 1m', url: 'https://geo4.service24.rlp.de/wms/shade1m.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Contour Lines', url: 'https://geo4.service24.rlp.de/wms/hoeli.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Orthophoto 20cm (DOP20)', url: 'https://geo4.service24.rlp.de/wms/rp_dop20.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Historical Orthophotos (time-enabled)', url: 'https://geo4.service24.rlp.de/wms/rp_hkdop20t.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Historical Orthophotos (by year)', url: 'https://geo4.service24.rlp.de/wms/rp_hkdop20.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Survey Control Points (AFIS)', url: 'https://geo5.service24.rlp.de/wms/afis_rp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Cadastre (ALKIS combined)', url: 'https://geo5.service24.rlp.de/wms/liegenschaften_rp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Soil Survey (current)', url: 'https://geo4.service24.rlp.de/wms/rp_bodensch.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Coordinate Accuracy Overview', url: 'https://geo5.service24.rlp.de/wms/gst_rp.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK5 Historical 2016–2019', url: 'https://geo4.service24.rlp.de/wms/dtk5h2019.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'DTK5 Historical 2012', url: 'https://geo4.service24.rlp.de/wms/dtk5h2012.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'TK25 Historical 2007', url: 'https://geo4.service24.rlp.de/wms/tk25h2007.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'TK50 Historical 2007', url: 'https://geo4.service24.rlp.de/wms/tk50h2007.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'TK100 Historical 2008', url: 'https://geo4.service24.rlp.de/wms/tk100h2008.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Historical Cadastre (time-enabled)', url: 'https://geo4.service24.rlp.de/wms/hklika.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Cadastre Snapshot 2026-01-01', url: 'https://geo4.service24.rlp.de/wms/likah2026.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Cadastre Snapshot 2024-01-01', url: 'https://geo4.service24.rlp.de/wms/likah2024.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Cadastre Snapshot 2022-01-01', url: 'https://geo4.service24.rlp.de/wms/likah2022.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Historical Topo Maps (HKTK25)', url: 'https://geo4.service24.rlp.de/wms/hktk25.fcgi' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Parcels — WFS (ALKIS)', url: 'https://www.geoportal.rlp.de/mapbender/php/wfs.php?FEATURETYPE_ID=2712&REQUEST=GetCapabilities&SERVICE=WFS' },
+      { group: 'Germany — Rhineland-Palatinate', label: 'Survey Points — WFS (AFIS)', url: 'https://www.geoportal.rlp.de/mapbender/php/wfs.php?FEATURETYPE_ID=5064&REQUEST=GetCapabilities&SERVICE=WFS' },
+      // --- Bayern (geoservices.bayern.de) ---
+      { group: 'Germany — Bavaria', label: 'Orthophoto RGB 20cm (DOP20)', url: 'https://geoservices.bayern.de/od/wms/dop/v1/dop20?' },
+      { group: 'Germany — Bavaria', label: 'Historical Orthophotos', url: 'https://geoservices.bayern.de/od/wms/histdop/v1/histdop?' },
+      { group: 'Germany — Bavaria', label: 'Terrain Relief (Hillshade)', url: 'https://geoservices.bayern.de/od/wms/dgm/v1/relief?' },
+      { group: 'Germany — Bavaria', label: 'Contour Lines', url: 'https://geoservices.bayern.de/od/wms/dgm/v1/hl?' },
+      { group: 'Germany — Bavaria', label: 'City Map 1:10,000 (DOK)', url: 'https://geoservices.bayern.de/od/wms/dtk/v1/dok?' },
+      { group: 'Germany — Bavaria', label: 'DTK25 (1:25,000)', url: 'https://geoservices.bayern.de/od/wms/dtk/v1/dtk25?' },
+      { group: 'Germany — Bavaria', label: 'DTK50 (1:50,000)', url: 'https://geoservices.bayern.de/od/wms/dtk/v1/dtk50?' },
+      { group: 'Germany — Bavaria', label: 'DTK100 (1:100,000)', url: 'https://geoservices.bayern.de/od/wms/dtk/v1/dtk100?' },
+      { group: 'Germany — Bavaria', label: 'DTK500 (1:500,000)', url: 'https://geoservices.bayern.de/od/wms/dtk/v1/dtk500?' },
+      { group: 'Germany — Bavaria', label: 'Cadastral Map (ALKIS Parzellarkarte)', url: 'https://geoservices.bayern.de/od/wms/alkis/v1/parzellarkarte?' },
+      { group: 'Germany — Bavaria', label: 'Land Use (ALKIS)', url: 'https://geoservices.bayern.de/od/wms/alkis/v1/tn?' },
+      { group: 'Germany — Bavaria', label: 'Administrative Boundaries (ALKIS)', url: 'https://geoservices.bayern.de/od/wms/alkis/v1/verwaltungsgrenzen?' },
+      { group: 'Germany — Bavaria', label: 'Survey Control Points (AFIS)', url: 'https://geoservices.bayern.de/od/wms/afis/v1/festpunkte?' },
+      { group: 'Germany — Bavaria', label: 'Cycling/Hiking Trails', url: 'https://geoservices.bayern.de/od/wms/atkis/v1/freizeitwege?' },
+      { group: 'Germany — Bavaria', label: 'ATKIS Basis-DLM — WFS', url: 'https://geoservices.bayern.de/wfs/v1/ogc_atkis_basisdlm.cgi?' },
+      // --- Netherlands (PDOK, service.pdok.nl) ---
+      { group: 'Netherlands', label: 'Aerial Imagery (Luchtfoto RGB, WMTS)', url: 'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0' },
+      { group: 'Netherlands', label: 'Aerial Imagery (Luchtfoto RGB, WMS)', url: 'https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0' },
+      { group: 'Netherlands', label: 'BGT Base Map (WMTS)', url: 'https://service.pdok.nl/lv/bgt/wmts/v1_0' },
+      { group: 'Netherlands', label: 'Topographic Basemap (BRT Achtergrondkaart, WMTS)', url: 'https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0' },
+      { group: 'Netherlands', label: 'Elevation Model (AHN)', url: 'https://service.pdok.nl/rws/ahn/wms/v1_0' },
+      { group: 'Netherlands', label: 'Cadastral Parcels (Kadastrale kaart)', url: 'https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0' },
+      { group: 'Netherlands', label: 'Buildings (BAG)', url: 'https://service.pdok.nl/lv/bag/wms/v2_0' },
+      // --- Norway (Kartverket/Geonorge) ---
+      // Note: Norge i Bilder aerial imagery (wms.nib) needs a registered/
+      // whitelisted IP and rejects anonymous requests outright — not usable
+      // from a generic server, so it's intentionally left out. Matrikkelen
+      // (wms.matrikkel, cadastral parcels) answers 200 with a real image but
+      // renders empty even over central Oslo with the correct leaf layer
+      // name — unclear whether that's an access restriction or something else,
+      // so it's left out too rather than shipping an unverified preset.
+      { group: 'Norway', label: 'Topographic Map (Topo, color)', url: 'https://wms.geonorge.no/skwms1/wms.topo' },
+      { group: 'Norway', label: 'Topographic Map (grayscale)', url: 'https://wms.geonorge.no/skwms1/wms.topograatone' },
+      { group: 'Norway', label: 'Kartverket Tile Cache (WMTS: topo, grayscale, raster, nautical)', url: 'https://cache.kartverket.no/v1/wmts/1.0.0/WMTSCapabilities.xml' }
     ],
     activeBasemap: null,
     activeTerrain: 'world',
@@ -381,6 +497,29 @@
       this.updateOverlayUI();
       this.updateWmsUI();
       this.updateTilesetUI();
+      this.updateWmsPresetUI();
+    },
+
+    updateWmsPresetUI() {
+      const select = document.getElementById('wmsPresetSelect');
+      if (!select) return;
+
+      const groups = {};
+      const order = [];
+      this.wmsPresets.forEach((preset, index) => {
+        if (!groups[preset.group]) {
+          groups[preset.group] = [];
+          order.push(preset.group);
+        }
+        groups[preset.group].push({ preset, index });
+      });
+
+      select.innerHTML = '<option value="">Quick preset…</option>' +
+        order.map(group => `
+          <optgroup label="${group}">
+            ${groups[group].map(({ preset, index }) => `<option value="${index}">${preset.label}</option>`).join('')}
+          </optgroup>
+        `).join('');
     },
 
     updateBasemapUI() {
@@ -539,11 +678,21 @@
             var allTms = [];
             tmsLinks.forEach(function(t) { allTms.push(t.textContent); });
 
-            // Prefer Web Mercator compatible TileMatrixSet for CesiumJS
+            // Prefer Web Mercator compatible TileMatrixSet for CesiumJS.
+            // Different providers spell this differently — exact-name matching
+            // missed Kartverket's plain "webmercator" (fell through to the
+            // first linked TMS, which for multi-CRS layers can be a Norwegian
+            // UTM grid Cesium can't tile against) and would equally miss
+            // basemap.at's "google3857" or IGN's "PM"/"PM_x_y" if those ever
+            // had more than one TMS to choose from. Substring-match the
+            // common markers instead of requiring an exact identifier.
             var preferredTms = null;
-            var mercatorNames = ['googlemapscompatible', 'smerc', 'epsg:3857', 'epsg3857', 'webmercatorquad'];
+            var mercatorMarkers = ['googlemapscompatible', 'webmercator', 'smerc', '3857', 'google3857'];
             for (var t = 0; t < allTms.length; t++) {
-              if (mercatorNames.indexOf(allTms[t].toLowerCase()) >= 0) {
+              var tmsLower = allTms[t].toLowerCase();
+              var isMercator = mercatorMarkers.some(function(marker) { return tmsLower.indexOf(marker) >= 0; }) ||
+                                /^pm(_|$)/.test(tmsLower);
+              if (isMercator) {
                 preferredTms = allTms[t]; break;
               }
             }
@@ -600,20 +749,47 @@
             }
           });
         } else {
-          // Parse WMS Capabilities
+          // Parse WMS Capabilities.
+          // The GetCapabilities response is sometimes served by a different
+          // endpoint than actual GetMap/GetFeatureInfo tile requests (common
+          // with German geoportal Mapbender proxies, e.g. RLP: the proxy only
+          // answers GetCapabilities, while GetMap points at a separate fcgi
+          // host). Use the <GetMap>/<GetFeatureInfo> OnlineResource hrefs when
+          // present instead of blindly reusing the typed capabilities URL.
+          var rawGetMapUrl = extractOgcOnlineResource(xml, 'GetMap') || url.trim();
+          var rawFeatureInfoUrl = extractOgcOnlineResource(xml, 'GetFeatureInfo') || rawGetMapUrl;
+
+          // Resolve any server-side path redirects up front, once per
+          // discovered service, rather than letting the browser hit them
+          // per-tile (and fail — see resolveWmsRedirect() above).
+          var getMapUrl = await resolveWmsRedirect(rawGetMapUrl);
+          var getFeatureInfoUrl = (rawFeatureInfoUrl === rawGetMapUrl)
+            ? getMapUrl
+            : await resolveWmsRedirect(rawFeatureInfoUrl);
+
           const layerEls = xml.querySelectorAll('Layer > Layer, Layer[queryable]');
           // Deduplicate by Name
           const seen = new Set();
           layerEls.forEach(function(el) {
             const nameEl = el.querySelector(':scope > Name');
             const titleEl = el.querySelector(':scope > Title');
+            // Some WMS servers (e.g. PDOK/NL) declare multiple named Styles
+            // per layer with NO usable default — an empty STYLES= param on
+            // GetMap then returns a technically-valid but blank image instead
+            // of erroring, so the layer silently renders nothing. Capture the
+            // first declared <Style><Name> here and send it explicitly on
+            // every GetMap request instead of relying on server-side default
+            // style behaviour, which isn't guaranteed by the WMS spec.
+            const styleNameEl = el.querySelector(':scope > Style > Name');
             if (nameEl && !seen.has(nameEl.textContent)) {
               seen.add(nameEl.textContent);
               layers.push({
                 name: nameEl.textContent,
                 title: (titleEl ? titleEl.textContent : nameEl.textContent),
                 type: 'wms',
-                url: url.trim()
+                url: getMapUrl,
+                featureInfoUrl: getFeatureInfoUrl,
+                defaultStyle: styleNameEl ? styleNameEl.textContent : ''
               });
             }
           });
@@ -702,10 +878,13 @@
             if (layer.format) wmtsOpts.format = layer.format;
             if (layer.tileMatrixLabels) wmtsOpts.tileMatrixLabels = layer.tileMatrixLabels;
 
-            // Set tiling scheme based on TileMatrixSet CRS
+            // Set tiling scheme based on TileMatrixSet CRS. Keep this marker
+            // list in sync with the TMS-selection pass above (same providers,
+            // e.g. IGN France's "PM"/"PM_x_y" Pseudo-Mercator grids).
             var tmsLower = (layer.tileMatrixSet || '').toLowerCase();
             if (tmsLower.indexOf('3857') >= 0 || tmsLower.indexOf('googlemapscompatible') >= 0 ||
-                tmsLower.indexOf('smerc') >= 0 || tmsLower.indexOf('webmercator') >= 0) {
+                tmsLower.indexOf('smerc') >= 0 || tmsLower.indexOf('webmercator') >= 0 ||
+                /^pm(_|$)/.test(tmsLower)) {
               wmtsOpts.tilingScheme = new Cesium.WebMercatorTilingScheme();
             }
 
@@ -714,7 +893,7 @@
             provider = new Cesium.WebMapServiceImageryProvider({
               url: layer.url,
               layers: layer.name,
-              parameters: { transparent: true, format: 'image/png' }
+              parameters: { transparent: true, format: 'image/png', styles: layer.defaultStyle || '' }
             });
           }
 
@@ -725,8 +904,10 @@
             id: dupeId,
             name: layer.title,
             url: layer.url,
+            featureInfoUrl: layer.featureInfoUrl,
             type: layer.type,
             layerName: layer.name,
+            defaultStyle: layer.defaultStyle || '',
             layer: cesiumLayer,
             dataSource: null,
             visible: true,
@@ -1197,8 +1378,9 @@
       // Query each visible WMS layer
       var self = this;
       wmsLayers.forEach(function(wmsEntry) {
-        // Build GetFeatureInfo URL
-        var baseUrl = wmsEntry.url.split('?')[0];
+        // Build GetFeatureInfo URL — prefer the dedicated GetFeatureInfo
+        // endpoint discovered from capabilities, it may differ from GetMap's.
+        var baseUrl = (wmsEntry.featureInfoUrl || wmsEntry.url).split('?')[0];
 
         // Calculate a bounding box around the click point
         var delta = 0.001; // ~100m
@@ -1212,7 +1394,7 @@
           'QUERY_LAYERS=' + encodeURIComponent(wmsEntry.layerName),
           'INFO_FORMAT=text/html',
           'SRS=EPSG:4326',
-          'STYLES=',
+          'STYLES=' + encodeURIComponent(wmsEntry.defaultStyle || ''),
           'BBOX=' + bbox,
           'WIDTH=256',
           'HEIGHT=256',
