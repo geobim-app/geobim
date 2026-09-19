@@ -920,6 +920,20 @@ const BimViewerUI = {
       console.log(`${assets.length} assets available in selector`);
       BimViewer.updateStatus(`${assets.length} assets available`, 'success');
 
+      // Deep-link: ?asset=<ionAssetId> auto-imports that asset once (e.g. from lab.geobim.app upload).
+      // Falls back to sessionStorage since the Ion OAuth redirect round-trip drops the query string.
+      if (!window._autoOpenAssetHandled) {
+        window._autoOpenAssetHandled = true;
+        const requestedAssetId = new URLSearchParams(window.location.search).get('asset')
+          || sessionStorage.getItem('geobim_pending_asset');
+        sessionStorage.removeItem('geobim_pending_asset');
+        if (requestedAssetId) {
+          const match = assets.find(a => String(a.id) === String(requestedAssetId));
+          selector.value = requestedAssetId;
+          BimViewer.loadSelectedAsset(requestedAssetId, match ? match.name : null);
+        }
+      }
+
     } catch (error) {
       console.error('Failed to auto-load Ion assets:', error);
       if (loadingEl) {

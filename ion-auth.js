@@ -148,6 +148,13 @@
     var pkce = await generatePKCE();
     localStorage.setItem(VERIFIER_KEY, pkce.verifier);
 
+    // OAuth redirect returns to a bare REDIRECT_URI (no query string), so stash
+    // a pending deep-link asset id here to restore it after the round trip
+    var pendingAsset = new URLSearchParams(window.location.search).get('asset');
+    if (pendingAsset) {
+      sessionStorage.setItem('geobim_pending_asset', pendingAsset);
+    }
+
     var params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
