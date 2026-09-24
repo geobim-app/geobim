@@ -81,35 +81,44 @@
       </div>
 
       <div class="modern-divider">
-        <span class="modern-divider-text">Point Appearance</span>
+        <span class="modern-divider-text">Point Size Mode</span>
       </div>
 
       <div class="modern-group">
+        <!-- Attenuated and Fixed are mutually exclusive at the Cesium shader level
+             (a style pointSize always wins over pointCloudShading.attenuation — see
+             pointcloud.js), so this is one mode switch, not two independent toggles. -->
+        <div class="modern-btn-group-2">
+          <button id="sizeModeAttenuated" class="modern-toggle-btn active" onclick="BimViewer.setSizeMode('attenuated')" title="Points shrink with distance (Geometric Error Scale + Maximum Attenuation control it)">
+            <span class="modern-btn-icon">📐</span>
+            <span>Attenuated</span>
+          </button>
+          <button id="sizeModeFixed" class="modern-toggle-btn" onclick="BimViewer.setSizeMode('fixed')" title="Constant on-screen pixel size, regardless of distance">
+            <span class="modern-btn-icon">📌</span>
+            <span>Fixed Size</span>
+          </button>
+        </div>
+
         <div class="modern-slider-group">
           <label class="modern-label-small">Point Size</label>
           <input type="range" id="pointSizeSlider" min="0.5" max="10" step="0.5" value="2"
                  oninput="BimViewer.setPointSize(this.value); document.getElementById('pointSizeValue').textContent = parseFloat(this.value).toFixed(1)"
                  class="modern-slider-small"
-                 title="Adjust point size">
+                 title="Only applies in Fixed Size mode">
           <span id="pointSizeValue" class="modern-value-small">2.0</span>
         </div>
-      </div>
+        <div class="modern-hint modern-hint--tight">
+          <strong>Point Size</strong> only takes effect in <strong>Fixed Size</strong> mode.
+          In <strong>Attenuated</strong> mode, size instead comes from Geometric Error Scale
+          + Maximum Attenuation below.
+        </div>
 
-      <div class="modern-divider">
-        <span class="modern-divider-text">Distance Attenuation</span>
-      </div>
-
-      <div class="modern-group">
-        <button id="toggleAttenuation" class="modern-toggle-btn active" onclick="BimViewer.setAttenuation(!BimViewer.pointCloudSettings.attenuationEnabled)" title="Scale points by distance">
-          <span class="modern-btn-icon">📐</span>
-          <span>Enable Attenuation</span>
-        </button>
-
-        <div class="modern-slider-group">
+        <div class="modern-slider-group modern-slider-group--spaced">
           <label class="modern-label-small">Maximum Attenuation</label>
           <input type="range" id="maxAttenuationSlider" min="1" max="10" step="0.5" value="1"
                  oninput="BimViewer.setMaximumAttenuation(this.value); document.getElementById('maxAttenuationValue').textContent = this.value == 1 ? 'None' : parseFloat(this.value).toFixed(1)"
-                 class="modern-slider-small">
+                 class="modern-slider-small"
+                 title="Only applies in Attenuated mode">
           <span id="maxAttenuationValue" class="modern-value-small">None</span>
         </div>
       </div>
@@ -123,7 +132,8 @@
           <label class="modern-label-small">Geometric Error Scale</label>
           <input type="range" id="geometricErrorSlider" min="0.5" max="3" step="0.1" value="1"
                  oninput="BimViewer.setGeometricErrorScale(this.value); document.getElementById('geometricErrorValue').textContent = parseFloat(this.value).toFixed(1)"
-                 class="modern-slider-small">
+                 class="modern-slider-small"
+                 title="Only applies in Attenuated mode">
           <span id="geometricErrorValue" class="modern-value-small">1.0</span>
         </div>
 
@@ -141,8 +151,8 @@
       <div class="modern-hint">
         <strong>🎨 RGB Colors</strong> are preserved by default<br>
         <strong>💡 EDL</strong> improves depth perception<br>
-        <strong>📐 Attenuation</strong> adjusts point size by distance<br>
-        <strong>⚙️ Geometric Error</strong> controls detail level
+        <strong>📐 Attenuated</strong> shrinks points by distance; <strong>📌 Fixed Size</strong> keeps them constant<br>
+        <strong>⚙️ Geometric Error</strong> controls detail level (Attenuated mode only)
       </div>
     `;
   }
