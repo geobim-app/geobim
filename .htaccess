@@ -15,6 +15,9 @@ RewriteRule ^wea-shadow/?$ /index.html?mode=wea [L,QSA]
 # /bridge-inspector → index.html?mode=bridge (30 min Bridge Inspector demo)
 RewriteRule ^bridge-inspector/?$ /index.html?mode=bridge [L,QSA]
 
+# /stage-twin → index.html?mode=stagetwin (persistent client progress link, no login/time limit)
+RewriteRule ^stage-twin/?$ /index.html?mode=stagetwin [L,QSA]
+
 # Protect stats page + API
 <Files "stats.html">
   AuthType Basic
