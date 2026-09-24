@@ -1594,6 +1594,7 @@ const BimViewer = {
     'noise_barrier_full_2': { name: 'Noise Barrier 2' },
     'sbp_benin': { name: 'SBP Benin' },
     'sbp_heidelberg_blender_gltf': { name: 'SBP Heidelberg' },
+    'ep_sparkassemzweisenau_highpoly_filtered_tiled': { name: 'Baugrube Sparkasse Mainz-Weisenau' },
   },
 
   // Auto-discovered model list (populated by fetchGLBModels)
@@ -1684,6 +1685,18 @@ const BimViewer = {
       if (!detectPointCloud()) {
         setTimeout(detectPointCloud, 1500);
         setTimeout(detectPointCloud, 4000);
+        // IFC tilesets from the geobim tiler carry ion-style metadata
+        // (className, globalId, Pset_*): detect them like the Ion loading path
+        // does (see ~1190), so IFC filters, sequencing and StageTwin apply.
+        setTimeout(async () => {
+          if (assetData.isPointCloud || assetData.ifcPropertyName ||
+              typeof this.detectIFCProperties !== 'function') return;
+          const detected = await this.detectIFCProperties(tileset);
+          if (detected) {
+            assetData.ifcPropertyName = detected;
+            if (typeof this.applyIFCFilter === 'function') await this.applyIFCFilter();
+          }
+        }, 4500);
       }
 
     } catch (error) {

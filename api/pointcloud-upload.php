@@ -20,7 +20,7 @@ header('Content-Type: application/json');
 // overloading the server, this cap is about not tying up the queue for a long
 // time or eating disk space on one huge upload. Raise later based on real
 // usage. Keep in sync with api/.user.ini's upload_max_filesize.
-const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024 * 1024;
 
 function fail($message, $code = 400) {
     http_response_code($code);
@@ -37,25 +37,25 @@ if (!isset($_FILES['file'])) {
     // reporting a per-file error — Content-Length is the only signal left.
     $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
     if ($contentLength > MAX_UPLOAD_BYTES) {
-        fail('File too large — 200 MB limit for now');
+        fail('File too large — 3 GB limit');
     }
     fail('Upload failed (no file received)');
 }
 if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
     $err = $_FILES['file']['error'];
     if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
-        fail('File too large — 200 MB limit for now');
+        fail('File too large — 3 GB limit');
     }
     fail('Upload failed (error code ' . $err . ')');
 }
 if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
-    fail('File too large — 200 MB limit for now');
+    fail('File too large — 3 GB limit');
 }
 
 $origName = $_FILES['file']['name'];
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-if (!in_array($ext, ['las', 'laz', 'e57', 'ply'], true)) {
-    fail('Only .las/.laz/.e57/.ply files are supported');
+if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc'], true)) {
+    fail('Only .las/.laz/.e57/.ply/.ifc files are supported');
 }
 
 $name = trim($_POST['name'] ?? pathinfo($origName, PATHINFO_FILENAME));
@@ -88,6 +88,13 @@ if ($lon === null || $lat === null) {
     $lat = null;
 }
 
+// Optional EPSG code for LAS/LAZ files whose header carries no CRS (the
+// worker reads the header CRS first and guesses German UTM 32N otherwise).
+$epsg = isset($_POST['epsg']) ? trim($_POST['epsg']) : '';
+if ($epsg !== '' && !preg_match('/^\d{4,6}$/', $epsg)) {
+    fail('EPSG must be a numeric code, e.g. 25832');
+}
+
 $jobId = $slug . '_' . bin2hex(random_bytes(4));
 $jobDir = $modelDir . '/_staging/' . $jobId;
 if (!mkdir($jobDir, 0775, true)) {
@@ -105,6 +112,9 @@ $job = [
     'slug' => $slug,
     'name' => $name,
 ];
+if ($epsg !== '') {
+    $job['epsg'] = (int)$epsg;
+}
 if ($lon !== null) {
     $job['lon'] = $lon;
     $job['lat'] = $lat;

@@ -2105,3 +2105,30 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   opacity: 1;
 }
 
+
+/* Point cloud upload progress (pointcloud-upload.js createUploadProgress) */
+.pc-upload-progress {
+  margin-top: var(--space-xs);
+}
+.pc-upload-progress-track {
+  height: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.pc-upload-progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--brand-teal);
+  transition: width 0.3s ease;
+}
+.pc-upload-progress-text {
+  margin-top: var(--space-xs);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-upload-progress-fill { transition: none; }
+}
