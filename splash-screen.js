@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.10.0';
+  var APP_VERSION = '1.11.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
