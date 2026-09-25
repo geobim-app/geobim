@@ -90,8 +90,10 @@
     return out;
   }
 
-  // Accessor → plain array of numbers (normalised ints are not needed here:
+  // Accessor → array of numbers (normalised ints are not needed here:
   // positions come quantised with the node scale, ids and indices are ints).
+  // Tightly packed data (indices, float positions) is viewed as-is; strided
+  // attributes (the tiler pads VEC3 to 4 components) go through a copy.
   function readAccessor(gltf, bin, index, decoder, cache) {
     var acc = gltf.accessors[index];
     var view = gltf.bufferViews[acc.bufferView];
@@ -101,11 +103,27 @@
     var ext = view.extensions && view.extensions.EXT_meshopt_compression;
     var stride = (ext ? ext.byteStride : view.byteStride) || comps * Typed.BYTES_PER_ELEMENT;
     var start = acc.byteOffset || 0;
+    var size = Typed.BYTES_PER_ELEMENT;
+    if (stride === comps * size) {
+      var len = acc.count * comps * size;
+      var packed = bytes.subarray(start, start + len);
+      if (packed.byteOffset % size !== 0) packed = packed.slice();
+      return new Typed(packed.buffer, packed.byteOffset, acc.count * comps);
+    }
+    if (stride % size === 0) {
+      var aligned = bytes.byteOffset % size === 0 ? bytes : bytes.slice();
+      var src = new Typed(aligned.buffer, aligned.byteOffset, Math.floor(aligned.byteLength / size));
+      var step = stride / size, first = start / size;
+      var res = new Float64Array(acc.count * comps);
+      for (var j = 0; j < acc.count; j++) {
+        for (var cc = 0; cc < comps; cc++) res[j * comps + cc] = src[first + j * step + cc];
+      }
+      return res;
+    }
     var copy = new Uint8Array(bytes.byteLength);
     copy.set(bytes);
     var dv = new DataView(copy.buffer);
     var out = new Float64Array(acc.count * comps);
-    var size = Typed.BYTES_PER_ELEMENT;
     var get = {
       1: function(o) { return Typed === Int8Array ? dv.getInt8(o) : dv.getUint8(o); },
       2: function(o) { return Typed === Int16Array ? dv.getInt16(o, true) : dv.getUint16(o, true); },
@@ -388,8 +406,14 @@
       var frame = sectionFrame(section);
       var uris = tilesCrossing(json, frame.P, frame.T);
       var missing = uris.filter(function(u) { return !entry.tiles.has(u); }).length;
-      if (missing) setStatus('Loading ' + missing + ' tile' + (missing > 1 ? 's' : '') + '…');
-      var tiles = await Promise.all(uris.map(function(u) { return loadTile(entry, u); }));
+      var done = 0;
+      function progress() {
+        if (missing && gen === sp.generation) setStatus('Loading tiles ' + done + ' / ' + uris.length + '…');
+      }
+      progress();
+      var tiles = await Promise.all(uris.map(function(u) {
+        return loadTile(entry, u).then(function(t) { done++; progress(); return t; });
+      }));
       if (gen !== sp.generation) return;            // a newer station won
       var byFeature = new Map();
       tiles.forEach(function(t) { sliceTile(t, frame, byFeature); });
