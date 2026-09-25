@@ -3,19 +3,23 @@
    2D cross section panel (section-profile.js)
    =============================== */
 
+/* Bottom centre, above the bottom toolbar: the Loaded Assets panel sits top
+   right and grows down to the bottom edge, so a bottom-right panel ended up
+   under or over it (both z 200) — hiding either the profile or the axis
+   controls. One level above the other panels, so it's never covered. */
 .section-profile-panel {
   position: fixed;
-  right: var(--space-xl);
-  bottom: var(--space-xl);
+  left: max(var(--space-lg), calc(50vw - 280px));
+  bottom: 96px;
   width: min(560px, calc(100vw - 2 * var(--space-lg)));
-  height: min(360px, calc(100vh - 2 * var(--space-lg)));
+  height: min(360px, calc(100vh - 96px - var(--space-lg)));
   min-width: 280px;
   min-height: 200px;
   background: var(--bg-overlay);
   backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
-  z-index: var(--z-panels);
+  z-index: calc(var(--z-panels) + 1);
   color: var(--text-primary);
   display: none;
   flex-direction: column;
