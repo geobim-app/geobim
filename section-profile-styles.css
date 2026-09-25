@@ -1,0 +1,120 @@
+/* ===============================
+   SECTION PROFILE STYLES
+   2D cross section panel (section-profile.js)
+   =============================== */
+
+.section-profile-panel {
+  position: fixed;
+  right: var(--space-xl);
+  bottom: var(--space-xl);
+  width: min(560px, calc(100vw - 2 * var(--space-lg)));
+  height: min(360px, calc(100vh - 2 * var(--space-lg)));
+  min-width: 280px;
+  min-height: 200px;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
+  z-index: var(--z-panels);
+  color: var(--text-primary);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+}
+
+.section-profile-panel.visible {
+  display: flex;
+}
+
+.section-profile-header .floating-panel-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-profile-header .floating-panel-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.section-profile-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.section-profile-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.section-profile-svg:active {
+  cursor: grabbing;
+}
+
+.section-profile-svg .sp-grid {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.section-profile-svg .sp-grid-zero {
+  stroke: var(--border-default);
+}
+
+.section-profile-svg .sp-label {
+  fill: var(--text-muted);
+  font-family: 'Courier New', monospace;
+}
+
+.section-profile-svg .sp-cut {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.section-profile-svg .sp-cut:hover {
+  stroke: var(--brand-teal);
+  stroke-width: 3;
+}
+
+.section-profile-svg .sp-axis {
+  fill: var(--brand-teal);
+  stroke: var(--text-primary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.section-profile-status,
+.section-profile-hover,
+.section-profile-legend {
+  position: absolute;
+  left: var(--space-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.section-profile-status {
+  top: var(--space-sm);
+}
+
+.section-profile-legend {
+  top: var(--space-xs);
+  left: auto;
+  right: var(--space-sm);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.section-profile-hover {
+  bottom: calc(var(--space-lg) + var(--space-xs));
+  color: var(--brand-teal);
+}

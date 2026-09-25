@@ -86,6 +86,7 @@
 | Rectangle Clipping | 3-point rectangle mode: corner 1, corner 2 (edge), corner 3 (width). Live preview. | `clipping.js` |
 | Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. | `clipping-planes.js` |
 | Alignment Section | Section plane perpendicular to an IfcAlignment axis, moved by station (slider, km+m input, ±1/±10 m steps), flip, look-along-axis camera, axis line with IfcReferent markers. Self-hosted IFC tilesets with `alignments.json` from the geobim tiler. | `alignment-section.js` |
+| Cross Section (2D) | Cut edges of all elements at the alignment station as SVG in a floating panel (right of axis / above axis, grid, element hover, zoom and pan). Follows the station slider live; sliced in the browser from the tileset's GLB tiles. | `section-profile.js` |
 | Inverse Clipping | Flip clipping inside/outside. | `clipping.js` |
 | Terrain Clipping | Toggle terrain inclusion in clipping (Buildings Only vs. Buildings + Terrain). | `clipping.js` |
 | Clipping Visualization | Show/hide cyan polygon fill while clipping stays active. | `clipping.js` |

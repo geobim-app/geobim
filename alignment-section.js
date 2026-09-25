@@ -124,6 +124,12 @@
     return st.data.alignments[st.axisIndex];
   }
 
+  // Consumers (section-profile.js) follow the section through this event and
+  // BimViewer.getAlignmentSection(), instead of hooking the setters.
+  function notifyChange() {
+    window.dispatchEvent(new CustomEvent('geobim:alignment-section'));
+  }
+
   function syncPlane() {
     var st = BimViewer.alignmentSection.state;
     if (!st) return;
@@ -131,6 +137,7 @@
     var plane = st.collection.get(0);
     Cesium.Cartesian3.clone(p.normal, plane.normal);
     plane.distance = p.distance;
+    notifyChange();
   }
 
   // =====================================
@@ -294,6 +301,28 @@
 
     this.alignmentSection.state = null;
     this.alignmentSection.activeAssetId = null;
+    notifyChange();
+  };
+
+  // The active section in the tileset's local frame (Z-up metres), or null.
+  BimViewer.getAlignmentSection = function() {
+    var st = this.alignmentSection.state;
+    if (!st) return null;
+    var axis = currentAxis(st);
+    var s = sampleAxis(axis, st.distance);
+    var ad = this.loadedAssets.get(st.assetId);
+    return {
+      assetId: st.assetId,
+      tileset: st.tileset,
+      tilesetUrl: ad && ad.modelDef ? ad.modelDef.file : null,
+      axisIndex: st.axisIndex,
+      axisName: axis.name || axis.globalId || ('Alignment ' + (st.axisIndex + 1)),
+      distance: st.distance,
+      station: axis.startStation + st.distance,
+      stationText: formatStation(axis.startStation + st.distance),
+      point: s.point,
+      tangent: s.tangent
+    };
   };
 
   // =====================================
@@ -435,6 +464,10 @@
             'title="Flip cut direction"><i data-lucide="arrow-left-right"></i></button>' +
           '<button class="axis-icon-btn" onclick="BimViewer.alignCameraToSection()" ' +
             'title="Look along the axis at the cut"><i data-lucide="scan-eye"></i></button>' +
+          (typeof BimViewer.toggleSectionProfile === 'function'
+            ? '<button class="axis-icon-btn" id="axisProfile_' + id + '" onclick="BimViewer.toggleSectionProfile()" ' +
+              'title="2D cross section"><i data-lucide="scan-line"></i></button>'
+            : '') +
         '</div>' +
       '</div>';
 
