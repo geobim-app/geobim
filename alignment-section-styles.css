@@ -1,0 +1,129 @@
+/* ===============================
+   ALIGNMENT SECTION STYLES
+   Section plane along an IfcAlignment axis (alignment-section.js)
+   =============================== */
+
+.axis-section-controls {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: rgba(var(--brand-teal-rgb), 0.08);
+  border: 1px solid rgba(var(--brand-teal-rgb), 0.25);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.axis-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.axis-section-header .modern-label-small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.axis-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.axis-select {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--input-bg-solid);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.axis-slider {
+  flex: 1;
+  width: 100%;
+  accent-color: var(--brand-teal);
+  cursor: pointer;
+}
+
+.axis-station-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.axis-station-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--input-bg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.axis-station-input:focus-visible,
+.axis-step-btn:focus-visible,
+.axis-icon-btn:focus-visible,
+.axis-select:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+.axis-buttons {
+  flex-wrap: wrap;
+}
+
+.axis-step-btn,
+.axis-icon-btn {
+  min-width: 32px;
+  height: 28px;
+  padding: 0 var(--space-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.axis-step-btn:hover,
+.axis-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.axis-icon-btn svg,
+.axis-card-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.axis-icon-btn.flipped {
+  background: rgba(var(--brand-teal-rgb), 0.2);
+  border-color: rgba(var(--brand-teal-rgb), 0.5);
+  color: var(--brand-teal);
+}
+
+.modern-icon-btn.axis-active {
+  background: rgba(var(--brand-teal-rgb), 0.25);
+  color: var(--brand-teal);
+}
+
+@media (pointer: coarse) {
+  .axis-step-btn,
+  .axis-icon-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+}

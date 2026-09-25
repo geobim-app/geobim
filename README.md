@@ -23,7 +23,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings
 - **IFC & Revit Filtering** — Show/hide by entity class or category with color-coded visualization
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
-- **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes
+- **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes, plus sections along an IfcAlignment axis by station
 - **Construction Sequencing** — 4D BIM stage animation via IFC properties
 - **Annotations** — Point and area comments with Firestore persistence
 - **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
