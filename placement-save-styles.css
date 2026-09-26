@@ -1,0 +1,50 @@
+/* ===============================
+   PLACEMENT (placement-save.js)
+   Tileset position fields + owner-only save / reset
+   =============================== */
+
+.placement-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.placement-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.placement-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.placement-field-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.placement-input {
+  width: 100%;
+}
+
+.placement-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.placement-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.placement-btn svg {
+  width: 14px;
+  height: 14px;
+}

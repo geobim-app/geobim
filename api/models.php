@@ -5,6 +5,8 @@ header('Cache-Control: no-cache');
 
 $modelDir = __DIR__ . '/../model';
 $models = [];
+// Placements saved in geobim.app (api/placement-save.php), keyed by GLB file name
+$saved = json_decode(@file_get_contents($modelDir . '/placements.json') ?: '{}', true) ?: [];
 
 foreach (glob($modelDir . '/*.{glb,gltf}', GLOB_BRACE) as $path) {
     $filename = basename($path);
@@ -28,6 +30,9 @@ foreach (glob($modelDir . '/*.{glb,gltf}', GLOB_BRACE) as $path) {
         'size' => filesize($path),
         'type' => 'GLB',
     ];
+    if (isset($saved[$filename])) {
+        $models[count($models) - 1]['savedPlacement'] = $saved[$filename];
+    }
 }
 
 // Self-hosted 3D Tiles tilesets — one level deep, e.g. model/hotel_tiled/tileset.json
@@ -45,7 +50,9 @@ foreach (glob($modelDir . '/*/tileset.json') as $path) {
     $models[] = [
         'id'   => $id,
         'name' => $displayName,
-        'file' => 'model/' . $folder . '/tileset.json',
+        // ?v=mtime: a saved placement rewrites tileset.json, so a cached
+        // copy must not bring back the old position
+        'file' => 'model/' . $folder . '/tileset.json?v=' . filemtime($path),
         'size' => filesize($path),
         'type' => 'TILESET',
     ];

@@ -49,7 +49,7 @@
     var ad = BimViewer.loadedAssets.get(assetId);
     var file = ad && ad.modelDef && ad.modelDef.type === 'TILESET' ? ad.modelDef.file : null;
     var p = !file ? Promise.resolve(null) :
-      fetch(file.replace(/tileset\.json$/, 'alignments.json'), { cache: 'no-cache' })
+      fetch(file.replace(/tileset\.json(\?.*)?$/, 'alignments.json'), { cache: 'no-cache' })
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(d) {
           return (d && d.frame === 'tileset-local' && Array.isArray(d.alignments) && d.alignments.length) ? d : null;

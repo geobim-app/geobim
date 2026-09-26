@@ -87,6 +87,7 @@
 | Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. | `clipping-planes.js` |
 | Alignment Section | Section plane perpendicular to an IfcAlignment axis, moved by station (slider, km+m input, ±1/±10 m steps), flip, look-along-axis camera, axis line with IfcReferent markers. Self-hosted IFC tilesets with `alignments.json` from the geobim tiler. | `alignment-section.js` |
 | Cross Section (2D) | Cut edges of all elements at the alignment station as SVG in a floating panel (right of axis / above axis, grid, element hover, zoom and pan). Follows the station slider live; sliced in the browser from the tileset's GLB tiles. | `section-profile.js` |
+| Placement save | Lon / Lat / Height fields for self-hosted IFC tilesets (synced with the gizmo), non-georeferenced tilesets load at the view centre like GLBs; owner-only "Save position" / "Reset" for tilesets (tileset.json root.transform) and GLBs (model/placements.json), verified server-side via Firebase ID token. | `placement-save.js`, `api/placement-save.php` |
 | Inverse Clipping | Flip clipping inside/outside. | `clipping.js` |
 | Terrain Clipping | Toggle terrain inclusion in clipping (Buildings Only vs. Buildings + Terrain). | `clipping.js` |
 | Clipping Visualization | Show/hide cyan polygon fill while clipping stays active. | `clipping.js` |
