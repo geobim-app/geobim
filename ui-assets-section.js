@@ -62,6 +62,13 @@
             <input type="number" id="pointcloudLatInput" class="zoffset-input-box" placeholder="Lat (optional)" step="0.0001">
           </div>
           <div class="modern-hint" style="margin-top:2px;">Leave Long/Lat empty to place it wherever the main view is currently looking</div>
+          <div class="upload-georef-grid">
+            <input type="text" id="pointcloudEpsgInput" class="zoffset-input-box" placeholder="EPSG (optional)" inputmode="numeric"
+                   title="CRS of the coordinates, e.g. 25832 — for IFC optionally with vertical datum: 25832+7837 (UTM 32N + DHHN2016)">
+            <input type="text" id="pointcloudRefHeightInput" class="zoffset-input-box" placeholder="±0.00 in m a.s.l. (IFC)" inputmode="decimal"
+                   title="IFC only: height of ±0.00 (IFC z = 0) above sea level, e.g. 112.35 — for files without absolute heights">
+          </div>
+          <div class="modern-hint">EPSG e.g. 25832 or 25832+7837 (with height datum) · ±0.00 only if the IFC has no absolute heights</div>
           <button id="uploadPointCloudBtn" class="modern-btn modern-btn-primary" style="margin-top: 6px; width:100%;">
             <span class="modern-btn-icon">☁️</span>
             <span>Convert &amp; Upload</span>
@@ -186,6 +193,8 @@
       const fileInput = document.getElementById('pointcloudFileInput');
       const nameInput = document.getElementById('pointcloudNameInput');
       const lonInput = document.getElementById('pointcloudLonInput');
+      const epsgInput = document.getElementById('pointcloudEpsgInput');
+      const refHeightInput = document.getElementById('pointcloudRefHeightInput');
       const latInput = document.getElementById('pointcloudLatInput');
       const statusEl = document.getElementById('pointcloudUploadStatus');
       const btn = document.getElementById('uploadPointCloudBtn');
@@ -229,7 +238,9 @@
           lon: isNaN(lon) ? null : lon,
           lat: isNaN(lat) ? null : lat,
           height: height,
-          heading: 0
+          heading: 0,
+          epsg: (epsgInput?.value || '').trim() || undefined,
+          refHeight: (refHeightInput?.value || '').trim().replace(',', '.') || undefined
         });
       } catch (err) {
         if (statusEl) statusEl.textContent = `Failed: ${err.message}`;

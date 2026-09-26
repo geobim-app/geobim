@@ -299,6 +299,10 @@ def convert_ifc(job, job_dir, input_path, out_dir, final_dir, slug):
         "--status-file", os.path.join(job_dir, "status.json"),
         "--memory-gb", IFC_TILER_MEMORY_GB,
     ]
+    if job.get("epsg_full") or job.get("epsg"):
+        cmd += ["--epsg", str(job.get("epsg_full") or job.get("epsg"))]
+    if job.get("ref_height") is not None:
+        cmd += ["--ref-height", str(float(job["ref_height"]))]
     if job.get("lon") is not None and job.get("lat") is not None:
         height = float(job.get("height") or 0)
         # The upload dialog's view-centre fallback can yield nonsense heights

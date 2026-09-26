@@ -88,11 +88,23 @@ if ($lon === null || $lat === null) {
     $lat = null;
 }
 
-// Optional EPSG code for LAS/LAZ files whose header carries no CRS (the
-// worker reads the header CRS first and guesses German UTM 32N otherwise).
-$epsg = isset($_POST['epsg']) ? trim($_POST['epsg']) : '';
-if ($epsg !== '' && !preg_match('/^\d{4,6}$/', $epsg)) {
-    fail('EPSG must be a numeric code, e.g. 25832');
+// Optional EPSG code: for LAS/LAZ files whose header carries no CRS (the
+// worker reads the header CRS first and guesses German UTM 32N otherwise), and
+// for IFC files whose georeferencing names no usable CRS. IFC may add a
+// vertical datum: "25832+7837" (UTM 32N + DHHN2016); point clouds use the
+// horizontal part.
+$epsg = isset($_POST['epsg']) ? preg_replace('/\s+/', '', $_POST['epsg']) : '';
+$epsg = preg_replace('/^EPSG:/i', '', $epsg);
+if ($epsg !== '' && !preg_match('/^\d{4,6}(\+\d{4,5})?$/', $epsg)) {
+    fail('EPSG must be a numeric code, e.g. 25832 or 25832+7837');
+}
+// Optional IFC reference height: orthometric height (m) of IFC z = 0 (±0.00)
+$refHeight = isset($_POST['ref_height']) && trim($_POST['ref_height']) !== '' ? str_replace(',', '.', trim($_POST['ref_height'])) : null;
+if ($refHeight !== null) {
+    if (!is_numeric($refHeight) || (float)$refHeight < -500 || (float)$refHeight > 9000) {
+        fail('Height of ±0.00 must be a number between -500 and 9000 m');
+    }
+    $refHeight = (float)$refHeight;
 }
 
 $jobId = $slug . '_' . bin2hex(random_bytes(4));
@@ -113,7 +125,11 @@ $job = [
     'name' => $name,
 ];
 if ($epsg !== '') {
-    $job['epsg'] = (int)$epsg;
+    $job['epsg'] = (int)explode('+', $epsg)[0];
+    $job['epsg_full'] = $epsg;
+}
+if ($refHeight !== null) {
+    $job['ref_height'] = $refHeight;
 }
 if ($lon !== null) {
     $job['lon'] = $lon;

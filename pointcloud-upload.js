@@ -96,7 +96,9 @@
     };
   }
 
-  // opts: { name, lon, lat, height, heading } — lon/lat/height/heading are
+  // opts: { name, lon, lat, height, heading, epsg, refHeight } — epsg ("25832"
+  // or "25832+7837") and refHeight (orthometric height of IFC ±0.00) are
+  // optional georeferencing hints for the converter; lon/lat/height/heading are
   // optional; when provided (non-null), the server bakes them into the
   // resulting tileset's root.transform (see scripts/convert_pointcloud.py).
   BimViewer.uploadPointCloud = async function(file, opts) {
@@ -109,6 +111,10 @@
       formData.append('lat', opts.lat);
       formData.append('height', opts.height ?? 0);
       formData.append('heading', opts.heading ?? 0);
+    }
+    if (opts.epsg) formData.append('epsg', opts.epsg);
+    if (opts.refHeight !== undefined && opts.refHeight !== null && opts.refHeight !== '') {
+      formData.append('ref_height', opts.refHeight);
     }
 
     this.updateStatus('Uploading point cloud...', 'loading');

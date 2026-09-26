@@ -2132,3 +2132,11 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
 @media (prefers-reduced-motion: reduce) {
   .pc-upload-progress-fill { transition: none; }
 }
+
+/* IFC / point cloud upload: optional EPSG + ±0.00 height (ui-assets-section.js) */
+.upload-georef-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+  margin-top: 6px;
+}
