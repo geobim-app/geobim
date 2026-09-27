@@ -104,7 +104,7 @@
         var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
         const assets = isOAuth
           ? allAssets.filter(asset => asset.type === '3DTILES' || asset.type === 'GLTF')
-          : Array.from(DEMO_ASSETS, function(entry) { return { id: entry[0], name: entry[1] }; });
+          : BimViewer.demoIonAssets(allAssets);
 
         selector.innerHTML = '<option value="">-- Select an asset --</option>';
 

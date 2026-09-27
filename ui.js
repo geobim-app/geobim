@@ -884,15 +884,8 @@ const BimViewerUI = {
           asset.type === '3DTILES' || asset.type === 'GLTF'
         );
       } else {
-        // Demo — show curated asset IDs, using live Ion names where available
-        var liveNameMap = new Map(allAssets.map(function(a) { return [Number(a.id), a.name]; }));
-        assets = Array.from(DEMO_ASSETS, function(entry) {
-          return {
-            id: entry[0],
-            name: liveNameMap.get(Number(entry[0])) || entry[1],
-            type: '3DTILES'
-          };
-        });
+        // Demo — only the assets the demo token may read (see core.js demoIonAssets)
+        assets = BimViewer.demoIonAssets(allAssets);
       }
 
       // Optional per-mode allowlist (e.g. Bridge Inspector restricts to a curated set)

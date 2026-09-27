@@ -968,6 +968,22 @@ const BimViewer = {
     }
   },
 
+  // Demo token (Referer-restricted, assets:list): Ion lists exactly the assets
+  // the token may read. Of those, show our own uploads — archivable; Cesium's
+  // base layers (terrain, imagery, OSM Buildings, Google 3D Tiles) are not —
+  // that are 3D Tiles or glTF, newest first. Without a listing (fallback items
+  // carry no `archivable`), use the curated DEMO_ASSETS instead.
+  demoIonAssets(allAssets) {
+    const own = (allAssets || []).filter(a =>
+      a.archivable === true && (a.type === '3DTILES' || a.type === 'GLTF'));
+    if (own.length) {
+      return own.slice().sort((a, b) => String(b.dateAdded || '').localeCompare(String(a.dateAdded || '')));
+    }
+    return Array.from(typeof DEMO_ASSETS !== 'undefined' ? DEMO_ASSETS : [], entry => ({
+      id: entry[0], name: entry[1], type: '3DTILES'
+    }));
+  },
+
   async fetchAvailableAssets() {
     try {
       var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
