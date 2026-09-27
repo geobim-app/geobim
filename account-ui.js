@@ -14,9 +14,9 @@
 // ACCOUNT UI v1.0
 // The sidebar header's #userBadge (ui.js) was never shown. Now: guests see
 // "Guest" + "Sign in" (opens the auth-gate dialog, see auth-gate.js guest
-// access); signed-in users see their email + "Sign out". Also sets
-// body.guest-mode, which hides the Layers tools guests don't get (Ion terrain
-// / imagery by asset ID, geoid terrain, bathymetry — see auth-styles.css).
+// access); signed-in users see their email + "Sign out" and, docked under
+// it, the "Connect to Cesium ion" indicator (ion-auth.js). Also sets
+// body.guest-mode, which hides what guests don't get (see auth-styles.css).
 // ===============================
 'use strict';
 
@@ -48,10 +48,30 @@
     return true;
   }
 
+  // Signed-in users: the Cesium ion connect indicator (ion-auth.js, created
+  // floating top right) moves into the sidebar, under the account badge.
+  function dockIonIndicator() {
+    var ind = document.getElementById('ionAuthIndicator');
+    var badge = document.getElementById('userBadge');
+    if (!ind || !badge || isGuest()) return false;
+    if (!ind.classList.contains('in-sidebar')) {
+      ind.classList.add('in-sidebar');
+      badge.insertAdjacentElement('afterend', ind);
+    }
+    return true;
+  }
+
   var tries = 0;
   (function wait() {
     if (render() || ++tries > 200) return;
     setTimeout(wait, 300);
+  })();
+
+  var ionTries = 0;
+  (function waitIon() {
+    if (window._authGatePassed && (isGuest() || dockIonIndicator())) return;
+    if (++ionTries > 200) return;
+    setTimeout(waitIon, 300);
   })();
 
   console.log('Account UI loaded v1.0');
