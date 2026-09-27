@@ -58,8 +58,61 @@ function geobim_verify_firebase_token($jwt) {
     return $payload;
 }
 
-// Ends the request with 401/403 unless the caller is the owner.
+// ---------------------------------------------------------------------------
+// Owner session cookie. Cesium loads tiles with plain GETs that cannot carry
+// the ID token, so after sign-in api/owner-session.php trades the token for a
+// cookie: "<email>|<expiry>|<hmac>" signed with /etc/geobim/session-secret.
+// The browser sends it with every same-origin request (tiles, uploads, ...).
+// ---------------------------------------------------------------------------
+const GEOBIM_SESSION_COOKIE = 'geobim_owner';
+const GEOBIM_SESSION_TTL = 12 * 3600;
+
+function geobim_session_secret() {
+    $s = @file_get_contents('/etc/geobim/session-secret');
+    return $s ? trim($s) : null;
+}
+
+function geobim_session_value($email, $expires) {
+    $secret = geobim_session_secret();
+    if (!$secret) return null;
+    $data = strtolower($email) . '|' . $expires;
+    return $data . '|' . hash_hmac('sha256', $data, $secret);
+}
+
+// Owner email from a valid session cookie, or null.
+function geobim_owner_from_cookie() {
+    $v = $_COOKIE[GEOBIM_SESSION_COOKIE] ?? '';
+    $parts = explode('|', $v);
+    if (count($parts) !== 3) return null;
+    [$email, $expires, $mac] = $parts;
+    if (!ctype_digit($expires) || (int)$expires < time()) return null;
+    $expected = geobim_session_value($email, (int)$expires);
+    if (!$expected || !hash_equals($expected, $v)) return null;
+    return in_array($email, GEOBIM_OWNER_EMAILS, true) ? $email : null;
+}
+
+function geobim_set_session_cookie($email) {
+    $expires = time() + GEOBIM_SESSION_TTL;
+    setcookie(GEOBIM_SESSION_COOKIE, geobim_session_value($email, $expires), [
+        'expires' => $expires, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax',
+    ]);
+}
+
+function geobim_clear_session_cookie() {
+    setcookie(GEOBIM_SESSION_COOKIE, '', [
+        'expires' => 1, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax',
+    ]);
+}
+
+function geobim_is_owner() {
+    return geobim_owner_from_cookie() !== null;
+}
+
+// Ends the request with 401/403 unless the caller is the owner (session
+// cookie, or a Firebase ID token in the Authorization header).
 function geobim_require_owner() {
+    $email = geobim_owner_from_cookie();
+    if ($email) return ['email' => $email, 'via' => 'cookie'];
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
     if (!preg_match('/^Bearer\s+(\S+)$/', $auth, $m)) {
         http_response_code(401);
@@ -74,7 +127,7 @@ function geobim_require_owner() {
     }
     if (!in_array(strtolower($payload['email'] ?? ''), GEOBIM_OWNER_EMAILS, true)) {
         http_response_code(403);
-        echo json_encode(['error' => 'Only the owner may save placements']);
+        echo json_encode(['error' => 'Owner only']);
         exit;
     }
     return $payload;

@@ -1,0 +1,6 @@
+# geoBIM.app — model/ is owner-only (api/model-file.php checks the session
+# cookie). Public features load only these: the walk-mode character, the WEA
+# turbines (/wea-shadow) and SIB bridges generated for any user.
+RewriteEngine On
+RewriteRule ^(Cesium_Man\.glb|wind/.+|sib/.+)$ - [L]
+RewriteRule ^(.+)$ /api/model-file.php?path=$1 [L,B,QSA]

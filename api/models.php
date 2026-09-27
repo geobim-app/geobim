@@ -2,6 +2,13 @@
 // Auto-discover GLB/glTF models AND self-hosted 3D Tiles tilesets in model/
 header('Content-Type: application/json');
 header('Cache-Control: no-cache');
+require __DIR__ . '/_owner_auth.php';
+// Server models are the owner's; everyone else gets an empty list (and model/
+// itself answers 404 to them, see model/.htaccess).
+if (!geobim_is_owner()) {
+    echo '[]';
+    exit;
+}
 
 $modelDir = __DIR__ . '/../model';
 $models = [];

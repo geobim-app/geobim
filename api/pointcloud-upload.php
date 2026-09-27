@@ -6,14 +6,11 @@
 // the tiled result into model/<slug>/, where it's auto-discovered by
 // models.php exactly like any other GLB/tileset asset.
 //
-// KNOWN GAP: no server-side auth. The Assets panel only shows the upload UI
-// to BimViewer.isLabUser() (client-side check, matching the existing GLB lab
-// section) — this endpoint itself accepts requests from anyone who finds the
-// URL. Acceptable for now given this project's other api/*.php endpoints are
-// equally unauthenticated and labUsers is effectively one person, but a real
-// gate (e.g. Firebase ID token verification) would be needed before opening
-// this more broadly.
+// Owner only, checked server-side (2026-09-27): the owner session cookie set
+// by api/owner-session.php after Firebase sign-in, or an ID token.
 header('Content-Type: application/json');
+require __DIR__ . '/_owner_auth.php';
+geobim_require_owner();   // owner session cookie (api/owner-session.php) or ID token
 
 // Deliberately modest while usage is low-volume/single-user — flock()-serialized
 // conversion in convert_pointcloud.py already prevents concurrent jobs from

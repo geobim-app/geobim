@@ -94,6 +94,8 @@
   if (typeof BimViewer.fetchGLBModels === 'function') {
     var origFetch = BimViewer.fetchGLBModels;
     BimViewer.fetchGLBModels = async function() {
+      // model/ is owner-only: wait for the session cookie (owner-session.js)
+      if (BimViewer.ownerSessionReady) await BimViewer.ownerSessionReady;
       var list = await origFetch.apply(this, arguments);
       (list || []).forEach(function(m) {
         var s = m.savedPlacement;

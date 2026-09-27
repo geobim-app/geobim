@@ -3,12 +3,13 @@
 // pointcloud upload pipeline (pointcloud-upload.php + convert_pointcloud.py)
 // from model/ on the server.
 //
-// Same known gap as pointcloud-upload.php: no server-side auth, only the
-// isLabUser() client-side gate. Kept intentionally narrow in scope to reduce
-// blast radius: only folders matching our own naming convention
+// Owner only, checked server-side (see _owner_auth.php). Kept intentionally
+// narrow in scope as well: only folders matching our own naming convention
 // (<slug>_tiled[_N]) that actually contain a tileset.json can be targeted —
 // this can't be used to delete arbitrary files/GLBs elsewhere in model/.
 header('Content-Type: application/json');
+require __DIR__ . '/_owner_auth.php';
+geobim_require_owner();   // owner session cookie (api/owner-session.php) or ID token
 
 function fail($message, $code = 400) {
     http_response_code($code);
