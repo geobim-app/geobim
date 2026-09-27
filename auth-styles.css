@@ -346,3 +346,10 @@ body.guest-mode .modern-section:has(> .modern-section-header[data-section="splat
 body.guest-mode:not(.bridge-mode) .modern-section:has(> .modern-section-header[data-section="inspection"]) {
   display: none !important;
 }
+
+/* Guests: no STA Live / IoT Live sensor buttons, no "Connect to Cesium ion" */
+body.guest-mode #staToggleBtn,
+body.guest-mode #iotToggleBtn,
+body.guest-mode #ionAuthIndicator {
+  display: none !important;
+}
