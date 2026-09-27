@@ -906,7 +906,7 @@ const BimViewerUI = {
       assets.forEach(asset => {
         const option = document.createElement('option');
         option.value = asset.id;
-        option.textContent = `${asset.name} (ID: ${asset.id})`;
+        option.textContent = asset.name;
         selector.appendChild(option);
       });
 
