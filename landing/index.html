@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>geoBIM.app — BIM × GIS in the browser</title>
+<meta name="description" content="Stream BIM, point clouds, splats and GIS data into one georeferenced 3D scene in the browser. IFC 4x3 alignments, sections by station, wind shadow analysis, bridge inspection and live sensors.">
+<!-- preview: not linked, not indexed -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #080b10;
+  --bg-2: #0d1117;
+  --panel: #111821;
+  --panel-2: #151e29;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.14);
+  --text: #e3eae8;
+  --text-2: #9fb0ad;
+  --text-3: #66777a;
+  --teal: #2ecfb0;
+  --teal-dim: rgba(46, 207, 176, 0.14);
+  --teal-glow: rgba(46, 207, 176, 0.35);
+  --amber: #f2b84b;
+  --red: #ff6b6b;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r: 12px;
+  --max: 1160px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--teal); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+.mono { font-family: var(--mono); }
+
+/* ---------- background grid ---------- */
+.grid-bg {
+  position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+}
+#contours { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; opacity: 0.55; pointer-events: none; }
+
+/* ---------- nav ---------- */
+nav {
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(10px);
+  background: rgba(8, 11, 16, 0.72);
+  border-bottom: 1px solid var(--line);
+}
+nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+nav .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; letter-spacing: -0.01em; }
+nav .brand img { height: 34px; }
+nav .links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
+nav .links a { color: var(--text-2); }
+nav .links a:hover { color: var(--text); text-decoration: none; }
+.hud {
+  font: 500 11px/1 var(--mono); color: var(--text-3);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; white-space: nowrap;
+}
+.hud b { color: var(--teal); font-weight: 500; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 600 15px/1 var(--sans); padding: 14px 18px; border-radius: 10px;
+  border: 1px solid var(--line-2); color: var(--text); background: var(--panel);
+  transition: border-color .15s, background-color .15s, transform .15s;
+}
+.btn:hover { text-decoration: none; border-color: var(--teal); transform: translateY(-1px); }
+.btn.primary { background: var(--teal); color: #051410; border-color: var(--teal); box-shadow: 0 8px 30px -10px var(--teal-glow); }
+.btn.primary:hover { background: #45dcbf; }
+.btn .k { font: 500 12px/1 var(--mono); opacity: .7; }
+
+/* ---------- hero ---------- */
+.hero { padding: 88px 0 64px; }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+.eyebrow { font: 500 12px/1 var(--mono); color: var(--teal); letter-spacing: .08em; text-transform: uppercase; display: flex; gap: 10px; align-items: center; }
+.eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--teal); }
+h1 {
+  font: 700 clamp(40px, 6vw, 68px)/1.02 var(--sans); letter-spacing: -0.035em;
+  margin: 18px 0 18px; text-wrap: balance;
+}
+h1 .x { color: var(--teal); font-family: var(--mono); font-weight: 500; }
+.lede { font-size: 19px; color: var(--text-2); max-width: 34em; margin: 0 0 30px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero .btn:not(.primary) { font-size: 14px; padding: 14px 15px; }
+.cta-note { margin-top: 14px; font: 12px/1.5 var(--mono); color: var(--text-3); }
+
+/* terminal */
+.term {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--line-2); border-radius: var(--r);
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(46,207,176,.05) inset;
+  overflow: hidden; font: 13px/1.75 var(--mono);
+}
+.term-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--text-3); font-size: 12px; }
+.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a3441; display: inline-block; }
+.term-bar i:nth-child(1) { background: #ff5f57; } .term-bar i:nth-child(2) { background: #febc2e; } .term-bar i:nth-child(3) { background: #28c840; }
+.term-bar span { margin-left: 8px; }
+.term pre { margin: 0; padding: 18px 18px 22px; min-height: 318px; white-space: pre-wrap; color: var(--text-2); }
+.term .p { color: var(--teal); }
+.term .c { color: var(--text); }
+.term .ok { color: var(--teal); }
+.term .dim { color: var(--text-3); }
+.term .warn { color: var(--amber); }
+.caret { display: inline-block; width: 8px; height: 15px; background: var(--teal); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- stack strip ---------- */
+.stack { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(13,17,23,.6); }
+.stack .wrap { display: flex; flex-wrap: wrap; gap: 10px 26px; justify-content: center; padding-top: 18px; padding-bottom: 18px; }
+.stack span { font: 500 12.5px/1 var(--mono); color: var(--text-3); }
+.stack span::before { content: "▸ "; color: var(--teal); }
+
+/* ---------- sections ---------- */
+section { padding: 96px 0; }
+.sec-head { display: grid; grid-template-columns: 1fr 1.3fr; gap: 40px; align-items: end; margin-bottom: 44px; }
+.sec-no { font: 500 12px/1 var(--mono); color: var(--teal); letter-spacing: .08em; }
+h2 { font: 700 clamp(30px, 4vw, 44px)/1.08 var(--sans); letter-spacing: -0.03em; margin: 12px 0 0; text-wrap: balance; }
+.sec-head p { color: var(--text-2); margin: 0; font-size: 17px; }
+
+/* feature grid */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.feature { background: var(--bg-2); padding: 26px 24px 28px; position: relative; transition: background-color .2s; }
+.feature:hover { background: var(--panel); }
+.feature .tag { font: 500 11px/1 var(--mono); color: var(--text-3); display: flex; justify-content: space-between; }
+.feature .tag b { color: var(--teal); font-weight: 500; }
+.feature svg { width: 28px; height: 28px; stroke: var(--teal); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; margin: 18px 0 14px; }
+.feature h3 { font: 600 19px/1.25 var(--sans); margin: 0 0 8px; letter-spacing: -0.01em; }
+.feature p { margin: 0; color: var(--text-2); font-size: 15px; }
+.feature code { font: 12px var(--mono); color: var(--teal); background: var(--teal-dim); padding: 1px 6px; border-radius: 4px; }
+
+/* use cases */
+.cases { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.case {
+  border: 1px solid var(--line); border-radius: var(--r); padding: 26px;
+  background: linear-gradient(160deg, rgba(46,207,176,.05), transparent 45%), var(--bg-2);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.case .kicker { font: 500 11px/1 var(--mono); color: var(--teal); letter-spacing: .06em; text-transform: uppercase; }
+.case h3 { font: 600 22px/1.2 var(--sans); margin: 0; letter-spacing: -0.02em; }
+.case p { margin: 0; color: var(--text-2); }
+.case ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.case li { font: 12px/1 var(--mono); color: var(--text-2); border: 1px solid var(--line-2); padding: 7px 9px; border-radius: 6px; }
+.case .go { margin-top: auto; padding-top: 6px; font: 500 13px var(--mono); }
+
+/* pipeline */
+.pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.stage { padding: 24px; background: var(--bg-2); position: relative; border-right: 1px solid var(--line); }
+.stage:last-child { border-right: 0; }
+.stage:not(:last-child)::after {
+  content: "→"; position: absolute; right: -11px; top: 26px; z-index: 1;
+  width: 22px; height: 22px; display: grid; place-items: center;
+  font: 12px var(--mono); color: var(--teal); background: var(--bg); border: 1px solid var(--line-2); border-radius: 50%;
+}
+.stage .n { font: 500 11px var(--mono); color: var(--text-3); }
+.stage h4 { margin: 10px 0 8px; font: 600 17px/1.25 var(--sans); }
+.stage p { margin: 0; color: var(--text-2); font-size: 14.5px; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 22px; }
+.metric { border: 1px solid var(--line); border-radius: var(--r); padding: 22px; background: var(--bg-2); }
+.metric .v { font: 700 38px/1 var(--mono); color: var(--text); letter-spacing: -0.03em; }
+.metric .v small { font-size: 16px; color: var(--teal); margin-left: 4px; }
+.metric .l { margin-top: 10px; color: var(--text-2); font-size: 14px; }
+.metric .src { margin-top: 8px; font: 11px/1.4 var(--mono); color: var(--text-3); }
+
+/* keyboard */
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.key { display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--bg-2); color: var(--text-2); font-size: 14.5px; }
+kbd {
+  font: 600 13px/1 var(--mono); color: var(--text); min-width: 34px; text-align: center;
+  padding: 8px 9px; border-radius: 7px; border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, #1b2532, #121a24); box-shadow: 0 2px 0 #06090d;
+}
+
+/* ecosystem */
+.eco { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.eco a { display: block; border: 1px solid var(--line); border-radius: var(--r); padding: 22px; background: var(--bg-2); color: var(--text); transition: border-color .15s; }
+.eco a:hover { text-decoration: none; border-color: var(--teal); }
+.eco .host { font: 500 13px var(--mono); color: var(--teal); }
+.eco h4 { margin: 10px 0 6px; font: 600 18px var(--sans); }
+.eco p { margin: 0; color: var(--text-2); font-size: 14.5px; }
+
+/* final cta */
+.final { text-align: center; padding: 110px 0 120px; }
+.final h2 { margin: 0 auto 16px; max-width: 16em; }
+.final p { color: var(--text-2); margin: 0 auto 30px; max-width: 34em; font-size: 17px; }
+.final .cta { justify-content: center; }
+
+footer { border-top: 1px solid var(--line); padding: 30px 0 40px; color: var(--text-3); font: 12.5px/1.7 var(--mono); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+footer a { color: var(--text-2); }
+
+/* reveal on scroll */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (max-width: 960px) {
+  .hero .wrap, .sec-head { grid-template-columns: 1fr; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+  .pipe { grid-template-columns: repeat(2, 1fr); }
+  .stage:nth-child(2) { border-right: 0; }
+  .stage:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .stage:nth-child(2)::after { display: none; }
+  .keys, .eco, .metrics { grid-template-columns: repeat(2, 1fr); }
+  nav .links { display: none; }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 0 16px; }
+  .hero { padding-top: 56px; }
+  .features, .cases, .keys, .eco, .metrics, .pipe { grid-template-columns: 1fr; }
+  .stage { border-right: 0; border-bottom: 1px solid var(--line); }
+  .stage::after { display: none; }
+  .hud { display: none; }
+  section { padding: 72px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .caret { animation: none; }
+  #contours { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="grid-bg" aria-hidden="true"></div>
+<canvas id="contours" aria-hidden="true"></canvas>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="/logo/logo_teal_transparent.svg" alt="geoBIM.app"></a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#cases">Use cases</a>
+      <a href="#engine">Under the hood</a>
+      <a href="#keys">Shortcuts</a>
+    </div>
+    <div class="hud" id="hud" title="Your cursor, projected onto a map">lat <b id="hudLat">50.00000</b> · lon <b id="hudLon">8.27000</b> · EPSG:<b>4326</b></div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">BIM × GIS · in the browser</div>
+      <h1>Your model,<br>on the real <span class="x">globe</span>.</h1>
+      <p class="lede">geoBIM.app streams BIM models, point clouds, Gaussian splats and GIS layers into one georeferenced 3D scene — cut bridges along their alignment, simulate turbine shadows, inspect, measure and walk through it. No install, no plugin.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://viewer.geobim.app/">Launch the viewer <span class="k">↵</span></a>
+        <a class="btn" href="https://viewer.geobim.app/wea-shadow">Wind shadow demo</a>
+        <a class="btn" href="https://viewer.geobim.app/bridge-inspector">Bridge Inspector</a>
+      </div>
+      <div class="cta-note">// guest access — no sign-up, no time limit. Sign in for your own models.</div>
+    </div>
+    <div class="term" role="img" aria-label="Example session: open the demo, stream 3D tiles, georeference, cut along an alignment">
+      <div class="term-bar"><i></i><i></i><i></i><span>geobim — session</span></div>
+      <pre id="term"></pre>
+    </div>
+  </div>
+</header>
+
+<div class="stack">
+  <div class="wrap">
+    <span>CesiumJS 1.145</span><span>OGC 3D Tiles 1.1</span><span>IFC 2x3 · 4 · 4x3</span><span>ifc-lite (Rust)</span>
+    <span>EXT_structural_metadata</span><span>KHR_gaussian_splatting</span><span>OGC SensorThings</span><span>WMS · WMTS · WFS</span><span>BCF 2.1</span>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div><div class="sec-no">01 / FEATURES</div><h2>A digital twin workbench, not a file viewer.</h2></div>
+      <p>Everything lives in one scene with real coordinates, terrain and time of day — so a clash with the ground, a shadow on a neighbour or a sensor on a girder is exactly where it is.</p>
+    </div>
+    <div class="features reveal">
+      <div class="feature">
+        <div class="tag"><span>stream</span><b>3D Tiles</b></div>
+        <svg viewBox="0 0 24 24"><path d="M12 2 3 7l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
+        <h3>Massive BIM, streamed</h3>
+        <p>IFC and Revit as OGC 3D Tiles with all property sets on board. Filter by <code>IfcClass</code> or Revit category, click any element for its properties.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>cut</span><b>IfcAlignment</b></div>
+        <svg viewBox="0 0 24 24"><path d="M3 18c4-9 10-12 18-12"/><path d="M12 4v16" stroke-dasharray="2 2"/><circle cx="12" cy="9.6" r="1.6"/></svg>
+        <h3>Sections by station</h3>
+        <p>Cut a bridge or tunnel perpendicular to its IFC 4x3 alignment at <code>km 0+192.40</code> — with a live 2D cross section that follows the slider.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>place</span><b>EPSG</b></div>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+        <h3>Georeferencing that holds</h3>
+        <p>IfcMapConversion, national grids and geoid models (GCG2016, EGM2008) — or drop a model on the map and nudge it with a gizmo.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>simulate</span><b>WEA</b></div>
+        <svg viewBox="0 0 24 24"><path d="M12 12v10"/><path d="M12 12 6 4"/><path d="m12 12 8-2"/><path d="m12 12-3 8"/><circle cx="12" cy="12" r="1.2"/></svg>
+        <h3>Wind turbine shadows</h3>
+        <p>Place parametric turbines on real terrain and run a daily shadow-flicker analysis against real buildings.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>monitor</span><b>SensorThings</b></div>
+        <svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+        <h3>Live sensors on the model</h3>
+        <p>OGC SensorThings (FROST, MQTT) bridge monitoring with sparklines and damage events, plus live gauge levels.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>build</span><b>4D</b></div>
+        <svg viewBox="0 0 24 24"><rect x="3" y="14" width="5" height="7"/><rect x="10" y="9" width="5" height="12"/><rect x="17" y="4" width="4" height="17"/></svg>
+        <h3>Construction sequencing</h3>
+        <p>Play construction stages straight from IFC properties on a timeline — and share the sequence as a clean StageTwin link.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>capture</span><b>reality</b></div>
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="18" cy="8" r="1"/><circle cx="8" cy="13" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="11" cy="18" r="1"/><circle cx="18" cy="16" r="1"/></svg>
+        <h3>Point clouds &amp; splats</h3>
+        <p>Scans with Eye Dome Lighting and colour by height or class; photoreal Gaussian splats as native 3D Tiles.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>review</span><b>BCF</b></div>
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9h8M8 12h5"/></svg>
+        <h3>Annotate &amp; inspect</h3>
+        <p>Point and area annotations with category and priority, an inspection workflow for bridges, and BCF 2.1 export.</p>
+      </div>
+      <div class="feature">
+        <div class="tag"><span>explore</span><b>walk</b></div>
+        <svg viewBox="0 0 24 24"><circle cx="13" cy="4" r="2"/><path d="m9 21 3-7 3 3v4"/><path d="M8 11l3-4 3 3 3 1"/></svg>
+        <h3>Walk through it</h3>
+        <p>First person with WASD or gamepad and wall collision, or third person with a character — on terrain, in the model, underground.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cases">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div><div class="sec-no">02 / USE CASES</div><h2>Built for people who build things.</h2></div>
+      <p>Engineering offices, clients and the public look at the same scene — each with the tools they need, straight from a link.</p>
+    </div>
+    <div class="cases reveal">
+      <article class="case">
+        <div class="kicker">Infrastructure · bridges &amp; tunnels</div>
+        <h3>Section the structure where the engineer thinks: at a station.</h3>
+        <p>IFC 4x3 bridges and tunnels land at their real position; axis, chainage marks and a 2D cross section at any station.</p>
+        <ul><li>IfcAlignment</li><li>2D profile</li><li>EPSG + geoid</li><li>sensors</li></ul>
+        <a class="go" href="https://viewer.geobim.app/bridge-inspector">→ /bridge-inspector</a>
+      </article>
+      <article class="case">
+        <div class="kicker">Wind energy · permitting</div>
+        <h3>Shadow flicker, on the real ridge, before anyone asks.</h3>
+        <p>Turbines on terrain, sun path over the day, buildings as receivers — an intuitive check for planners and neighbours.</p>
+        <ul><li>parametric WEA</li><li>terrain</li><li>daily analysis</li></ul>
+        <a class="go" href="https://viewer.geobim.app/wea-shadow">→ /wea-shadow</a>
+      </article>
+      <article class="case">
+        <div class="kicker">Construction · 4D</div>
+        <h3>Show the sequence, not a Gantt chart.</h3>
+        <p>Stages from the model, scans of the site, a shareable view for the client that only shows what matters.</p>
+        <ul><li>sequencing</li><li>point clouds</li><li>StageTwin link</li></ul>
+        <a class="go" href="https://viewer.geobim.app/stage-twin">→ /stage-twin</a>
+      </article>
+      <article class="case">
+        <div class="kicker">Planning · participation</div>
+        <h3>Context in, arguments out.</h3>
+        <p>Photoreal Google 3D Tiles, OSM buildings and 59 verified WMS / WMTS / WFS presets around your design — then let people walk it.</p>
+        <ul><li>Google 3D Tiles</li><li>OGC services</li><li>walk mode</li><li>split view</li></ul>
+        <a class="go" href="https://viewer.geobim.app/">→ viewer</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="engine">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div><div class="sec-no">03 / UNDER THE HOOD</div><h2>IFC in, 3D Tiles out — in seconds.</h2></div>
+      <p>Uploaded IFC files run through our own tiler: geometry on the <a href="https://github.com/LTplus-AG/ifc-lite">ifc-lite</a> Rust kernel, then compressed OGC 3D Tiles with every property set — ready to stream.</p>
+    </div>
+    <div class="pipe reveal">
+      <div class="stage"><div class="n">[1] parse</div><h4>IFC 2x3 · 4 · 4x3</h4><p>Alignments, linear placements, sectioned solids — the infrastructure bits other kernels trip over.</p></div>
+      <div class="stage"><div class="n">[2] place</div><h4>World coordinates</h4><p>Map conversion, EPSG by code or name, geoid-corrected heights, footprint-centred anchors.</p></div>
+      <div class="stage"><div class="n">[3] tile</div><h4>glTF + meshopt</h4><p>Quantised, meshopt-compressed tiles with <span class="mono">EXT_structural_metadata</span>.</p></div>
+      <div class="stage"><div class="n">[4] stream</div><h4>CesiumJS</h4><p>Level-of-detail streaming on the globe, with filters, sections and sensors on top.</p></div>
+    </div>
+    <div class="metrics reveal">
+      <div class="metric"><div class="v">23<small>s</small></div><div class="l">IFC 4x3 bridge, 6 449 elements → validated 3D Tiles</div><div class="src">Viadotto Acerno · buildingSMART sample</div></div>
+      <div class="metric"><div class="v">11<small>×</small></div><div class="l">faster conversion since switching the geometry kernel to ifc-lite</div><div class="src">same model: 259 s → 23 s</div></div>
+      <div class="metric"><div class="v">0<small>err</small></div><div class="l">in the official 3D Tiles validator for every test model</div><div class="src">3d-tiles-validator</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="keys">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div><div class="sec-no">04 / SHORTCUTS</div><h2>Keyboard first.</h2></div>
+      <p>The mouse is fine. The keyboard is faster.</p>
+    </div>
+    <div class="keys reveal">
+      <div class="key"><kbd>G</kbd> first-person walk mode</div>
+      <div class="key"><kbd>V</kbd> third-person character</div>
+      <div class="key"><kbd>T</kbd> set player start</div>
+      <div class="key"><kbd>H</kbd> click to hide elements</div>
+      <div class="key"><kbd>⇧H</kbd> show everything again</div>
+      <div class="key"><kbd>1–9</kbd> jump to saved views</div>
+    </div>
+  </div>
+</section>
+
+<section id="eco">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div><div class="sec-no">05 / ECOSYSTEM</div><h2>Three tools, one idea.</h2></div>
+      <p>Browser-native all the way down.</p>
+    </div>
+    <div class="eco reveal">
+      <a href="https://viewer.geobim.app/"><div class="host">viewer.geobim.app</div><h4>The viewer</h4><p>The georeferenced 3D scene — everything on this page.</p></a>
+      <a href="https://ifc.geobim.app/"><div class="host">ifc.geobim.app</div><h4>IFC in the browser</h4><p>Open IFC files locally, no upload — built on the open-source ifc-lite (MPL 2.0).</p></a>
+      <a href="https://lab.geobim.app/"><div class="host">lab.geobim.app</div><h4>The lab</h4><p>Experiments first: georeferencing, alignment sections, Cesium ion export.</p></a>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap reveal">
+    <div class="sec-no">$ geobim open</div>
+    <h2>See your project where it belongs.</h2>
+    <p>Open the viewer as a guest right now. Want your own models in there? Get in touch.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://viewer.geobim.app/">Launch the viewer <span class="k">↵</span></a>
+      <a class="btn" href="mailto:info@geobim.app">info@geobim.app</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Christof Lorenz · geoBIM.app · <a href="https://spdx.org/licenses/BSL-1.1.html">BSL 1.1</a></span>
+    <span>CesiumJS · OGC 3D Tiles · ifc-lite</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- terminal ----------
+  var lines = [
+    ['p', '$ ', 'c', 'geobim open --guest'],
+    ['dim', '  ↳ viewer.geobim.app · CesiumJS 1.145'],
+    ['p', '$ ', 'c', 'load "Viadotto Acerno" --stream'],
+    ['dim', '  ↳ 3D Tiles 1.1 · 26 tiles · meshopt'],
+    ['ok', '  ✓ 6 449 elements · properties ✓'],
+    ['p', '$ ', 'c', 'georef --epsg 32633 --geoid EGM2008'],
+    ['dim', '  ↳ N = 48.62 m · lat 40.7343 · lon 15.0580'],
+    ['p', '$ ', 'c', 'section --axis Bridge --station 0+200'],
+    ['ok', '  ✓ plane ⟂ tangent · 2D profile ✓'],
+    ['p', '$ ', 'c', 'walk'],
+    ['warn', '  ⚠ you are standing on the deck — mind the edge']
+  ];
+  var term = document.getElementById('term');
+  function span(cls, txt) { var s = document.createElement('span'); s.className = cls; s.textContent = txt; return s; }
+  function render(all) {
+    term.textContent = '';
+    all.forEach(function (l) {
+      for (var i = 0; i < l.length; i += 2) term.appendChild(span(l[i], l[i + 1]));
+      term.appendChild(document.createTextNode('\n'));
+    });
+  }
+  if (reduced) {
+    render(lines);
+  } else {
+    var li = 0, ci = 0, done = [];
+    var caret = document.createElement('span'); caret.className = 'caret';
+    (function type() {
+      if (li >= lines.length) { render(done); term.appendChild(caret); return; }
+      var l = lines[li];
+      var isCmd = l[0] === 'p';
+      var full = isCmd ? l[3] : null;
+      if (isCmd && ci < full.length) {
+        ci++;
+        render(done.concat([[l[0], l[1], l[2], full.slice(0, ci)]]));
+        term.appendChild(caret);
+        setTimeout(type, 28 + Math.random() * 40);
+      } else {
+        done.push(l); li++; ci = 0;
+        render(done); term.appendChild(caret);
+        setTimeout(type, isCmd ? 260 : 170);
+      }
+    })();
+  }
+
+  // ---------- HUD: cursor → lat/lon (a playful Web-Mercator-ish mapping) ----------
+  var hudLat = document.getElementById('hudLat'), hudLon = document.getElementById('hudLon');
+  window.addEventListener('pointermove', function (e) {
+    var x = e.clientX / window.innerWidth, y = e.clientY / window.innerHeight;
+    hudLon.textContent = (8.20 + x * 0.14).toFixed(5);
+    hudLat.textContent = (50.03 - y * 0.08).toFixed(5);
+  }, { passive: true });
+
+  // ---------- reveal ----------
+  var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 }) : null;
+  document.querySelectorAll('.reveal').forEach(function (el) { io ? io.observe(el) : el.classList.add('in'); });
+
+  // ---------- background: animated contour lines (a terrain, of course) ----------
+  if (reduced) return;
+  var cv = document.getElementById('contours'), ctx = cv.getContext('2d');
+  var W, H, t = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function resize() { W = cv.width = innerWidth * dpr; H = cv.height = innerHeight * dpr; }
+  resize(); addEventListener('resize', resize);
+  function h(x, y) {
+    return Math.sin(x * 1.3 + t * 0.15) * 0.5 + Math.cos(y * 1.7 - t * 0.1) * 0.4
+      + Math.sin((x + y) * 2.3 + t * 0.07) * 0.25 + Math.cos(x * 3.1 - y * 2.2) * 0.15;
+  }
+  var cell = 22;
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    var s = cell * dpr, nx = Math.ceil(W / s) + 1, ny = Math.ceil(H / s) + 1;
+    var levels = [-0.6, -0.3, 0, 0.3, 0.6];
+    ctx.lineWidth = dpr;
+    levels.forEach(function (lv, k) {
+      ctx.strokeStyle = k === 2 ? 'rgba(46,207,176,0.22)' : 'rgba(46,207,176,0.08)';
+      ctx.beginPath();
+      for (var j = 0; j < ny - 1; j++) for (var i = 0; i < nx - 1; i++) {
+        var x0 = i * s, y0 = j * s, u = i / 18, v = j / 18, d = 1 / 18;
+        var a = h(u, v) - lv, b = h(u + d, v) - lv, c = h(u + d, v + d) - lv, e = h(u, v + d) - lv;
+        var p = [];
+        if ((a > 0) !== (b > 0)) p.push([x0 + s * a / (a - b), y0]);
+        if ((b > 0) !== (c > 0)) p.push([x0 + s, y0 + s * b / (b - c)]);
+        if ((c > 0) !== (e > 0)) p.push([x0 + s * (1 - c / (c - e)), y0 + s]);
+        if ((e > 0) !== (a > 0)) p.push([x0, y0 + s * (1 - e / (e - a))]);
+        if (p.length >= 2) { ctx.moveTo(p[0][0], p[0][1]); ctx.lineTo(p[1][0], p[1][1]); }
+      }
+      ctx.stroke();
+    });
+    t += 0.016;
+    setTimeout(function () { requestAnimationFrame(frame); }, 50);   // ~20 fps is plenty
+  }
+  frame();
+})();
+</script>
+</body>
+</html>
