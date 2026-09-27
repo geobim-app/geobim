@@ -302,3 +302,24 @@
     border-color: rgba(254, 178, 178, 0.3);
   }
 }
+
+/* Account badge (account-ui.js): shown once auth has settled */
+#userBadge.account-visible {
+  display: flex;
+}
+
+#logoutBtn.account-signin {
+  background: rgba(var(--brand-teal-rgb), 0.15);
+  color: var(--brand-teal);
+  border-color: rgba(var(--brand-teal-rgb), 0.4);
+}
+
+#logoutBtn.account-signin:hover {
+  background: rgba(var(--brand-teal-rgb), 0.28);
+  border-color: rgba(var(--brand-teal-rgb), 0.6);
+}
+
+#logoutBtn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}

@@ -28,7 +28,7 @@
   var isBridgePath = window.location.pathname.replace(/\/+$/, '') === '/bridge-inspector';
   if (params.get('mode') !== 'bridge' && !isBridgePath) return;
 
-  console.log('Bridge Inspector Mode activated — 30 min session');
+  console.log('Bridge Inspector Mode activated — guest access, no time limit');
 
   var SESSION_MINUTES = 30;
   var SESSION_KEY = 'geobim_bridge_session_start';
@@ -340,9 +340,8 @@
 
     banner.innerHTML =
       '<span class="bridge-demo-label">Bridge Inspector</span>' +
-      '<span class="bridge-demo-timer" id="bridgeDemoTimer">30:00</span>' +
       '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="bridge-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
-      '<a href="/" class="bridge-demo-login">Sign in for full access →</a>';
+      '<a href="/" class="bridge-demo-login" id="bridgeDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);
     document.body.classList.add('bridge-demo-active');
@@ -445,19 +444,15 @@
   // BOOT
   // ========================================================
 
-  // Check if session already expired on load
-  var elapsedOnLoad = Date.now() - sessionStart;
-  if (elapsedOnLoad >= SESSION_MINUTES * 60 * 1000) {
-    window.addEventListener('DOMContentLoaded', function() {
-      sessionStorage.removeItem(SESSION_KEY);
-      showExpiredOverlay();
-    });
-    return;
-  }
-
+  // No time limit since 2026-09-27 (guest access, sign-in adds features)
   window.addEventListener('DOMContentLoaded', function() {
     createBanner();
-    startTimer();
+    var signIn = document.getElementById('bridgeDemoTimerSignIn');
+    if (signIn) signIn.addEventListener('click', function(e) {
+      if (typeof window.showAuthGateLogin !== 'function') return;
+      e.preventDefault();
+      window.showAuthGateLogin();
+    });
   });
 
 })();

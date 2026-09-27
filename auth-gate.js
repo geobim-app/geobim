@@ -22,6 +22,7 @@
   overlay.id = 'authGateOverlay';
   overlay.innerHTML =
     '<div class="ag-card">' +
+      '<button id="agClose" class="ag-close" type="button" title="Continue as guest" aria-label="Close">&#10005;</button>' +
       '<img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="ag-logo">' +
       '<div class="ag-title">Sign In</div>' +
       '<input id="agEmail" class="ag-input" type="email" placeholder="Email" autocomplete="email" />' +
@@ -41,8 +42,14 @@
     '#authGateOverlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;' +
     'justify-content:center;background:#0a1628;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}' +
     '#authGateOverlay.ag-hidden{display:none}' +
-    '.ag-card{background:#132034;border-radius:16px;padding:40px 36px;width:100%;max-width:380px;' +
+    '.ag-card{position:relative;background:#132034;border-radius:16px;padding:40px 36px;width:100%;max-width:380px;' +
     'box-shadow:0 16px 48px rgba(0,0,0,.5);text-align:center}' +
+    '#authGateOverlay.ag-dialog{background:rgba(10,22,40,.82);backdrop-filter:blur(8px)}' +
+    '.ag-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border:none;border-radius:8px;' +
+    'background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);font-size:14px;cursor:pointer;display:none}' +
+    '.ag-close:hover{background:rgba(255,255,255,.12);color:#fff}' +
+    '.ag-close:focus-visible{outline:2px solid #2ECFB0;outline-offset:2px}' +
+    '#authGateOverlay.ag-dialog .ag-close{display:block}' +
     '.ag-logo{height:48px;margin-bottom:24px}' +
     '.ag-title{color:#fff;font-size:20px;font-weight:700;margin-bottom:24px}' +
     '.ag-input{display:block;width:100%;padding:12px 14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.15);' +
@@ -165,6 +172,44 @@
     }
   }
 
+  // =====================================
+  // GUEST ACCESS (2026-09-27)
+  // =====================================
+  // No sign-in required: without a session the app starts as a guest (demo
+  // token, public features, no server models / uploads — those are
+  // owner-only server-side). Sign-in is offered in the UI and opens this
+  // overlay as a dismissable dialog; after a successful sign-in the page
+  // reloads so every module starts with the full user.
+  var GUEST = { email: 'guest@geobim.app', displayName: 'Guest', isAnonymous: true };
+
+  function startAsGuest() {
+    window._guestMode = true;
+    window._demoMode = true;   // same rules as /demo (e.g. no own Cesium ion account)
+    // Splash first, like before — then straight into the app.
+    if (!window._splashDismissed) {
+      var waitForSplash = setInterval(function() {
+        if (window._splashDismissed) { clearInterval(waitForSplash); onAuthenticated(GUEST); }
+      }, 200);
+    } else {
+      onAuthenticated(GUEST);
+    }
+  }
+
+  window.showAuthGateLogin = function() {
+    window._signInRequested = true;
+    overlay.classList.add('ag-dialog');
+    overlay.classList.remove('ag-hidden');
+    if (errorEl) errorEl.textContent = '';
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
+    setTimeout(function() { if (emailInput) emailInput.focus(); }, 50);
+  };
+
+  function closeLoginDialog() {
+    if (overlay.classList.contains('ag-dialog')) overlay.classList.add('ag-hidden');
+  }
+  document.getElementById('agClose').addEventListener('click', closeLoginDialog);
+  overlay.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeLoginDialog(); });
+
   /**
    * Called when there is no authenticated user.
    * Only show login overlay after splash has been dismissed.
@@ -192,6 +237,13 @@
 
   // Listen for auth state changes (handles both fresh login and persisted sessions)
   firebaseAuth.onAuthStateChanged(function(user) {
+    if (user && !user.isAnonymous && window._signInRequested) {
+      // Signed in from the dialog: restart with the full user — the demo
+      // routes (/demo, /wea-shadow, ...) go to the full app instead.
+      if (window._weaDemoMode) window.location.href = '/';
+      else window.location.reload();
+      return;
+    }
     if (window._weaDemoMode) {
       // WEA demo mode — skip login, proceed as demo user
       onAuthenticated(user || { email: 'demo-wea@geobim.app', displayName: 'WEA Demo', isAnonymous: true });
@@ -199,9 +251,10 @@
     }
     if (user && !user.isAnonymous) {
       onAuthenticated(user);
-    } else {
-      // No user or anonymous user — show login form
-      onUnauthenticated();
+    } else if (!window._guestMode) {
+      // No user or anonymous user — continue as guest (onUnauthenticated()
+      // is kept for a login-required mode, currently unused)
+      startAsGuest();
     }
   });
 
@@ -219,6 +272,6 @@
       });
   };
 
-  console.log('Auth gate loaded – email/password login required.');
+  console.log('Auth gate loaded – guest access, sign-in via the UI.');
 
 })();

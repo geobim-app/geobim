@@ -27,7 +27,7 @@
   var isWeaPath = window.location.pathname.replace(/\/+$/, '') === '/wea-shadow';
   if (params.get('mode') !== 'wea' && !isWeaPath) return;
 
-  console.log('WEA Demo Mode activated — 30 min session');
+  console.log('WEA Demo Mode activated — guest access, no time limit');
 
   var SESSION_MINUTES = 30;
   var SESSION_KEY = 'geobim_wea_session_start';
@@ -145,9 +145,8 @@
     banner.innerHTML =
       '<span class="wea-demo-label">WEA Demo</span>' +
       '<span class="wea-demo-hint">Wind Energy Shadow Analysis</span>' +
-      '<span class="wea-demo-timer" id="weaDemoTimer">30:00</span>' +
       '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="wea-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
-      '<a href="/" class="wea-demo-login">Sign in for full access →</a>';
+      '<a href="/" class="wea-demo-login" id="weaDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);
     document.body.classList.add('wea-demo-active');
@@ -252,19 +251,15 @@
   // BOOT
   // ========================================================
 
-  // Check if session already expired on load
-  var elapsed = Date.now() - sessionStart;
-  if (elapsed >= SESSION_MINUTES * 60 * 1000) {
-    window.addEventListener('DOMContentLoaded', function() {
-      sessionStorage.removeItem(SESSION_KEY);
-      showExpiredOverlay();
-    });
-    return; // Don't init anything else
-  }
-
+  // No time limit since 2026-09-27 (guest access, sign-in adds features)
   window.addEventListener('DOMContentLoaded', function() {
     createBanner();
-    startTimer();
+    var signIn = document.getElementById('weaDemoTimerSignIn');
+    if (signIn) signIn.addEventListener('click', function(e) {
+      if (typeof window.showAuthGateLogin !== 'function') return;
+      e.preventDefault();
+      window.showAuthGateLogin();
+    });
   });
 
 })();

@@ -176,7 +176,7 @@
     {
       target: null,
       title: 'You\'re ready',
-      text: 'Your 30-minute demo starts now. Sign in for unlimited access and to run wind shadow analyses on your own sites within the full geobim.app platform.',
+      text: 'Explore as long as you like. Sign in to run wind shadow analyses on your own sites within the full geobim.app platform.',
       position: 'center'
     }
   ];

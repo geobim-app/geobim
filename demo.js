@@ -6,13 +6,13 @@
  * Change Date: 2030-03-01 | Change License: MIT
  * See LICENSE file for full terms.
  *
- * Allows anonymous 30-minute access to the FULL geobim.app.
+ * Guest access to the FULL geobim.app, without time limit (since 2026-09-27;
+ * the start page itself also opens as guest, see auth-gate.js).
  * Activated via URL: /demo
  *
  * - Skips auth gate (no login required)
  * - Shows complete UI (sidebar, bottom toolbar, all tools)
- * - 30-minute countdown, then redirects to login
- * - Demo banner with timer + login link
+ * - Demo banner with a sign-in link that opens the sign-in dialog
  * - Uses demo Firestore collections (demo_comments, demo_measurements)
  */
 'use strict';
@@ -27,17 +27,10 @@
   var isDemoPath = window.location.pathname.replace(/\/+$/, '') === '/demo';
   if (params.get('mode') !== 'demo' && !isDemoPath) return;
 
-  console.log('Demo Mode activated — 30 min full access session');
-
-  var SESSION_MINUTES = 30;
-  var SESSION_KEY = 'geobim_demo_session_start';
-
-  // Track session start in sessionStorage (survives page refresh within tab)
-  var sessionStart = parseInt(sessionStorage.getItem(SESSION_KEY), 10);
-  if (!sessionStart) {
-    sessionStart = Date.now();
-    sessionStorage.setItem(SESSION_KEY, sessionStart.toString());
-  }
+  // No time limit since 2026-09-27: guests (demo routes and the start page
+  // without sign-in) use the app as long as they like; sign-in adds features.
+  console.log('Demo Mode activated — guest access, no time limit');
+  sessionStorage.removeItem('geobim_demo_session_start');   // old 30-min trial key
 
   // Global flags — MUST be set before auth-gate.js loads
   window._demoMode = true;
@@ -72,13 +65,6 @@
         'text-transform:uppercase;letter-spacing:0.05em;' +
         'border:1px solid rgba(46,207,176,0.25);' +
       '}' +
-      '#demoBanner .demo-timer{' +
-        'font-family:"SF Mono","Fira Code",monospace;font-size:13px;' +
-        'color:#2ECFB0;font-weight:600;min-width:52px;text-align:center;' +
-      '}' +
-      '#demoBanner .demo-timer.warning{color:#f59e0b;}' +
-      '#demoBanner .demo-timer.critical{color:#f87171;animation:demo-blink 1s ease-in-out infinite;}' +
-      '@keyframes demo-blink{0%,100%{opacity:1;}50%{opacity:0.5;}}' +
       '#demoBanner .demo-login{' +
         'color:#2ECFB0;text-decoration:none;font-size:12px;font-weight:500;' +
         'padding:4px 12px;border:1px solid rgba(46,207,176,0.3);border-radius:6px;' +
@@ -104,126 +90,25 @@
 
     banner.innerHTML =
       '<span class="demo-label">Demo</span>' +
-      '<span class="demo-hint">Full Access — 30 min trial</span>' +
-      '<span class="demo-timer" id="demoTimer">30:00</span>' +
+      '<span class="demo-hint">Guest access</span>' +
       '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
-      '<a href="/" class="demo-login">Sign in for unlimited access →</a>';
+      '<a href="/" class="demo-login" id="demoSignIn">Sign in for more features →</a>';
 
     document.body.appendChild(banner);
     document.body.classList.add('demo-active');
-  }
-
-  // ========================================================
-  // TIMER LOGIC
-  // ========================================================
-
-  function startTimer() {
-    var timerEl = document.getElementById('demoTimer');
-    if (!timerEl) return;
-
-    var tick = setInterval(function() {
-      var elapsed = Date.now() - sessionStart;
-      var remaining = (SESSION_MINUTES * 60 * 1000) - elapsed;
-
-      if (remaining <= 0) {
-        clearInterval(tick);
-        sessionStorage.removeItem(SESSION_KEY);
-        showExpiredOverlay();
-        return;
-      }
-
-      var mins = Math.floor(remaining / 60000);
-      var secs = Math.floor((remaining % 60000) / 1000);
-      timerEl.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
-
-      // Visual warnings
-      if (remaining < 2 * 60 * 1000) {
-        timerEl.className = 'demo-timer critical';
-      } else if (remaining < 5 * 60 * 1000) {
-        timerEl.className = 'demo-timer warning';
-      }
-    }, 1000);
-  }
-
-  // ========================================================
-  // SESSION EXPIRED OVERLAY
-  // ========================================================
-
-  function showExpiredOverlay() {
-    var overlay = document.createElement('div');
-    overlay.id = 'demoExpired';
-
-    var style = document.createElement('style');
-    style.textContent =
-      '#demoExpired{' +
-        'position:fixed;inset:0;z-index:99999;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(10,22,40,0.92);backdrop-filter:blur(12px);' +
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-      '}' +
-      '#demoExpired .expired-card{' +
-        'background:#0E1117;border-radius:16px;padding:48px 40px;' +
-        'max-width:420px;width:90%;text-align:center;' +
-        'box-shadow:0 16px 48px rgba(0,0,0,0.5);' +
-        'border:1px solid rgba(46,207,176,0.15);' +
-      '}' +
-      '#demoExpired .expired-logo{width:160px;margin:0 auto 24px;opacity:0.6;}' +
-      '#demoExpired .expired-title{' +
-        'color:#fff;font-size:20px;font-weight:700;margin-bottom:8px;' +
-      '}' +
-      '#demoExpired .expired-text{' +
-        'color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;margin-bottom:24px;' +
-      '}' +
-      '#demoExpired .expired-btn{' +
-        'display:inline-block;padding:12px 32px;border:none;border-radius:8px;' +
-        'background:linear-gradient(135deg,#2ECFB0 0%,#25A98F 100%);' +
-        'color:#0E1117;font-size:15px;font-weight:700;cursor:pointer;' +
-        'text-decoration:none;transition:box-shadow 0.2s,transform 0.2s;' +
-      '}' +
-      '#demoExpired .expired-btn:hover{' +
-        'box-shadow:0 6px 16px rgba(46,207,176,0.35);transform:translateY(-1px);' +
-      '}' +
-      '#demoExpired .expired-restart{' +
-        'display:block;margin-top:16px;color:rgba(255,255,255,0.4);' +
-        'font-size:12px;text-decoration:none;' +
-      '}' +
-      '#demoExpired .expired-restart:hover{color:rgba(255,255,255,0.7);}';
-
-    document.head.appendChild(style);
-
-    overlay.innerHTML =
-      '<div class="expired-card">' +
-        '<img src="logo/logo_teal_transparent.svg" class="expired-logo" alt="geobim.app">' +
-        '<div class="expired-title">Demo session expired</div>' +
-        '<div class="expired-text">' +
-          'Your 30-minute demo session has ended.<br>' +
-          'Sign in to access geobim.app without time limits.' +
-        '</div>' +
-        '<a href="/" class="expired-btn">Sign In</a>' +
-        '<a href="/demo" class="expired-restart" ' +
-          'onclick="sessionStorage.removeItem(\'' + SESSION_KEY + '\')">Start new demo session</a>' +
-      '</div>';
-
-    document.body.appendChild(overlay);
+    document.getElementById('demoSignIn').addEventListener('click', function(e) {
+      if (typeof window.showAuthGateLogin !== 'function') return;   // fall back to the link
+      e.preventDefault();
+      window.showAuthGateLogin();
+    });
   }
 
   // ========================================================
   // BOOT
   // ========================================================
 
-  // Check if session already expired on load
-  var elapsed = Date.now() - sessionStart;
-  if (elapsed >= SESSION_MINUTES * 60 * 1000) {
-    window.addEventListener('DOMContentLoaded', function() {
-      sessionStorage.removeItem(SESSION_KEY);
-      showExpiredOverlay();
-    });
-    return;
-  }
-
   window.addEventListener('DOMContentLoaded', function() {
     createBanner();
-    startTimer();
 
     // Auto-open About dialog (About tab — has Tour button) for new demo users
     var aboutCheck = setInterval(function() {
