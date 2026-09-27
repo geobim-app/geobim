@@ -339,3 +339,10 @@ body.guest-mode .modern-divider:has(+ .modern-group #toggleBathymetry),
 body.guest-mode .modern-group:has(#toggleBathymetry) {
   display: none !important;
 }
+
+/* Guests: no Gaussian Splats and no Inspection section (the Bridge Inspector
+   demo keeps Inspection — it is what that demo is about). */
+body.guest-mode .modern-section:has(> .modern-section-header[data-section="splat"]),
+body.guest-mode:not(.bridge-mode) .modern-section:has(> .modern-section-header[data-section="inspection"]) {
+  display: none !important;
+}

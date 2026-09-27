@@ -43,6 +43,8 @@
     badge.classList.add('account-visible');
     // guest-only CSS rules (auth-styles.css): hide tools guests don't get
     document.body.classList.toggle('guest-mode', guest);
+    // /bridge-inspector is the inspection demo: it keeps its Inspection section
+    document.body.classList.toggle('bridge-mode', !!window._bridgeInspectorMode);
     return true;
   }
 
