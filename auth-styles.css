@@ -323,3 +323,19 @@
   outline: 2px solid var(--brand-teal);
   outline-offset: 1px;
 }
+
+/* Guests (body.guest-mode, account-ui.js): no Ion terrain / imagery by asset
+   ID, no geoid terrain, no bathymetry in the Layers section. :has() so the
+   rules survive the section being re-rendered. */
+body.guest-mode .layer-add-overlay:has(#terrainAssetId),
+body.guest-mode .modern-group:has(#terrainAssetId) + .modern-hint,
+body.guest-mode .modern-divider:has(+ .modern-group #overlayAssetId),
+body.guest-mode .modern-group:has(#overlayAssetId),
+body.guest-mode #overlayLayersList,
+body.guest-mode #overlayLayersList + .modern-hint,
+body.guest-mode .modern-divider:has(+ .modern-group #toggleGeoidTerrain),
+body.guest-mode .modern-group:has(#toggleGeoidTerrain),
+body.guest-mode .modern-divider:has(+ .modern-group #toggleBathymetry),
+body.guest-mode .modern-group:has(#toggleBathymetry) {
+  display: none !important;
+}

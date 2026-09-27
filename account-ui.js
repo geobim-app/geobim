@@ -14,7 +14,9 @@
 // ACCOUNT UI v1.0
 // The sidebar header's #userBadge (ui.js) was never shown. Now: guests see
 // "Guest" + "Sign in" (opens the auth-gate dialog, see auth-gate.js guest
-// access); signed-in users see their email + "Sign out".
+// access); signed-in users see their email + "Sign out". Also sets
+// body.guest-mode, which hides the Layers tools guests don't get (Ion terrain
+// / imagery by asset ID, geoid terrain, bathymetry — see auth-styles.css).
 // ===============================
 'use strict';
 
@@ -39,6 +41,8 @@
       ? function() { if (window.showAuthGateLogin) window.showAuthGateLogin(); }
       : function() { if (window.authGateLogout) window.authGateLogout(); else BimAuth.logout(); };
     badge.classList.add('account-visible');
+    // guest-only CSS rules (auth-styles.css): hide tools guests don't get
+    document.body.classList.toggle('guest-mode', guest);
     return true;
   }
 
