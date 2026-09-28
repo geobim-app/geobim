@@ -465,20 +465,15 @@
       assetData.pbrMaterialProperty = matPropName;
     }
 
-    // Build show expression (preserve IFC filter visibility)
-    let showExpr = 'true';
-    const allEnabled = this.ifcFilter.enabledEntities.size === this.ifcFilter.allEntities.size;
-
-    if (ifcPropertyName && !allEnabled) {
-      const showConditions = [];
-      this.ifcFilter.enabledEntities.forEach(entity => {
-        showConditions.push('${' + ifcPropertyName + '} === \'' + entity + '\'');
-      });
-      if (showConditions.length > 0) {
-        showExpr = showConditions.join(' || ');
-      } else {
-        return new Cesium.Cesium3DTileStyle({ show: false });
-      }
+    // Build show expression (preserve IFC / Revit filter visibility, see features.js)
+    let showExpr = true;
+    if (ifcPropertyName && typeof this.buildIFCShowExpression === 'function') {
+      showExpr = this.buildIFCShowExpression(ifcPropertyName);
+    } else if (assetData.categoryPropertyName && typeof this.buildRevitShowExpression === 'function') {
+      showExpr = this.buildRevitShowExpression(assetData.categoryPropertyName);
+    }
+    if (showExpr === false) {
+      return new Cesium.Cesium3DTileStyle({ show: false });
     }
 
     // Build color conditions (priority: material keywords → entity type → default)
@@ -578,7 +573,11 @@
       // Single IFC filter pass to restore original colors (after all shaders cleared)
       if (typeof this.applyIFCFilter === 'function') {
         // Defer to next frame so the shader clears settle first
-        requestAnimationFrame(() => this.applyIFCFilter());
+        requestAnimationFrame(() => {
+          this.applyIFCFilter();
+          // Revit assets would otherwise keep the PBR palette
+          if (typeof this.applyRevitFilter === 'function') this.applyRevitFilter();
+        });
       }
     }
   };

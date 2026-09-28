@@ -334,8 +334,33 @@
     }
   };
 
-  // Default IFC property name (Cesium Ion IFC tiler uses 'className')
-  var IFC_DEFAULT_PROPERTY = 'className';
+  // Builds a Cesium3DTileStyle `show` value for a value filter.
+  // values: [{ value, enabled }] for every explicitly listed value;
+  // unlistedEnabled: whether values NOT in the list stay visible.
+  // Returns true / false or an expression string.
+  function buildShowExpression(propName, values, unlistedEnabled) {
+    const cond = v => `\${${propName}} === '${v}'`;
+    const enabled = values.filter(v => v.enabled).map(v => v.value);
+    const disabled = values.filter(v => !v.enabled).map(v => v.value);
+
+    if (disabled.length === 0) {
+      return unlistedEnabled ? true : (enabled.length ? enabled.map(cond).join(' || ') : false);
+    }
+    if (unlistedEnabled) {
+      // Hide only what was switched off — unknown values stay visible
+      return `!(${disabled.map(cond).join(' || ')})`;
+    }
+    return enabled.length ? enabled.map(cond).join(' || ') : false;
+  }
+
+  // Show expression for the current IFC filter state (also used by pbr-materials.js)
+  BimViewer.buildIFCShowExpression = function(propName) {
+    const enabledSet = this.ifcFilter.enabledEntities;
+    const values = IFC_ENTITIES
+      .filter(e => e.entity !== FILTER_UNLISTED)
+      .map(e => ({ value: e.entity, enabled: enabledSet.has(e.entity) }));
+    return buildShowExpression(propName, values, enabledSet.has(FILTER_UNLISTED));
+  };
 
   // ✅ Apply IFC filter (matches working v2.6 OR-logic pattern)
   BimViewer.applyIFCFilter = async function() {
@@ -385,41 +410,31 @@
       }
 
       try {
-        const opacity = assetData.opacity || 1.0;
-
-        // Detect IFC property name if not yet successfully detected
-        if (!assetData.ifcPropertyName) {
-          console.log(`🔍 Asset ${assetId}: Detecting IFC properties...`);
-          try {
-            const detected = await this.detectIFCProperties(tileset);
-            if (detected) {
-              assetData.ifcPropertyName = detected;
-            }
-            console.log(`📋 Asset ${assetId}: IFC property = ${assetData.ifcPropertyName || 'NONE (using default: ' + IFC_DEFAULT_PROPERTY + ')'}`);
-          } catch (detectError) {
-            console.error(`❌ Asset ${assetId}: IFC detection failed:`, detectError);
-          }
-        }
-
-        // Use detected property or fall back to default
-        const ifcPropertyName = assetData.ifcPropertyName || IFC_DEFAULT_PROPERTY;
+        const opacity = assetData.opacity !== undefined ? assetData.opacity : 1.0;
+        const ifcPropertyName = assetData.ifcPropertyName;
 
         assetsWithIFC++;
 
-        // All entities enabled — show everything with color coding (no restrictive show filter)
-        const allEnabled = this.ifcFilter.enabledEntities.size === this.ifcFilter.allEntities.size;
-
-        // Build show conditions: OR of all ENABLED entities
-        const showConditions = [];
-        if (!allEnabled) {
-          this.ifcFilter.enabledEntities.forEach(entity => {
-            showConditions.push(`\${${ifcPropertyName}} === '${entity}'`);
-          });
+        // PBR active: keep the PBR palette (the PBR shader keys on it) —
+        // buildPBRStyle takes the IFC show logic into account itself
+        if (this.pbr && this.pbr.enabled && typeof this.buildPBRStyle === 'function') {
+          tileset.style = this.buildPBRStyle(tileset, assetData);
+          filteredCount++;
+          continue;
         }
 
-        // Build color conditions
+        const show = this.buildIFCShowExpression(ifcPropertyName);
+
+        if (show === false) {
+          tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
+          console.log(`🚫 Asset ${assetId}: All entities disabled - hidden`);
+          continue;
+        }
+
+        // Color conditions for enabled listed entities
         const colorConditions = [];
         IFC_ENTITIES.forEach(entityInfo => {
+          if (entityInfo.entity === FILTER_UNLISTED) return;
           if (this.ifcFilter.enabledEntities.has(entityInfo.entity)) {
             const finalOpacity = entityInfo.entity === 'IfcWindow' ? Math.min(0.7, opacity) : opacity;
             colorConditions.push([
@@ -429,35 +444,20 @@
           }
         });
 
-        // Default color for unmatched entities
+        // Default color for unlisted entities
         colorConditions.push(["true", `color('white', ${opacity})`]);
 
-        // Apply style
-        if (allEnabled) {
-          // All types selected — show everything, just apply colors
-          tileset.style = new Cesium.Cesium3DTileStyle({
-            show: true,
-            color: { conditions: colorConditions }
-          });
-          filteredCount++;
-          console.log(`✅ Asset ${assetId}: IFC filter applied (all types — show all)`);
-        } else if (showConditions.length > 0) {
-          tileset.style = new Cesium.Cesium3DTileStyle({
-            show: showConditions.join(' || '),
-            color: { conditions: colorConditions }
-          });
-          filteredCount++;
-          console.log(`✅ Asset ${assetId}: IFC filter applied (${showConditions.length} types shown)`);
-        } else {
-          // All entities disabled - hide everything
-          tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
-          console.log(`🚫 Asset ${assetId}: All entities disabled - hidden`);
-        }
+        tileset.style = new Cesium.Cesium3DTileStyle({
+          show: show,
+          color: { conditions: colorConditions }
+        });
+        filteredCount++;
+        console.log(`✅ Asset ${assetId}: IFC filter applied (show: ${show === true ? 'all' : 'filtered'})`);
 
       } catch (error) {
         console.error(`❌ Asset ${assetId}: Error applying IFC filter:`, error);
         try {
-          const opacity = assetData.opacity || 1.0;
+          const opacity = assetData.opacity !== undefined ? assetData.opacity : 1.0;
           tileset.style = new Cesium.Cesium3DTileStyle({
             color: `color('white', ${opacity})`,
             show: true
@@ -551,6 +551,19 @@
     return variants;
   }
 
+  // Show expression for the current Revit filter state (EN + DE names; also used by pbr-materials.js)
+  BimViewer.buildRevitShowExpression = function(propName) {
+    const enabledSet = this.revitFilter.enabledCategories;
+    const values = [];
+    REVIT_CATEGORIES.forEach(cat => {
+      if (cat.category === FILTER_UNLISTED) return;
+      getCategoryVariants(cat.category).forEach(variant => {
+        values.push({ value: variant, enabled: enabledSet.has(cat.category) });
+      });
+    });
+    return buildShowExpression(propName, values, enabledSet.has(FILTER_UNLISTED));
+  };
+
   // ✅ Apply Revit filter (matches working v2.6 OR-logic pattern)
   BimViewer.applyRevitFilter = async function() {
     console.log('🏢 Applying Revit Category Filter...');
@@ -569,7 +582,7 @@
       if (!tileset) continue;
 
       // Skip point clouds - preserve their RGB colors
-      if (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(tileset)) {
+      if (assetData.isPointCloud || (typeof this.isPointCloudTileset === 'function' && this.isPointCloudTileset(tileset))) {
         continue;
       }
 
@@ -592,18 +605,26 @@
       const opacity = assetData.opacity !== undefined ? assetData.opacity : 1.0;
 
       try {
-        // Build show conditions: OR of all ENABLED categories (EN + DE variants)
-        const showConditions = [];
-        this.revitFilter.enabledCategories.forEach(category => {
-          const variants = getCategoryVariants(category);
-          variants.forEach(variant => {
-            showConditions.push(`\${${categoryPropertyName}} === '${variant}'`);
-          });
-        });
+        // PBR active: keep the PBR palette — buildPBRStyle applies the Revit show logic
+        if (this.pbr && this.pbr.enabled && typeof this.buildPBRStyle === 'function') {
+          tileset.style = this.buildPBRStyle(tileset, assetData);
+          filteredCount++;
+          continue;
+        }
+
+        const show = this.buildRevitShowExpression(categoryPropertyName);
+
+        if (show === false) {
+          tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
+          filteredCount++;
+          console.log(`🚫 Asset ${assetId}: All Revit categories disabled - hidden`);
+          continue;
+        }
 
         // Build color conditions (include both English and German variants)
         const colorConditions = [];
         REVIT_CATEGORIES.forEach(catInfo => {
+          if (catInfo.category === FILTER_UNLISTED) return;
           if (this.revitFilter.enabledCategories.has(catInfo.category)) {
             const variants = getCategoryVariants(catInfo.category);
             variants.forEach(variant => {
@@ -615,17 +636,16 @@
           }
         });
 
-        // Default color for unmatched categories
+        // Default color for unlisted categories
         colorConditions.push(["true", `color('white', ${opacity})`]);
 
-        // Apply style
         tileset.style = new Cesium.Cesium3DTileStyle({
-          show: showConditions.length > 0 ? showConditions.join(' || ') : 'true',
+          show: show,
           color: { conditions: colorConditions }
         });
 
         filteredCount++;
-        console.log(`✅ Asset ${assetId}: Revit filter applied (${showConditions.length} conditions, EN+DE)`);
+        console.log(`✅ Asset ${assetId}: Revit filter applied (show: ${show === true ? 'all' : 'filtered'}, EN+DE)`);
 
       } catch (error) {
         console.error(`❌ Failed to apply Revit filter to asset ${assetId}:`, error);

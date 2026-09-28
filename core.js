@@ -196,9 +196,12 @@ const IFC_ENTITIES = [
   { entity: 'IfcRoof', displayName: 'Roof', color: '#8B4513', category: 'structure' },
   { entity: 'IfcFooting', displayName: 'Footing', color: '#654321', category: 'structure' },
   { entity: 'IfcPile', displayName: 'Pile', color: '#5C4033', category: 'structure' },
+  { entity: 'IfcBearing', displayName: 'Bearing', color: '#4A4A4A', category: 'structure' },
+  { entity: 'IfcReinforcingBar', displayName: 'Reinforcing Bar', color: '#8B0000', category: 'structure' },
   { entity: 'IfcDoor', displayName: 'Door', color: '#DEB887', category: 'interior' },
   { entity: 'IfcWindow', displayName: 'Window', color: '#87CEEB', category: 'interior' },
   { entity: 'IfcStair', displayName: 'Stair', color: '#D2691E', category: 'interior' },
+  { entity: 'IfcStairFlight', displayName: 'Stair Flight', color: '#C46210', category: 'interior' },
   { entity: 'IfcRailing', displayName: 'Railing', color: '#A9A9A9', category: 'interior' },
   { entity: 'IfcRamp', displayName: 'Ramp', color: '#CD853F', category: 'interior' },
   { entity: 'IfcCurtainWall', displayName: 'Curtain Wall', color: '#B0E0E6', category: 'interior' },
@@ -209,6 +212,11 @@ const IFC_ENTITIES = [
   { entity: 'IfcDuctSegment', displayName: 'Duct Segment', color: '#87CEFA', category: 'mep' },
   { entity: 'IfcDuctFitting', displayName: 'Duct Fitting', color: '#00BFFF', category: 'mep' },
   { entity: 'IfcFlowTerminal', displayName: 'Flow Terminal', color: '#ADD8E6', category: 'mep' },
+  { entity: 'IfcAirTerminal', displayName: 'Air Terminal', color: '#B0C4DE', category: 'mep' },
+  { entity: 'IfcSanitaryTerminal', displayName: 'Sanitary Terminal', color: '#5F9EA0', category: 'mep' },
+  { entity: 'IfcWasteTerminal', displayName: 'Waste Terminal', color: '#708090', category: 'mep' },
+  { entity: 'IfcEnergyConversionDevice', displayName: 'Energy Conversion Device', color: '#20B2AA', category: 'mep' },
+  { entity: 'IfcAlarm', displayName: 'Alarm', color: '#FF6347', category: 'mep' },
   { entity: 'IfcCableSegment', displayName: 'Cable Segment', color: '#FFD700', category: 'mep' },
   { entity: 'IfcCableCarrierSegment', displayName: 'Cable Carrier', color: '#FFA500', category: 'mep' },
   { entity: 'IfcLightFixture', displayName: 'Light Fixture', color: '#FFFF00', category: 'mep' },
@@ -216,11 +224,19 @@ const IFC_ENTITIES = [
   { entity: 'IfcBuildingStorey', displayName: 'Building Storey', color: '#D3D3D3', category: 'building' },
   { entity: 'IfcBuilding', displayName: 'Building', color: '#C0C0C0', category: 'building' },
   { entity: 'IfcSite', displayName: 'Site', color: '#90EE90', category: 'building' },
-  { entity: 'IfcFurnishingElement', displayName: 'Furniture', color: '#8B4513', category: 'other' },
+  { entity: 'IfcFurnishingElement', displayName: 'Furnishing Element', color: '#8B4513', category: 'other' },
+  { entity: 'IfcFurniture', displayName: 'Furniture', color: '#A0522D', category: 'other' },
   { entity: 'IfcBuildingElementProxy', displayName: 'Proxy Element', color: '#A9A9A9', category: 'other' },
   { entity: 'IfcMember', displayName: 'Member', color: '#778899', category: 'other' },
-  { entity: 'IfcOpeningElement', displayName: 'Opening', color: '#FFFFFF', category: 'other' }
+  { entity: 'IfcOpeningElement', displayName: 'Opening', color: '#FFFFFF', category: 'other' },
+  { entity: 'IfcDiscreteAccessory', displayName: 'Discrete Accessory', color: '#696969', category: 'other' },
+  // Catch-all: every className not listed above (keeps unknown types visible)
+  { entity: '__unlisted__', displayName: 'Other (not listed)', color: '#FFFFFF', category: 'other' }
 ];
+
+// Pseudo-entry in IFC_ENTITIES / REVIT_CATEGORIES that stands for all values
+// not listed explicitly. Never compared against tile properties directly.
+const FILTER_UNLISTED = '__unlisted__';
 
 console.log('✅ Config and IFC_ENTITIES loaded');
 
@@ -234,8 +250,13 @@ const REVIT_CATEGORIES = [
   { category: 'Structural Columns', displayName: 'Structural Columns', color: '#808080', group: 'structure' },
   { category: 'Structural Framing', displayName: 'Structural Framing', color: '#696969', group: 'structure' },
   { category: 'Structural Foundations', displayName: 'Foundations', color: '#654321', group: 'structure' },
+  { category: 'Structural Rebar', displayName: 'Structural Rebar', color: '#8B0000', group: 'structure' },
+  { category: 'Structural Fabric Reinforcement', displayName: 'Fabric Reinforcement', color: '#A52A2A', group: 'structure' },
   { category: 'Floors', displayName: 'Floors', color: '#C0C0C0', group: 'structure' },
   { category: 'Roofs', displayName: 'Roofs', color: '#8B4513', group: 'structure' },
+  { category: 'Roof Soffits', displayName: 'Roof Soffits', color: '#A0522D', group: 'structure' },
+  { category: 'Gutters', displayName: 'Gutters', color: '#6B8E23', group: 'structure' },
+  { category: 'Fascias', displayName: 'Fascias', color: '#8FBC8F', group: 'structure' },
   { category: 'Columns', displayName: 'Columns', color: '#707070', group: 'structure' },
   // Interior
   { category: 'Doors', displayName: 'Doors', color: '#DEB887', group: 'interior' },
@@ -245,8 +266,8 @@ const REVIT_CATEGORIES = [
   { category: 'Ramps', displayName: 'Ramps', color: '#CD853F', group: 'interior' },
   { category: 'Curtain Walls', displayName: 'Curtain Walls', color: '#B0E0E6', group: 'interior' },
   { category: 'Curtain Panels', displayName: 'Curtain Panels', color: '#ADD8E6', group: 'interior' },
+  { category: 'Curtain Wall Mullions', displayName: 'Curtain Wall Mullions', color: '#7B9BA6', group: 'interior' },
   { category: 'Ceilings', displayName: 'Ceilings', color: '#F5F5DC', group: 'interior' },
-  { category: 'Floors', displayName: 'Floors', color: '#D2B48C', group: 'interior' },
   // MEP
   { category: 'Pipes', displayName: 'Pipes', color: '#4169E1', group: 'mep' },
   { category: 'Pipe Fittings', displayName: 'Pipe Fittings', color: '#1E90FF', group: 'mep' },
@@ -267,7 +288,11 @@ const REVIT_CATEGORIES = [
   { category: 'Rooms', displayName: 'Rooms', color: '#E0E0E0', group: 'other' },
   { category: 'Topography', displayName: 'Topography', color: '#90EE90', group: 'other' },
   { category: 'Parking', displayName: 'Parking', color: '#808080', group: 'other' },
-  { category: 'Planting', displayName: 'Planting', color: '#228B22', group: 'other' }
+  { category: 'Planting', displayName: 'Planting', color: '#228B22', group: 'other' },
+  { category: 'Parts', displayName: 'Parts', color: '#B8860B', group: 'other' },
+  { category: 'Entourage', displayName: 'Entourage', color: '#9ACD32', group: 'other' },
+  // Catch-all: every categoryName not listed above (or in CATEGORY_DE_TO_EN)
+  { category: '__unlisted__', displayName: 'Other (not listed)', color: '#FFFFFF', group: 'other' }
 ];
 
 // German to English category mapping
@@ -278,6 +303,12 @@ const CATEGORY_DE_TO_EN = {
   'Tragwerksstützen': 'Structural Columns',
   'Skelettbau': 'Structural Framing',
   'Tragwerksfundamente': 'Structural Foundations',
+  'Fundamente': 'Structural Foundations',
+  'Bewehrung': 'Structural Rebar',
+  'Bewehrung - Matten': 'Structural Fabric Reinforcement',
+  'Traufen': 'Fascias',
+  'Dachuntersichten': 'Roof Soffits',
+  'Rinnen': 'Gutters',
   'Geschossdecken': 'Floors',
   'Dächer': 'Roofs',
   'Stützen': 'Columns',
@@ -289,6 +320,8 @@ const CATEGORY_DE_TO_EN = {
   'Rampen': 'Ramps',
   'Vorhangfassaden': 'Curtain Walls',
   'Vorhangfassadenpaneele': 'Curtain Panels',
+  'Fassadenelemente': 'Curtain Panels',
+  'Fassadenpfosten': 'Curtain Wall Mullions',
   'Decken': 'Ceilings',
   'Böden': 'Floors',
   // MEP
@@ -299,19 +332,27 @@ const CATEGORY_DE_TO_EN = {
   'Kabeltrassen': 'Cable Trays',
   'Kabelkanäle': 'Conduits',
   'Beleuchtungskörper': 'Lighting Fixtures',
+  'Leuchten': 'Lighting Fixtures',
   'HLS-Bauteile': 'Mechanical Equipment',
   'Sanitärinstallationen': 'Plumbing Fixtures',
   'Sprinkler': 'Sprinklers',
   'Elektroinstallationen': 'Electrical Equipment',
+  'Elektrische Ausstattung': 'Electrical Equipment',
   // Other
   'Möbel': 'Furniture',
   'Einbauteile': 'Casework',
+  'Schreinerarbeiten': 'Casework',
   'Allgemeine Modelle': 'Generic Models',
+  'Allgemeines Modell': 'Generic Models',
   'Spezialausstattung': 'Specialty Equipment',
+  'Sonderausstattung': 'Specialty Equipment',
   'Räume': 'Rooms',
   'Topografie': 'Topography',
   'Parkplätze': 'Parking',
-  'Bepflanzung': 'Planting'
+  'Parkplatz': 'Parking',
+  'Bepflanzung': 'Planting',
+  'Teile': 'Parts',
+  'Umgebung': 'Entourage'
 };
 
 // Helper function to map German category to English
@@ -1156,6 +1197,13 @@ const BimViewer = {
 
       if (typeof this.applyIFCFilter === 'function') {
         await this.applyIFCFilter();
+      }
+
+      // Revit assets keep their native look until the user filters; once
+      // categories are deselected, a newly loaded Revit asset must honour that.
+      if (this.revitFilter.enabledCategories.size !== this.revitFilter.allCategories.size &&
+          typeof this.applyRevitFilter === 'function') {
+        await this.applyRevitFilter();
       }
 
       // Gizmo Step 1: capture live placement baseline from root.transform origin.
@@ -2523,6 +2571,7 @@ window.CONFIG = CONFIG;
 window.IFC_ENTITIES = IFC_ENTITIES;
 window.REVIT_CATEGORIES = REVIT_CATEGORIES;
 window.CATEGORY_DE_TO_EN = CATEGORY_DE_TO_EN;
+window.FILTER_UNLISTED = FILTER_UNLISTED;
 window.mapCategoryToEnglish = mapCategoryToEnglish;
 
 console.log('✅ BimViewer object created (v3.3.2 - Dynamic Ion Token)');
