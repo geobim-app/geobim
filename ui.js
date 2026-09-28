@@ -17,20 +17,21 @@
 // ===============================
 'use strict';
 
-// Curated demo assets from the geobim.app Ion account (ID → display name)
+// Curated demo assets from the geobim.app Ion account (ID → display name).
+// Fallback only: the demo token (api/ion-config.php) may list its assets, and
+// core.js demoIonAssets() shows that live list. These entries are used when the
+// listing fails and should match the token's asset allowlist.
 const DEMO_ASSETS = new Map([
-  [4872841, 'Porsche 911'],
+  [5176954, 'Esztergom'],
+  [5093342, 'Edward Hall London'],
+  [4580383, 'TUM2Twin (Reality Mesh)'],
   [4538820, 'Construction Stages (Bridge)'],
   [4533896, 'RC_Bridge'],
   [4510773, 'BIMcollab (IFC)'],
-  [4496917, 'Asset 4496917'],
-  [4495857, 'Dublin Bridge'],
   [4483046, 'Rowing Center (Gaussian Splats)'],
   [4476749, 'Golden Nugget (Revit)'],
   [4458809, 'Atlanta (GLB)'],
-  [4452138, 'Bridge Belgium #1 (Reality-Mesh)'],
   [4450806, 'Office Building (IFC)'],
-  [4446752, 'Bridge (Gaussian Splats)'],
   [4446751, 'Bridge (Pointcloud)'],
   [4428272, 'House (Pointcloud)'],
   [4427396, 'Bridge (IFC)'],

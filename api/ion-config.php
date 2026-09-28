@@ -11,8 +11,15 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-// Default demo token — geobim.app Ion account
-$token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4ZGM1ZDdlNi02ZDFhLTRkMGItYTNhNy0wZTRiM2RhZWFlNWUiLCJpZCI6Mzg3NDE4LCJpYXQiOjE3NzAyOTk1MTR9.kdRP3yJ-1NV3Y0vccI14W8-1oeVKOVoOUQAfkjeBCg0';
+// Default demo token — restricted, read-only token from the geobim.app Ion account.
+// Kept outside the web root and git (the previous token leaked via the public repo).
+$tokenFile = '/etc/geobim/ion-demo-token';
+$token = is_readable($tokenFile) ? trim(file_get_contents($tokenFile)) : '';
+if ($token === '') {
+    http_response_code(500);
+    echo json_encode(['error' => 'Demo token not configured']);
+    exit;
+}
 
 echo json_encode([
     'token' => $token,
