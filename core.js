@@ -2213,6 +2213,7 @@ const BimViewer = {
     if (assetData.isGLB && assetData.model) {
       this.viewer.scene.primitives.remove(assetData.model);
     } else if (assetData.tileset) {
+      this._cancelPendingZoom(assetData.tileset);
       this.viewer.scene.primitives.remove(assetData.tileset);
     }
 
@@ -2226,6 +2227,21 @@ const BimViewer = {
     if (assetDiv) assetDiv.remove();
 
     this.updateStatus(`Asset unloaded`, 'success');
+  },
+
+  // viewer.flyTo(tileset) stores the tileset as zoom target (one microtask
+  // later) and reads its boundingSphere in the next postRender. If the tileset
+  // is destroyed in between, Cesium 1.145 throws and stops rendering, and the
+  // flyTo promise never settles. There is no public cancel, so mirror
+  // CesiumWidget's private cancelZoom() for a zoom that is still pending.
+  _cancelPendingZoom(tileset) {
+    const widget = this.viewer && this.viewer.cesiumWidget;
+    if (!widget || !widget._zoomPromise) return;
+    if (widget._zoomTarget !== undefined && widget._zoomTarget !== tileset) return;
+    widget._zoomPromise = undefined;
+    widget._zoomTarget = undefined;
+    widget._zoomOptions = undefined;
+    if (typeof widget._completeZoom === 'function') widget._completeZoom(false);
   },
 
   zoomToAsset(assetId) {

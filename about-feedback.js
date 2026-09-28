@@ -21,7 +21,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.11.0';
+  const APP_VERSION = '1.12.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -113,7 +113,7 @@
                 <span class="about-feature-icon">🔍</span>
                 <div>
                   <strong>IFC / Revit Filter</strong>
-                  <span>Filter 30+ entity types by category (walls, columns, MEP...)</span>
+                  <span>Filter 40+ IFC classes and Revit categories (EN/DE), unlisted types via "Other"</span>
                 </div>
               </div>
               <div class="about-feature-item">
@@ -221,6 +221,34 @@
                   <span>Bloom, lens flare, vignette, color grading, Cinematic preset</span>
                 </div>
               </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="route"></i></span>
+                <div>
+                  <strong>Alignment Section &amp; Cross-Section</strong>
+                  <span>Cut along IfcAlignment axes by station, with a live 2D cross-section profile (self-hosted IFC models)</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="file-up"></i></span>
+                <div>
+                  <strong>IFC to 3D Tiles Upload</strong>
+                  <span>Own IFC tiler with georeferencing (EPSG, &plusmn;0.00 height) and all property sets, no Cesium Ion needed (owner)</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="layers"></i></span>
+                <div>
+                  <strong>OGC Service Presets</strong>
+                  <span>59 verified WMS/WMTS/WFS services (Germany, Netherlands, Norway, international) in one click</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="calendar-range"></i></span>
+                <div>
+                  <strong>StageTwin</strong>
+                  <span>Shareable 4D construction-stage view without login (/stage-twin)</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -296,6 +324,7 @@
     `;
 
     document.body.appendChild(dialog);
+    if (window.lucide) lucide.createIcons();
 
     // Tab switching
     dialog.querySelectorAll('.about-tab').forEach(tab => {

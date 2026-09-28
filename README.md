@@ -13,23 +13,24 @@
 
 geoBIM.app is a web-native application for streaming massive 3D BIM and geospatial data directly in the browser, powered by CesiumJS and OGC 3D Tiles. It places your BIM models in their real geographic context — embedded in terrain, imagery, and existing urban structures rather than viewed in isolation.
 
-geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be converted to 3D Tiles via the Cesium Ion design tiler. It targets architects, engineers, contractors, authorities, operators, and project managers — all stakeholders involved in the lifecycle of a built asset.
+geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be converted to 3D Tiles via the Cesium Ion design tiler; IFC files can also be uploaded and tiled on the geoBIM server with its own tiler (georeferencing, all property sets, no Cesium Ion needed). It targets architects, engineers, contractors, authorities, operators, and project managers — all stakeholders involved in the lifecycle of a built asset.
 
 ---
 
 ## Features
 
-- **Asset Management** — Load and manage 3D Tiles from Cesium Ion
-- **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings
-- **IFC & Revit Filtering** — Show/hide by entity class or category with color-coded visualization
+- **Asset Management** — Load and manage 3D Tiles from Cesium Ion; save the position of self-hosted models (owner)
+- **IFC Upload** — Own IFC → 3D Tiles tiler (3D Tiles 1.1, all property sets, EPSG and ±0.00 height, IfcAlignment axes), plus LAS/LAZ/E57 point cloud upload up to 3 GB (owner)
+- **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings; 59 verified WMS/WMTS/WFS presets
+- **IFC & Revit Filtering** — Show/hide by entity class or category (40+ IFC classes, 43 Revit categories with German names) with color-coded visualization; unlisted types stay visible via "Other"
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
 - **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes, plus sections along an IfcAlignment axis by station with a live 2D cross section
 - **Construction Sequencing** — 4D BIM stage animation via IFC properties
+- **StageTwin** — Shareable 4D construction-stage view at [geobim.app/stage-twin](https://geobim.app/stage-twin)
 - **Annotations** — Point and area comments with Firestore persistence
 - **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
 - **IoT Live Module** — Real-time water level monitoring via Pegelonline with threshold alerts
 - **Geoid Module** — EGM96 undulation lookup for orthometric height display in coordinate picker
-- **NRW LoD2 Buildings** — Open Data 3D building models (Geobasis NRW) as toggleable layer
 - **Walk Mode** — First-person navigation with WASD, mouse or Xbox controller, wall collision against 3D Tiles
 - **Third-Person Mode** — Animated character with Unreal Engine-style controls, Player Start on any surface
 - **WEA Shadow Analysis** — Wind turbine shadow flicker simulation with parametric turbines
@@ -43,7 +44,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Performance Presets** — 4 levels from Performance to Ultra with tileset-level tuning
 - **Cesium Ion Connect** — Link your own Cesium Ion account via OAuth2, load your private assets
 - **Post-Processing Effects** — Bloom, lens flare, vignette, color grading with Cinematic preset
-- **Demo Mode** — 30-minute full access at [geobim.app/demo](https://geobim.app/demo), no login required
+- **Guest Access & Demo Mode** — The viewer opens without login as a guest; sign in from the sidebar for more. Demos at [geobim.app/demo](https://geobim.app/demo), `/wea-shadow` and `/bridge-inspector`, no time limit
 
 For a complete feature reference see [FEATURES.md](FEATURES.md).
 
@@ -114,6 +115,12 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `ui-helpers-modern.js` | List rendering helpers for UI components |
 | `measurement-store.js` | Measurement persistence in Firestore |
 | `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
+| `alignment-section.js` | Section plane along an IfcAlignment axis, by station |
+| `section-profile.js` | Live 2D cross-section at the alignment station |
+| `placement-save.js` | Lon/Lat/Height fields and owner-only "Save position" for self-hosted models |
+| `pointcloud-upload.js` | Point cloud and IFC upload with progress and conversion status |
+| `stage-twin.js` | StageTwin — shareable 4D construction-stage view |
+| `account-ui.js` | Sidebar account badge (Guest · Sign in / Sign out) |
 | `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
 | `sensorthings.js` | OGC SensorThings API module — live bridge monitoring with MQTT and damage detection |
 | `iot.js` | Pegelonline IoT live module — water level and temperature markers |

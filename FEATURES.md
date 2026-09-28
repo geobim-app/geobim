@@ -8,8 +8,8 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| Demo Mode | Auto-applies demo Cesium Ion token without login. Anonymous Firestore access for shared comments. | `auth.js` |
-| Email/Password Login | Optional Firebase auth gate overlay. Persistent sessions, logout support. | `auth-gate.js` |
+| Guest Access | The viewer opens without login as a guest with the restricted demo Cesium Ion token (read from the server, not in the repo). Guests don't see Ion terrain/imagery by ID, geoid, bathymetry, Gaussian Splats, Inspection, STA/IoT Live or Connect to Cesium ion. | `auth.js`, `auth-gate.js`, `auth-styles.css`, `api/ion-config.php` |
+| Email/Password Login | Closable sign-in dialog opened from the sidebar ("Guest · Sign in") or the demo banners; account badge with Sign out. | `auth-gate.js`, `account-ui.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
 | Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.7.0 with Post-Processing + Ion OAuth2. | `splash-screen.js` |
 | Onboarding Tour | 6-step guided tour with spotlight overlay for new users. Auto-starts on first visit. | `onboarding.js` |
@@ -21,7 +21,9 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| Cesium Ion Asset Loading | Load 3D Tiles from Ion via REST API. Curated whitelist of valid asset IDs. Tile content polling after flyTo. | `core.js`, `ui.js` |
+| Cesium Ion Asset Loading | Load 3D Tiles from Ion via REST API. Guests see the live list of assets the demo token may read (`DEMO_ASSETS` as fallback). Tile content polling after flyTo. | `core.js`, `ui.js` |
+| IFC Upload (own tiler) | Upload `.ifc`; the server tiler converts to 3D Tiles 1.1 (glTF + `EXT_mesh_features` + `EXT_structural_metadata`) with all property sets (`className`, `globalId`, …), georeferenced from `IfcMapConversion` / `IfcSite` / upload position, optional EPSG code and ±0.00 height; `alignments.json` for IfcAlignment. Owner only. | `pointcloud-upload.js`, `ui-assets-section.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
+| Point Cloud Upload | LAS/LAZ/E57/PLY up to 3 GB with progress bar; georeferenced LAS/LAZ land in place (CRS from header or UTM heuristic, GCG2016 geoid). Owner only. | `pointcloud-upload.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
 | Asset Visibility Toggle | Show/hide individual loaded assets. | `core.js`, `ui.js` |
 | Asset Opacity Control | Adjust transparency per asset (0–1 slider). | `core.js`, `ui.js` |
 | Asset Unloading | Remove assets from viewer with full cleanup of UI and references. | `core.js`, `ui.js` |
@@ -34,6 +36,7 @@
 | Feature | Description | Files |
 |---|---|---|
 | Basemap Switcher | 6 options: Bing Aerial (default), Bing Roads, OSM, Google Contour, Google Satellite w/ Labels, None. | `layerManager.js` |
+| OGC Service Presets | 59 verified WMS/WMTS/WFS services as a grouped dropdown (international, Rhineland-Palatinate, Bavaria, Netherlands/PDOK, Norway); picking one fills the URL and runs discovery. | `layerManager.js`, `ui-layer-section.js` |
 | Terrain Providers | Cesium World Terrain (default), Cesium World Bathymetry, custom terrain via Ion Asset ID. | `layerManager.js` |
 | OSM Buildings | Toggle OpenStreetMap 3D building footprints. Auto-disabled when Google 3D Tiles active. | `core.js` |
 | Google 3D Tiles | Photorealistic 3D buildings (Ion Asset 2275207). 3 quality presets: Performance, Balanced, Quality. | `core.js` |
@@ -47,9 +50,10 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| IFC Entity Filter | Filter 3D Tiles by 32 IFC entity classes (IfcWall, IfcDoor, IfcColumn, etc.) with color-coded visualization. OR-logic show conditions. | `features.js`, `core.js` |
-| IFC Auto-Detection | Auto-detect IFC property name (className, IfcEntity, etc.) from tile content with value validation. Falls back to `className` if detection fails. | `features.js`, `core.js` |
-| Revit Category Filter | Filter by 36 Revit categories with English/German name mapping (e.g., "Wände" → "Walls"). | `features.js`, `core.js` |
+| IFC Entity Filter | Filter 3D Tiles by 42 IFC entity classes (IfcWall, IfcDoor, IfcBearing, etc.) with color-coded visualization. | `features.js`, `core.js` |
+| IFC Auto-Detection | Auto-detect IFC property name (className, IfcEntity, etc.) from tile content; the value must start with `Ifc`. Assets without a detected property are not styled. | `features.js`, `core.js` |
+| Revit Category Filter | Filter by 43 Revit categories with English/German name mapping, including the names used by German Revit exports (e.g., "Wände", "Fassadenpfosten", "Allgemeines Modell"). | `features.js`, `core.js` |
+| Other (not listed) | Extra entry in both lists: while enabled, types not in the list stay visible and only deselected types are hidden. | `features.js`, `core.js` |
 | Select/Deselect All | Bulk toggle all IFC entities or Revit categories on/off. | `features.js` |
 | Manual Property Override | Override auto-detected IFC property name per asset via dropdown. | `features.js` |
 
@@ -357,6 +361,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | Stage Animation | Animate construction stages via IFC `stage` property (pset_StageInfo). Elements without a stage remain always visible. | `sequencing.js` |
 | Timeline Controls | Play/pause, stage slider, auto-play, adjustable speed. | `sequencing.js` |
 | Property Detection | Searches multiple property name variants (stage, psetStageInfostage, pset_StageInfo_stage, Stage). | `sequencing.js` |
+| StageTwin | Shareable view at `/stage-twin` without login: loads Ion asset 4538820 and starts the sequencing timeline, sidebar and toolbar hidden. Planned-state only for now. | `stage-twin.js` |
 
 ---
 
@@ -370,6 +375,8 @@ the credit is rendered. Links must remain active and clickable per the license.
 ---
 
 ## 24. NRW LoD2 3D Tiles
+
+> Removed from the 3D Layers picker in v1.12.0; the code remains in `layerManager.js` but is not reachable.
 
 | Feature | Description | Files |
 |---|---|---|
@@ -437,7 +444,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 |---|---|---|
 | Shadow Flicker Simulation | Parametric wind turbine shadow analysis on real terrain. | `wea-shadow.js` |
 | GLB Turbine Models | Enercon E-138 EP3 default, custom models via `/model/wind/`. | `wea-shadow.js` |
-| Anonymous Demo | 30-minute session at `/wea-shadow`, no login required. | `wea-demo.js` |
+| Anonymous Demo | Guest session at `/wea-shadow`, no login, no time limit. | `wea-demo.js` |
 
 ---
 
@@ -445,9 +452,8 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 | Feature | Description | Files |
 |---|---|---|
-| Full-Access Demo | 30-minute trial at `/demo` with all tools, no login. | `demo.js` |
-| Demo Banner | Countdown timer with color warnings (teal → amber → red). | `demo.js` |
-| Session Expiry | Overlay with sign-in CTA and restart option after 30 minutes. | `demo.js` |
+| Full-Access Demo | Guest session at `/demo` with all public tools, no login, no time limit (same rules as guest access). | `demo.js` |
+| Demo Banner | Banner with a sign-in link that opens the sign-in dialog. | `demo.js` |
 | About Auto-Open | About dialog opens automatically for new demo users. | `demo.js` |
 
 ---
@@ -475,4 +481,4 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
-*Updated 2026-04-15 — v1.7.0*
+*Updated 2026-09-28 — v1.12.0*

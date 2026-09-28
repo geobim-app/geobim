@@ -415,3 +415,9 @@
     max-height: 220px;
   }
 }
+
+.splash-feature-icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--brand-teal);
+}

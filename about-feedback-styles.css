@@ -421,3 +421,9 @@
   background: rgba(var(--brand-teal-rgb, 46, 207, 176), 0.2);
   border-color: var(--brand-teal, #2ECFB0);
 }
+
+.about-feature-icon svg {
+  width: 20px;
+  height: 20px;
+  color: var(--brand-teal);
+}

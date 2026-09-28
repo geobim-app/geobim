@@ -20,7 +20,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.11.0';
+  var APP_VERSION = '1.12.0';
 
   // Skip if already shown this session — auth gate will show directly
   if (sessionStorage.getItem(STORAGE_KEY) === '1') {
@@ -87,7 +87,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3D7;&#xFE0F;</span><div><strong>IFC &amp; Revit Models</strong><span>Load BIM models as 3D Tiles via Cesium Ion</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2601;&#xFE0F;</span><div><strong>Point Clouds</strong><span>LAS/LAZ point clouds with EDL and color modes</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2728;</span><div><strong>3D Gaussian Splatting</strong><span>Photorealistic splat captures as native 3D Tiles, with move/scale/rotate gizmo</span></div></div>' +
-            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F50D;</span><div><strong>IFC / Revit Filter</strong><span>Filter 30+ entity types by category</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F50D;</span><div><strong>IFC / Revit Filter</strong><span>Filter 40+ IFC classes and Revit categories (EN/DE), unlisted types via &quot;Other&quot;</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4CF;</span><div><strong>Measurement Tools</strong><span>Distance, area and height measurements</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2702;&#xFE0F;</span><div><strong>Clipping Planes</strong><span>Draw polygons to clip buildings and terrain</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4AC;</span><div><strong>3D Annotations</strong><span>Place comments with categories, priorities and inspection data</span></div></div>' +
@@ -103,6 +103,10 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F310;</span><div><strong>Geoid / Coordinate Tools</strong><span>EGM2008 geoid lookup, coordinate display</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F511;</span><div><strong>Cesium Ion Connect</strong><span>Link your own Ion account to load private assets</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3AC;</span><div><strong>Post-Processing Effects</strong><span>Bloom, lens flare, vignette, color grading, Cinematic preset</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="route"></i></span><div><strong>Alignment Section &amp; Cross-Section</strong><span>Cut along IfcAlignment axes by station, with a live 2D cross-section profile (self-hosted IFC models)</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="file-up"></i></span><div><strong>IFC to 3D Tiles Upload</strong><span>Own IFC tiler with georeferencing (EPSG, &plusmn;0.00 height) and all property sets, no Cesium Ion needed (owner)</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="layers"></i></span><div><strong>OGC Service Presets</strong><span>59 verified WMS/WMTS/WFS services (Germany, Netherlands, Norway, international) in one click</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="calendar-range"></i></span><div><strong>StageTwin</strong><span>Shareable 4D construction-stage view without login (/stage-twin)</span></div></div>' +
           '</div>' +
         '</div>' +
 
@@ -155,6 +159,7 @@
 
   // Insert as first child of body
   document.body.insertBefore(splash, document.body.firstChild);
+  if (window.lucide) lucide.createIcons();
 
   // Set global flag
   window._splashDismissed = false;
