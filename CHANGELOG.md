@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Gäste sahen das ganze Cesium-ion-Konto einer früheren Sitzung** (`ion-auth.js` `init()`): Eine im Browser gespeicherte Ion-Verbindung (OAuth-Token im localStorage, bleibt auch nach „Sign out“) wurde im Gast- und Demo-Modus weiter benutzt — die Asset-Liste zeigte dann statt der für den Demo-Token freigegebenen Assets alle 3D-Tiles-/glTF-Assets des verbundenen Kontos. Im Gast-/Demo-Modus wird eine gespeicherte Verbindung jetzt ignoriert (nicht gelöscht, nach der nächsten Anmeldung ist sie wieder da). Headless-Chrome mit vorbelegtem Token auf `/` und `/demo`: Ion-Abfragen laufen mit dem Demo-Token, `isOAuthConnected()` = false
+
 ## [1.12.0] — 2026-09-28
 
 ### Added

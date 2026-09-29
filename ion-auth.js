@@ -502,6 +502,12 @@
       if (!success) {
         applyDefaultToken();
       }
+    } else if (stored && isDemoMode()) {
+      // Guest / demo: never use a Cesium ion account linked in an earlier
+      // signed-in session on this browser — guests get the demo token and
+      // its assets only. The stored link is kept for the next sign-in.
+      console.log('[IonAuth] Guest/demo mode — ignoring stored OAuth session');
+      applyDefaultToken();
     } else if (stored) {
       oauthToken = stored;
 
