@@ -23,6 +23,7 @@
 |---|---|---|
 | Cesium Ion Asset Loading | Load 3D Tiles from Ion via REST API. Guests see the live list of assets the demo token may read (`DEMO_ASSETS` as fallback). Tile content polling after flyTo. | `core.js`, `ui.js` |
 | IFC Upload (own tiler) | Upload `.ifc`; the server tiler converts to 3D Tiles 1.1 (glTF + `EXT_mesh_features` + `EXT_structural_metadata`) with all property sets (`className`, `globalId`, …), georeferenced from `IfcMapConversion` / `IfcSite` / upload position, optional EPSG code and ±0.00 height; `alignments.json` for IfcAlignment. Owner only. | `pointcloud-upload.js`, `ui-assets-section.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
+| Bentley iTwin Demo | "Load iTwin demo" in the Assets section: station iModel, surrounding-area iModel and reality mesh from the iTwin platform (CesiumJS Sandcastle sample, public share key, expires 2026-11-01) via `Cesium.ITwinData`, with five camera views (Birdseye, Station, Platform, Atrium, Roof). | `itwin-demo.js`, `itwin-demo-styles.css`, `core.js` `loadITwinModel()` |
 | Point Cloud Upload | LAS/LAZ/E57/PLY up to 3 GB with progress bar; georeferenced LAS/LAZ land in place (CRS from header or UTM heuristic, GCG2016 geoid). Owner only. | `pointcloud-upload.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
 | Asset Visibility Toggle | Show/hide individual loaded assets. | `core.js`, `ui.js` |
 | Asset Opacity Control | Adjust transparency per asset (0–1 slider). | `core.js`, `ui.js` |

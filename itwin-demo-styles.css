@@ -1,0 +1,45 @@
+/* ===============================
+   ITWIN DEMO (itwin-demo.js)
+   Bentley iTwin sample (iModels + reality mesh) in the Assets section
+   =============================== */
+
+.itwin-demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.itwin-demo-views {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.itwin-demo-views[hidden],
+.itwin-demo .modern-hint[hidden] {
+  display: none;
+}
+
+.itwin-demo .modern-btn i[data-lucide],
+.itwin-demo .modern-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.itwin-demo-view-btn {
+  justify-content: flex-start;
+}
+
+.itwin-demo-view-btn:focus-visible,
+.itwin-demo-load-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .itwin-demo-view-btn,
+  .itwin-demo-load-btn {
+    min-height: 44px;
+  }
+}

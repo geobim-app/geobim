@@ -1278,7 +1278,9 @@ const BimViewer = {
     }
   },
 
-  async loadITwinModel(shareKey, iModelId, modelName = null) {
+  // opts.noFlyTo: caller positions the camera itself (e.g. itwin-demo.js).
+  // Returns the assetData, or undefined on failure / already loaded.
+  async loadITwinModel(shareKey, iModelId, modelName = null, opts = {}) {
     if (!shareKey || !iModelId) {
       this.updateStatus('❌ Share Key and iModel ID required', 'error');
       return;
@@ -1332,10 +1334,12 @@ const BimViewer = {
         setTimeout(() => BimViewer.updateZOffsetAssetsList(), 100);
       }
       
-      this.viewer.flyTo(tileset, {
-        duration: 2.0,
-        offset: new Cesium.HeadingPitchRange(0, -0.5, 500)
-      });
+      if (!opts.noFlyTo) {
+        this.viewer.flyTo(tileset, {
+          duration: 2.0,
+          offset: new Cesium.HeadingPitchRange(0, -0.5, 500)
+        });
+      }
       
       if (typeof this.applyIFCFilter === 'function') {
         setTimeout(() => this.applyIFCFilter(), 1000);
@@ -1373,7 +1377,8 @@ const BimViewer = {
           console.error(`❌ iTwin detection failed:`, error);
         }
       }, 3000);
-      
+
+      return assetData;
     } catch (error) {
       console.error('❌ iTwin Model import error:', error);
       this.updateStatus(`iTwin import failed: ${error.message}`, 'error');

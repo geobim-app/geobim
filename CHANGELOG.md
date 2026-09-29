@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Bentley-iTwin-Demo im Assets-Bereich** (neu `itwin-demo.js`, `itwin-demo-styles.css`; `core.js` `loadITwinModel()` mit Option `noFlyTo` und Rückgabewert): Unter der Cesium-Ion-Liste lädt „Load iTwin demo“ das Beispiel „iModel Mesh Export Service“ aus der CesiumJS-Sandcastle — Bahnhofs-iModel, iModel der Umgebung und Reality Mesh, gestreamt von der iTwin-Plattform über `Cesium.ITwinData` (experimentelle API) mit dem öffentlichen Share Key des Beispiels. Die drei Datensätze sind normale Assets (Karten, Sichtbarkeit, Deckkraft, Entfernen); fünf Kameraansichten aus dem Beispiel (Birdseye, Station, Platform, Atrium, Roof — die Innenansichten blenden die Umgebung aus, ohne den Photosphere-Modus des Beispiels). Entfernte Teile werden beim nächsten Klick nachgeladen. Der Share Key läuft am 01.11.2026 ab: danach ist der Button deaktiviert mit Hinweis; neuer Key aus `packages/sandcastle/gallery/imodel-mesh-export-service/main.js`. Auch für Gäste. Headless-Chrome auf viewer.geobim.app: alle drei Tilesets geladen und gerendert, Ansichten, Nachladen und abgelaufener Key geprüft, keine Konsolenfehler
+
 ### Security
 
 - **Gäste sahen das ganze Cesium-ion-Konto einer früheren Sitzung** (`ion-auth.js` `init()`): Eine im Browser gespeicherte Ion-Verbindung (OAuth-Token im localStorage, bleibt auch nach „Sign out“) wurde im Gast- und Demo-Modus weiter benutzt — die Asset-Liste zeigte dann statt der für den Demo-Token freigegebenen Assets alle 3D-Tiles-/glTF-Assets des verbundenen Kontos. Im Gast-/Demo-Modus wird eine gespeicherte Verbindung jetzt ignoriert (nicht gelöscht, nach der nächsten Anmeldung ist sie wieder da). Headless-Chrome mit vorbelegtem Token auf `/` und `/demo`: Ion-Abfragen laufen mit dem Demo-Token, `isOAuthConnected()` = false
