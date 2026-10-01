@@ -87,6 +87,48 @@
     `;
   }
 
+  // Fill the Ion asset <select>, grouped by the assets' Cesium ion labels:
+  // one <optgroup> per label, alphabetical, unlabelled assets last. An asset
+  // with several labels is listed under its first one. With fewer than two
+  // groups the list stays flat — e.g. the guest list, where every asset
+  // carries the "demo" label.
+  function fillIonAssetSelector(selector, assets, placeholder) {
+    selector.innerHTML = '';
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = placeholder;
+    selector.appendChild(first);
+
+    const toOption = asset => {
+      const option = document.createElement('option');
+      option.value = asset.id;
+      option.textContent = asset.name;
+      return option;
+    };
+
+    const groups = new Map();
+    assets.forEach(asset => {
+      const label = Array.isArray(asset.labels) && asset.labels[0] ? asset.labels[0].name : '';
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(asset);
+    });
+
+    if (groups.size < 2) {
+      assets.forEach(asset => selector.appendChild(toOption(asset)));
+      return;
+    }
+
+    const names = [...groups.keys()].filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    if (groups.has('')) names.push('');
+    names.forEach(name => {
+      const group = document.createElement('optgroup');
+      group.label = name || 'Unlabelled';
+      groups.get(name).forEach(asset => group.appendChild(toOption(asset)));
+      selector.appendChild(group);
+    });
+  }
+
   function initHandlers() {
     // Manual reload (hidden button — kept for fallback)
     document.getElementById('loadIonAssets')?.addEventListener('click', async () => {
@@ -106,14 +148,7 @@
           ? allAssets.filter(asset => asset.type === '3DTILES' || asset.type === 'GLTF')
           : BimViewer.demoIonAssets(allAssets);
 
-        selector.innerHTML = '<option value="">-- Select an asset --</option>';
-
-        assets.forEach(asset => {
-          const option = document.createElement('option');
-          option.value = asset.id;
-          option.textContent = asset.name;
-          selector.appendChild(option);
-        });
+        fillIonAssetSelector(selector, assets, '-- Select an asset --');
 
         importBtn.disabled = false;
         btn.innerHTML = '<span class="modern-btn-icon">✅</span><span>Assets Loaded</span>';
@@ -252,6 +287,7 @@
 
   window.GEOBIM_ASSETS_UI = {
     getContent: getContent,
-    initHandlers: initHandlers
+    initHandlers: initHandlers,
+    fillIonAssetSelector: fillIonAssetSelector
   };
 })();

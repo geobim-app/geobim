@@ -639,6 +639,23 @@ body {
   font-weight: 600;
 }
 
+/* Ion asset list grouped by label (ui-assets-section.js fillIonAssetSelector) */
+.modern-select[multiple] optgroup {
+  padding-top: var(--space-xs);
+  color: var(--brand-teal);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.modern-select[multiple] optgroup option {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* Slider */
 .modern-slider,
 .modern-slider-small {

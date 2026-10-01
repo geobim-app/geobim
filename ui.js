@@ -901,15 +901,8 @@ const BimViewerUI = {
       selector.style.display = 'block';
       if (importBtn) importBtn.style.display = 'block';
 
-      // Clear and populate selector
-      selector.innerHTML = '<option value="">-- Select an asset to import --</option>';
-
-      assets.forEach(asset => {
-        const option = document.createElement('option');
-        option.value = asset.id;
-        option.textContent = asset.name;
-        selector.appendChild(option);
-      });
+      // Clear and populate selector (grouped by Ion labels, see ui-assets-section.js)
+      GEOBIM_ASSETS_UI.fillIonAssetSelector(selector, assets, '-- Select an asset to import --');
 
       console.log(`${assets.length} assets available in selector`);
       BimViewer.updateStatus(`${assets.length} assets available`, 'success');
