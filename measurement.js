@@ -539,6 +539,7 @@
               ⛰️ Above terrain: <strong>${(height - terrainHeight).toFixed(2)} m</strong>
             </div>
             ${undulationHtml}
+            <div id="msGaussKrueger" class="ms-coord-section" hidden></div>
           </div>
           <button onclick="navigator.clipboard.writeText('${lat.toFixed(7)}, ${lon.toFixed(7)}')" style="
             margin-top: 8px; padding: 6px 12px; width: 100%;
@@ -548,6 +549,7 @@
         </div>
       `;
       this.updateMeasurementResult(resultHtml);
+      this.showGaussKrueger(lat, lon);
       this.updateStatus(`Coordinates captured`, 'success');
       this.cleanupMeasurementHandlers();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -642,6 +644,36 @@
   BimViewer.formatArea = function(sqMeters) {
     if (sqMeters >= 10000) return (sqMeters / 10000).toFixed(2) + ' ha';
     return sqMeters.toFixed(2) + ' m²';
+  };
+
+  // Gauss-Krüger (DHDN) section of the coordinate result, filled in once
+  // gauss-krueger.js has computed it (first use loads proj4js + the grid).
+  BimViewer.showGaussKrueger = async function(lat, lon) {
+    const box = document.getElementById('msGaussKrueger');
+    if (!box || typeof GEOBIM_GK === 'undefined') return;
+    box.hidden = false;
+    box.textContent = 'Gauss-Krüger: calculating…';
+    let gk = null;
+    try {
+      gk = await GEOBIM_GK.fromWGS84(lat, lon);
+    } catch (e) {
+      console.warn('Gauss-Krüger conversion failed:', e);
+      box.textContent = 'Gauss-Krüger: not available (conversion failed)';
+      return;
+    }
+    if (document.getElementById('msGaussKrueger') !== box) return; // result replaced meanwhile
+    if (!gk) {
+      box.textContent = 'Gauss-Krüger: only available in Germany';
+      return;
+    }
+    const e = gk.easting.toFixed(2);
+    const n = gk.northing.toFixed(2);
+    box.innerHTML =
+      `<div class="ms-coord-title">Gauss-Krüger zone ${gk.zone} (DHDN, EPSG:${gk.epsg})</div>` +
+      `<div>Easting (R): <strong>${e}</strong></div>` +
+      `<div>Northing (H): <strong>${n}</strong></div>` +
+      `<button type="button" class="ms-coord-copy">Copy R/H</button>`;
+    box.querySelector('.ms-coord-copy').addEventListener('click', () => navigator.clipboard.writeText(`${e}, ${n}`));
   };
 
   BimViewer.updateMeasurementResult = function(html) {

@@ -1793,6 +1793,40 @@ body {
 /* ===============================
    MEASUREMENT PANEL
    =============================== */
+/* Coordinate result: Gauss-Krüger section (measurement.js showGaussKrueger) */
+.ms-coord-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ms-coord-section[hidden] {
+  display: none;
+}
+
+.ms-coord-title {
+  color: var(--brand-teal);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.ms-coord-copy {
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ms-coord-copy:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
 .ms-tool-btn {
   display: flex;
   align-items: center;
