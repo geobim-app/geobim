@@ -1804,6 +1804,14 @@ body {
   display: none;
 }
 
+.ms-coord-block + .ms-coord-block {
+  margin-top: var(--space-sm);
+}
+
+.ms-coord-note {
+  color: var(--text-muted);
+}
+
 .ms-coord-title {
   color: var(--brand-teal);
   font-weight: 600;

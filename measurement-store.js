@@ -275,14 +275,14 @@
           '🏔️ Terrain height: <strong>' + terrainHeight.toFixed(2) + ' m</strong><br>' +
           '⛰️ Above terrain: <strong>' + (height - terrainHeight).toFixed(2) + ' m</strong></div>' +
           undulationHtml +
-          '<div id="msGaussKrueger" class="ms-coord-section" hidden></div>' + '</div>' +
+          '<div id="msProjected" class="ms-coord-section" hidden></div>' + '</div>' +
           '<button onclick="navigator.clipboard.writeText(\'' + lat.toFixed(7) + ', ' + lon.toFixed(7) + '\')" style="' +
           'margin-top: 8px; padding: 6px 12px; width: 100%;' +
           'background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);' +
           'border-radius: 4px; color: white; font-size: 11px; cursor: pointer;">📋 Copy Lat/Lon</button></div>';
 
         self.updateMeasurementResult(resultHtml);
-        if (typeof self.showGaussKrueger === 'function') self.showGaussKrueger(lat, lon);
+        if (typeof self.showProjectedCoordinates === 'function') self.showProjectedCoordinates(lat, lon);
         self.updateStatus('Coordinates captured', 'success');
 
         // Capture for save

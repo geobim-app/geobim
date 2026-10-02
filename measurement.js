@@ -539,7 +539,7 @@
               ⛰️ Above terrain: <strong>${(height - terrainHeight).toFixed(2)} m</strong>
             </div>
             ${undulationHtml}
-            <div id="msGaussKrueger" class="ms-coord-section" hidden></div>
+            <div id="msProjected" class="ms-coord-section" hidden></div>
           </div>
           <button onclick="navigator.clipboard.writeText('${lat.toFixed(7)}, ${lon.toFixed(7)}')" style="
             margin-top: 8px; padding: 6px 12px; width: 100%;
@@ -549,7 +549,7 @@
         </div>
       `;
       this.updateMeasurementResult(resultHtml);
-      this.showGaussKrueger(lat, lon);
+      this.showProjectedCoordinates(lat, lon);
       this.updateStatus(`Coordinates captured`, 'success');
       this.cleanupMeasurementHandlers();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -646,34 +646,42 @@
     return sqMeters.toFixed(2) + ' m²';
   };
 
-  // Gauss-Krüger (DHDN) section of the coordinate result, filled in once
-  // gauss-krueger.js has computed it (first use loads proj4js + the grid).
-  BimViewer.showGaussKrueger = async function(lat, lon) {
-    const box = document.getElementById('msGaussKrueger');
-    if (!box || typeof GEOBIM_GK === 'undefined') return;
+  // Projected coordinates of the coordinate result (UTM, Gauss-Krüger), filled
+  // in by projected-coords.js. Each block appears on its own: UTM only needs
+  // proj4js, Gauss-Krüger also the BeTA2007 grid (first use loads them).
+  BimViewer.showProjectedCoordinates = function(lat, lon) {
+    const box = document.getElementById('msProjected');
+    if (!box || typeof GEOBIM_PROJ === 'undefined') return;
     box.hidden = false;
-    box.textContent = 'Gauss-Krüger: calculating…';
-    let gk = null;
-    try {
-      gk = await GEOBIM_GK.fromWGS84(lat, lon);
-    } catch (e) {
-      console.warn('Gauss-Krüger conversion failed:', e);
-      box.textContent = 'Gauss-Krüger: not available (conversion failed)';
-      return;
-    }
-    if (document.getElementById('msGaussKrueger') !== box) return; // result replaced meanwhile
-    if (!gk) {
-      box.textContent = 'Gauss-Krüger: only available in Germany';
-      return;
-    }
-    const e = gk.easting.toFixed(2);
-    const n = gk.northing.toFixed(2);
-    box.innerHTML =
-      `<div class="ms-coord-title">Gauss-Krüger zone ${gk.zone} (DHDN, EPSG:${gk.epsg})</div>` +
-      `<div>Easting (R): <strong>${e}</strong></div>` +
-      `<div>Northing (H): <strong>${n}</strong></div>` +
-      `<button type="button" class="ms-coord-copy">Copy R/H</button>`;
-    box.querySelector('.ms-coord-copy').addEventListener('click', () => navigator.clipboard.writeText(`${e}, ${n}`));
+    box.innerHTML = '<div class="ms-coord-block" data-crs="utm">UTM: calculating…</div>' +
+      '<div class="ms-coord-block" data-crs="gk">Gauss-Krüger: calculating…</div>';
+
+    const fill = (key, promise, title, unavailable, prefixed) => promise.then(res => {
+      const block = box.querySelector(`[data-crs="${key}"]`);
+      if (!block || !box.isConnected) return; // result replaced meanwhile
+      if (!res) { block.textContent = unavailable; return; }
+      const e = res.easting.toFixed(2);
+      const n = res.northing.toFixed(2);
+      block.innerHTML =
+        `<div class="ms-coord-title">${title(res)}</div>` +
+        `<div>Easting: <strong>${e}</strong></div>` +
+        `<div>Northing: <strong>${n}</strong></div>` +
+        (prefixed ? `<div class="ms-coord-note">With zone prefix: ${prefixed(res, e)}</div>` : '') +
+        `<button type="button" class="ms-coord-copy">Copy E/N</button>`;
+      block.querySelector('.ms-coord-copy').addEventListener('click', () => navigator.clipboard.writeText(`${e}, ${n}`));
+    }).catch(err => {
+      console.warn(`${key} conversion failed:`, err);
+      const block = box.querySelector(`[data-crs="${key}"]`);
+      if (block) block.textContent = `${key === 'utm' ? 'UTM' : 'Gauss-Krüger'}: not available (conversion failed)`;
+    });
+
+    fill('utm', GEOBIM_PROJ.utmFromWGS84(lat, lon),
+      r => `UTM zone ${r.zone}${r.south ? 'S' : 'N'} (${r.datum}, EPSG:${r.epsg})`,
+      'UTM: not defined at this latitude',
+      (r, e) => `${r.zone}${e}`);
+    fill('gk', GEOBIM_PROJ.gaussKruegerFromWGS84(lat, lon),
+      r => `Gauss-Krüger zone ${r.zone} (DHDN, EPSG:${r.epsg})`,
+      'Gauss-Krüger: only available in Germany');
   };
 
   BimViewer.updateMeasurementResult = function(html) {
