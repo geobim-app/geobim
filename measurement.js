@@ -331,47 +331,7 @@
     handler.setInputAction(async (click) => {
       const cartesian = this.viewer.scene.pickPosition(click.position);
       if (!cartesian) return;
-
-      const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-      const clickedHeight = cartographic.height;
-
-      // Get terrain height at this location
-      try {
-        const terrainProvider = this.viewer.terrainProvider;
-        const positions = [cartographic];
-        const updatedPositions = await Cesium.sampleTerrainMostDetailed(terrainProvider, positions);
-        const terrainHeight = updatedPositions[0].height || 0;
-        const heightOverTerrain = clickedHeight - terrainHeight;
-
-        this.addPointMarker(cartesian, Cesium.Color.MAGENTA);
-
-        // Add vertical line to terrain
-        const terrainCartesian = Cesium.Cartesian3.fromRadians(
-          cartographic.longitude,
-          cartographic.latitude,
-          terrainHeight
-        );
-        this.addMeasurementLine([cartesian, terrainCartesian], Cesium.Color.MAGENTA);
-        this.addMeasurementLabel(cartesian, `${heightOverTerrain.toFixed(2)} m above terrain`);
-
-        const resultHtml = `
-          <div style="text-align: left; font-size: 12px; line-height: 1.6;">
-            <div style="color: #f093fb; font-size: 16px; font-weight: 600; margin-bottom: 6px;">
-              ⛰️ ${heightOverTerrain.toFixed(2)} m above terrain
-            </div>
-            <div style="color: rgba(255,255,255,0.7);">
-              📍 Point height: ${clickedHeight.toFixed(2)} m<br>
-              🏔️ Terrain height: ${terrainHeight.toFixed(2)} m
-            </div>
-          </div>
-        `;
-        this.updateMeasurementResult(resultHtml);
-        this.updateStatus(`Height over terrain: ${heightOverTerrain.toFixed(2)} m`, 'success');
-      } catch (error) {
-        this.updateMeasurementResult(`<span style="color: #f5576c;">Could not sample terrain</span>`);
-      }
-
-      this.cleanupMeasurementHandlers();
+      await this.completeHeightOverTerrain(cartesian);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction(() => this.cancelMeasurement(), Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -497,61 +457,7 @@
     handler.setInputAction(async (click) => {
       const cartesian = this.viewer.scene.pickPosition(click.position);
       if (!cartesian) return;
-
-      const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-      const lon = Cesium.Math.toDegrees(cartographic.longitude);
-      const lat = Cesium.Math.toDegrees(cartographic.latitude);
-      const height = cartographic.height;
-
-      // Get terrain height for comparison
-      let terrainHeight = 0;
-      try {
-        const terrainProvider = this.viewer.terrainProvider;
-        const positions = [Cesium.Cartographic.clone(cartographic)];
-        const updatedPositions = await Cesium.sampleTerrainMostDetailed(terrainProvider, positions);
-        terrainHeight = updatedPositions[0].height || 0;
-      } catch (e) {}
-
-      this.addPointMarker(cartesian, Cesium.Color.ORANGE);
-
-      // Geoid undulation lookup
-      var geoidInfo = (typeof GEOBIM_GEOID !== 'undefined') ? GEOBIM_GEOID.toOrthometric(height, lat, lon) : null;
-      var undulationHtml = '';
-      if (geoidInfo) {
-        undulationHtml =
-          '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">' +
-            '📐 Geoid undulation (N): <strong>' + geoidInfo.undulation.toFixed(2) + ' m</strong><br>' +
-            '🏛️ Height above sea level: <strong>' + geoidInfo.orthometric.toFixed(2) + ' m</strong>' +
-          '</div>';
-      }
-
-      const resultHtml = `
-        <div style="text-align: left; font-size: 11px; line-height: 1.7;">
-          <div style="color: #fa709a; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
-            🌍 Global Coordinates
-          </div>
-          <div style="color: rgba(255,255,255,0.9); font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
-            <div>Lat: <strong>${lat.toFixed(7)}°</strong></div>
-            <div>Lon: <strong>${lon.toFixed(7)}°</strong></div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">
-              🌊 Height (WGS84): <strong>${height.toFixed(2)} m</strong><br>
-              🏔️ Terrain height: <strong>${terrainHeight.toFixed(2)} m</strong><br>
-              ⛰️ Above terrain: <strong>${(height - terrainHeight).toFixed(2)} m</strong>
-            </div>
-            ${undulationHtml}
-            <div id="msProjected" class="ms-coord-section" hidden></div>
-          </div>
-          <button onclick="navigator.clipboard.writeText('${lat.toFixed(7)}, ${lon.toFixed(7)}')" style="
-            margin-top: 8px; padding: 6px 12px; width: 100%;
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 4px; color: white; font-size: 11px; cursor: pointer;
-          ">📋 Copy Lat/Lon</button>
-        </div>
-      `;
-      this.updateMeasurementResult(resultHtml);
-      this.showProjectedCoordinates(lat, lon);
-      this.updateStatus(`Coordinates captured`, 'success');
-      this.cleanupMeasurementHandlers();
+      await this.completeCoordinatePick(cartesian);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction(() => this.cancelMeasurement(), Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -644,6 +550,117 @@
   BimViewer.formatArea = function(sqMeters) {
     if (sqMeters >= 10000) return (sqMeters / 10000).toFixed(2) + ' ha';
     return sqMeters.toFixed(2) + ' m²';
+  };
+
+  // Shows height over terrain for a picked point. measurement-store.js wraps
+  // this to offer saving. Returns the values, or null if the terrain could not
+  // be sampled.
+  BimViewer.completeHeightOverTerrain = async function(cartesian) {
+    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+    const clickedHeight = cartographic.height;
+
+    // Get terrain height at this location
+    let result = null;
+    try {
+      const terrainProvider = this.viewer.terrainProvider;
+      const positions = [cartographic];
+      const updatedPositions = await Cesium.sampleTerrainMostDetailed(terrainProvider, positions);
+      const terrainHeight = updatedPositions[0].height || 0;
+      const heightOverTerrain = clickedHeight - terrainHeight;
+
+      this.addPointMarker(cartesian, Cesium.Color.MAGENTA);
+
+      // Add vertical line to terrain
+      const terrainCartesian = Cesium.Cartesian3.fromRadians(
+        cartographic.longitude,
+        cartographic.latitude,
+        terrainHeight
+      );
+      this.addMeasurementLine([cartesian, terrainCartesian], Cesium.Color.MAGENTA);
+      this.addMeasurementLabel(cartesian, `${heightOverTerrain.toFixed(2)} m above terrain`);
+
+      const resultHtml = `
+        <div style="text-align: left; font-size: 12px; line-height: 1.6;">
+          <div style="color: #f093fb; font-size: 16px; font-weight: 600; margin-bottom: 6px;">
+            ⛰️ ${heightOverTerrain.toFixed(2)} m above terrain
+          </div>
+          <div style="color: rgba(255,255,255,0.7);">
+            📍 Point height: ${clickedHeight.toFixed(2)} m<br>
+            🏔️ Terrain height: ${terrainHeight.toFixed(2)} m
+          </div>
+        </div>
+      `;
+      this.updateMeasurementResult(resultHtml);
+      this.updateStatus(`Height over terrain: ${heightOverTerrain.toFixed(2)} m`, 'success');
+      result = { clickedHeight: clickedHeight, terrainHeight: terrainHeight, heightOverTerrain: heightOverTerrain };
+    } catch (error) {
+      this.updateMeasurementResult(`<span style="color: #f5576c;">Could not sample terrain</span>`);
+    }
+
+    this.cleanupMeasurementHandlers();
+    return result;
+  };
+
+  // Shows the coordinate result for a picked point. measurement-store.js wraps
+  // this to offer saving, like completeDistanceMeasurement & co.
+  // Returns the computed values.
+  BimViewer.completeCoordinatePick = async function(cartesian) {
+    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+    const lon = Cesium.Math.toDegrees(cartographic.longitude);
+    const lat = Cesium.Math.toDegrees(cartographic.latitude);
+    const height = cartographic.height;
+
+    // Get terrain height for comparison
+    let terrainHeight = 0;
+    try {
+      const terrainProvider = this.viewer.terrainProvider;
+      const positions = [Cesium.Cartographic.clone(cartographic)];
+      const updatedPositions = await Cesium.sampleTerrainMostDetailed(terrainProvider, positions);
+      terrainHeight = updatedPositions[0].height || 0;
+    } catch (e) {}
+
+    this.addPointMarker(cartesian, Cesium.Color.ORANGE);
+
+    // Geoid undulation lookup
+    var geoidInfo = (typeof GEOBIM_GEOID !== 'undefined') ? GEOBIM_GEOID.toOrthometric(height, lat, lon) : null;
+    var undulationHtml = '';
+    if (geoidInfo) {
+      undulationHtml =
+        '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">' +
+          '📐 Geoid undulation (N): <strong>' + geoidInfo.undulation.toFixed(2) + ' m</strong><br>' +
+          '🏛️ Height above sea level: <strong>' + geoidInfo.orthometric.toFixed(2) + ' m</strong>' +
+        '</div>';
+    }
+
+    const resultHtml = `
+      <div style="text-align: left; font-size: 11px; line-height: 1.7;">
+        <div style="color: #fa709a; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+          🌍 Global Coordinates
+        </div>
+        <div style="color: rgba(255,255,255,0.9); font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
+          <div>Lat: <strong>${lat.toFixed(7)}°</strong></div>
+          <div>Lon: <strong>${lon.toFixed(7)}°</strong></div>
+          <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">
+            🌊 Height (WGS84): <strong>${height.toFixed(2)} m</strong><br>
+            🏔️ Terrain height: <strong>${terrainHeight.toFixed(2)} m</strong><br>
+            ⛰️ Above terrain: <strong>${(height - terrainHeight).toFixed(2)} m</strong>
+          </div>
+          ${undulationHtml}
+          <div id="msProjected" class="ms-coord-section" hidden></div>
+        </div>
+        <button onclick="navigator.clipboard.writeText('${lat.toFixed(7)}, ${lon.toFixed(7)}')" style="
+          margin-top: 8px; padding: 6px 12px; width: 100%;
+          background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 4px; color: white; font-size: 11px; cursor: pointer;
+        ">📋 Copy Lat/Lon</button>
+      </div>
+    `;
+    this.updateMeasurementResult(resultHtml);
+    this.showProjectedCoordinates(lat, lon);
+    this.updateStatus(`Coordinates captured`, 'success');
+    this.cleanupMeasurementHandlers();
+
+    return { lon: lon, lat: lat, height: height, terrainHeight: terrainHeight, geoidInfo: geoidInfo };
   };
 
   // Projected coordinates of the coordinate result (UTM, Gauss-Krüger), filled
