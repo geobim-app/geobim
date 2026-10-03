@@ -17,6 +17,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Koordinaten- und Höhe-über-Gelände-Werkzeug nur noch einmal im Code** (`measurement.js` neu `completeCoordinatePick()` und `completeHeightOverTerrain()`, `measurement-store.js`): `measurement-store.js` ersetzte bisher bei beiden Werkzeugen den ganzen Klick-Handler durch eine eigene Kopie, nur um die Werte fürs Speichern zu merken — jede Änderung am Ergebnis musste doppelt gemacht werden (so zuletzt UTM/Gauß-Krüger). Jetzt werten die beiden `complete…()`-Funktionen den Klick aus und geben die Werte zurück (Höhe: `null`, wenn das Gelände nicht abgefragt werden konnte); das Speichermodul hängt sich daran wie bei Strecke, Fläche und Höhendifferenz. Verhalten unverändert (Headless-Chrome: Ergebnisse, je ein Speichern-Button, gleiche Speicherdaten; Fehlerfall Höhe: Hinweis, kein Speichern-Button, Handler aufgeräumt)
 
+### Fixed
+
+- **Titel von Area-Annotations verschwand im Gelände** (`comments.js` `addAreaEntity()`): Das Label saß in der rechnerischen Mitte der Fläche — durchstieß das Gelände die Fläche dort, war der Titel nicht zu sehen. Es steht jetzt über dem höchsten Eckpunkt bzw. dem Gelände in der Mitte (je nachdem, was höher ist), mit Unterkante am Punkt. Außerdem blendet es erst ab 100 m plus Flächenradius aus statt fest ab 100 m, damit der Titel bei großen Flächen nicht schon in der Übersicht fehlt. Das Label ist dreimal so groß wie bisher (Schrift 42 px statt 14 px, Rand und Innenabstand entsprechend)
+
 ### Security
 
 - **Gäste sahen das ganze Cesium-ion-Konto einer früheren Sitzung** (`ion-auth.js` `init()`): Eine im Browser gespeicherte Ion-Verbindung (OAuth-Token im localStorage, bleibt auch nach „Sign out“) wurde im Gast- und Demo-Modus weiter benutzt — die Asset-Liste zeigte dann statt der für den Demo-Token freigegebenen Assets alle 3D-Tiles-/glTF-Assets des verbundenen Kontos. Im Gast-/Demo-Modus wird eine gespeicherte Verbindung jetzt ignoriert (nicht gelöscht, nach der nächsten Anmeldung ist sie wieder da). Headless-Chrome mit vorbelegtem Token auf `/` und `/demo`: Ion-Abfragen laufen mit dem Demo-Token, `isOAuthConnected()` = false

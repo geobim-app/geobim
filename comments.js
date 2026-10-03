@@ -537,7 +537,15 @@
       return Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
     });
     
-    const centerCart = Cesium.BoundingSphere.fromPoints(positions).center;
+    // Title above the highest corner: at the plain centre it vanished as soon
+    // as terrain poked through the area there
+    const sphere = Cesium.BoundingSphere.fromPoints(positions);
+    const centerCarto = Cesium.Cartographic.fromCartesian(sphere.center);
+    const groundHeight = this.viewer.scene.globe.getHeight(centerCarto);
+    const topHeight = Math.max(...comment.areaPoints.map(p => p.height), groundHeight ?? -Infinity) + OFFSET_HEIGHT;
+    const centerCart = Cesium.Cartesian3.fromRadians(centerCarto.longitude, centerCarto.latitude, topHeight);
+    // Visible as long as the area itself is in view, not only within 100 m of its centre
+    const labelMaxDistance = 100 + sphere.radius;
     
     this.viewer.entities.add({
       id: comment.id,
@@ -555,20 +563,20 @@
       
       label: {
         text: this.buildLabelText(comment),
-        font: 'bold 14px sans-serif',
+        font: 'bold 42px sans-serif',
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
+        outlineWidth: 9,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.CENTER,
-        pixelOffset: new Cesium.Cartesian2(0, 0),
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(0, -12),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         scale: 1.0,
         scaleByDistance: new Cesium.NearFarScalar(5, 1.3, 100, 0.4),
         pixelOffsetScaleByDistance: new Cesium.NearFarScalar(5, 1.0, 100, 0.4),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100),
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, labelMaxDistance),
         backgroundColor: cesiumColor.withAlpha(0.9),
-        backgroundPadding: new Cesium.Cartesian2(10, 6),
+        backgroundPadding: new Cesium.Cartesian2(30, 18),
         showBackground: true
       },
 
