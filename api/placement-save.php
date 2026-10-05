@@ -30,6 +30,17 @@ $reset = !empty($req['reset']);
 
 function finite_num($v) { return (is_int($v) || is_float($v)) && is_finite((float)$v); }
 
+// A file or folder name directly in model/ as api/models.php lists it: any
+// name (spaces, brackets, umlauts, "+") except path separators, control
+// characters and hidden / internal entries (".", "_staging"). The realpath
+// check below keeps it inside model/.
+function valid_entry_name($name) {
+    return is_string($name) && $name !== '' && strlen($name) <= 255
+        && mb_check_encoding($name, 'UTF-8')
+        && !preg_match('#[/\\\\\x00-\x1F\x7F]#', $name)
+        && $name[0] !== '.' && $name[0] !== '_';
+}
+
 function write_json_atomic($path, $data) {
     $tmp = $path . '.tmp-' . getmypid();
     if (file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) === false) return false;
@@ -55,7 +66,7 @@ $stamp = ['savedAt' => gmdate('c'), 'savedBy' => $user['email']];
 
 if (($req['kind'] ?? '') === 'tileset') {
     $folder = $req['folder'] ?? '';
-    if (!preg_match('/^[A-Za-z0-9._-]+$/', $folder) || $folder[0] === '_' || $folder[0] === '.') fail('Invalid folder');
+    if (!valid_entry_name($folder)) fail('Invalid folder');
     $dir = realpath($modelDir . '/' . $folder);
     if ($dir === false || dirname($dir) !== $modelDir || !is_file("$dir/tileset.json")) fail('Not found', 404);
     $path = "$dir/tileset.json";
@@ -102,7 +113,7 @@ if (($req['kind'] ?? '') === 'tileset') {
 
 if (($req['kind'] ?? '') === 'glb') {
     $file = $req['file'] ?? '';
-    if (!preg_match('/^[A-Za-z0-9._ -]+\.(glb|gltf)$/i', $file)) fail('Invalid file');
+    if (!valid_entry_name($file) || !preg_match('/\.(glb|gltf)$/i', $file)) fail('Invalid file');
     $real = realpath($modelDir . '/' . $file);
     if ($real === false || dirname($real) !== $modelDir) fail('Not found', 404);
     $store = "$modelDir/placements.json";

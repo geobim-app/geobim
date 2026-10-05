@@ -2008,7 +2008,7 @@ const BimViewer = {
     // an identity root.transform.
     let originECEF = Cesium.Matrix4.getTranslation(tileset.root.transform, new Cesium.Cartesian3());
     // `trusted` = origin came from a real root.transform translation (Ion georef
-    // frame), so ENU(origin,h=0) × inverse(root.transform) ≈ identity and the
+    // frame), so ENU(origin, heading) × inverse(root.transform) ≈ identity and the
     // placement can safely become the single writer of modelMatrix (z-offset
     // reconciliation). The bounding-sphere fallback re-orients to ENU on first
     // edit, so those assets stay on the legacy z-offset translation path.
@@ -2022,13 +2022,30 @@ const BimViewer = {
     const carto = Cesium.Cartographic.fromCartesian(originECEF);
     if (!carto) return null;
 
+    // The heading already baked into root.transform (IfcMapConversion rotation,
+    // grid convergence, a placement saved in geobim.app). Starting from 0 made
+    // the first gizmo move / heading change snap the model back to north.
+    // Range 0–360 like the heading slider; pitch/roll are not kept (tilesets
+    // from our tiler and Ion have none).
+    let heading = 0;
+    if (trusted) {
+      const hpr = Cesium.Transforms.fixedFrameToHeadingPitchRoll(tileset.root.transform);
+      if (hpr && isFinite(hpr.heading)) {
+        heading = Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(hpr.heading));
+        if (heading > 359.9995) heading = 0;
+        if (Math.abs(hpr.pitch) > 1e-4 || Math.abs(hpr.roll) > 1e-4) {
+          console.warn(`📐 ${assetData.name}: root.transform has pitch/roll, only the heading is kept`);
+        }
+      }
+    }
+
     assetData.placement = {
       position: {
         lon: Cesium.Math.toDegrees(carto.longitude),
         lat: Cesium.Math.toDegrees(carto.latitude),
         height: carto.height
       },
-      heading: 0,
+      heading: heading,
       // Original georef height — the zero-offset reference so the z-offset slider
       // ("relative to original") and the gizmo Z-handle share placement.height.
       baseHeight: carto.height,
@@ -2036,7 +2053,7 @@ const BimViewer = {
     };
     console.log(`📐 Placement baseline for ${assetData.name}: ` +
       `${assetData.placement.position.lon.toFixed(5)}, ${assetData.placement.position.lat.toFixed(5)}, ` +
-      `h=${assetData.placement.position.height.toFixed(2)}`);
+      `h=${assetData.placement.position.height.toFixed(2)}, heading=${heading.toFixed(2)}°`);
     return assetData.placement;
   },
 
