@@ -274,7 +274,7 @@
               <div class="about-shortcut"><kbd>H</kbd><span>Toggle hide mode (click to hide elements)</span></div>
               <div class="about-shortcut"><kbd>Shift + H</kbd><span>Restore all hidden elements</span></div>
               <div class="about-shortcut"><kbd>C</kbd><span>Toggle comment mode</span></div>
-              <div class="about-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets)</span></div>
+              <div class="about-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets, Esc to exit)</span></div>
               <div class="about-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>
 
               <div class="about-shortcut-group-title">Selection</div>

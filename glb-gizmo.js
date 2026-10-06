@@ -420,6 +420,8 @@
     }
 
     removeHandles(viewer);
+    // Never leave the camera locked if the selection is dropped mid-drag
+    if (gizmo.dragging) viewer.scene.screenSpaceCameraController.enableInputs = true;
     gizmo.selectedAssetId = null;
     gizmo.active = false;
     gizmo.dragging = false;
@@ -710,9 +712,31 @@
 
   // ---- Keyboard ----
 
+  // Esc mid-drag: put the model back where the drag started, then end the drag
+  // the normal way (onLeftUp re-enables the camera and syncs the z-offset card).
+  function cancelDrag() {
+    if (!gizmo.dragging) return;
+    var ad = getAssetData(gizmo.selectedAssetId);
+    var pos = getPos(ad);
+    if (pos && gizmo.dragStartPosition) {
+      pos.lon = gizmo.dragStartPosition.lon;
+      pos.lat = gizmo.dragStartPosition.lat;
+      pos.height = gizmo.dragStartPosition.height;
+      setHeading(ad, gizmo.dragStartHeading);
+      applyPlacement(gizmo.selectedAssetId, ad);
+      syncUI(gizmo.selectedAssetId);
+    }
+    onLeftUp();
+  }
+
   function onKeyDown(e) {
-    if (e.key === 'Escape' && gizmo.active) {
-      deselectModel();
+    // Esc leaves the gizmo completely: cancels a drag, drops the selection and
+    // switches Transform mode off. Not filtered by focus, like the other Esc handlers.
+    if (e.key === 'Escape') {
+      if (!gizmo.dragging && !gizmo.active && !gizmo.transformMode) return;
+      cancelDrag();
+      if (gizmo.active) deselectModel();
+      if (gizmo.transformMode) setTransformMode(false);
       return;
     }
 
@@ -738,7 +762,7 @@
     }
     if (window.BimViewer && typeof BimViewer.updateStatus === 'function') {
       BimViewer.updateStatus(
-        'Transform mode ' + (gizmo.transformMode ? 'ON — click an asset to move it (X to exit)' : 'OFF'),
+        'Transform mode ' + (gizmo.transformMode ? 'ON — click an asset to move it (X or Esc to exit)' : 'OFF'),
         gizmo.transformMode ? 'success' : 'info');
     }
     var btn = document.getElementById('gizmoTransformBtn');
