@@ -623,6 +623,9 @@ window.GEOBIM_SENSORTHINGS = (function() {
         '#staPanelBody th:nth-child(3), #staPanelBody td:nth-child(3) { width: 44px; }' +
         '#staPanelBody th:last-child, #staPanelBody td:last-child { width: 34%; min-width: 0 !important; }' +
         'body:has(#sta-panel.visible) #floatingAssetsPanel { max-height: calc(50vh - 138px); }' +
+        // with a demo banner the panel starts at 95px instead of 60px (style.css)
+        'body.demo-active:has(#sta-panel.visible) #floatingAssetsPanel,' +
+        'body.bridge-demo-active:has(#sta-panel.visible) #floatingAssetsPanel { max-height: calc(50vh - 173px); }' +
       '}';
     document.head.appendChild(style);
 
@@ -657,6 +660,20 @@ window.GEOBIM_SENSORTHINGS = (function() {
     return panel;
   }
 
+  // Phones: the open sidebar would sit behind the sensor panel — close it,
+  // the same way ui.js' sidebar toggle (M / ☰) does
+  function closeSidebarOnPhone() {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    var toolbar = document.getElementById('toolbar');
+    var toggle = document.getElementById('sidebarToggle');
+    if (!toolbar || toolbar.classList.contains('collapsed')) return;
+    toolbar.classList.add('collapsed');
+    if (toggle) {
+      toggle.textContent = '☰';
+      toggle.classList.add('at-edge');
+    }
+  }
+
   function showPanel(station) {
     var panel = ensurePanel();
     var title = panel.querySelector('.floating-panel-title');
@@ -665,6 +682,7 @@ window.GEOBIM_SENSORTHINGS = (function() {
     state._history = {};
     if (body) body.innerHTML = buildPanelHtml(station);
     panel.classList.add('visible');
+    closeSidebarOnPhone();
 
     for (var i = 0; i < station.datastreams.length; i++) {
       (function(ds) {
