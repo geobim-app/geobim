@@ -542,10 +542,74 @@
 
   // ---------------------------------------------------------------------------
   // Date & time block in the Lighting panel (replaces the Cesium timeline,
-  // hidden by CSS). Time is local mean solar time at the camera
-  // (UTC + longitude / 15), the same convention as Saved Scenes.
+  // hidden by CSS). Time is the civil local time at the camera — time zone
+  // from the position (tz-lookup, offline lookup table), daylight saving via
+  // Intl — so shadow studies match clocks on site. Until tz-lookup has
+  // loaded (or if it can't), local mean solar time (UTC + lon / 15) is the
+  // fallback. viewer.clock stays UTC; Saved Scenes are unaffected.
   // ---------------------------------------------------------------------------
   var SPEEDS = [1, 60, 600, 3600];
+  var TZ_LOOKUP_URL = 'https://cdn.jsdelivr.net/npm/tz-lookup@6.1.25/tz.js';
+  var TZ_LOOKUP_SRI = 'sha384-hu4xDymJTssX8+i8qDUKexc5lIusgVeLPv72brg57d+WMdeCGtr3A1U8oW8PEtaP';
+  var tzFormatters = {};
+
+  function loadTzLookup() {
+    if (window.tzlookup) return Promise.resolve(true);
+    return new Promise(function(resolve) {
+      var s = document.createElement('script');
+      s.src = TZ_LOOKUP_URL;
+      s.integrity = TZ_LOOKUP_SRI;
+      s.crossOrigin = 'anonymous';
+      s.onload = function() { resolve(typeof window.tzlookup === 'function'); };
+      s.onerror = function() {
+        console.warn('Date & time: tz-lookup not available, showing solar time');
+        resolve(false);
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  function zoneFormatter(zone) {
+    if (!tzFormatters[zone]) {
+      tzFormatters[zone] = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, hourCycle: 'h23',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric'
+      });
+    }
+    return tzFormatters[zone];
+  }
+
+  // Offset of zone from UTC at a UTC instant, in ms (DST included)
+  function zoneOffsetMs(zone, utcMs) {
+    var parts = {};
+    zoneFormatter(zone).formatToParts(new Date(utcMs)).forEach(function(x) { parts[x.type] = x.value; });
+    var wall = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
+    return wall - Math.floor(utcMs / 1000) * 1000;
+  }
+
+  // Short zone name: en-US knows EDT/PST, en-GB knows CEST/BST; else GMT+n
+  function zoneAbbr(zone, utcMs) {
+    function abbr(locale) {
+      var key = zone + '|' + locale;
+      if (!tzFormatters[key]) tzFormatters[key] = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: 'short' });
+      var part = tzFormatters[key]
+        .formatToParts(new Date(utcMs)).filter(function(x) { return x.type === 'timeZoneName'; })[0];
+      return part ? part.value : '';
+    }
+    var a = abbr('en-US');
+    if (/^(GMT|UTC)/.test(a)) {
+      var gb = abbr('en-GB');
+      if (gb && !/^(GMT|UTC)[+-]/.test(gb)) a = gb;
+    }
+    return a;
+  }
+
+  function utcOffsetLabel(ms) {
+    var min = Math.round(ms / 60000), sign = min < 0 ? '−' : '+';
+    min = Math.abs(min);
+    return 'UTC' + sign + Math.floor(min / 60) + (min % 60 ? ':' + (min % 60 < 10 ? '0' : '') + (min % 60) : '');
+  }
 
   function buildClock() {
     var p = panels.lighting;
@@ -560,6 +624,7 @@
       '<div class="panels-clock-row">' +
         '<input type="date" class="zoffset-input-box panels-clock-date" aria-label="Date">' +
         '<output class="panels-clock-time" aria-live="off">--:--</output>' +
+        '<span class="panels-clock-zone"></span>' +
       '</div>' +
       '<input type="range" class="modern-slider panels-clock-slider" min="0" max="1435" step="5" aria-label="Time of day">' +
       '<div class="panels-clock-row">' +
@@ -578,34 +643,65 @@
     var playBtn = box.querySelector('.panels-clock-play');
     var speedSel = box.querySelector('.panels-clock-speed');
     var hint = box.querySelector('.panels-clock-hint');
+    var zoneOut = box.querySelector('.panels-clock-zone');
     var editing = false;
+    var tzReady = false;
 
-    function offsetHours() {
+    loadTzLookup().then(function(ok) {
+      tzReady = ok;
+      refresh(true);
+    });
+
+    // IANA zone at the camera, or null → solar time
+    function zone() {
       var c = viewer.camera.positionCartographic;
-      return c ? Cesium.Math.toDegrees(c.longitude) / 15 : 0;
+      if (!tzReady || !c) return null;
+      try {
+        return window.tzlookup(Cesium.Math.toDegrees(c.latitude), Cesium.Math.toDegrees(c.longitude));
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // Offset from UTC at a UTC instant: civil time zone, else solar time
+    function offsetMs(z, utcMs) {
+      if (z) {
+        try { return zoneOffsetMs(z, utcMs); } catch (_) { /* unknown zone → solar */ }
+      }
+      var c = viewer.camera.positionCartographic;
+      return c ? Cesium.Math.toDegrees(c.longitude) / 15 * 3600e3 : 0;
     }
 
     function pad(n) { return (n < 10 ? '0' : '') + n; }
 
     function hhmm(minutes) { return pad(Math.floor(minutes / 60)) + ':' + pad(Math.round(minutes % 60)); }
 
-    // clock (UTC) → local solar date + minutes
+    // clock (UTC) → local date + minutes at the camera
     function readLocal() {
       var utc = Cesium.JulianDate.toDate(clock.currentTime).getTime();
-      var local = new Date(utc + offsetHours() * 3600e3);
+      var z = zone();
+      var off = offsetMs(z, utc);
+      var local = new Date(utc + off);
       return {
         date: local.toISOString().slice(0, 10),
         minutes: local.getUTCHours() * 60 + local.getUTCMinutes(),
-        utc: new Date(utc)
+        utc: new Date(utc),
+        zone: z,
+        offset: off
       };
     }
 
-    // local solar date + minutes → clock (UTC)
+    // local date + minutes at the camera → clock (UTC). Second pass picks
+    // the offset valid at the result (days with a DST switch).
     function writeLocal(dateStr, minutes) {
       var parts = dateStr.split('-').map(Number);
       if (parts.length !== 3 || parts.some(isNaN)) return;
-      var localMs = Date.UTC(parts[0], parts[1] - 1, parts[2]) + minutes * 60e3;
-      clock.currentTime = Cesium.JulianDate.fromDate(new Date(localMs - offsetHours() * 3600e3));
+      var wall = Date.UTC(parts[0], parts[1] - 1, parts[2]) + minutes * 60e3;
+      var z = zone();
+      var utc = wall - offsetMs(z, wall);
+      var off2 = offsetMs(z, utc);
+      if (wall - off2 !== utc) utc = wall - off2;
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(utc));
       refresh(true);
     }
 
@@ -615,7 +711,15 @@
       if (document.activeElement !== dateIn) dateIn.value = l.date;
       if (!editing) slider.value = String(l.minutes - (l.minutes % 5));
       timeOut.textContent = hhmm(l.minutes);
-      hint.textContent = 'Local solar time at the camera · UTC ' + pad(l.utc.getUTCHours()) + ':' + pad(l.utc.getUTCMinutes());
+      var utcText = 'UTC ' + pad(l.utc.getUTCHours()) + ':' + pad(l.utc.getUTCMinutes());
+      if (l.zone) {
+        var abbr = zoneAbbr(l.zone, l.utc.getTime());
+        zoneOut.textContent = abbr;
+        hint.textContent = l.zone + ' (' + utcOffsetLabel(l.offset) + ') · ' + utcText;
+      } else {
+        zoneOut.textContent = 'solar';
+        hint.textContent = 'Local solar time at the camera · ' + utcText;
+      }
       var playing = clock.shouldAnimate;
       if (playBtn.dataset.state !== String(playing)) {
         playBtn.dataset.state = String(playing);
