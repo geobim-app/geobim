@@ -111,12 +111,36 @@
     var BELGIUM_ASSET_ID = 4452138;
     var POINTCLOUD_ASSET_ID = 4446751;
 
+    var loaded = 0;
+    var unavailable = [];
+
     Promise.all(toLoad.map(function(id) {
       var name = (liveAssets && liveAssets.get(id)) || (demoMap && demoMap.get(id)) || ('Asset ' + id);
-      // Stay at default globe camera; createAssetControls must run so the
-      // Loaded Assets panel populates (silent:true would skip that).
-      return BimViewer.loadSelectedAsset(id, name, { noFlyTo: true })
+      // Ask Cesium ion first: an asset that is gone or not shared with the
+      // demo token (404/403) is skipped quietly instead of running into
+      // core.js' red "Failed to load asset" message.
+      return Cesium.IonResource.fromAssetId(id)
         .then(function() {
+          // Stay at default globe camera; createAssetControls must run so the
+          // Loaded Assets panel populates (silent:true would skip that).
+          return BimViewer.loadSelectedAsset(id, name, { noFlyTo: true }).then(function() { return true; });
+        }, function(e) {
+          unavailable.push(id);
+          // RequestErrorEvent carries the HTTP status; its message is not readable
+          var why = (e && e.statusCode) ? 'HTTP ' + e.statusCode : ((e && e.message) || String(e));
+          console.warn('Bridge Inspector: asset', id, '(' + name + ') not available on Cesium ion —', why, '— skipped');
+          return false;
+        })
+        .then(function(attempted) {
+          // loadSelectedAsset catches its own errors and resolves anyway:
+          // only what is in loadedAssets has really loaded
+          if (!attempted) return;
+          if (!BimViewer.loadedAssets.has(String(id))) {
+            unavailable.push(id);
+            console.warn('Bridge Inspector: asset', id, '(' + name + ') failed to load');
+            return;
+          }
+          loaded++;
           console.log('Bridge Inspector: loaded asset', id, '—', name);
           if (id === POINTCLOUD_ASSET_ID) {
             applyBridgePointcloudPreset();
@@ -132,9 +156,15 @@
             }
           }
         })
-        .catch(function(e) { console.warn('Bridge Inspector: failed to load asset', id, e.message); })
+        .catch(function(e) { console.warn('Bridge Inspector: failed to load asset', id, e && e.message); })
         .then(function() { done++; updateLoadingPill(done, total); });
-    })).then(hideLoadingPill);
+    })).then(function() {
+      hideLoadingPill();
+      // No status message: this mode hides .status-indicator (CSS in createBanner)
+      if (unavailable.length) {
+        console.warn('Bridge Inspector: ' + loaded + ' of ' + total + ' assets loaded; unavailable: ' + unavailable.join(', '));
+      }
+    });
   }, 500);
 
   // ========================================================
