@@ -21,6 +21,17 @@ html.ui-panels .bottom-toolbar-sep {
   display: none;
 }
 
+/* Replaced by the search bar and the Lighting panel's date & time block;
+   the widgets still exist (core.js geocoder binding, animationManager.js) */
+html.ui-panels .cesium-viewer-geocoderContainer,
+html.ui-panels .cesium-viewer-timelineContainer {
+  display: none;
+}
+
+html.ui-panels .cesium-viewer-bottom {
+  bottom: 0;
+}
+
 /* M hides rail + panels */
 html.ui-panels.panels-collapsed .panels-ui {
   display: none;
@@ -314,4 +325,195 @@ html.ui-panels .panels-panel-body > .modern-section-content {
 .panels-classic-btn svg {
   width: 15px;
   height: 15px;
+}
+
+/* ===============================
+   SEARCH BAR (top centre)
+   =============================== */
+.panels-search {
+  position: fixed;
+  top: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 220px));
+  z-index: var(--z-toolbar);
+}
+
+/* demo/guest banner across the top */
+body:has(#demoBanner) .panels-search {
+  top: 52px;
+}
+
+.panels-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 40px;
+  padding: 0 var(--space-md);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  color: var(--text-muted);
+}
+
+.panels-search-box:focus-within {
+  border-color: rgba(var(--brand-teal-rgb), 0.5);
+}
+
+.panels-search-box svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.panels-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.panels-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.panels-search-input::-webkit-search-cancel-button {
+  filter: invert(0.7);
+}
+
+.panels-search-results {
+  margin-top: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.panels-search-results[hidden] {
+  display: none;
+}
+
+.panels-search-result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panels-search-result span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panels-search-result small {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.panels-search-result:hover,
+.panels-search-result.active {
+  background: rgba(var(--brand-teal-rgb), 0.12);
+}
+
+.panels-search-result:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: -2px;
+}
+
+.panels-search-empty {
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ===============================
+   DATE & TIME (Lighting panel)
+   =============================== */
+.panels-clock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0 var(--space-lg) var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.panels-clock .modern-label {
+  margin: 0;
+}
+
+.panels-clock-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.panels-clock-date {
+  flex: 1;
+  min-width: 0;
+  color-scheme: dark;
+}
+
+.panels-clock-time {
+  flex: none;
+  min-width: 52px;
+  color: var(--brand-teal);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.panels-clock-slider {
+  width: 100%;
+}
+
+.panels-clock-row > .modern-btn {
+  flex: none;
+  width: auto;
+  margin: 0;
+}
+
+.panels-clock-play {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.panels-clock-play svg {
+  width: 14px;
+  height: 14px;
+}
+
+.panels-clock-speed {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+}
+
+.panels-clock-hint {
+  margin: 0;
 }

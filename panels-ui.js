@@ -16,6 +16,10 @@
  *   - the rail mirrors sections hidden by CSS (e.g. body.guest-mode)
  *   - rail + panels follow #toolbar's visibility (auth.js shows/hides it)
  *   - M hides/shows rail + panels (classic: sidebar)
+ *
+ * Also replaces two Cesium widgets (hidden by CSS, still constructed so
+ * core.js and animationManager.js keep working): the geocoder by a search
+ * bar at the top, the timeline by a date & time block in the Lighting panel.
  */
 (function() {
   'use strict';
@@ -370,6 +374,298 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Search bar (replaces the Cesium geocoder box, which is hidden by CSS).
+  // Uses the geocoder widget's own services, so core.js' binding to the
+  // default Ion token (geocode scope) keeps applying.
+  // ---------------------------------------------------------------------------
+  function buildSearch() {
+    var wrap = document.createElement('div');
+    wrap.className = 'panels-search';
+    wrap.setAttribute('role', 'search');
+    wrap.innerHTML =
+      '<div class="panels-search-box">' +
+        '<i data-lucide="search"></i>' +
+        '<input type="search" class="panels-search-input" placeholder="Search address, place or coordinates" ' +
+          'autocomplete="off" spellcheck="false" aria-label="Search address, place or coordinates" ' +
+          'aria-controls="panelsSearchResults" aria-expanded="false">' +
+      '</div>' +
+      '<div class="panels-search-results" id="panelsSearchResults" role="listbox" hidden></div>';
+    root.appendChild(wrap);
+
+    var input = wrap.querySelector('input');
+    var list = wrap.querySelector('.panels-search-results');
+    var results = [];
+    var active = -1;
+    var timer = null;
+    var seq = 0;
+
+    function geocoderVM() {
+      var v = window.BimViewer && BimViewer.viewer;
+      return v && v.geocoder ? v.geocoder.viewModel : null;
+    }
+
+    // "48.137, 11.575" or "48.137 11.575" → lat, lon
+    function parseCoordinates(q) {
+      var m = q.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+      if (!m) return null;
+      var lat = parseFloat(m[1]), lon = parseFloat(m[2]);
+      if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+      return {
+        displayName: lat.toFixed(5) + '°, ' + lon.toFixed(5) + '°',
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1500),
+        meta: 'Coordinates'
+      };
+    }
+
+    async function lookup(q, type) {
+      var coords = parseCoordinates(q);
+      if (coords) return [coords];
+      var vm = geocoderVM();
+      var services = vm && vm._geocoderServices;
+      if (!services || !services.length) return [];
+      for (var i = 0; i < services.length; i++) {
+        try {
+          var found = await services[i].geocode(q, type);
+          if (found && found.length) {
+            // the Ion geocoder can return the same name twice
+            var seen = {};
+            return found.filter(function(f) {
+              if (seen[f.displayName]) return false;
+              seen[f.displayName] = true;
+              return true;
+            }).slice(0, 6);
+          }
+        } catch (err) {
+          console.warn('Search: geocoder failed —', err.message || err);
+        }
+      }
+      return [];
+    }
+
+    function render(items, emptyText) {
+      results = items;
+      active = items.length ? 0 : -1;
+      list.innerHTML = '';
+      if (!items.length) {
+        if (emptyText) {
+          var empty = document.createElement('div');
+          empty.className = 'panels-search-empty';
+          empty.textContent = emptyText;
+          list.appendChild(empty);
+        }
+      }
+      items.forEach(function(item, i) {
+        var opt = document.createElement('button');
+        opt.type = 'button';
+        opt.className = 'panels-search-result';
+        opt.setAttribute('role', 'option');
+        opt.dataset.index = String(i);
+        var name = document.createElement('span');
+        name.textContent = item.displayName;
+        opt.appendChild(name);
+        if (item.meta) {
+          var meta = document.createElement('small');
+          meta.textContent = item.meta;
+          opt.appendChild(meta);
+        }
+        list.appendChild(opt);
+      });
+      highlight();
+      var show = !!(items.length || emptyText);
+      list.hidden = !show;
+      input.setAttribute('aria-expanded', show ? 'true' : 'false');
+    }
+
+    function highlight() {
+      Array.prototype.forEach.call(list.querySelectorAll('.panels-search-result'), function(el, i) {
+        el.classList.toggle('active', i === active);
+        el.setAttribute('aria-selected', i === active ? 'true' : 'false');
+      });
+    }
+
+    function hide() {
+      list.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    }
+
+    function go(item) {
+      var vm = geocoderVM();
+      if (!item || !item.destination) return;
+      input.value = item.displayName;
+      hide();
+      input.blur();
+      if (vm && typeof vm.destinationFound === 'function') vm.destinationFound(vm, item.destination);
+      else BimViewer.viewer.camera.flyTo({ destination: item.destination });
+    }
+
+    async function search(type) {
+      var q = input.value.trim();
+      var mine = ++seq;
+      if (q.length < 3 && !parseCoordinates(q)) { render([]); return; }
+      var items = await lookup(q, type);
+      if (mine !== seq) return; // a newer query is already on its way
+      render(items, type === Cesium.GeocodeType.SEARCH ? 'No place found' : '');
+      return items;
+    }
+
+    input.addEventListener('input', function() {
+      clearTimeout(timer);
+      timer = setTimeout(function() { search(Cesium.GeocodeType.AUTOCOMPLETE); }, 300);
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!results.length) return;
+        e.preventDefault();
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
+        highlight();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(timer);
+        if (!list.hidden && results[active]) { go(results[active]); return; }
+        search(Cesium.GeocodeType.SEARCH).then(function(items) { if (items && items.length) go(items[0]); });
+      } else if (e.key === 'Escape') {
+        if (!list.hidden) hide();
+        else input.blur();
+      }
+    });
+
+    list.addEventListener('click', function(e) {
+      var opt = e.target.closest('.panels-search-result');
+      if (opt) go(results[parseInt(opt.dataset.index, 10)]);
+    });
+
+    document.addEventListener('pointerdown', function(e) {
+      if (!wrap.contains(e.target)) hide();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Date & time block in the Lighting panel (replaces the Cesium timeline,
+  // hidden by CSS). Time is local mean solar time at the camera
+  // (UTC + longitude / 15), the same convention as Saved Scenes.
+  // ---------------------------------------------------------------------------
+  var SPEEDS = [1, 60, 600, 3600];
+
+  function buildClock() {
+    var p = panels.lighting;
+    var viewer = window.BimViewer && BimViewer.viewer;
+    if (!p || !viewer) return false;
+    var clock = viewer.clock;
+
+    var box = document.createElement('div');
+    box.className = 'panels-clock';
+    box.innerHTML =
+      '<div class="modern-label">Date &amp; time</div>' +
+      '<div class="panels-clock-row">' +
+        '<input type="date" class="zoffset-input-box panels-clock-date" aria-label="Date">' +
+        '<output class="panels-clock-time" aria-live="off">--:--</output>' +
+      '</div>' +
+      '<input type="range" class="modern-slider panels-clock-slider" min="0" max="1435" step="5" aria-label="Time of day">' +
+      '<div class="panels-clock-row">' +
+        '<button type="button" class="modern-btn modern-btn-small panels-clock-play" aria-label="Pause time"></button>' +
+        '<select class="modern-select panels-clock-speed" aria-label="Time speed">' +
+          SPEEDS.map(function(s) { return '<option value="' + s + '">' + (s === 1 ? 'Real time' : s + '×') + '</option>'; }).join('') +
+        '</select>' +
+        '<button type="button" class="modern-btn modern-btn-small panels-clock-now">Now</button>' +
+      '</div>' +
+      '<p class="modern-hint panels-clock-hint"></p>';
+    p.el.querySelector('.panels-panel-body').appendChild(box);
+
+    var dateIn = box.querySelector('.panels-clock-date');
+    var timeOut = box.querySelector('.panels-clock-time');
+    var slider = box.querySelector('.panels-clock-slider');
+    var playBtn = box.querySelector('.panels-clock-play');
+    var speedSel = box.querySelector('.panels-clock-speed');
+    var hint = box.querySelector('.panels-clock-hint');
+    var editing = false;
+
+    function offsetHours() {
+      var c = viewer.camera.positionCartographic;
+      return c ? Cesium.Math.toDegrees(c.longitude) / 15 : 0;
+    }
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    function hhmm(minutes) { return pad(Math.floor(minutes / 60)) + ':' + pad(Math.round(minutes % 60)); }
+
+    // clock (UTC) → local solar date + minutes
+    function readLocal() {
+      var utc = Cesium.JulianDate.toDate(clock.currentTime).getTime();
+      var local = new Date(utc + offsetHours() * 3600e3);
+      return {
+        date: local.toISOString().slice(0, 10),
+        minutes: local.getUTCHours() * 60 + local.getUTCMinutes(),
+        utc: new Date(utc)
+      };
+    }
+
+    // local solar date + minutes → clock (UTC)
+    function writeLocal(dateStr, minutes) {
+      var parts = dateStr.split('-').map(Number);
+      if (parts.length !== 3 || parts.some(isNaN)) return;
+      var localMs = Date.UTC(parts[0], parts[1] - 1, parts[2]) + minutes * 60e3;
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(localMs - offsetHours() * 3600e3));
+      refresh(true);
+    }
+
+    function refresh(force) {
+      if (editing && !force) return;
+      var l = readLocal();
+      if (document.activeElement !== dateIn) dateIn.value = l.date;
+      if (!editing) slider.value = String(l.minutes - (l.minutes % 5));
+      timeOut.textContent = hhmm(l.minutes);
+      hint.textContent = 'Local solar time at the camera · UTC ' + pad(l.utc.getUTCHours()) + ':' + pad(l.utc.getUTCMinutes());
+      var playing = clock.shouldAnimate;
+      if (playBtn.dataset.state !== String(playing)) {
+        playBtn.dataset.state = String(playing);
+        playBtn.innerHTML = '<i data-lucide="' + (playing ? 'pause' : 'play') + '"></i><span>' + (playing ? 'Pause' : 'Play') + '</span>';
+        playBtn.setAttribute('aria-label', playing ? 'Pause time' : 'Play time');
+        if (window.lucide) lucide.createIcons();
+      }
+      var m = String(clock.multiplier);
+      if (SPEEDS.indexOf(clock.multiplier) !== -1 && speedSel.value !== m) speedSel.value = m;
+    }
+
+    slider.addEventListener('pointerdown', function() { editing = true; });
+    slider.addEventListener('input', function() {
+      editing = true;
+      timeOut.textContent = hhmm(parseInt(slider.value, 10));
+      writeLocal(dateIn.value, parseInt(slider.value, 10));
+    });
+    slider.addEventListener('change', function() { editing = false; refresh(true); });
+    dateIn.addEventListener('change', function() {
+      writeLocal(dateIn.value, parseInt(slider.value, 10));
+    });
+    playBtn.addEventListener('click', function() {
+      playBtn.blur();
+      clock.shouldAnimate = !clock.shouldAnimate;
+      refresh(true);
+    });
+    speedSel.addEventListener('change', function() {
+      clock.multiplier = parseFloat(speedSel.value) || 1;
+      speedSel.blur();
+    });
+    box.querySelector('.panels-clock-now').addEventListener('click', function(e) {
+      e.currentTarget.blur();
+      clock.currentTime = Cesium.JulianDate.now();
+      refresh(true);
+    });
+
+    // Follow the clock (and camera longitude) while the panel is open
+    var last = 0;
+    clock.onTick.addEventListener(function() {
+      if (p.el.hidden) return;
+      var now = performance.now();
+      if (now - last < 250) return;
+      last = now;
+      refresh(false);
+    });
+    refresh(true);
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // Init — BimViewerUI.init() runs ~100 ms after load; wait for its sections
   // ---------------------------------------------------------------------------
   function init(toolbar) {
@@ -394,6 +690,15 @@
     window.addEventListener('resize', function() {
       order.forEach(function(id) { place(panels[id].el, panels[id].el.offsetLeft, panels[id].el.offsetTop); });
     });
+
+    buildSearch();
+    // The viewer may still be starting; the clock block needs it
+    var clockTries = 0;
+    (function waitViewer() {
+      if (buildClock() || ++clockTries > 300) return;
+      setTimeout(waitViewer, 200);
+    })();
+    if (window.lucide) lucide.createIcons();
 
     // Same default as the classic sidebar: Assets open
     openPanel('assets');
