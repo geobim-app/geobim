@@ -83,7 +83,7 @@
     {
       target: '#cesiumContainer',
       title: 'Welcome to Bridge Inspector',
-      text: 'Four bridge models are pre-loaded. Use the next 30 minutes to inspect components, place condition annotations, measure dimensions, and save viewpoints — just like a real inspection workflow.',
+      text: 'Bridge models are pre-loaded. Inspect components, place condition annotations, measure dimensions, and save viewpoints — just like a real inspection workflow.',
       position: 'center'
     },
     {
@@ -125,7 +125,7 @@
     {
       target: null,
       title: 'You\'re ready',
-      text: 'Your 30-minute Bridge Inspector demo starts now. Sign in for unlimited access and to inspect your own models on the full geobim.app platform.',
+      text: 'Explore the bridges as long as you like. Sign in to inspect your own models on the full geobim.app platform.',
       position: 'center'
     }
   ];
