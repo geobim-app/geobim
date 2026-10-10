@@ -657,6 +657,20 @@ window.GEOBIM_SENSORTHINGS = (function() {
     return panel;
   }
 
+  // Phones: the open sidebar would sit behind the sensor panel — close it,
+  // the same way ui.js' sidebar toggle (M / ☰) does
+  function closeSidebarOnPhone() {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    var toolbar = document.getElementById('toolbar');
+    var toggle = document.getElementById('sidebarToggle');
+    if (!toolbar || toolbar.classList.contains('collapsed')) return;
+    toolbar.classList.add('collapsed');
+    if (toggle) {
+      toggle.textContent = '☰';
+      toggle.classList.add('at-edge');
+    }
+  }
+
   function showPanel(station) {
     var panel = ensurePanel();
     var title = panel.querySelector('.floating-panel-title');
@@ -665,6 +679,7 @@ window.GEOBIM_SENSORTHINGS = (function() {
     state._history = {};
     if (body) body.innerHTML = buildPanelHtml(station);
     panel.classList.add('visible');
+    closeSidebarOnPhone();
 
     for (var i = 0; i < station.datastreams.length; i++) {
       (function(ds) {
