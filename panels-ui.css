@@ -1,5 +1,317 @@
 /*
  * geobim.app — Panel UI (beta)
  * Only loaded when panels-ui-loader.js picks the panel layout; every rule is
- * scoped to html.ui-panels. Rail and panel styles follow in step 3.
+ * scoped to html.ui-panels. Icon rail (left) + floating tool panels.
  */
+
+/* ===============================
+   CLASSIC CHROME OFF
+   =============================== */
+/* auth.js sets inline display:block on both; !important wins over that */
+html.ui-panels #toolbar,
+html.ui-panels #sidebarToggle {
+  display: none !important;
+}
+
+/* The rail replaces the section buttons of the bottom toolbar;
+   Walk and Transform stay there */
+html.ui-panels .bottom-toolbar-btn[data-section],
+html.ui-panels #bottomHelpBtn,
+html.ui-panels .bottom-toolbar-sep {
+  display: none;
+}
+
+/* M hides rail + panels */
+html.ui-panels.panels-collapsed .panels-ui {
+  display: none;
+}
+
+/* ===============================
+   RAIL
+   =============================== */
+.panels-ui[hidden] {
+  display: none;
+}
+
+.panels-rail {
+  position: fixed;
+  left: var(--space-lg);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  max-height: calc(100vh - 2 * var(--space-lg));
+  padding: var(--space-sm) 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  overflow-y: auto;
+  scrollbar-width: none;
+  z-index: var(--z-toolbar);
+}
+
+.panels-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.panels-rail-sep {
+  flex: none;
+  width: 28px;
+  height: 1px;
+  margin: var(--space-xs) 0;
+  background: var(--border-subtle);
+}
+
+.panels-rail-spacer {
+  flex: none;
+  height: var(--space-xs);
+}
+
+.panels-rail-btn {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.panels-rail-btn[hidden],
+.panels-rail-sep[hidden] {
+  display: none;
+}
+
+.panels-rail-btn:hover {
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.panels-rail-btn.active {
+  background: rgba(var(--brand-teal-rgb), 0.12);
+  color: var(--brand-teal);
+}
+
+.panels-rail-btn.active::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--brand-teal);
+}
+
+.panels-rail-btn:focus-visible,
+.panels-panel-close:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+.panels-rail-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.panels-tip {
+  position: fixed;
+  padding: 5px 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: var(--z-dialogs);
+}
+
+.panels-tip[hidden] {
+  display: none;
+}
+
+/* ===============================
+   PANELS
+   =============================== */
+.panels-panel {
+  position: fixed;
+  width: min(340px, calc(100vw - 2 * var(--space-lg)));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  font-size: 14px;
+  z-index: var(--z-panels);
+  animation: panels-pop 0.14s ease-out;
+}
+
+.panels-panel[hidden] {
+  display: none;
+}
+
+.panels-panel.is-top {
+  border-color: rgba(var(--brand-teal-rgb), 0.35);
+}
+
+@keyframes panels-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panels-panel { animation: none; }
+  .panels-rail-btn { transition: none; }
+}
+
+.panels-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.panels-panel-head.dragging {
+  cursor: grabbing;
+}
+
+.panels-panel-icon {
+  display: grid;
+  place-items: center;
+  color: var(--brand-teal);
+}
+
+.panels-panel-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.panels-panel-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panels-panel-grip {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.panels-panel-grip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.panels-panel-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.panels-panel-close:hover {
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.panels-panel-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+.panels-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+/* Moved section content: always open, no accordion animation */
+html.ui-panels .panels-panel-body > .modern-section-content {
+  max-height: none;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  opacity: 1;
+  overflow: visible;
+  transition: none;
+}
+
+/* ===============================
+   ACCOUNT PANEL (moved sidebar header)
+   =============================== */
+.panels-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.panels-account .modern-header {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.panels-account .modern-header-content {
+  justify-content: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.panels-account .modern-header-logo {
+  width: auto;
+  height: 32px;
+}
+
+.panels-account #userBadge,
+.panels-account .ion-auth-indicator.in-sidebar {
+  margin-bottom: var(--space-sm);
+}
+
+.panels-classic-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.panels-classic-btn svg {
+  width: 15px;
+  height: 15px;
+}
