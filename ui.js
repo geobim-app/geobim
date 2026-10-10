@@ -31,6 +31,7 @@ const DEMO_ASSETS = new Map([
   [4483046, 'Rowing Center (Gaussian Splats)'],
   [4476749, 'Golden Nugget (Revit)'],
   [4458809, 'Atlanta (GLB)'],
+  [4452138, 'Bridge Belgium (IoT)'],
   [4450806, 'Office Building (IFC)'],
   [4446751, 'Bridge (Pointcloud)'],
   [4428272, 'House (Pointcloud)'],
