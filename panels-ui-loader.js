@@ -18,7 +18,7 @@
 (function() {
   'use strict';
 
-  var VERSION = '0.2.1'; // cache-bust for panels-ui.js / panels-ui.css
+  var VERSION = '0.3.0'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
   var BETA_HOSTS = ['beta.geobim.app'];
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
@@ -53,17 +53,47 @@
     return BETA_HOSTS.indexOf(window.location.hostname) !== -1 ? 'panels' : 'classic';
   }
 
+  function addStylesheet(href) {
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = href + '?v=' + VERSION;
+    document.head.appendChild(css);
+  }
+
+  // Beta only: a small "New interface" button in the classic view, so testers
+  // get back to the panels without typing ?ui=panels
+  function addSwitchBack() {
+    addStylesheet('panels-ui-switch.css');
+    function add() {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'panelsSwitchBtn';
+      btn.className = 'panels-switch-btn';
+      btn.title = 'Switch to the new panel interface (beta)';
+      btn.innerHTML = '<i data-lucide="panels-top-left"></i><span>New interface</span>';
+      btn.addEventListener('click', function() {
+        var url = new URL(window.location.href);
+        url.searchParams.set('ui', 'panels');
+        window.location.href = url.toString();
+      });
+      document.body.appendChild(btn);
+      if (window.lucide) lucide.createIcons();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add);
+    else add();
+  }
+
   var ui = chooseUI();
   window.GEOBIM_UI = ui;
   console.log('UI layout: ' + ui);
-  if (ui !== 'panels') return;
+  if (ui !== 'panels') {
+    var isBeta = BETA_HOSTS.indexOf(window.location.hostname) !== -1;
+    if (isBeta && !isClassicOnlyMode(new URLSearchParams(window.location.search))) addSwitchBack();
+    return;
+  }
 
   document.documentElement.classList.add('ui-panels');
-
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'panels-ui.css?v=' + VERSION;
-  document.head.appendChild(css);
+  addStylesheet('panels-ui.css');
 
   // Dynamic scripts run async; panels-ui.js waits for the classic UI itself.
   var js = document.createElement('script');
