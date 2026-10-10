@@ -473,7 +473,12 @@
     end: endTour,
     next: nextStep,
     prev: prevStep,
-    reset: function() { localStorage.removeItem(STORAGE_KEY); }
+    reset: function() { localStorage.removeItem(STORAGE_KEY); },
+    // Another layout (panels-ui.js) replaces the default tour's steps;
+    // the WEA and Bridge Inspector tours stay as they are
+    setDefaultSteps: function(newSteps) {
+      if (!IS_BRIDGE_INSPECTOR && !IS_WEA && Array.isArray(newSteps) && newSteps.length) steps = newSteps;
+    }
   };
 
 })();

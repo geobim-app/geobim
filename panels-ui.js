@@ -455,6 +455,7 @@
   // desktop puts the open panels back where they were
   function onBreakpoint() {
     hideMore();
+    registerTour();
     if (phone.matches) {
       order.slice(0, -1).forEach(closePanel);
     }
@@ -462,6 +463,85 @@
       var pos = positions[id] || [CASCADE_X + n * CASCADE_STEP, CASCADE_Y + n * CASCADE_STEP];
       place(panels[id].el, pos[0], pos[1]);
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Onboarding tour (onboarding.js): the default tour points at the sidebar
+  // and the bottom toolbar; the panel layout brings its own steps
+  // ---------------------------------------------------------------------------
+  var TOUR_WELCOME = {
+    target: '#cesiumContainer',
+    title: 'Welcome to geobim.app',
+    text: 'This is your 3D BIM viewer. Left-click + drag to rotate, scroll to zoom, middle-click to pan.',
+    position: 'center'
+  };
+
+  var TOUR_DESKTOP = [
+    TOUR_WELCOME,
+    {
+      target: '.panels-rail',
+      title: 'Tools',
+      text: 'Each icon opens a panel: assets, layers, filters, measuring, lighting, views. Keep several open, drag them by the title bar, Esc closes the top one.',
+      position: 'right'
+    },
+    {
+      target: '.panels-search',
+      title: 'Search',
+      text: 'Find an address or place, or type coordinates as "latitude, longitude".',
+      position: 'bottom'
+    },
+    {
+      target: '.panels-rail-btn[data-section="drawing"]',
+      title: 'Measure & Clip',
+      text: 'Measure distances, areas and heights. Draw clipping polygons to section through buildings.',
+      position: 'right'
+    },
+    {
+      target: '.panels-rail-btn[data-section="lighting"]',
+      title: 'Lighting, date & time',
+      text: 'Sun, shadows and ambient occlusion. Set date and time in local time at the site — time zone and daylight saving included.',
+      position: 'right'
+    },
+    {
+      target: '.panels-rail-btn[data-section="account"]',
+      title: 'Account & layout',
+      text: 'Sign in, connect Cesium ion, or switch back to the classic sidebar.',
+      position: 'right'
+    },
+    {
+      target: null,
+      title: 'You\'re ready!',
+      text: 'Press M to hide the panels, G for walk mode, H to hide elements. All shortcuts are under About & Help. Enjoy exploring!',
+      position: 'center'
+    }
+  ];
+
+  var TOUR_PHONE = [
+    TOUR_WELCOME,
+    {
+      target: '.panels-tabs',
+      title: 'Tools',
+      text: 'Assets, layers, measuring and lighting are one tap away; everything else is under More. Swipe a panel down to close it.',
+      position: 'top'
+    },
+    {
+      target: '.panels-search',
+      title: 'Search',
+      text: 'Find an address or place, or type coordinates as "latitude, longitude".',
+      position: 'bottom'
+    },
+    {
+      target: null,
+      title: 'You\'re ready!',
+      text: 'Walk mode, transform and your account are under More. Enjoy exploring!',
+      position: 'center'
+    }
+  ];
+
+  function registerTour() {
+    if (window.BimTour && typeof BimTour.setDefaultSteps === 'function') {
+      BimTour.setDefaultSteps(phone.matches ? TOUR_PHONE : TOUR_DESKTOP);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -518,10 +598,13 @@
     if (window.BimGizmo && BimGizmo.gizmo && (BimGizmo.gizmo.active || BimGizmo.gizmo.transformMode || BimGizmo.gizmo.dragging)) return true;
     if (window.BimFirstPerson && BimFirstPerson.isActive()) return true;
     if (document.pointerLockElement) return true;
+    // full-screen overlays are position:fixed, so offsetParent is always null
     var dialogs = ['aboutDialog', 'tourOverlay', 'authGateOverlay'];
     return dialogs.some(function(d) {
       var el = document.getElementById(d);
-      return el && el.offsetParent !== null;
+      if (!el || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') return false;
+      var r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
     });
   }
 
@@ -949,6 +1032,7 @@
     }
 
     buildTabs();
+    registerTour();
     if (phone.addEventListener) phone.addEventListener('change', onBreakpoint);
     else if (phone.addListener) phone.addListener(onBreakpoint);
 

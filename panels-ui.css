@@ -562,6 +562,15 @@ body:has(#demoBanner) .panels-search {
     top: 56px;
   }
 
+  .panels-search-box {
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .panels-search-result {
+    min-height: 44px;
+  }
+
   .panels-tabs {
     position: fixed;
     left: 0;
