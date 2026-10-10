@@ -18,7 +18,7 @@
 (function() {
   'use strict';
 
-  var VERSION = '0.4.2'; // cache-bust for panels-ui.js / panels-ui.css
+  var VERSION = '0.5.0'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
   var BETA_HOSTS = ['beta.geobim.app'];
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };

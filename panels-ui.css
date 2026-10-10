@@ -525,3 +525,185 @@ body:has(#demoBanner) .panels-search {
 .panels-clock-hint {
   margin: 0;
 }
+
+/* ===============================
+   PHONE (≤ 720 px): tab bar + bottom sheets
+   =============================== */
+.panels-tabs,
+.panels-more {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  html.ui-panels {
+    --panels-tabbar-h: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .panels-rail,
+  .panels-tip {
+    display: none;
+  }
+
+  .panels-search {
+    top: var(--space-md);
+    width: calc(100vw - 2 * var(--space-lg));
+  }
+
+  body:has(#demoBanner) .panels-search {
+    top: 56px;
+  }
+
+  .panels-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-panels);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--space-xs) var(--space-sm) calc(var(--space-xs) + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .panels-tab {
+    flex: 1;
+    min-width: 44px;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: var(--space-xs);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+  }
+
+  .panels-tab[hidden] {
+    display: none;
+  }
+
+  .panels-tab.active {
+    color: var(--brand-teal);
+  }
+
+  .panels-tab:focus-visible {
+    outline: 2px solid var(--brand-teal);
+    outline-offset: -2px;
+  }
+
+  .panels-tab-icon {
+    display: grid;
+    place-items: center;
+  }
+
+  .panels-tab-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .panels-tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* "More": grid of the remaining tools above the tab bar */
+  .panels-more {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--panels-tabbar-h);
+    z-index: var(--z-panels);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-md) var(--space-lg);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-subtle);
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .panels-more[hidden] {
+    display: none;
+  }
+
+  .panels-more .panels-tab {
+    min-height: 64px;
+    background: var(--input-bg);
+  }
+
+  .panels-more .panels-tab-label {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* Panels become bottom sheets (place() clears the inline position) */
+  .panels-panel {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: var(--panels-tabbar-h);
+    width: auto;
+    max-height: 65vh;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    border-bottom: 0;
+    animation: panels-sheet 0.18s ease-out;
+  }
+
+  .panels-panel.is-swiping {
+    transition: none;
+  }
+
+  .panels-panel-head {
+    position: relative;
+    cursor: default;
+    min-height: 48px;
+    padding-top: var(--space-md);
+  }
+
+  /* swipe handle instead of the drag grip */
+  .panels-panel-grip {
+    display: none;
+  }
+
+  .panels-panel-head::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--border-default);
+  }
+
+  .panels-panel-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Cesium credits + fullscreen button above the tab bar */
+  html.ui-panels .cesium-viewer-bottom,
+  html.ui-panels .cesium-viewer-fullscreenContainer {
+    bottom: var(--panels-tabbar-h);
+  }
+}
+
+@keyframes panels-sheet {
+  from { transform: translateY(24px); opacity: 0; }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .panels-panel { animation: none; }
+}

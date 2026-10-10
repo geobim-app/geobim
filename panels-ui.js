@@ -17,6 +17,10 @@
  *   - rail + panels follow #toolbar's visibility (auth.js shows/hides it)
  *   - M hides/shows rail + panels (classic: sidebar)
  *
+ * Phones (≤ 720 px): a bottom tab bar (Assets, Layers, Measure, Lighting,
+ * More) replaces the rail; panels open one at a time as bottom sheets
+ * (swipe the header down to close).
+ *
  * Also replaces two Cesium widgets (hidden by CSS, still constructed so
  * core.js and animationManager.js keep working): the geocoder by a search
  * bar at the top, the timeline by a date & time block in the Lighting panel.
@@ -36,11 +40,16 @@
   var CASCADE_X = 84;   // right of the rail (16 + 52 + 16)
   var CASCADE_Y = 70;   // leaves room for the search bar (step 4)
   var CASCADE_STEP = 26;
+  var PHONE_TABS = [
+    ['assets', 'Assets'], ['layers', 'Layers'], ['drawing', 'Measure'], ['lighting', 'Lighting']
+  ];
+  var SWIPE_CLOSE_PX = 80;
+  var phone = window.matchMedia('(max-width: 720px)');
 
   var panels = {};      // section id → { el, title, button }
   var order = [];       // open panels, last = top
   var positions = loadPositions();
-  var root, rail, tip;
+  var root, rail, tip, tabs, more;
 
   window.BimPanelsUI = {
     active: true,
@@ -186,7 +195,7 @@
     makeDraggable(el, id);
     root.appendChild(el);
 
-    panels[id] = { el: el, title: title, button: btn, section: sectionEl };
+    panels[id] = { el: el, title: title, icon: iconHtml, button: btn, section: sectionEl };
   }
 
   // ---------------------------------------------------------------------------
@@ -200,7 +209,10 @@
   function openPanel(id) {
     var p = panels[id];
     if (!p) return;
+    hideMore();
     if (order.indexOf(id) === -1) {
+      // Phones: one bottom sheet at a time
+      if (phone.matches) order.slice().forEach(closePanel);
       p.el.hidden = false;
       var pos = positions[id] || [CASCADE_X + order.length * CASCADE_STEP, CASCADE_Y + order.length * CASCADE_STEP];
       place(p.el, pos[0], pos[1]);
@@ -241,6 +253,16 @@
       panels[id].button.classList.toggle('active', on);
       panels[id].button.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    if (!tabs) return;
+    var top = order[order.length - 1];
+    var inMain = PHONE_TABS.some(function(t) { return t[0] === top; });
+    Array.prototype.forEach.call(tabs.querySelectorAll('.panels-tab'), function(t) {
+      var on = t.dataset.section === 'more'
+        ? (!more.hidden || (!!top && !inMain))
+        : t.dataset.section === top;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
 
   // Keep ui.js' expandedSections in step so code reading it sees open panels
@@ -267,6 +289,11 @@
   // Position + drag
   // ---------------------------------------------------------------------------
   function place(el, x, y) {
+    if (phone.matches) {
+      // bottom sheet: CSS owns the position
+      el.style.left = el.style.top = el.style.maxHeight = '';
+      return;
+    }
     var w = el.offsetWidth || 340;
     var minVisible = 120; // header always reachable
     x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
@@ -281,6 +308,7 @@
     var head = el.querySelector('.panels-panel-head');
     head.addEventListener('pointerdown', function(e) {
       if (e.button !== 0 || e.target.closest('button')) return;
+      if (phone.matches) { swipeToClose(e, el, head, id); return; }
       var sx = e.clientX, sy = e.clientY, ox = el.offsetLeft, oy = el.offsetTop;
       head.setPointerCapture(e.pointerId);
       head.classList.add('dragging');
@@ -296,6 +324,112 @@
       head.addEventListener('pointermove', move);
       head.addEventListener('pointerup', up);
       head.addEventListener('pointercancel', up);
+    });
+  }
+
+  function swipeToClose(e, el, head, id) {
+    var sy = e.clientY;
+    head.setPointerCapture(e.pointerId);
+    el.classList.add('is-swiping');
+    function move(ev) {
+      el.style.transform = 'translateY(' + Math.max(0, ev.clientY - sy) + 'px)';
+    }
+    function up(ev) {
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointerup', up);
+      head.removeEventListener('pointercancel', up);
+      el.classList.remove('is-swiping');
+      el.style.transform = '';
+      if (ev.type === 'pointerup' && ev.clientY - sy > SWIPE_CLOSE_PX) closePanel(id);
+    }
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', up);
+    head.addEventListener('pointercancel', up);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Phone tab bar + "More" sheet
+  // ---------------------------------------------------------------------------
+  function tabButton(id, label, iconHtml) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'panels-tab';
+    b.dataset.section = id;
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<span class="panels-tab-icon">' + iconHtml + '</span><span class="panels-tab-label"></span>';
+    b.querySelector('.panels-tab-label').textContent = label;
+    return b;
+  }
+
+  function buildTabs() {
+    tabs = document.createElement('nav');
+    tabs.className = 'panels-tabs';
+    tabs.setAttribute('aria-label', 'Tools');
+    more = document.createElement('div');
+    more.className = 'panels-more';
+    more.setAttribute('role', 'dialog');
+    more.setAttribute('aria-label', 'More tools');
+    more.hidden = true;
+
+    var main = PHONE_TABS.map(function(t) { return t[0]; });
+    PHONE_TABS.forEach(function(t) {
+      if (panels[t[0]]) tabs.appendChild(tabButton(t[0], t[1], panels[t[0]].icon));
+    });
+    tabs.appendChild(tabButton('more', 'More', '<i data-lucide="ellipsis"></i>'));
+
+    // Everything else, in rail order
+    Array.prototype.forEach.call(rail.querySelectorAll('.panels-rail-btn'), function(btn) {
+      var id = btn.dataset.section;
+      if (main.indexOf(id) !== -1) return;
+      var item = tabButton(id, panels[id].title, panels[id].icon);
+      item.classList.add('panels-more-item');
+      more.appendChild(item);
+    });
+
+    tabs.addEventListener('click', function(e) {
+      var b = e.target.closest('.panels-tab');
+      if (!b) return;
+      b.blur();
+      if (b.dataset.section === 'more') {
+        if (more.hidden) showMore();
+        else hideMore();
+        return;
+      }
+      togglePanel(b.dataset.section);
+    });
+    more.addEventListener('click', function(e) {
+      var b = e.target.closest('.panels-tab');
+      if (!b) return;
+      b.blur();
+      openPanel(b.dataset.section);
+    });
+
+    root.appendChild(more);
+    root.appendChild(tabs);
+  }
+
+  function showMore() {
+    order.slice().forEach(closePanel);
+    more.hidden = false;
+    sync();
+  }
+
+  function hideMore() {
+    if (!more || more.hidden) return;
+    more.hidden = true;
+    sync();
+  }
+
+  // Crossing the breakpoint: phone keeps only the top panel as a sheet,
+  // desktop puts the open panels back where they were
+  function onBreakpoint() {
+    hideMore();
+    if (phone.matches) {
+      order.slice(0, -1).forEach(closePanel);
+    }
+    order.forEach(function(id, n) {
+      var pos = positions[id] || [CASCADE_X + n * CASCADE_STEP, CASCADE_Y + n * CASCADE_STEP];
+      place(panels[id].el, pos[0], pos[1]);
     });
   }
 
@@ -323,6 +457,9 @@
       if (!section) return;
       var hidden = getComputedStyle(section).display === 'none';
       panels[id].button.hidden = hidden;
+      if (tabs) {
+        Array.prototype.forEach.call(root.querySelectorAll('.panels-tab[data-section="' + id + '"]'), function(t) { t.hidden = hidden; });
+      }
       if (hidden) closePanel(id);
     });
     // drop separators left without buttons before them
@@ -363,6 +500,7 @@
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
     if (e.key === 'Escape') {
+      if (more && !more.hidden) { hideMore(); return; }
       if (!order.length || root.hidden || escBelongsToSomethingElse()) return;
       closePanel(order[order.length - 1]);
       return;
@@ -782,6 +920,10 @@
       };
     }
 
+    buildTabs();
+    if (phone.addEventListener) phone.addEventListener('change', onBreakpoint);
+    else if (phone.addListener) phone.addListener(onBreakpoint);
+
     syncAppVisible(toolbar);
     new MutationObserver(function() { syncAppVisible(toolbar); })
       .observe(toolbar, { attributes: true, attributeFilter: ['style'] });
@@ -804,8 +946,9 @@
     })();
     if (window.lucide) lucide.createIcons();
 
-    // Same default as the classic sidebar: Assets open
-    openPanel('assets');
+    // Same default as the classic sidebar: Assets open (desktop only — on a
+    // phone a sheet at start would cover half the map)
+    if (!phone.matches) openPanel('assets');
 
     BimPanelsUI.ready = true;
     console.log('✅ Panel UI (beta) ready — ' + Object.keys(panels).length + ' panels');
