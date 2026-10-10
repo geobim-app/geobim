@@ -83,7 +83,7 @@
     {
       target: '#cesiumContainer',
       title: 'Welcome to Bridge Inspector',
-      text: 'Four bridge models are pre-loaded. Use the next 30 minutes to inspect components, place condition annotations, measure dimensions, and save viewpoints — just like a real inspection workflow.',
+      text: 'Bridge models are pre-loaded. Inspect components, place condition annotations, measure dimensions, and save viewpoints — just like a real inspection workflow.',
       position: 'center'
     },
     {
@@ -125,7 +125,7 @@
     {
       target: null,
       title: 'You\'re ready',
-      text: 'Your 30-minute Bridge Inspector demo starts now. Sign in for unlimited access and to inspect your own models on the full geobim.app platform.',
+      text: 'Explore the bridges as long as you like. Sign in to inspect your own models on the full geobim.app platform.',
       position: 'center'
     }
   ];
@@ -134,7 +134,7 @@
     {
       target: '#cesiumContainer',
       title: 'Welcome to Wind Shadow Analysis',
-      text: 'Simulate the shadow flicker of wind turbines on real terrain. The next 30 minutes are yours — place turbines, cast their shadows, and run a compliance-style daily analysis. Left-click + drag to rotate, scroll to zoom.',
+      text: 'Simulate the shadow flicker of wind turbines on real terrain. Place turbines, cast their shadows, and run a compliance-style daily analysis. Left-click + drag to rotate, scroll to zoom.',
       position: 'center'
     },
     {
@@ -192,7 +192,7 @@
     {
       target: '#cesiumContainer',
       title: '風影解析へようこそ',
-      text: '実際の地形上で風力タービンの影のちらつき（シャドーフリッカー）をシミュレートします。これからの30分間は自由にお使いいただけます。タービンを配置し、影を投影し、コンプライアンス相当の1日解析を実行できます。左クリック＋ドラッグで回転、スクロールでズームします。',
+      text: '実際の地形上で風力タービンの影のちらつき（シャドーフリッカー）をシミュレートします。タービンを配置し、影を投影し、コンプライアンス相当の1日解析を実行できます。左クリック＋ドラッグで回転、スクロールでズームします。',
       position: 'center'
     },
     {
@@ -240,7 +240,7 @@
     {
       target: null,
       title: '準備完了',
-      text: '30分間のデモが始まります。サインインすると、完全な geobim.app プラットフォーム上で、ご自身のサイトについて無制限に風影解析を実行できます。',
+      text: 'サインインすると、完全な geobim.app プラットフォーム上で、ご自身のサイトについて無制限に風影解析を実行できます。',
       position: 'center'
     }
   ];
