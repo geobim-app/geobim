@@ -472,16 +472,21 @@ def main():
                     lift_to_ellipsoid(tileset_path, n)
                 else:
                     warnings.append("Heights not geoid-corrected (outside GCG2016 coverage or grid missing)")
-            if job.get("lon") is not None:
+            if job.get("lon") is not None and job.get("position_source") != "view":
                 warnings.append("File is georeferenced - manual position ignored")
             if warnings:
                 write_status(job_dir, "converting", warning="; ".join(warnings))
         elif job.get("lon") is not None and job.get("lat") is not None:
+            height = float(job.get("height") or 0)
+            # Same guard as for IFC: the view-centre fallback can yield nonsense
+            # heights; never place a scan kilometres off the ground.
+            if not -500 <= height <= 9000:
+                height = 0.0
             try:
                 patch_root_transform(
                     tileset_path,
                     float(job["lon"]), float(job["lat"]),
-                    float(job.get("height", 0)), float(job.get("heading", 0)),
+                    height, float(job.get("heading", 0)),
                 )
             except Exception as e:
                 # Positioning is best-effort — a broken patch shouldn't lose an

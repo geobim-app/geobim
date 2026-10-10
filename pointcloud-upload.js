@@ -23,7 +23,8 @@
 
 (function() {
 
-  let pollTimer = null;
+  // One poll timer per conversion job, so a second upload doesn't orphan the first
+  const pollTimers = new Map();
 
   // fetch() can't report upload progress; XHR's upload.onprogress can. Resolves
   // with { ok, status, body } where body is the parsed JSON reply (or {}).
@@ -53,6 +54,14 @@
     if (seconds < 90) return `${Math.round(seconds)} s`;
     const m = Math.round(seconds / 60);
     return m < 90 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+
+  // Status line under the upload form (hidden while empty)
+  function setUploadStatus(text) {
+    const statusEl = document.getElementById('pointcloudUploadStatus');
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.hidden = !text;
   }
 
   // Progress bar under #pointcloudUploadStatus: bytes, percent, rate and time
@@ -103,6 +112,8 @@
   // resulting tileset's root.transform (see scripts/convert_pointcloud.py).
   BimViewer.uploadPointCloud = async function(file, opts) {
     opts = opts || {};
+    // opts.kind ('ifc' | 'las' | 'scan') only picks the wording of messages
+    const what = opts.kind === 'ifc' || /\.ifc$/i.test(file.name) ? 'IFC model' : 'point cloud';
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply|ifc)$/i, ''));
@@ -111,13 +122,15 @@
       formData.append('lat', opts.lat);
       formData.append('height', opts.height ?? 0);
       formData.append('heading', opts.heading ?? 0);
+      // 'view' = centre of the view, used only for files without georeferencing
+      formData.append('position_source', opts.positionSource === 'view' ? 'view' : 'manual');
     }
     if (opts.epsg) formData.append('epsg', opts.epsg);
     if (opts.refHeight !== undefined && opts.refHeight !== null && opts.refHeight !== '') {
       formData.append('ref_height', opts.refHeight);
     }
 
-    this.updateStatus('Uploading point cloud...', 'loading');
+    this.updateStatus(`Uploading ${what}...`, 'loading');
 
     const progress = createUploadProgress();
     let resp;
@@ -136,8 +149,9 @@
     }
 
     const { jobId, slug } = resp.body;
-    this.updateStatus('Converting point cloud — this can take a while for large files...', 'loading');
-    this._pollPointCloudJob(jobId, slug);
+    this.updateStatus(`Converting ${what} — this can take a while for large files...`, 'loading');
+    setUploadStatus(`${slug}: queued`);
+    this._pollPointCloudJob(jobId, slug, what);
     return jobId;
   };
 
@@ -157,10 +171,12 @@
     });
   }
 
-  BimViewer._pollPointCloudJob = function(jobId, slug) {
-    if (pollTimer) clearInterval(pollTimer);
+  BimViewer._pollPointCloudJob = function(jobId, slug, what) {
+    what = what || 'point cloud';
+    if (pollTimers.has(jobId)) clearInterval(pollTimers.get(jobId));
+    const stop = () => { clearInterval(pollTimers.get(jobId)); pollTimers.delete(jobId); };
 
-    pollTimer = setInterval(async () => {
+    pollTimers.set(jobId, setInterval(async () => {
       let status;
       try {
         const resp = await fetch(`api/pointcloud-status.php?job=${encodeURIComponent(jobId)}`);
@@ -170,18 +186,15 @@
         return; // network hiccup — try again next tick
       }
 
-      const statusEl = document.getElementById('pointcloudUploadStatus');
-
       if (status.status === 'queued') {
-        if (statusEl) statusEl.textContent = 'Queued (waiting for another conversion to finish)...';
+        setUploadStatus(`${slug}: queued (waiting for another conversion to finish)`);
       } else if (status.status === 'converting') {
-        if (statusEl) statusEl.textContent = (status.progress ? `Converting: ${status.progress}` : 'Converting...') + (status.warning ? ` (${status.warning})` : '');
+        setUploadStatus(`${slug}: ` + (status.progress ? `converting — ${status.progress}` : 'converting…') + (status.warning ? ` (${status.warning})` : ''));
       } else if (status.status === 'done') {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        if (statusEl) statusEl.textContent = '';
-        BimViewer.updateStatus(`Point cloud ready: ${slug}`, 'success');
-        console.log(`✅ Point cloud conversion done: ${slug}`);
+        stop();
+        setUploadStatus(status.warning ? `${slug}: done (${status.warning})` : '');
+        BimViewer.updateStatus(`${what[0].toUpperCase() + what.slice(1)} ready: ${slug}`, 'success');
+        console.log(`✅ Conversion done: ${slug}`);
         // Refresh the local model catalog so the new tileset shows up, then load it.
         if (typeof BimViewer.fetchGLBModels === 'function') {
           BimViewer.fetchGLBModels().then(() => {
@@ -193,13 +206,13 @@
           });
         }
       } else if (status.status === 'error') {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        if (statusEl) statusEl.textContent = '';
-        BimViewer.updateStatus(`Point cloud conversion failed: ${status.message || 'unknown error'}`, 'error');
-        console.error(`❌ Point cloud conversion failed (${jobId}):`, status.message);
+        stop();
+        // Keep the error visible in the form, not only in the transient status bar
+        setUploadStatus(`${slug}: conversion failed — ${status.message || 'unknown error'}`);
+        BimViewer.updateStatus(`Conversion failed: ${status.message || 'unknown error'}`, 'error');
+        console.error(`❌ Conversion failed (${jobId}):`, status.message);
       }
-    }, 3000);
+    }, 3000));
   };
 
   console.log('✅ Point Cloud Upload module loaded');

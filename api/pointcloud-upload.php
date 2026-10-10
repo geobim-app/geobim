@@ -84,6 +84,9 @@ if ($lon === null || $lat === null) {
     $lon = null;
     $lat = null;
 }
+// 'view' = the client sent the centre of its view because nothing was typed;
+// the worker then doesn't warn when a georeferenced file ignores it.
+$positionSource = (isset($_POST['position_source']) && $_POST['position_source'] === 'view') ? 'view' : 'manual';
 
 // Optional EPSG code: for LAS/LAZ files whose header carries no CRS (the
 // worker reads the header CRS first and guesses German UTM 32N otherwise), and
@@ -133,6 +136,7 @@ if ($lon !== null) {
     $job['lat'] = $lat;
     $job['height'] = $height;
     $job['heading'] = $heading;
+    $job['position_source'] = $positionSource;
 }
 file_put_contents($jobDir . '/job.json', json_encode($job));
 file_put_contents($jobDir . '/status.json', json_encode(['status' => 'queued', 'updated' => time()]));

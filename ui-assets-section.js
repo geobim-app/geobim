@@ -33,47 +33,45 @@
         <button id="loadIonAssets" style="display: none;"></button>
       </div>
 
-      <div id="glbSection" style="display: none;">
+      <div id="glbSection" class="local-models" hidden>
         <div class="modern-divider">
-          <span class="modern-divider-text">🧪 Local Models (GLB / 3D Tiles)</span>
+          <span class="modern-divider-text">Local Models</span>
         </div>
-        <div class="modern-group">
-          <select id="glbModelSelector" class="modern-select" size="1">
-            <option value="" disabled selected>Select a model...</option>
+        <div class="modern-group local-models-row">
+          <select id="glbModelSelector" class="modern-select" size="1" aria-label="Model on the server">
+            <option value="" disabled selected>Select a model…</option>
           </select>
-          <button id="importGLBModel" class="modern-btn modern-btn-primary" style="margin-top: 6px;">
-            <span class="modern-btn-icon">➕</span>
-            <span>Load from Server</span>
+          <button type="button" id="importGLBModel" class="modern-btn modern-btn-primary local-models-icon-btn" title="Load model" aria-label="Load model">
+            <i data-lucide="plus"></i>
           </button>
         </div>
 
-        <div class="modern-divider">
-          <span class="modern-divider-text">☁️ Upload Point Cloud / IFC (LAS/LAZ/E57/PLY/IFC)</span>
-        </div>
-        <div class="modern-group">
-          <input type="file" id="pointcloudFileInput" accept=".las,.laz,.e57,.ply,.ifc" style="display:none;">
-          <button type="button" id="pointcloudFilePickBtn" class="modern-btn modern-btn-small" style="width:100%;">
-            <span class="modern-btn-icon">📁</span>
-            <span id="pointcloudFileLabel">Choose LAS/LAZ/E57/PLY/IFC file...</span>
+        <div class="modern-group local-models-upload">
+          <input type="file" id="pointcloudFileInput" accept=".ifc,.las,.laz,.e57,.ply" hidden>
+          <button type="button" id="pointcloudFilePickBtn" class="modern-btn modern-btn-small local-models-file-btn">
+            <i data-lucide="upload"></i>
+            <span id="pointcloudFileLabel">Upload IFC or point cloud…</span>
           </button>
-          <input type="text" id="pointcloudNameInput" class="zoffset-input-box" placeholder="Name" style="width:100%; margin-top:6px; box-sizing:border-box;">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:6px;">
-            <input type="number" id="pointcloudLonInput" class="zoffset-input-box" placeholder="Long (optional)" step="0.0001">
-            <input type="number" id="pointcloudLatInput" class="zoffset-input-box" placeholder="Lat (optional)" step="0.0001">
+          <div id="pointcloudUploadForm" class="local-models-form" hidden>
+            <input type="text" id="pointcloudNameInput" class="zoffset-input-box" placeholder="Name" aria-label="Name">
+            <details class="local-models-georef">
+              <summary>Georeferencing (optional)</summary>
+              <div class="modern-hint">Georeferenced files place themselves. Otherwise the model lands at Lon/Lat, or at the centre of the view.</div>
+              <div class="upload-georef-grid">
+                <input type="number" id="pointcloudLonInput" class="zoffset-input-box" placeholder="Lon" step="0.0001" aria-label="Longitude">
+                <input type="number" id="pointcloudLatInput" class="zoffset-input-box" placeholder="Lat" step="0.0001" aria-label="Latitude">
+                <input type="text" id="pointcloudEpsgInput" class="zoffset-input-box" placeholder="EPSG" inputmode="numeric" aria-label="EPSG code"
+                       title="CRS of the coordinates, e.g. 25832 — for IFC optionally with vertical datum: 25832+7837 (UTM 32N + DHHN2016)">
+                <input type="text" id="pointcloudRefHeightInput" class="zoffset-input-box" placeholder="±0.00 m a.s.l." inputmode="decimal" aria-label="Height of ±0.00 above sea level"
+                       title="Height of ±0.00 (IFC z = 0) above sea level, e.g. 112.35 — only for IFC files without absolute heights">
+              </div>
+            </details>
+            <button type="button" id="uploadPointCloudBtn" class="modern-btn modern-btn-primary">
+              <i data-lucide="cloud-upload"></i>
+              <span>Convert &amp; upload</span>
+            </button>
           </div>
-          <div class="modern-hint" style="margin-top:2px;">Leave Long/Lat empty to place it wherever the main view is currently looking</div>
-          <div class="upload-georef-grid">
-            <input type="text" id="pointcloudEpsgInput" class="zoffset-input-box" placeholder="EPSG (optional)" inputmode="numeric"
-                   title="CRS of the coordinates, e.g. 25832 — for IFC optionally with vertical datum: 25832+7837 (UTM 32N + DHHN2016)">
-            <input type="text" id="pointcloudRefHeightInput" class="zoffset-input-box" placeholder="±0.00 in m a.s.l. (IFC)" inputmode="decimal"
-                   title="IFC only: height of ±0.00 (IFC z = 0) above sea level, e.g. 112.35 — for files without absolute heights">
-          </div>
-          <div class="modern-hint">EPSG e.g. 25832 or 25832+7837 (with height datum) · ±0.00 only if the IFC has no absolute heights</div>
-          <button id="uploadPointCloudBtn" class="modern-btn modern-btn-primary" style="margin-top: 6px; width:100%;">
-            <span class="modern-btn-icon">☁️</span>
-            <span>Convert &amp; Upload</span>
-          </button>
-          <div id="pointcloudUploadStatus" class="modern-hint" style="margin-top:4px;"></div>
+          <div id="pointcloudUploadStatus" class="modern-hint local-models-status" role="status" hidden></div>
         </div>
       </div>
 
@@ -179,12 +177,12 @@
       selector.selectedIndex = -1;
     });
 
-    // GLB model selector (lab users only) — auth may not be resolved at init time
+    // Local models (owner only) — auth may not be resolved at init time
     const glbSection = document.getElementById('glbSection');
     const glbSelector = document.getElementById('glbModelSelector');
     const initGLBSection = async () => {
       if (!BimViewer.isLabUser() || !glbSelector) return;
-      if (glbSection) glbSection.style.display = '';
+      if (glbSection) glbSection.hidden = false;
       if (glbSelector.options.length <= 1) {
         if (!BimViewer.glbModels.length && BimViewer.fetchGLBModels) {
           await BimViewer.fetchGLBModels();
@@ -202,83 +200,110 @@
     setTimeout(initGLBSection, 5000);
 
     document.getElementById('importGLBModel')?.addEventListener('click', () => {
-      const selector = document.getElementById('glbModelSelector');
-      if (!selector || !selector.value) return;
-      const modelDef = BimViewer.glbModels.find(m => m.id === selector.value);
+      if (!glbSelector || !glbSelector.value) return;
+      const modelDef = BimViewer.glbModels.find(m => m.id === glbSelector.value);
       if (modelDef) BimViewer.loadGLBAsset(modelDef);
     });
 
-    document.getElementById('pointcloudFilePickBtn')?.addEventListener('click', () => {
-      document.getElementById('pointcloudFileInput')?.click();
-    });
+    // --- Upload & convert ---
+    const fileInput = document.getElementById('pointcloudFileInput');
+    const fileLabel = document.getElementById('pointcloudFileLabel');
+    const form = document.getElementById('pointcloudUploadForm');
+    const nameInput = document.getElementById('pointcloudNameInput');
+    const lonInput = document.getElementById('pointcloudLonInput');
+    const latInput = document.getElementById('pointcloudLatInput');
+    const epsgInput = document.getElementById('pointcloudEpsgInput');
+    const refHeightInput = document.getElementById('pointcloudRefHeightInput');
+    const statusEl = document.getElementById('pointcloudUploadStatus');
+    const FILE_LABEL = 'Upload IFC or point cloud…';
 
-    document.getElementById('pointcloudFileInput')?.addEventListener('change', (e) => {
-      const label = document.getElementById('pointcloudFileLabel');
-      const nameInput = document.getElementById('pointcloudNameInput');
-      const file = e.target.files?.[0];
-      if (label) label.textContent = file ? file.name : 'Choose LAS/LAZ/E57/PLY/IFC file...';
-      // Pre-fill the name field from the filename, but don't clobber a name
-      // the user already typed by hand.
-      if (file && nameInput && !nameInput.value) {
-        nameInput.value = file.name.replace(/\.(las|laz|e57|ply|ifc)$/i, '');
-      }
+    // 'ifc' | 'las' (LAS/LAZ, may carry a CRS) | 'scan' (E57/PLY, local scans)
+    const fileKind = name => {
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      return ext === 'ifc' ? 'ifc' : (ext === 'las' || ext === 'laz') ? 'las' : 'scan';
+    };
+    const showStatus = text => {
+      if (!statusEl) return;
+      statusEl.textContent = text || '';
+      statusEl.hidden = !text;
+    };
+    const resetUploadForm = () => {
+      if (fileInput) fileInput.value = '';
+      if (fileLabel) fileLabel.textContent = FILE_LABEL;
+      [nameInput, lonInput, latInput, epsgInput, refHeightInput].forEach(el => { if (el) el.value = ''; });
+      if (form) form.hidden = true;
+    };
+
+    document.getElementById('pointcloudFilePickBtn')?.addEventListener('click', () => fileInput?.click());
+
+    fileInput?.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) { resetUploadForm(); return; }
+      const kind = fileKind(file.name);
+      const mb = file.size / 1024 ** 2;
+      if (fileLabel) fileLabel.textContent = `${file.name} (${mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB'})`;
+      // Name from the filename; a new file replaces the previous file's name
+      if (nameInput) nameInput.value = file.name.replace(/\.(las|laz|e57|ply|ifc)$/i, '');
+      // EPSG applies to IFC and LAS/LAZ, ±0.00 to IFC only
+      if (epsgInput) epsgInput.hidden = kind === 'scan';
+      if (refHeightInput) refHeightInput.hidden = kind !== 'ifc';
+      if (form) form.hidden = false;
+      showStatus('');
     });
 
     document.getElementById('uploadPointCloudBtn')?.addEventListener('click', async () => {
-      const fileInput = document.getElementById('pointcloudFileInput');
-      const nameInput = document.getElementById('pointcloudNameInput');
-      const lonInput = document.getElementById('pointcloudLonInput');
-      const epsgInput = document.getElementById('pointcloudEpsgInput');
-      const refHeightInput = document.getElementById('pointcloudRefHeightInput');
-      const latInput = document.getElementById('pointcloudLatInput');
-      const statusEl = document.getElementById('pointcloudUploadStatus');
       const btn = document.getElementById('uploadPointCloudBtn');
-
       const file = fileInput?.files?.[0];
-      if (!file) {
-        if (statusEl) statusEl.textContent = 'Select a .las/.laz/.e57/.ply/.ifc file first';
+      if (!file) { showStatus('Choose a file first'); return; }
+      const kind = fileKind(file.name);
+
+      const lonText = (lonInput?.value || '').trim();
+      const latText = (latInput?.value || '').trim();
+      if (!!lonText !== !!latText) { showStatus('Enter both Lon and Lat, or neither'); return; }
+      let lon = lonText ? parseFloat(lonText) : NaN;
+      let lat = latText ? parseFloat(latText) : NaN;
+      if (lonText && (!(lon >= -180 && lon <= 180) || !(lat >= -90 && lat <= 90))) {
+        showStatus('Lon must be within ±180°, Lat within ±90°');
         return;
       }
-
-      let lon = lonInput?.value !== '' ? parseFloat(lonInput.value) : NaN;
-      let lat = latInput?.value !== '' ? parseFloat(latInput.value) : NaN;
       let height = 0;
+      let positionSource = 'manual';
 
-      // No explicit coordinates typed — fall back to wherever the main view is
-      // currently looking (same pick-ray-onto-globe logic loadGLBAsset() itself
-      // uses as its own default). Better than leaving the tileset unpositioned,
-      // which — uncorrected — renders at the raw local origin near the planet's
-      // core; see project memory on the GLB point cloud work for why that matters.
-      if (isNaN(lon) || isNaN(lat)) {
+      // No coordinates typed: fall back to the centre of the view (same
+      // pick-ray-onto-globe logic loadGLBAsset() uses). The server only uses
+      // it for files without georeferencing; an unloaded globe can return
+      // nonsense heights, so those are dropped here.
+      if (!lonText) {
+        positionSource = 'view';
         const viewer = BimViewer.viewer;
-        const cam = viewer.camera;
-        const ray = cam.getPickRay(new Cesium.Cartesian2(
-          viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2
-        ));
-        const hit = viewer.scene.globe.pick(ray, viewer.scene);
+        const ray = viewer.camera.getPickRay(new Cesium.Cartesian2(viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2));
+        const hit = ray && viewer.scene.globe.pick(ray, viewer.scene);
         if (hit) {
           const carto = Cesium.Cartographic.fromCartesian(hit);
           lon = Cesium.Math.toDegrees(carto.longitude);
           lat = Cesium.Math.toDegrees(carto.latitude);
-          height = carto.height || 0;
+          height = carto.height >= -500 && carto.height <= 9000 ? carto.height : 0;
         }
       }
 
       btn.disabled = true;
-      if (statusEl) statusEl.textContent = 'Uploading...';
-
+      showStatus('');
       try {
         await BimViewer.uploadPointCloud(file, {
-          name: nameInput?.value || undefined,
+          kind: kind,
+          name: nameInput?.value.trim() || undefined,
           lon: isNaN(lon) ? null : lon,
           lat: isNaN(lat) ? null : lat,
           height: height,
           heading: 0,
-          epsg: (epsgInput?.value || '').trim() || undefined,
-          refHeight: (refHeightInput?.value || '').trim().replace(',', '.') || undefined
+          positionSource: positionSource,
+          epsg: kind !== 'scan' ? (epsgInput?.value || '').trim() || undefined : undefined,
+          refHeight: kind === 'ifc' ? (refHeightInput?.value || '').trim().replace(',', '.') || undefined : undefined
         });
+        // The conversion runs on; its progress shows in the status line
+        resetUploadForm();
       } catch (err) {
-        if (statusEl) statusEl.textContent = `Failed: ${err.message}`;
+        showStatus(`Upload failed: ${err.message}`);
       } finally {
         btn.disabled = false;
       }
