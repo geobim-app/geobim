@@ -105,6 +105,7 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('revit', '<i data-lucide="building"></i>', 'Revit Filter', typeof GEOBIM_REVIT_UI !== 'undefined' ? GEOBIM_REVIT_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('split', '<i data-lucide="columns-2"></i>', 'Split View', typeof GEOBIM_SPLIT_UI !== 'undefined' ? GEOBIM_SPLIT_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('views', '<i data-lucide="camera"></i>', 'Saved Views', typeof GEOBIM_VIEWS_UI !== 'undefined' ? GEOBIM_VIEWS_UI.getContent() : ''));
+    toolbar.appendChild(this.createSection('scenes', '<i data-lucide="clapperboard"></i>', 'Scenes', typeof GEOBIM_SCENES_UI !== 'undefined' ? GEOBIM_SCENES_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('settings', '<i data-lucide="settings"></i>', 'Settings', typeof GEOBIM_SETTINGS_UI !== 'undefined' ? GEOBIM_SETTINGS_UI.getContent() : ''));
 
     // Action tools moved to bottom toolbar (Measure, Visibility, Lighting, Walk, About)
@@ -375,6 +376,7 @@ const BimViewerUI = {
     if (typeof GEOBIM_IFC_UI !== 'undefined') GEOBIM_IFC_UI.initHandlers();
     if (typeof GEOBIM_REVIT_UI !== 'undefined') GEOBIM_REVIT_UI.initHandlers();
     if (typeof GEOBIM_VIEWS_UI !== 'undefined') GEOBIM_VIEWS_UI.initHandlers();
+    if (typeof GEOBIM_SCENES_UI !== 'undefined') GEOBIM_SCENES_UI.initHandlers();
 
     // Split View — handlers extracted to ui-split-section.js
     if (typeof GEOBIM_SPLIT_UI !== 'undefined') GEOBIM_SPLIT_UI.initHandlers();

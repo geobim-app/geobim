@@ -1,0 +1,109 @@
+/* Scenes section (ui-scenes-section.js) */
+
+.scenes-save {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.scenes-save .modern-btn i[data-lucide],
+.scenes-actions .modern-btn i[data-lucide],
+.scenes-item .modern-icon-btn i[data-lucide] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.scenes-list {
+  margin-bottom: var(--space-sm);
+}
+
+.scenes-item.active {
+  border-color: var(--brand-teal);
+  box-shadow: inset 3px 0 0 var(--brand-teal);
+}
+
+.scenes-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scenes-name:hover {
+  color: var(--brand-teal);
+}
+
+.scenes-name:disabled,
+.scenes-item .modern-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.scenes-empty-icon {
+  width: 28px;
+  height: 28px;
+  stroke: var(--text-muted);
+}
+
+.scenes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.scenes-actions .modern-btn {
+  flex: 1 1 0;
+  width: auto;
+  justify-content: center;
+}
+
+/* "New empty scene" on its own row, Import / Export side by side */
+.scenes-actions #sceneClearBtn {
+  flex-basis: 100%;
+}
+
+.scenes-problems {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--warning, #e3b341);
+  border-radius: var(--radius-sm);
+  background: rgba(227, 179, 65, 0.08);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.scenes-problems ul {
+  margin: var(--space-xs) 0 0;
+  padding-left: 1.2em;
+}
+
+.scenes-name:focus-visible,
+.scenes-item .modern-icon-btn:focus-visible,
+.scenes-actions .modern-btn:focus-visible,
+.scenes-save .modern-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .scenes-item .modern-icon-btn,
+  .scenes-actions .modern-btn,
+  .scenes-save .modern-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scenes-name { transition: none; }
+}
