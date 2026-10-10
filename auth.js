@@ -140,6 +140,12 @@
       if (cesiumContainer) cesiumContainer.style.display = 'block';
       if (toolbar) toolbar.style.display = 'block';
       if (sidebarToggle) sidebarToggle.style.display = 'block';
+      // Bottom action toolbar (Measure, Visibility, Lighting, Walk, Transform, Help).
+      // Not in the trimmed demos (WEA, Bridge Inspector, StageTwin): they set
+      // _weaDemoMode to skip the login; /demo sets it too, but also _demoMode.
+      var bottomToolbar = document.getElementById('bottomToolbar');
+      var trimmedDemo = window._weaDemoMode && !window._demoMode;
+      if (bottomToolbar && !trimmedDemo) bottomToolbar.style.display = 'flex';
 
       // Comments module is initialized later by index.html after viewer is ready
     },
