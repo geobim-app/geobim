@@ -623,6 +623,9 @@ window.GEOBIM_SENSORTHINGS = (function() {
         '#staPanelBody th:nth-child(3), #staPanelBody td:nth-child(3) { width: 44px; }' +
         '#staPanelBody th:last-child, #staPanelBody td:last-child { width: 34%; min-width: 0 !important; }' +
         'body:has(#sta-panel.visible) #floatingAssetsPanel { max-height: calc(50vh - 138px); }' +
+        // with a demo banner the panel starts at 95px instead of 60px (style.css)
+        'body.demo-active:has(#sta-panel.visible) #floatingAssetsPanel,' +
+        'body.bridge-demo-active:has(#sta-panel.visible) #floatingAssetsPanel { max-height: calc(50vh - 173px); }' +
       '}';
     document.head.appendChild(style);
 

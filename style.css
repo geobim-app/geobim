@@ -2077,6 +2077,14 @@ body {
     max-height: calc(100vh - 80px);
   }
 
+  /* demo banners move the sidebar toggle (☰) to top: 47px (demo.js,
+     bridge-inspector.js) — start below it instead of covering it */
+  body.demo-active #floatingAssetsPanel,
+  body.bridge-demo-active #floatingAssetsPanel {
+    top: 95px;
+    max-height: calc(100vh - 115px);
+  }
+
   #weaShadowPanel {
     width: calc(100vw - 20px);
     right: 10px;
