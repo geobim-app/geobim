@@ -544,6 +544,15 @@ body:has(#demoBanner) .panels-search {
     display: none;
   }
 
+  /* Walk / Transform are in "More"; the tab bar takes the bottom edge */
+  html.ui-panels #bottomToolbar {
+    display: none !important;
+  }
+
+  .panels-more .panels-tab.active {
+    background: rgba(var(--brand-teal-rgb), 0.15);
+  }
+
   .panels-search {
     top: var(--space-md);
     width: calc(100vw - 2 * var(--space-lg));

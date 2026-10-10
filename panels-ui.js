@@ -19,7 +19,8 @@
  *
  * Phones (≤ 720 px): a bottom tab bar (Assets, Layers, Measure, Lighting,
  * More) replaces the rail; panels open one at a time as bottom sheets
- * (swipe the header down to close).
+ * (swipe the header down to close). Walk and Transform move from the
+ * hidden bottom toolbar into "More".
  *
  * Also replaces two Cesium widgets (hidden by CSS, still constructed so
  * core.js and animationManager.js keep working): the geocoder by a search
@@ -44,6 +45,12 @@
     ['assets', 'Assets'], ['layers', 'Layers'], ['drawing', 'Measure'], ['lighting', 'Lighting']
   ];
   var SWIPE_CLOSE_PX = 80;
+  // Walk / Transform live in the classic bottom toolbar; on phones the tab
+  // bar covers it, so "More" gets proxies that click the original buttons
+  var MORE_ACTIONS = [
+    ['bottomWalkBtn', 'Walk', 'person-standing'],
+    ['gizmoTransformBtn', 'Transform', 'move-3d']
+  ];
   var phone = window.matchMedia('(max-width: 720px)');
 
   var panels = {};      // section id → { el, title, button }
@@ -386,6 +393,24 @@
       more.appendChild(item);
     });
 
+    MORE_ACTIONS.forEach(function(a) {
+      var target = document.getElementById(a[0]);
+      if (!target) return;
+      var item = tabButton(a[0], a[1], '<i data-lucide="' + a[2] + '"></i>');
+      delete item.dataset.section;
+      item.dataset.action = a[0];
+      item.classList.add('panels-more-item', 'panels-more-action');
+      more.appendChild(item);
+      // mirror the original button's on/off state (also when toggled by G / X)
+      var mirror = function() {
+        var on = target.classList.contains('active');
+        item.classList.toggle('active', on);
+        item.setAttribute('aria-pressed', on ? 'true' : 'false');
+      };
+      mirror();
+      new MutationObserver(mirror).observe(target, { attributes: true, attributeFilter: ['class'] });
+    });
+
     tabs.addEventListener('click', function(e) {
       var b = e.target.closest('.panels-tab');
       if (!b) return;
@@ -401,6 +426,12 @@
       var b = e.target.closest('.panels-tab');
       if (!b) return;
       b.blur();
+      if (b.dataset.action) {
+        hideMore();
+        var target = document.getElementById(b.dataset.action);
+        if (target) target.click();
+        return;
+      }
       openPanel(b.dataset.section);
     });
 
@@ -681,14 +712,13 @@
   // ---------------------------------------------------------------------------
   // Date & time block in the Lighting panel (replaces the Cesium timeline,
   // hidden by CSS). Time is the civil local time at the camera — time zone
-  // from the position (tz-lookup, offline lookup table), daylight saving via
+  // from the position (tz-lookup, self-hosted offline table), daylight saving via
   // Intl — so shadow studies match clocks on site. Until tz-lookup has
   // loaded (or if it can't), local mean solar time (UTC + lon / 15) is the
   // fallback. viewer.clock stays UTC; Saved Scenes are unaffected.
   // ---------------------------------------------------------------------------
   var SPEEDS = [1, 60, 600, 3600];
-  var TZ_LOOKUP_URL = 'https://cdn.jsdelivr.net/npm/tz-lookup@6.1.25/tz.js';
-  var TZ_LOOKUP_SRI = 'sha384-hu4xDymJTssX8+i8qDUKexc5lIusgVeLPv72brg57d+WMdeCGtr3A1U8oW8PEtaP';
+  var TZ_LOOKUP_URL = 'vendor/tz-lookup-6.1.25.js'; // self-hosted, see vendor/README.md
   var tzFormatters = {};
 
   function loadTzLookup() {
@@ -696,8 +726,6 @@
     return new Promise(function(resolve) {
       var s = document.createElement('script');
       s.src = TZ_LOOKUP_URL;
-      s.integrity = TZ_LOOKUP_SRI;
-      s.crossOrigin = 'anonymous';
       s.onload = function() { resolve(typeof window.tzlookup === 'function'); };
       s.onerror = function() {
         console.warn('Date & time: tz-lookup not available, showing solar time');
