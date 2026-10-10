@@ -1,0 +1,5 @@
+/*
+ * geobim.app — Panel UI (beta)
+ * Only loaded when panels-ui-loader.js picks the panel layout; every rule is
+ * scoped to html.ui-panels. Rail and panel styles follow in step 3.
+ */
