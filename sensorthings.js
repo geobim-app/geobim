@@ -602,6 +602,27 @@ window.GEOBIM_SENSORTHINGS = (function() {
       '.sta-trigger-btn:hover {' +
         'background: rgba(255,68,68,0.3) !important;' +
         'border-color: #FF4444 !important;' +
+      '}' +
+      // Phones: full width above the bottom toolbar, at most half the screen
+      // tall; !important beats a desktop drag's inline left/top. The Loaded
+      // Assets panel (top, style.css) then ends above it instead of under it.
+      '@media (max-width: 768px) {' +
+        '#sta-panel {' +
+          'left: 10px !important;' +
+          'right: 10px !important;' +
+          'top: auto !important;' +
+          'bottom: 68px;' +
+          'width: auto;' +
+          'max-height: 50vh;' +
+        '}' +
+        // body and cells carry inline styles (max-height 400px, nowrap, padding)
+        '#staPanelBody { padding: 8px; flex: 1; min-height: 0; max-height: none !important; overflow-x: hidden; }' +
+        '#staPanelBody table { table-layout: fixed; }' +
+        '#staPanelBody th, #staPanelBody td { padding: 4px 3px !important; white-space: normal !important; overflow-wrap: anywhere; }' +
+        '#staPanelBody th:nth-child(2), #staPanelBody td:nth-child(2) { width: 52px; }' +
+        '#staPanelBody th:nth-child(3), #staPanelBody td:nth-child(3) { width: 44px; }' +
+        '#staPanelBody th:last-child, #staPanelBody td:last-child { width: 34%; min-width: 0 !important; }' +
+        'body:has(#sta-panel.visible) #floatingAssetsPanel { max-height: calc(50vh - 138px); }' +
       '}';
     document.head.appendChild(style);
 
