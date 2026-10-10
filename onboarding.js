@@ -9,8 +9,14 @@
 (function() {
   'use strict';
 
+  // Modes detected from the URL like wea-demo.js / stage-twin.js do it:
+  // _weaDemoMode is the shared "skip login" flag of every no-login mode
+  // (/demo, /bridge-inspector, /stage-twin too), not a WEA marker.
+  var MODE_PARAM = new URLSearchParams(window.location.search).get('mode');
+  var MODE_PATH = window.location.pathname.replace(/\/+$/, '');
   var IS_BRIDGE_INSPECTOR = !!window._bridgeInspectorMode;
-  var IS_WEA = !!window._weaDemoMode;
+  var IS_WEA = MODE_PARAM === 'wea' || MODE_PATH === '/wea-shadow';
+  var IS_STAGETWIN = MODE_PARAM === 'stagetwin' || MODE_PATH === '/stage-twin';
   var STORAGE_KEY = IS_BRIDGE_INSPECTOR ? 'geobim_bridge_tour_v1'
                   : IS_WEA ? 'geobim_wea_tour_v1'
                   : 'geobim_tour_v1';
@@ -439,7 +445,9 @@
   // ========================================================
 
   function checkFirstVisit() {
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    // /demo opens the About dialog with its "Take a guided tour" button instead
+    // (demo.js); StageTwin has no sidebar or toolbar to show
+    if (IS_STAGETWIN || window._demoMode || localStorage.getItem(STORAGE_KEY)) return;
     // Wait for app to be fully loaded — and in bridge mode also wait for the
     // asset-loading pill to disappear, otherwise the tour overlaps it visually.
     var check = setInterval(function() {

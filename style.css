@@ -1487,6 +1487,14 @@ body {
     width: calc(100vw - 20px);
     left: 10px;
     right: 10px;
+    /* ends above the bottom toolbar (bottom 6px + 52px high + gap) */
+    max-height: calc(100vh - 78px);
+  }
+
+  /* demo banners move the sidebar down to top: 47px (demo.js, bridge-inspector.js) */
+  body.demo-active #toolbar,
+  body.bridge-demo-active #toolbar {
+    max-height: calc(100vh - 115px);
   }
 
   #toolbar.collapsed {
