@@ -720,3 +720,316 @@ body:has(#demoBanner) .panels-search {
 @media (max-width: 720px) and (prefers-reduced-motion: reduce) {
   .panels-panel { animation: none; }
 }
+
+/* ===========================================================================
+   Tree building blocks (panels-layers.js; reusable for later panels):
+   .pnl-node (▸ rotates) · .pnl-sub · .pnl-item rows with check / meta / eye ·
+   .pnl-field slider rows (label | slider | value)
+   =========================================================================== */
+.pnl-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pnl-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pnl-node::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6l6 6-6 6' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6l6 6-6 6' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 0.12s;
+}
+
+.pnl-node[aria-expanded="true"]::before { transform: rotate(90deg); }
+.pnl-node:hover { background: rgba(255, 255, 255, 0.05); }
+.pnl-node:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+
+.pnl-top > .pnl-node {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.pnl-node-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pnl-node-meta {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pnl-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 var(--space-xs) 14px;
+}
+
+.pnl-sub[hidden] { display: none; }
+
+.pnl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pnl-item:hover { background: rgba(255, 255, 255, 0.05); }
+.pnl-item:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+.pnl-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pnl-field {
+  display: grid;
+  grid-template-columns: 92px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.pnl-link {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pnl-link:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); }
+.pnl-link.pnl-danger:hover { color: var(--error); }
+.pnl-link:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+
+/* Guests don't get own terrain / imagery or geoid (see auth-styles.css) */
+body.guest-mode .pnl-signed-in { display: none; }
+
+/* --- Existing Layer Manager rows, restyled inside the tree ---------------- */
+
+/* radio rows (base map, terrain): check mark instead of the radio dot */
+.pnl-tree .layer-basemap-list,
+.pnl-tree .layer-terrain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pnl-tree .layer-terrain-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.pnl-tree .layer-radio-item {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pnl-tree .layer-radio-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+.pnl-tree .layer-radio-item input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pnl-tree .layer-radio-item:has(input:focus-visible) {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+.pnl-tree .layer-radio-item::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background: var(--brand-teal);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12 5 5 9-10' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12 5 5 9-10' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  visibility: hidden;
+}
+
+.pnl-tree .layer-radio-item.active::before,
+.pnl-tree .layer-radio-item:has(input:checked)::before { visibility: visible; }
+
+.pnl-tree .layer-radio-item.active .layer-radio-label,
+.pnl-tree .layer-radio-item:has(input:checked) .layer-radio-label { color: var(--brand-teal); }
+
+/* toggle rows (OSM Buildings, Google 3D Tiles, Geoid, Bathymetry): name + eye */
+.pnl-tree .modern-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.pnl-tree .modern-toggle-btn > * { pointer-events: none; } /* ui-layer-section toggles e.target */
+.pnl-tree .modern-toggle-btn .modern-btn-icon { display: none; }
+.pnl-tree .modern-toggle-btn > span:last-child { flex: 1; }
+.pnl-tree .modern-toggle-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+.pnl-tree .modern-toggle-btn.active {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.pnl-tree .modern-toggle-btn::after,
+.pnl-tree .layer-toggle-btn::after {
+  content: "";
+  flex: none;
+  width: 15px;
+  height: 15px;
+  background: var(--text-muted);
+  opacity: 0.6;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.8M6.6 7.6A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 4-.9'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.8M6.6 7.6A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 4-.9'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.pnl-tree .modern-toggle-btn.active::after,
+.pnl-tree .layer-toggle-btn.active::after {
+  background: var(--brand-teal);
+  opacity: 1;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
+}
+
+/* overlay / WMS / 3D Tiles rows: name, eye, remove; meta; alpha as a field row */
+.pnl-tree .layer-overlay-list { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+
+.pnl-tree .layer-overlay-item {
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pnl-tree .layer-overlay-header { display: flex; align-items: center; gap: 6px; }
+.pnl-tree .layer-overlay-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.pnl-tree .layer-overlay-meta { font-size: 11px; color: var(--text-muted); }
+
+.pnl-tree .layer-toggle-btn,
+.pnl-tree .layer-remove-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 0; /* glyphs from layerManager.js are replaced by the masks */
+  cursor: pointer;
+}
+
+.pnl-tree .layer-toggle-btn:hover,
+.pnl-tree .layer-remove-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.pnl-tree .layer-toggle-btn:disabled { opacity: 0.4; cursor: progress; }
+
+.pnl-tree .layer-remove-btn::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: var(--text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6 6 18' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6 6 18' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.pnl-tree .layer-remove-btn:hover::after { background: var(--error); }
+
+.pnl-tree .layer-overlay-alpha {
+  display: grid;
+  grid-template-columns: 92px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pnl-tree .layer-overlay-alpha label { color: var(--text-muted); font-size: 11px; }
+.pnl-tree .layer-overlay-alpha input[type="range"] { width: 100%; accent-color: var(--brand-teal); }
+.pnl-tree .layer-alpha-value { text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.pnl-tree .pnl-service > .pnl-sub { padding-left: 10px; }
+.pnl-tree .modern-empty-state { padding: 6px 8px; text-align: left; }
+.pnl-tree .modern-hint { margin: var(--space-xs) 0 0; }
+.pnl-tree .ion-layer-picker { margin: 2px 0; }
+.pnl-tree #googleTilesQualityRow { margin: 0 0 var(--space-xs) 16px; }
+.pnl-tree #wmsLayerPicker { margin: 0 0 var(--space-xs); }
+
+@media (max-width: 720px) {
+  .pnl-node,
+  .pnl-item,
+  .pnl-tree .layer-radio-item,
+  .pnl-tree .modern-toggle-btn { min-height: 44px; }
+  .pnl-tree .layer-toggle-btn,
+  .pnl-tree .layer-remove-btn,
+  .pnl-link { min-width: 44px; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pnl-node::before { transition: none; }
+}

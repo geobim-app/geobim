@@ -18,7 +18,7 @@
 (function() {
   'use strict';
 
-  var VERSION = '0.7.0'; // cache-bust for panels-ui.js / panels-ui.css
+  var VERSION = '0.8.0'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
   var BETA_HOSTS = ['beta.geobim.app'];
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
@@ -99,4 +99,8 @@
   var js = document.createElement('script');
   js.src = 'panels-ui.js?v=' + VERSION;
   document.head.appendChild(js);
+  // Layers panel as a tree; waits for panels-ui.js itself
+  var tree = document.createElement('script');
+  tree.src = 'panels-layers.js?v=' + VERSION;
+  document.head.appendChild(tree);
 })();
