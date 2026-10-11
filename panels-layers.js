@@ -17,79 +17,20 @@
  * Anything in the section this module doesn't know lands in "More", so no
  * control gets lost when another module adds one.
  *
- * Expanded state per node in localStorage (a per-browser convenience; the
- * default opens the node with the active base map).
+ * Expanded state per node in localStorage via panels-tree.js (the default
+ * opens the node with the active base map).
  */
 (function() {
   'use strict';
 
-  var STATE_KEY = 'geobim_layers_tree';
   var CURATED_TERRAIN = ['world', 'terrain_2426648'];
-  var open = loadState();
-
-  function loadState() {
-    try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}') || {}; } catch (_) { return {}; }
-  }
-
-  function saveState() {
-    try { localStorage.setItem(STATE_KEY, JSON.stringify(open)); } catch (_) {}
-  }
-
-  // ---------------------------------------------------------------------------
-  // Building blocks (reusable: .pnl-node / .pnl-sub / .pnl-item / .pnl-field)
-  // ---------------------------------------------------------------------------
-  function el(tag, cls, text) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text) e.textContent = text;
-    return e;
-  }
-
-  // A collapsible node: <div.pnl-branch><button.pnl-node/><div.pnl-sub/></div>
-  function node(key, title, defaultOpen, opts) {
-    opts = opts || {};
-    var wrap = el('div', 'pnl-branch' + (opts.top ? ' pnl-top' : '') + (opts.cls ? ' ' + opts.cls : ''));
-    wrap.dataset.node = key;
-    var btn = el('button', 'pnl-node');
-    btn.type = 'button';
-    btn.appendChild(el('span', 'pnl-node-title', title));
-    if (opts.meta) {
-      var meta = el('span', 'pnl-node-meta');
-      btn.appendChild(meta);
-    }
-    var sub = el('div', 'pnl-sub');
-    var isOpen = key in open ? !!open[key] : !!defaultOpen;
-    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    sub.hidden = !isOpen;
-    btn.addEventListener('click', function() {
-      var now = btn.getAttribute('aria-expanded') !== 'true';
-      btn.setAttribute('aria-expanded', now ? 'true' : 'false');
-      sub.hidden = !now;
-      open[key] = now;
-      saveState();
-      btn.blur();
-    });
-    wrap.appendChild(btn);
-    wrap.appendChild(sub);
-    wrap.sub = sub;
-    wrap.meta = btn.querySelector('.pnl-node-meta');
-    wrap.expand = function() {
-      if (btn.getAttribute('aria-expanded') === 'true') return;
-      btn.setAttribute('aria-expanded', 'true');
-      sub.hidden = false;
-    };
-    return wrap;
-  }
+  var tree = BimPanelsTree.create('geobim_layers_tree');
+  var node = tree.node;
+  var el = tree.el;
+  var add = tree.add;
 
   function byId(id) { return document.getElementById(id); }
   var take = byId; // reads as "move this existing element into the tree"
-
-  function add(parent) {
-    for (var i = 1; i < arguments.length; i++) {
-      if (arguments[i]) parent.appendChild(arguments[i]);
-    }
-    return parent;
-  }
 
   // ---------------------------------------------------------------------------
   // Terrain: own rows out of #terrainList into "My terrain"
@@ -223,7 +164,7 @@
 
   function build(content) {
     var old = Array.prototype.slice.call(content.children);
-    var tree = el('div', 'pnl-tree');
+    var root = el('div', 'pnl-tree');
 
     // TERRAIN
     var terrain = node('terrain', 'Terrain', false, { top: true, meta: true });
@@ -271,7 +212,7 @@
     var layers3d = node('3d', '3D layers', false, { top: true, meta: true });
     add(layers3d.sub, take('toggleOSMBuildings'), take('toggleGoogle3DTiles'), take('googleTilesQualityRow'), take('tilesetLayersList'));
 
-    add(tree, terrain, imagery, wms, layers3d);
+    add(root, terrain, imagery, wms, layers3d);
 
     // Leftovers: drop dividers and emptied wrappers, keep anything unknown
     var more = node('more', 'More', false, { top: true });
@@ -284,10 +225,10 @@
       }
       more.sub.appendChild(e);
     });
-    if (more.sub.children.length) tree.appendChild(more);
+    if (more.sub.children.length) root.appendChild(more);
 
     content.innerHTML = '';
-    content.appendChild(tree);
+    content.appendChild(root);
 
     // Keep post-processing after every LayerManager re-render
     var terrainList = byId('terrainList');
