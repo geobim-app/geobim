@@ -435,7 +435,7 @@ const BimViewer = {
   
   osmBuildings: {
     tileset: null,
-    enabled: true,
+    enabled: false,   // nothing loaded yet; toggleOSMBuildings() loads on first use
     isLoading: false
   },
   
