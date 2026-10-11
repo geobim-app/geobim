@@ -449,7 +449,7 @@ const BimViewerUI = {
         <div class="modern-asset-name" title="${assetData.name}">${assetData.name}</div>
         <div class="modern-asset-controls">
           <button class="modern-icon-btn" onclick="event.stopPropagation();BimViewer.zoomToAsset('${assetId}')" title="Fly to asset">📍</button>
-          <button class="modern-icon-btn" onclick="event.stopPropagation();BimViewer.toggleAssetVisibility('${assetId}')" title="Show/hide asset">👁️</button>
+          <button class="modern-icon-btn asset-btn-visibility" onclick="event.stopPropagation();BimViewer.toggleAssetVisibility('${assetId}')" title="Show/hide asset">${assetData.visible === false ? '🚫' : '👁️'}</button>
           <button class="modern-icon-btn modern-icon-btn-danger" onclick="event.stopPropagation();BimViewer.unloadAsset('${assetId}')" title="Remove asset from viewer">🗑️</button>
           <span class="modern-asset-chevron" aria-hidden="true"><i data-lucide="chevron-right" style="width:14px;height:14px;"></i></span>
         </div>
