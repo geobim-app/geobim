@@ -26,7 +26,7 @@
       </div>
 
       <div class="modern-group">
-        <button id="toggleOSMBuildings" class="modern-toggle-btn active">
+        <button id="toggleOSMBuildings" class="modern-toggle-btn">
           <span class="modern-btn-icon">🏙️</span>
           <span>OSM Buildings</span>
         </button>
@@ -150,21 +150,28 @@
   }
 
   function initHandlers() {
-    document.getElementById('toggleOSMBuildings')?.addEventListener('click', (e) => {
-      BimViewer.toggleOSMBuildings();
-      e.target.classList.toggle('active');
-    });
-
-    document.getElementById('toggleGoogle3DTiles')?.addEventListener('click', (e) => {
-      BimViewer.toggleGoogle3DTiles();
-      e.target.classList.toggle('active');
-
+    // Buttons show the real state: a toggle may load first, refuse (Google
+    // 3D Tiles on) or switch the other layer (Google hides OSM Buildings)
+    const syncTileButtons = () => {
+      const osm = BimViewer.osmBuildings;
+      document.getElementById('toggleOSMBuildings')?.classList.toggle('active', !!(osm.tileset && osm.enabled));
+      document.getElementById('toggleGoogle3DTiles')?.classList.toggle('active', !!BimViewer.googleTiles.enabled);
       const qualityRow = document.getElementById('googleTilesQualityRow');
       if (qualityRow) {
         qualityRow.style.display = BimViewer.googleTiles.enabled ? 'grid' : 'none';
       }
+    };
 
-      if (typeof plausible !== 'undefined' && e.target.classList.contains('active')) {
+    document.getElementById('toggleOSMBuildings')?.addEventListener('click', async () => {
+      await BimViewer.toggleOSMBuildings();
+      syncTileButtons();
+    });
+
+    document.getElementById('toggleGoogle3DTiles')?.addEventListener('click', async () => {
+      await BimViewer.toggleGoogle3DTiles();
+      syncTileButtons();
+
+      if (typeof plausible !== 'undefined' && BimViewer.googleTiles.enabled) {
         plausible('Feature Used', { props: { feature: 'Google 3D Tiles' } });
       }
     });
