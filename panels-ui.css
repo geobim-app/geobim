@@ -79,11 +79,6 @@ html.ui-panels.panels-collapsed .panels-ui {
   background: var(--border-subtle);
 }
 
-.panels-rail-spacer {
-  flex: none;
-  height: var(--space-xs);
-}
-
 .panels-rail-btn {
   position: relative;
   flex: none;

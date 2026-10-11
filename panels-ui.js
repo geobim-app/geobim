@@ -9,7 +9,7 @@
  * section's .modern-section-content node into its own panel (never clones),
  * so every section's handlers, element IDs and data stay shared with the
  * classic UI. The sidebar header (logo, account badge, Cesium ion indicator)
- * moves into an "Account" panel at the bottom of the rail.
+ * moves into an "Account" panel at the top of the rail.
  *
  * Compatibility hooks:
  *   - BimViewerUI.toggleSection(id, expand) opens/closes panels instead
@@ -33,11 +33,12 @@
   var RAIL_GROUPS = [
     ['assets', 'layers', 'pointcloud', 'splat'],
     ['ifc', 'revit', 'visibility', 'comments', 'inspection'],
-    ['drawing', 'split', 'lighting'],
+    ['drawing', 'clip', 'split', 'lighting'],
     ['views', 'scenes'],
     ['settings', 'about']
   ];
   var ACCOUNT_ID = 'account';
+  var CLIP_ID = 'clip';
   var CASCADE_X = 84;   // right of the rail (16 + 52 + 16)
   var CASCADE_Y = 70;   // leaves room for the search bar (step 4)
   var CASCADE_STEP = 26;
@@ -98,35 +99,9 @@
 
     document.body.appendChild(root);
 
-    // Sections in rail order; anything ui.js adds later but RAIL_GROUPS
-    // doesn't know lands in an extra group, so nothing gets lost.
-    var known = [].concat.apply([], RAIL_GROUPS);
-    var headers = Array.prototype.slice.call(toolbar.querySelectorAll('.modern-section-header[data-section]'));
-    var byId = {};
-    headers.forEach(function(h) { byId[h.dataset.section] = h; });
-    var extra = headers.map(function(h) { return h.dataset.section; })
-      .filter(function(id) { return known.indexOf(id) === -1; });
-    var groups = RAIL_GROUPS.concat(extra.length ? [extra] : []);
-
-    groups.forEach(function(group, gi) {
-      var added = false;
-      group.forEach(function(id) {
-        var header = byId[id];
-        if (!header) return;
-        if (gi > 0 && !added) addSeparator();
-        added = true;
-        var titleEl = header.querySelector('.modern-section-title > span:last-child');
-        var iconEl = header.querySelector('.modern-section-icon');
-        var content = header.nextElementSibling;
-        if (!content || !content.classList.contains('modern-section-content')) return;
-        createPanel(id, titleEl ? titleEl.textContent.trim() : id, iconEl ? iconEl.innerHTML : '', content, header.parentElement);
-      });
-    });
-
-    // Account panel: the sidebar header (logo, badge, ion indicator) + layout switch
-    var spacer = document.createElement('div');
-    spacer.className = 'panels-rail-spacer';
-    rail.appendChild(spacer);
+    // Account panel first: the sidebar header (logo, badge, ion indicator) +
+    // layout switch. What a user gets depends on it (guest → demo assets and
+    // fewer tools; signed in → all tools; + Cesium ion → own assets).
     var account = document.createElement('div');
     account.className = 'panels-account';
     var header = toolbar.querySelector('.modern-header');
@@ -144,7 +119,59 @@
     account.appendChild(classic);
     createPanel(ACCOUNT_ID, 'Account & layout', '<i data-lucide="user-round"></i>', account, null);
 
+    // Sections in rail order; anything ui.js adds later but RAIL_GROUPS
+    // doesn't know lands in an extra group, so nothing gets lost.
+    var known = [].concat.apply([], RAIL_GROUPS);
+    var headers = Array.prototype.slice.call(toolbar.querySelectorAll('.modern-section-header[data-section]'));
+    var byId = {};
+    headers.forEach(function(h) { byId[h.dataset.section] = h; });
+    var extra = headers.map(function(h) { return h.dataset.section; })
+      .filter(function(id) { return known.indexOf(id) === -1; });
+    var groups = RAIL_GROUPS.concat(extra.length ? [extra] : []);
+
+    groups.forEach(function(group) {
+      var added = false;
+      group.forEach(function(id) {
+        var header = byId[id];
+        if (!header) return;
+        if (!added) addSeparator();
+        added = true;
+        var titleEl = header.querySelector('.modern-section-title > span:last-child');
+        var iconEl = header.querySelector('.modern-section-icon');
+        var content = header.nextElementSibling;
+        if (!content || !content.classList.contains('modern-section-content')) return;
+        if (id === 'drawing') {
+          createDrawingPanels(content, header.parentElement);
+          return;
+        }
+        createPanel(id, titleEl ? titleEl.textContent.trim() : id, iconEl ? iconEl.innerHTML : '', content, header.parentElement);
+      });
+    });
+
     if (window.lucide) lucide.createIcons();
+  }
+
+  // "Measure & Clip" (ui.js 'drawing') becomes two panels: Measure keeps the
+  // section content up to the "Clipping" divider, Clip gets the rest (moved,
+  // not cloned, so ui-clipping-extension.js' handlers keep working). Both
+  // share the classic section, so hiding it (bridge mode) hides both.
+  function createDrawingPanels(content, sectionEl) {
+    var clip = document.createElement('div');
+    clip.className = 'modern-section-content panels-clip-content';
+    var divider = Array.prototype.find.call(content.querySelectorAll(':scope > .modern-divider'), function(d) {
+      return /clipping/i.test(d.textContent);
+    });
+    if (divider) {
+      var node = divider.nextSibling;
+      divider.remove();
+      while (node) {
+        var next = node.nextSibling;
+        clip.appendChild(node);
+        node = next;
+      }
+    }
+    createPanel('drawing', 'Measure', '<i data-lucide="ruler"></i>', content, sectionEl);
+    if (divider) createPanel(CLIP_ID, 'Clip', '<i data-lucide="scissors"></i>', clip, sectionEl);
   }
 
   function addSeparator() {
@@ -485,6 +512,12 @@
       position: 'right'
     },
     {
+      target: '.panels-rail-btn[data-section="account"]',
+      title: 'Account & layout',
+      text: 'Without an account you see the demo assets. Sign in for all tools, connect Cesium ion to work with your own assets, or switch back to the classic sidebar.',
+      position: 'right'
+    },
+    {
       target: '.panels-search',
       title: 'Search',
       text: 'Find an address or place, or type coordinates as "latitude, longitude".',
@@ -492,20 +525,20 @@
     },
     {
       target: '.panels-rail-btn[data-section="drawing"]',
-      title: 'Measure & Clip',
-      text: 'Measure distances, areas and heights. Draw clipping polygons to section through buildings.',
+      title: 'Measure',
+      text: 'Measure distances, areas and heights.',
+      position: 'right'
+    },
+    {
+      target: '.panels-rail-btn[data-section="clip"]',
+      title: 'Clip',
+      text: 'Draw clipping polygons or rectangles to section through buildings and terrain.',
       position: 'right'
     },
     {
       target: '.panels-rail-btn[data-section="lighting"]',
       title: 'Lighting, date & time',
       text: 'Sun, shadows and ambient occlusion. Set date and time in local time at the site — time zone and daylight saving included.',
-      position: 'right'
-    },
-    {
-      target: '.panels-rail-btn[data-section="account"]',
-      title: 'Account & layout',
-      text: 'Sign in, connect Cesium ion, or switch back to the classic sidebar.',
       position: 'right'
     },
     {
