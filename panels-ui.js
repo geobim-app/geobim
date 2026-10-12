@@ -526,13 +526,13 @@
     {
       target: '.panels-rail-btn[data-section="drawing"]',
       title: 'Measure',
-      text: 'Measure distances, areas and heights.',
+      text: 'Distance, area, height over terrain, vertical distance and coordinates. Saved measurements are listed below the result.',
       position: 'right'
     },
     {
       target: '.panels-rail-btn[data-section="clip"]',
       title: 'Clip',
-      text: 'Draw clipping polygons or rectangles to section through buildings and terrain.',
+      text: 'Draw clipping polygons or rectangles to cut through buildings and terrain. Section planes per asset are on the asset cards.',
       position: 'right'
     },
     {

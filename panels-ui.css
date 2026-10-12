@@ -1147,3 +1147,168 @@ html.ui-panels #floatingAssetsPanel { display: none !important; }
 @media (max-width: 720px) {
   .pnl-tree .modern-asset-controls .modern-icon-btn { min-width: 44px; min-height: 44px; }
 }
+
+/* --- Measure / Clip panels (panels-measure.js) ----------------------------- */
+html.ui-panels #measurementPanel { display: none !important; } /* inline display still drives isMeasurementPanelOpen() */
+
+.pnl-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pnl-tree .pnl-tools .ms-tool-btn,
+.pnl-tree .pnl-tools .modern-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pnl-tree .pnl-tools .ms-tool-btn:hover,
+.pnl-tree .pnl-tools .modern-btn:hover { border-color: rgba(255, 255, 255, 0.2) !important; }
+
+.pnl-tree .pnl-tools .ms-tool-btn.active,
+.pnl-tree .pnl-tools .modern-btn.active {
+  border-color: var(--brand-teal) !important;
+  background: rgba(var(--brand-teal-rgb), 0.14) !important;
+  color: var(--brand-teal);
+}
+
+.pnl-tree .pnl-tools .ms-tool-btn:focus-visible,
+.pnl-tree .pnl-tools .modern-btn:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+
+/* emoji glyphs → Lucide-style masks */
+.pnl-tree .pnl-tools .ms-tool-btn > span:first-child,
+.pnl-tree .pnl-tools .modern-btn .modern-btn-icon { display: none; }
+
+.pnl-tree .pnl-tools .ms-tool-btn::before,
+.pnl-tree .pnl-tools .modern-btn::before {
+  content: "";
+  position: static; /* style.css uses .modern-btn::before for an overlay */
+  inset: auto;
+  transform: none;
+  opacity: 1;
+  order: -1;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask: var(--pnl-icon) center / contain no-repeat;
+  mask: var(--pnl-icon) center / contain no-repeat;
+}
+
+.pnl-tree [data-tool="startDistanceMeasurement"] { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 17 14-14 4 4L7 21z'/%3E%3Cpath d='m7 13 2 2M10 10l2 2M13 7l2 2'/%3E%3C/svg%3E"); }
+.pnl-tree [data-tool="startAreaMeasurement"] { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7l6-3 10 5-3 11-11-2z'/%3E%3C/svg%3E"); }
+.pnl-tree [data-tool="startHeightOverTerrain"] { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 3 4 8 5-5 5 15H2z'/%3E%3C/svg%3E"); }
+.pnl-tree [data-tool="startVerticalDistance"] { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4'/%3E%3C/svg%3E"); }
+.pnl-tree [data-tool="startCoordinatePick"] { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E"); }
+.pnl-tree [data-tool="clearMeasurements"],
+.pnl-tree #clearAllClipping { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6'/%3E%3C/svg%3E"); }
+.pnl-tree #startClippingDraw { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8l7-5 9 6-3 11H7z'/%3E%3C/svg%3E"); }
+.pnl-tree #startClippingRect { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='6' width='16' height='12' rx='1'/%3E%3C/svg%3E"); }
+
+.pnl-tree #measurementResult {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  text-align: left;
+}
+
+.pnl-actions { display: flex; gap: 6px; margin-top: 6px; }
+.pnl-actions[hidden] { display: none; }
+.pnl-actions > button { flex: 1; }
+.pnl-hint { margin: 6px 0 0; font-size: 11px; }
+
+/* saved measurements as rows */
+.pnl-tree #savedMeasurementsContainer > div:first-child {
+  display: flex !important;
+  justify-content: flex-end !important;
+  margin: 0 !important;
+}
+
+.pnl-tree #savedMeasurementsHeader { display: none; }
+.pnl-tree #savedMeasurementsItems { max-height: none; overflow: visible; }
+.pnl-tree .ms-saved-item { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 6px; border-radius: var(--radius-sm); cursor: pointer; }
+.pnl-tree .ms-saved-item:hover { background: rgba(255, 255, 255, 0.05); }
+.pnl-tree .ms-saved-icon { display: none; }
+.pnl-tree .ms-saved-info { flex: 1; min-width: 0; }
+.pnl-tree .ms-saved-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.pnl-tree .ms-saved-meta { color: var(--text-muted); font-size: 11px; }
+
+.pnl-tree .ms-saved-zoom,
+.pnl-tree .ms-saved-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 0;
+  cursor: pointer;
+}
+
+.pnl-tree .ms-saved-zoom::after,
+.pnl-tree .ms-saved-delete::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: var(--text-muted);
+  -webkit-mask: var(--pnl-icon) center / contain no-repeat;
+  mask: var(--pnl-icon) center / contain no-repeat;
+}
+
+.pnl-tree .ms-saved-zoom { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E"); }
+.pnl-tree .ms-saved-delete { --pnl-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6 6 18' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.pnl-tree .ms-saved-zoom:hover,
+.pnl-tree .ms-saved-delete:hover { background: rgba(255, 255, 255, 0.08); }
+.pnl-tree .ms-saved-delete:hover::after { background: var(--error); }
+
+/* clip option rows: fixed label | state button */
+.pnl-toggle-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.pnl-toggle-label { color: var(--text-muted); font-size: 12px; }
+
+.pnl-tree .pnl-toggle-row .modern-btn {
+  justify-content: flex-start;
+  margin: 0;
+  font-size: 12px;
+}
+
+.pnl-tree .pnl-toggle-row .modern-btn .modern-btn-icon { display: none; }
+.pnl-tree .pnl-toggle-row .modern-btn.active { border-color: var(--brand-teal); color: var(--brand-teal); }
+.pnl-inline-link { display: inline; padding: 0 2px; color: var(--brand-teal); }
+
+@media (max-width: 720px) {
+  .pnl-tree .pnl-tools .ms-tool-btn,
+  .pnl-tree .pnl-tools .modern-btn,
+  .pnl-tree .pnl-toggle-row .modern-btn,
+  .pnl-actions > button,
+  .pnl-tree .ms-saved-zoom,
+  .pnl-tree .ms-saved-delete { min-height: 44px; min-width: 44px; }
+}
+.pnl-tree .pnl-actions .modern-btn-icon { display: none; }
+.pnl-tree .pnl-tools .modern-btn:active::before,
+.pnl-tree .pnl-tools .modern-btn:hover::before { width: 15px; height: 15px; }
