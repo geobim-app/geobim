@@ -914,9 +914,12 @@ const BimViewerUI = {
       // Falls back to sessionStorage since the Ion OAuth redirect round-trip drops the query string.
       if (!window._autoOpenAssetHandled) {
         window._autoOpenAssetHandled = true;
-        const requestedAssetId = new URLSearchParams(window.location.search).get('asset')
-          || sessionStorage.getItem('geobim_pending_asset');
-        sessionStorage.removeItem('geobim_pending_asset');
+        let pendingAsset = null;
+        try {
+          pendingAsset = sessionStorage.getItem('geobim_pending_asset');
+          sessionStorage.removeItem('geobim_pending_asset');
+        } catch (e) { /* storage blocked: no deep link across the ion login */ }
+        const requestedAssetId = new URLSearchParams(window.location.search).get('asset') || pendingAsset;
         if (requestedAssetId) {
           const match = assets.find(a => String(a.id) === String(requestedAssetId));
           selector.value = requestedAssetId;

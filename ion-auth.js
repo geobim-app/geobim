@@ -97,35 +97,48 @@
   // LOCALSTORAGE PERSISTENCE
   // ========================================================
 
+  // Every storage access may throw (blocked site data, some private modes);
+  // without storage the ion login is simply unavailable, the viewer runs on
+  // the default token
+  function store(area, key, value) {
+    try { window[area].setItem(key, value); return true; } catch (e) { return false; }
+  }
+
+  function recall(area, key) {
+    try { return window[area].getItem(key); } catch (e) { return null; }
+  }
+
+  function forget(area, key) {
+    try { window[area].removeItem(key); } catch (e) {}
+  }
+
   function saveOAuthToken(tokenData) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tokenData));
-    } catch (e) {
-      console.warn('[IonAuth] Failed to save token:', e);
+    if (!store('localStorage', STORAGE_KEY, JSON.stringify(tokenData))) {
+      console.warn('[IonAuth] Failed to save token (storage unavailable)');
     }
   }
 
   function loadOAuthToken() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
+      var raw = recall('localStorage', STORAGE_KEY);
       if (!raw) return null;
       var data = JSON.parse(raw);
       if (data.expires_at && Date.now() > data.expires_at) {
         // Token expired — try refresh if available
         if (data.refresh_token) return data;
-        localStorage.removeItem(STORAGE_KEY);
+        forget('localStorage', STORAGE_KEY);
         return null;
       }
       return data;
     } catch (e) {
-      localStorage.removeItem(STORAGE_KEY);
+      forget('localStorage', STORAGE_KEY);
       return null;
     }
   }
 
   function clearOAuthToken() {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(VERIFIER_KEY);
+    forget('localStorage', STORAGE_KEY);
+    forget('localStorage', VERIFIER_KEY);
     oauthToken = null;
   }
 
@@ -146,13 +159,20 @@
     }
 
     var pkce = await generatePKCE();
-    localStorage.setItem(VERIFIER_KEY, pkce.verifier);
+    // The verifier has to survive the redirect to ion and back
+    if (!store('localStorage', VERIFIER_KEY, pkce.verifier)) {
+      console.warn('[IonAuth] Login needs browser storage, which is blocked');
+      if (window.BimViewer && typeof BimViewer.updateStatus === 'function') {
+        BimViewer.updateStatus('Cesium ion login needs site data (cookies and storage) allowed for this site', 'error');
+      }
+      return;
+    }
 
     // OAuth redirect returns to a bare REDIRECT_URI (no query string), so stash
     // a pending deep-link asset id here to restore it after the round trip
     var pendingAsset = new URLSearchParams(window.location.search).get('asset');
     if (pendingAsset) {
-      sessionStorage.setItem('geobim_pending_asset', pendingAsset);
+      store('sessionStorage', 'geobim_pending_asset', pendingAsset);
     }
 
     var params = new URLSearchParams({
@@ -169,7 +189,7 @@
 
   async function handleRedirectCode(code) {
     var clientId = GEOBIM_CONFIG.cesiumIon && GEOBIM_CONFIG.cesiumIon.clientId;
-    var verifier = localStorage.getItem(VERIFIER_KEY);
+    var verifier = recall('localStorage', VERIFIER_KEY);
 
     if (!clientId || !verifier) {
       console.error('[IonAuth] Missing clientId or PKCE verifier for token exchange');
@@ -195,7 +215,7 @@
       }
 
       var data = await resp.json();
-      localStorage.removeItem(VERIFIER_KEY);
+      forget('localStorage', VERIFIER_KEY);
 
       // Clean URL FIRST (before any async work that might reload)
       var cleanUrl = new URL(window.location);
@@ -228,7 +248,7 @@
       return true;
     } catch (err) {
       console.error('[IonAuth] Token exchange error:', err);
-      localStorage.removeItem(VERIFIER_KEY);
+      forget('localStorage', VERIFIER_KEY);
       return false;
     }
   }

@@ -30,14 +30,14 @@
   // No time limit since 2026-09-27: guests (demo routes and the start page
   // without sign-in) use the app as long as they like; sign-in adds features.
   console.log('Demo Mode activated — guest access, no time limit');
-  sessionStorage.removeItem('geobim_demo_session_start');   // old 30-min trial key
+  try { sessionStorage.removeItem('geobim_demo_session_start'); } catch (e) {}   // old 30-min trial key
 
   // Global flags — MUST be set before auth-gate.js loads
   window._demoMode = true;
   window._weaDemoMode = true;   // auth-gate.js checks this flag
   window._splashDismissed = true;
   window._authGatePassed = true;
-  sessionStorage.setItem('geoBIM_splashShown', '1');
+  try { sessionStorage.setItem('geoBIM_splashShown', '1'); } catch (e) {}
 
   // ========================================================
   // DEMO BANNER + COUNTDOWN

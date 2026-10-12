@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="section-profile-styles.css">
   <link rel="stylesheet" href="placement-save-styles.css">
   <link rel="stylesheet" href="scenes-styles.css?v=20261012">
+  <link rel="stylesheet" href="touch-draw-styles.css?v=20261012">
   <link rel="stylesheet" href="itwin-demo-styles.css">
 
   <!-- Lighting v4.0 Styles -->
@@ -248,19 +249,19 @@
        ============================================ -->
 
   <!-- Demo Modes — must load before splash/auth -->
-  <script src="demo.js"></script>
+  <script src="demo.js?v=20261012"></script>
   <script src="wea-demo.js"></script>
   <script src="bridge-inspector.js?v=20261010"></script>
   <script src="stage-twin.js"></script>
 
   <!-- Splash Screen (before auth) -->
-  <script src="splash-screen.js"></script>
+  <script src="splash-screen.js?v=20261012"></script>
 
   <!-- Ion Auth (OAuth2 PKCE — must load before auth.js) -->
-  <script src="ion-auth.js"></script>
+  <script src="ion-auth.js?v=20261012"></script>
 
   <!-- Auth Module -->
-  <script src="auth.js?v=20261010"></script>
+  <script src="auth.js?v=20261012"></script>
 
   <!-- Auth Gate - Email/Password login overlay (blocks app until authenticated) -->
   <script src="auth-gate.js"></script>
@@ -292,11 +293,14 @@
   <script src="ui-layer-section.js?v=20261011"></script>
   <script src="geoid.js"></script>
   <script src="projected-coords.js"></script>
-  <script src="measurement.js"></script>
+  <script src="measurement.js?v=20261012"></script>
   <script src="measurement-store.js"></script>
 
   <!-- 2. Enhanced Clipping Module -->
-  <script src="clipping.js"></script>
+  <script src="clipping.js?v=20261012"></script>
+
+  <!-- 2.1 Touch: clip points by tap, Finish / Cancel while measuring / clipping -->
+  <script src="touch-draw.js?v=20261012"></script>
 
   <!-- 3. Z-Offset Module v2.0 -->
   <script src="z-offset.js"></script>
@@ -329,10 +333,10 @@
        ============================================ -->
 
   <!-- 5. UI Module v3.3 -->
-  <script src="ui.js?v=20261011"></script>
+  <script src="ui.js?v=20261012"></script>
 
   <!-- 6. UI Extensions -->
-  <script src="ui-clipping-extension.js"></script>
+  <script src="ui-clipping-extension.js?v=20261012"></script>
   <script src="ui-z-offset-extension.js"></script>
   <script src="clipping-planes.js"></script>
   <script src="alignment-section.js"></script>

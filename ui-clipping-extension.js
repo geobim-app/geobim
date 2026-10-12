@@ -46,25 +46,23 @@
         </div>
 
         <div class="modern-btn-group">
-          <button id="startClippingDraw" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click to draw clipping polygon">
+          <button id="startClippingDraw" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click (or tap) to draw a clipping polygon">
             <span class="modern-btn-icon">✏️</span>
             <span>Polygon</span>
           </button>
-          <button id="startClippingRect" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click 3 points: 2 corners define edge, 3rd sets width">
+          <button id="startClippingRect" class="modern-btn modern-btn-small modern-btn-primary" title="Right-click (or tap) 3 points: 2 corners define the edge, the 3rd sets the width">
             <span class="modern-btn-icon">⬜</span>
             <span>Rectangle</span>
           </button>
         </div>
 
         <div class="modern-hint" style="margin-top: 8px;">
-          <strong>🖱️ RIGHT-CLICK</strong> Add point / place corner<br>
-          <strong>🖱️ DOUBLE RIGHT-CLICK</strong> Finish polygon<br>
-          <strong>⌨️ ENTER</strong> Also finishes polygon<br>
-          <strong>⌨️ P</strong> Start/Stop polygon drawing<br>
-          <strong>⌨️ R</strong> Start/Stop rectangle drawing<br>
-          <strong>⌨️ ESC</strong> Cancel drawing<br>
-          <strong>⌨️ DEL</strong> Remove last polygon<br>
-          <strong>✅ LEFT-CLICK stays free</strong> for element info!
+          <strong>Right-click</strong> or <strong>tap</strong> Add point / place corner<br>
+          <strong>Double right-click</strong>, <strong>Enter</strong> or <strong>Finish</strong> Finish polygon<br>
+          <strong>P</strong> / <strong>R</strong> Start/stop polygon / rectangle drawing<br>
+          <strong>Esc</strong> or <strong>Cancel</strong> Cancel drawing<br>
+          <strong>Del</strong> Remove last polygon<br>
+          <strong>Left-click stays free</strong> for element info
         </div>
       </div>
       
