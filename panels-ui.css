@@ -1406,3 +1406,55 @@ html.ui-panels #measurementPanel { display: none !important; } /* inline display
   .pnl-tree .scenes-item .modern-icon-btn,
   .pnl-view-go { min-width: 44px; min-height: 44px; }
 }
+
+/* ===========================================================================
+   Lighting panel (panels-lighting.js)
+   =========================================================================== */
+.pnl-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pnl-time-choices { margin-top: var(--space-xs); }
+
+.pnl-choice {
+  min-width: 36px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.pnl-choice:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); }
+.pnl-choice.active { border-color: var(--brand-teal); color: var(--brand-teal); }
+.pnl-choice:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+
+.pnl-field-value {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pnl-tree .pnl-field { grid-template-columns: 110px 1fr 52px; min-height: 34px; }
+.pnl-tree .pnl-field .modern-slider:disabled { opacity: 0.4; cursor: not-allowed; }
+.pnl-tree .pnl-toggle-row .modern-toggle-btn { justify-content: flex-start; margin: 0; font-size: 12px; }
+.pnl-tree .pnl-toggle-row .modern-toggle-btn .modern-btn-icon { display: none; }
+.pnl-tree .pnl-toggle-row .modern-toggle-btn.active { border-color: var(--brand-teal); color: var(--brand-teal); }
+.pnl-tree .pnl-toggle-row .modern-toggle-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pnl-tree .pnl-link:disabled { opacity: 0.4; cursor: default; }
+.pnl-tree .pnl-hint[hidden] { display: none; }
+.pnl-tree .panels-clock { margin: 0; padding: 0; border: 0; background: none; }
+
+@media (max-width: 720px) {
+  .pnl-choice,
+  .pnl-tree .pnl-toggle-row .modern-toggle-btn { min-height: 44px; min-width: 44px; }
+}
