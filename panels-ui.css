@@ -1312,3 +1312,97 @@ html.ui-panels #measurementPanel { display: none !important; } /* inline display
 .pnl-tree .pnl-actions .modern-btn-icon { display: none; }
 .pnl-tree .pnl-tools .modern-btn:active::before,
 .pnl-tree .pnl-tools .modern-btn:hover::before { width: 15px; height: 15px; }
+
+/* ===========================================================================
+   Views and Scenes panels (panels-views.js)
+   =========================================================================== */
+.pnl-views-list,
+.pnl-tree .pnl-scenes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+}
+
+.pnl-view-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.pnl-view-row:hover { background: rgba(255, 255, 255, 0.05); }
+
+.pnl-view-go {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pnl-view-go:hover .pnl-view-name { color: var(--brand-teal); }
+.pnl-view-go:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+.pnl-view-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.pnl-view-meta { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pnl-view-controls { display: flex; flex: none; gap: 2px; }
+
+/* row icon buttons: flat, like the measurement rows */
+.pnl-tree .pnl-view-controls .modern-icon-btn,
+.pnl-tree .scenes-item .modern-icon-btn {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.pnl-tree .pnl-view-controls .modern-icon-btn:hover,
+.pnl-tree .scenes-item .modern-icon-btn:hover { background: rgba(255, 255, 255, 0.08); transform: none; }
+.pnl-tree .pnl-view-controls .modern-icon-btn-danger:hover,
+.pnl-tree .scenes-item .modern-icon-btn-danger:hover { background: rgba(255, 255, 255, 0.08); color: var(--error); }
+.pnl-tree .pnl-view-controls .modern-icon-btn i[data-lucide],
+.pnl-tree .pnl-view-controls .modern-icon-btn svg { width: 14px; height: 14px; }
+.pnl-tree .scenes-item .modern-icon-btn i[data-lucide],
+.pnl-tree .scenes-item .modern-icon-btn svg { width: 14px; height: 14px; }
+.pnl-tree .pnl-view-controls .modern-icon-btn:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 1px; }
+
+/* scenes.js rows as flat tree rows */
+.pnl-tree .scenes-item {
+  margin: 0;
+  padding: 5px 4px 5px 8px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+
+.pnl-tree .scenes-item:hover { background: rgba(255, 255, 255, 0.05); }
+.pnl-tree .scenes-item.active { border-left-color: var(--brand-teal); box-shadow: none; }
+.pnl-tree .scenes-item .modern-view-header { gap: 4px; margin: 0; }
+.pnl-tree .scenes-item .modern-view-controls { gap: 2px; }
+.pnl-tree .scenes-name { font-size: 12px; font-weight: 500; }
+.pnl-tree .scenes-item .modern-view-details { color: var(--text-muted); font-size: 11px; }
+.pnl-tree .scenes-problems { margin: var(--space-xs) 0 0; }
+
+.pnl-tree .pnl-scenes-save { gap: var(--space-xs); }
+.pnl-tree .pnl-scenes-file { flex-direction: row; margin: 0; }
+.pnl-tree #saveCurrentView { width: 100%; justify-content: center; }
+
+.pnl-empty { padding: 6px 8px; }
+.pnl-empty-title { color: var(--text-secondary); font-size: 12px; }
+
+@media (max-width: 720px) {
+  .pnl-tree .pnl-view-controls .modern-icon-btn,
+  .pnl-tree .scenes-item .modern-icon-btn,
+  .pnl-view-go { min-width: 44px; min-height: 44px; }
+}

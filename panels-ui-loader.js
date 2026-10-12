@@ -18,7 +18,7 @@
 (function() {
   'use strict';
 
-  var VERSION = '0.10.0'; // cache-bust for panels-ui.js / panels-ui.css
+  var VERSION = '0.11.0'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
   var BETA_HOSTS = ['beta.geobim.app'];
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
@@ -98,7 +98,7 @@
   // Dynamic scripts run async by default; async = false keeps this order
   // (panels-tree.js before the panels that use it). panels-ui.js waits for
   // the classic UI itself, the tree panels wait for panels-ui.js.
-  ['panels-ui.js', 'panels-tree.js', 'panels-layers.js', 'panels-assets.js', 'panels-measure.js'].forEach(function(src) {
+  ['panels-ui.js', 'panels-tree.js', 'panels-layers.js', 'panels-assets.js', 'panels-measure.js', 'panels-views.js'].forEach(function(src) {
     var js = document.createElement('script');
     js.src = src + '?v=' + VERSION;
     js.async = false;
