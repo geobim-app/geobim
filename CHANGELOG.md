@@ -21,6 +21,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+Live-Paket 2026-10-12 (Branch `deploy/2026-10-12`, aus `feature/panels-ui` übernommen: 058a127, c9cadf5).
+
+- **Scenes: Import / Export wieder normal hoch** (`scenes-styles.css`, `index.html` Cache-Parameter): In der Scenes-Section der klassischen Sidebar waren die Knöpfe Import und Export nur 16 px hoch — `.modern-group` macht die Zeile zur Spalte, und dort schrumpft `flex: 1 1 0` die Knöpfe aufs Padding. `.scenes-actions` ist jetzt ausdrücklich eine Zeile: New empty scene volle Breite, Import / Export nebeneinander.
+
 Live-Paket 2026-10-11 (Branch `fix/live-bundle-2026-10-11`, aus `feature/panels-ui` übernommen: b1385b6, baac778). Gemeinsam getestet mit dem Code dieses Branches unter viewer.geobim.app (Headless-Chrome, Dateien per Request-Interception aus dem Branch, `api/` und `config.js` vom Server): OSM-/Google-Schalter, Auge auf der Asset-Karte, untere Leiste mit Walk/Transform (an/aus), Tour mit 6 Schritten, Handy-Layout; keine Seitenfehler.
 
 - **Auge auf der Asset-Karte zeigt den Zustand** (`ui.js`, `index.html` `?v=`): `toggleAssetVisibility()` (`core.js`) sucht den Knopf über `.asset-btn-visibility`, die Karte hatte die Klasse aber nie — das Symbol blieb immer 👁️, auch bei ausgeblendetem Asset. Der Augen-Knopf trägt die Klasse jetzt und startet mit dem aktuellen Zustand. Headless-Chrome: aus → 🚫 und `tileset.show = false`, an → 👁️; keine Seitenfehler

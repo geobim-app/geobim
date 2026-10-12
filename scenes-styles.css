@@ -57,6 +57,9 @@
 
 .scenes-actions {
   display: flex;
+  /* a row: .modern-group makes it a column, where flex: 1 1 0 collapses
+     Import / Export to their padding */
+  flex-direction: row;
   flex-wrap: wrap;
   gap: var(--space-xs);
 }
