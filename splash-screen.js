@@ -23,7 +23,10 @@
   var APP_VERSION = '1.12.0';
 
   // Skip if already shown this session — auth gate will show directly
-  if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+  // (storage may be blocked: then the splash simply shows on every load)
+  var shown = false;
+  try { shown = sessionStorage.getItem(STORAGE_KEY) === '1'; } catch (e) {}
+  if (shown) {
     console.log('Splash: skipped (already shown this session)');
     window._splashDismissed = true;
     return;
@@ -188,7 +191,7 @@
       splash.classList.add('hidden');
 
       // Mark as shown for this session
-      sessionStorage.setItem(STORAGE_KEY, '1');
+      try { sessionStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
 
       // Set global flag — auth gate will show next
       window._splashDismissed = true;

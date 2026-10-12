@@ -175,7 +175,7 @@
       this.clearIonToken();
       this.hideApp();
       // Clear splash session flag so it shows again on reload
-      sessionStorage.removeItem('geoBIM_splashShown');
+      try { sessionStorage.removeItem('geoBIM_splashShown'); } catch (e) {}
       this.initialized = false;
       this.currentUser = null;
       window._splashDismissed = false;

@@ -14,6 +14,7 @@
 // CESIUM BIM VIEWER - ENHANCED CLIPPING MODULE v4.3
 // Polygon-based clipping for Google 3D Tiles, OSM Buildings, and Terrain
 // RIGHT-CLICK to add points, DOUBLE RIGHT-CLICK or ENTER to finish (LEFT-CLICK stays free!)
+// Touch: taps add points, Finish / Cancel bar (touch-draw.js)
 // v4.3: Rectangle draw mode (2-click axis-aligned rectangle)
 // ===============================
 'use strict';
@@ -73,10 +74,10 @@
     const indicator = document.getElementById('modeIndicator');
     if (indicator) {
       indicator.classList.add('active');
-      indicator.textContent = '✏️ POLYGON MODE - RIGHT-CLICK to add points, DOUBLE RIGHT-CLICK or ENTER to finish (min 3 points)';
+      indicator.textContent = 'POLYGON MODE - Right-click or tap to add points; double right-click, Enter or Finish to complete (min 3 points)';
     }
     
-    this.updateStatus('Clipping polygon mode active - RIGHT-CLICK to add points', 'loading');
+    this.updateStatus('Clipping polygon mode active - right-click or tap to add points', 'loading');
     console.log('✂️ Started clipping polygon drawing');
     
     // Create event handler
@@ -105,7 +106,7 @@
         if (globe_cartesian) {
           this.addClippingPoint(globe_cartesian);
         } else {
-          this.updateStatus('Cannot add point - RIGHT-CLICK on the model or terrain', 'warning');
+          this.updateStatus('Cannot add point - right-click or tap on the model or terrain', 'warning');
         }
       } else {
         this.addClippingPoint(cartesian);
@@ -152,7 +153,7 @@
       });
     }
     
-    this.updateStatus(`Added point ${this.clipping.currentPoints.length} - ${this.clipping.currentPoints.length >= 3 ? 'Press ENTER or DOUBLE RIGHT-CLICK to finish' : 'RIGHT-CLICK to add more points'}`, 'loading');
+    this.updateStatus(`Added point ${this.clipping.currentPoints.length} - ${this.clipping.currentPoints.length >= 3 ? 'Enter, double right-click or Finish to complete' : 'right-click or tap to add more points'}`, 'loading');
     console.log(`✂️ Added clipping point ${this.clipping.currentPoints.length}`);
   };
   
@@ -292,10 +293,10 @@
     var indicator = document.getElementById('modeIndicator');
     if (indicator) {
       indicator.classList.add('active');
-      indicator.textContent = '⬜ RECTANGLE MODE - RIGHT-CLICK 3 points: corner 1, corner 2 (edge), corner 3 (width)';
+      indicator.textContent = 'RECTANGLE MODE - Right-click or tap 3 points: corner 1, corner 2 (edge), corner 3 (width)';
     }
 
-    this.updateStatus('Rectangle mode - RIGHT-CLICK first corner', 'loading');
+    this.updateStatus('Rectangle mode - right-click or tap the first corner', 'loading');
     console.log('✂️ Started clipping rectangle drawing (3-point mode)');
 
     var self = this;
@@ -342,7 +343,7 @@
     this.clipping.drawHandler.setInputAction(function(click) {
       var cartesian = pickPosition(click.position);
       if (!cartesian) {
-        self.updateStatus('Cannot place point - RIGHT-CLICK on the model or terrain', 'warning');
+        self.updateStatus('Cannot place point - right-click or tap on the model or terrain', 'warning');
         return;
       }
 
@@ -350,7 +351,7 @@
         // First corner
         corner1 = cartesian;
         addMarker(cartesian, 1);
-        self.updateStatus('RIGHT-CLICK second corner to define the edge', 'loading');
+        self.updateStatus('Right-click or tap the second corner to define the edge', 'loading');
         console.log('✂️ Rectangle: corner 1 placed');
 
       } else if (!corner2) {
@@ -371,7 +372,7 @@
           }
         });
 
-        self.updateStatus('RIGHT-CLICK to set rectangle width', 'loading');
+        self.updateStatus('Right-click or tap to set the rectangle width', 'loading');
         console.log('✂️ Rectangle: corner 2 placed, edge defined');
 
       } else {

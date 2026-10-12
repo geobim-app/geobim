@@ -1,0 +1,64 @@
+/* Touch actions for measuring and clipping (touch-draw.js) */
+
+/* Floating bar while drawing a clip polygon / rectangle */
+.touch-draw-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: calc(100vw - 32px);
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  background: rgba(14, 17, 23, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+}
+
+.touch-draw-bar[hidden] { display: none; }
+
+.touch-draw-label {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.touch-draw-bar .modern-btn {
+  width: auto;
+  margin: 0;
+}
+
+.touch-draw-bar .modern-btn[hidden] { display: none; }
+.touch-draw-bar .modern-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Classic measurement panel: Finish / Cancel under the result */
+.ms-touch-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ms-touch-actions[hidden] { display: none; }
+.ms-touch-actions .modern-btn { flex: 1; margin: 0; justify-content: center; }
+.ms-touch-actions .modern-btn[hidden] { display: none; }
+
+.touch-draw-bar .modern-btn:focus-visible,
+.ms-touch-actions .modern-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .touch-draw-bar { bottom: 84px; }
+  /* classic: above the bottom toolbar and beta's "New interface" button */
+  html:not(.ui-panels) .touch-draw-bar { bottom: 132px; }
+  .touch-draw-bar .modern-btn,
+  .ms-touch-actions .modern-btn { min-width: 44px; min-height: 44px; }
+}

@@ -109,7 +109,7 @@
         // Instructions
         '<div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 6px 8px; margin-bottom: 10px;">' +
           '<p style="color: rgba(255,255,255,0.45); font-size: 10px; margin: 0; line-height: 1.4;">' +
-          'Left-click to place \u2022 Right-click/Enter to finish \u2022 ESC to cancel</p>' +
+          'Click or tap to place \u2022 Area: Finish, right-click or Enter \u2022 Cancel or Esc to stop</p>' +
         '</div>' +
 
         // Results
@@ -145,7 +145,7 @@
     if (window.BimCursor) BimCursor.set('measure');
     this.measurement.positions = [];
 
-    this.updateStatus('LEFT-CLICK first point', 'loading');
+    this.updateStatus('Click or tap the first point', 'loading');
     this.updateMeasurementResult('<span style="color: #2ECFB0;">📏 Click first point...</span>');
 
     const self = this;
@@ -226,7 +226,7 @@
     this.measurement.positions = [];
     if (window.BimCursor) BimCursor.set('measure');
 
-    this.updateStatus('LEFT-CLICK to add points, RIGHT-CLICK or ENTER to finish', 'loading');
+    this.updateStatus('Click or tap to add points; Finish, right-click or Enter to complete', 'loading');
     this.updateMeasurementResult('<span style="color: #11998e;">⬛ Click to add polygon points...</span>');
 
     const self = this;
@@ -252,7 +252,7 @@
       }
 
       const count = this.measurement.positions.length;
-      this.updateMeasurementResult(`<span style="color: #11998e;">⬛ ${count} points - ${count < 3 ? `need ${3-count} more` : 'RIGHT-CLICK or ENTER to finish'}</span>`);
+      this.updateMeasurementResult(`<span style="color: #11998e;">⬛ ${count} points - ${count < 3 ? `need ${3-count} more` : 'Finish, right-click or Enter to complete'}</span>`);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction(() => this.completeAreaMeasurement(), Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -315,7 +315,7 @@
     this.measurement.type = 'height';
     if (window.BimCursor) BimCursor.set('measure');
 
-    this.updateStatus('LEFT-CLICK on a point to measure height over terrain', 'loading');
+    this.updateStatus('Click or tap a point to measure its height over terrain', 'loading');
     this.updateMeasurementResult('<span style="color: #f093fb;">⛰️ Click on a point...</span>');
 
     const self = this;
@@ -353,7 +353,7 @@
     this.measurement.positions = [];
     if (window.BimCursor) BimCursor.set('measure');
 
-    this.updateStatus('LEFT-CLICK two points to measure vertical distance', 'loading');
+    this.updateStatus('Click or tap two points to measure the vertical distance', 'loading');
     this.updateMeasurementResult('<span style="color: #4facfe;">↕️ Click first point...</span>');
 
     const self = this;
@@ -441,7 +441,7 @@
     this.measurement.type = 'coordinates';
     if (window.BimCursor) BimCursor.set('measure');
 
-    this.updateStatus('LEFT-CLICK to get coordinates', 'loading');
+    this.updateStatus('Click or tap to get coordinates', 'loading');
     this.updateMeasurementResult('<span style="color: #fa709a;">🌍 Click on a point...</span>');
 
     const self = this;
