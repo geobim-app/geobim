@@ -1395,7 +1395,7 @@ html.ui-panels #measurementPanel { display: none !important; } /* inline display
 .pnl-tree .scenes-problems { margin: var(--space-xs) 0 0; }
 
 .pnl-tree .pnl-scenes-save { gap: var(--space-xs); }
-.pnl-tree .pnl-scenes-file { flex-direction: row; margin: 0; }
+.pnl-tree .pnl-scenes-file { margin: 0; }
 .pnl-tree #saveCurrentView { width: 100%; justify-content: center; }
 
 .pnl-empty { padding: 6px 8px; }
