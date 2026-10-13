@@ -423,7 +423,9 @@
           continue;
         }
 
-        const show = this.buildIFCShowExpression(ifcPropertyName);
+        // Storey filter / isolate (model-scope.js) narrow the class filter
+        let show = this.buildIFCShowExpression(ifcPropertyName);
+        if (typeof this.scopeShow === 'function') show = this.scopeShow(assetData, show);
 
         if (show === false) {
           tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
@@ -446,6 +448,10 @@
 
         // Default color for unlisted entities
         colorConditions.push(["true", `color('white', ${opacity})`]);
+
+        // Isolate (ghost mode): everything outside the isolated set first
+        const ghost = typeof this.scopeGhostCondition === 'function' && this.scopeGhostCondition(assetData);
+        if (ghost) colorConditions.unshift(ghost);
 
         tileset.style = new Cesium.Cesium3DTileStyle({
           show: show,
@@ -551,6 +557,9 @@
     return variants;
   }
 
+  // EN + DE names of a Revit category (also used by model-scope.js)
+  BimViewer.getRevitCategoryVariants = getCategoryVariants;
+
   // Show expression for the current Revit filter state (EN + DE names; also used by pbr-materials.js)
   BimViewer.buildRevitShowExpression = function(propName) {
     const enabledSet = this.revitFilter.enabledCategories;
@@ -612,7 +621,8 @@
           continue;
         }
 
-        const show = this.buildRevitShowExpression(categoryPropertyName);
+        let show = this.buildRevitShowExpression(categoryPropertyName);
+        if (typeof this.scopeShow === 'function') show = this.scopeShow(assetData, show);
 
         if (show === false) {
           tileset.style = new Cesium.Cesium3DTileStyle({ show: false });
@@ -638,6 +648,9 @@
 
         // Default color for unlisted categories
         colorConditions.push(["true", `color('white', ${opacity})`]);
+
+        const ghost = typeof this.scopeGhostCondition === 'function' && this.scopeGhostCondition(assetData);
+        if (ghost) colorConditions.unshift(ghost);
 
         tileset.style = new Cesium.Cesium3DTileStyle({
           show: show,
@@ -846,7 +859,14 @@
       }
 
       // Pick feature at click position (non-blocking GPU readback)
-      const picked = await this.viewer.scene.pickAsync(movement.position);
+      let picked = await this.viewer.scene.pickAsync(movement.position);
+
+      // Isolate (ghost mode): ghosted elements are not selectable — take the
+      // first isolated element behind them, if any
+      if (picked && this.modelScope && this.modelScope.isGhosted(picked)) {
+        const behind = this.viewer.scene.drillPick(movement.position, 8);
+        picked = behind.find(p => p instanceof Cesium.Cesium3DTileFeature && !this.modelScope.isGhosted(p));
+      }
 
       if (picked && picked instanceof Cesium.Cesium3DTileFeature) {
         console.log('🎯 Feature picked:', picked);

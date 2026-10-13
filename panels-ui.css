@@ -1491,3 +1491,9 @@ html.ui-panels #measurementPanel { display: none !important; } /* inline display
   .pnl-filter-row,
   .pnl-tree .pnl-filter-actions .pnl-link { min-height: 44px; }
 }
+
+/* Storeys node and isolate icons (model-scope.js) */
+.pnl-filter-line { display: flex; align-items: center; gap: 2px; border-radius: var(--radius-sm); }
+.pnl-filter-line > .pnl-filter-row { flex: 1; min-width: 0; }
+.pnl-filter-line.isolated { background: rgba(var(--brand-teal-rgb), 0.12); }
+.pnl-filter-row .pnl-item-meta { flex: none; margin-left: auto; color: var(--text-muted); font-size: 11px; }

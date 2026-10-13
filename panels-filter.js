@@ -7,6 +7,9 @@
  * as they are.
  *
  * MODEL FILTER  (panels-ui.js merges the Revit section into the IFC panel)
+ *   STOREYS · n/m           from model-scope.js, rows with check + count +
+ *                           isolate icon, All / None; a hint for IFC / Revit
+ *                           models without storey data
  *   IFC CLASSES · n/m       Structure / Interior / MEP / Building / Other,
  *                           rows with check + colour, All / None
  *   REVIT CATEGORIES · n/m  Structure / Interior / MEP / Other, same rows
@@ -65,6 +68,12 @@
     });
 
     groupsBox.addEventListener('click', function(e) {
+      var iso = e.target.closest('[data-isolate]');
+      if (iso) {
+        iso.blur();
+        if (opts.isolate) opts.isolate(iso.dataset.isolate, iso.dataset.label);
+        return;
+      }
       var row = e.target.closest('.pnl-item[data-value]');
       if (!row) return;
       row.blur();
@@ -91,7 +100,7 @@
         var dot = el('span', 'pnl-filter-dot');
         dot.style.setProperty('--pnl-dot', it.color || 'var(--text-muted)');
         add(row, el('span', 'pnl-check'), dot, el('span', 'pnl-item-name', it.name));
-        g.sub.appendChild(row);
+        g.sub.appendChild(opts.isolate ? withIsolate(row, it.value, it.name) : row);
       });
       Object.keys(groups).forEach(function(k) {
         var g = groups[k];
@@ -99,10 +108,83 @@
         g.meta.textContent = g.count[0] + '/' + g.count[1];
       });
       top.meta.textContent = on + '/' + items.length;
+      if (opts.isolate && window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: groupsBox });
     }
 
     top.render = render;
     return top;
+  }
+
+  // A filter row plus its isolate icon (a button can't hold another button)
+  function withIsolate(row, value, label) {
+    var line = el('div', 'pnl-filter-line');
+    var iso = el('button', 'scope-iso-btn');
+    iso.type = 'button';
+    iso.dataset.isolate = value;
+    iso.dataset.label = label;
+    iso.title = 'Isolate ' + label;
+    iso.setAttribute('aria-label', 'Isolate ' + label);
+    var i = el('i');
+    i.setAttribute('data-lucide', 'focus');
+    iso.appendChild(i);
+    add(line, row, iso);
+    return line;
+  }
+
+  // STOREYS (model-scope.js)
+  function storeyTree() {
+    var scope = BimViewer.modelScope;
+    var top = node('f:storeys', 'Storeys', true, { top: true, meta: true });
+    var actions = el('div', 'pnl-actions pnl-filter-actions');
+    add(actions,
+      link('All', function() { scope.setAllStoreys(true); }),
+      link('None', function() { scope.setAllStoreys(false); }));
+    var rows = el('div', 'pnl-filter-groups');
+    add(top.sub, actions, rows);
+    var noData = el('p', 'modern-hint pnl-hint', 'No storey data in this model.');
+    var wrap = el('div');
+    add(wrap, top, noData);
+
+    rows.addEventListener('click', function(e) {
+      var iso = e.target.closest('[data-isolate]');
+      if (iso) { iso.blur(); scope.isolateStorey(iso.dataset.isolate); return; }
+      var row = e.target.closest('.pnl-item[data-value]');
+      if (!row) return;
+      row.blur();
+      scope.setStorey(row.dataset.value, !row.classList.contains('sel'));
+    });
+
+    var wasData = false;
+    function render() {
+      var data = scope.hasStoreyData();
+      top.hidden = !data;
+      noData.hidden = data || !scope.hasBimModel();
+      if (data && !wasData) top.expand();
+      wasData = data;
+      rows.innerHTML = '';
+      if (!data) return;
+      var list = scope.getStoreys();
+      var iso = scope.getIsolate();
+      var on = 0;
+      list.forEach(function(s) {
+        if (s.enabled) on++;
+        var row = el('button', 'pnl-item pnl-filter-row' + (s.enabled ? ' sel' : ''));
+        row.type = 'button';
+        row.dataset.value = s.name;
+        row.setAttribute('aria-pressed', s.enabled ? 'true' : 'false');
+        row.title = s.label;
+        add(row, el('span', 'pnl-check'), el('span', 'pnl-item-name', s.label),
+          s.count ? el('span', 'pnl-item-meta', String(s.count)) : null);
+        var line = withIsolate(row, s.name, s.label);
+        if (iso && iso.kind === 'storey' && iso.value === s.name) line.classList.add('isolated');
+        rows.appendChild(line);
+      });
+      top.meta.textContent = on + '/' + list.length;
+      if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: rows });
+    }
+    scope.onChange(render);
+    render();
+    return wrap;
   }
 
   // Which kind of model is loaded (detected per asset by core.js / features.js)
@@ -140,6 +222,7 @@
       },
       enabled: function() { return BimViewer.ifcFilter.enabledEntities; },
       toggle: function(v) { BimViewer.toggleIFCEntity(v); },
+      isolate: BimViewer.modelScope && function(v, label) { BimViewer.modelScope.isolateClass('ifc', v, label); },
       all: function() { BimViewer.selectAllIFCTypes(); },
       none: function() { BimViewer.deselectAllIFCTypes(); }
     });
@@ -157,6 +240,7 @@
       },
       enabled: function() { return BimViewer.revitFilter.enabledCategories; },
       toggle: function(v) { BimViewer.toggleRevitCategory(v); },
+      isolate: BimViewer.modelScope && function(v, label) { BimViewer.modelScope.isolateClass('revit', v, label); },
       all: function() { BimViewer.selectAllRevitCategories(); },
       none: function() { BimViewer.deselectAllRevitCategories(); }
     }) : null;
@@ -166,7 +250,8 @@
       Array.prototype.slice.call(c.children).forEach(function(ch) { parked.appendChild(ch); });
     });
     if (revitContent) revitContent.remove();
-    add(root, hint, ifc, revit, parked);
+    var storeys = BimViewer.modelScope ? storeyTree() : null;
+    add(root, hint, storeys, ifc, revit, parked);
     ifcContent.appendChild(root);
 
     // The section renderers (also called by select / deselect all) draw here
