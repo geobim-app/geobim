@@ -472,6 +472,8 @@
     } else if (assetData.categoryPropertyName && typeof this.buildRevitShowExpression === 'function') {
       showExpr = this.buildRevitShowExpression(assetData.categoryPropertyName);
     }
+    // Storey filter / isolate (model-scope.js)
+    if (typeof this.scopeShow === 'function') showExpr = this.scopeShow(assetData, showExpr);
     if (showExpr === false) {
       return new Cesium.Cesium3DTileStyle({ show: false });
     }
@@ -508,6 +510,10 @@
     // Priority 3: Default fallback
     const defPal = PBR_PALETTE.default_pbr;
     colorConditions.push(['true', 'color(\'' + defPal.hex + '\', ' + opacity + ')']);
+
+    // Isolate (ghost mode): everything outside the isolated set first
+    const ghost = typeof this.scopeGhostCondition === 'function' && this.scopeGhostCondition(assetData);
+    if (ghost) colorConditions.unshift(ghost);
 
     return new Cesium.Cesium3DTileStyle({
       show: showExpr,

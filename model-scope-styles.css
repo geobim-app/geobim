@@ -1,0 +1,182 @@
+/* ===========================================================================
+   Storey filter and Isolate (model-scope.js) — classic sidebar and both layouts
+   =========================================================================== */
+
+/* Banner "Isolated: … · Ghost | Hide · Exit isolate" */
+.scope-banner {
+  position: fixed;
+  top: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-panels);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: calc(100vw - 2 * var(--space-lg));
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
+  border: 1px solid rgba(var(--brand-teal-rgb), 0.45);
+  border-radius: var(--radius-xl);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.scope-banner[hidden] { display: none; }
+.scope-banner > svg { flex: none; width: 16px; height: 16px; color: var(--brand-teal); }
+
+/* the panel layout has its search bar at the top */
+html.ui-panels .scope-banner { top: 68px; }
+
+.scope-banner-text { display: flex; gap: 6px; min-width: 0; }
+.scope-banner-kind { flex: none; color: var(--text-muted); }
+.scope-banner-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+
+.scope-seg {
+  display: flex;
+  flex: none;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+}
+
+.scope-seg-btn,
+.scope-exit {
+  min-height: 28px;
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scope-seg-btn.active { background: rgba(var(--brand-teal-rgb), 0.2); color: var(--text-primary); }
+
+.scope-exit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-xs);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.scope-exit svg { width: 14px; height: 14px; }
+.scope-seg-btn:hover, .scope-exit:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.12); }
+.scope-seg-btn:focus-visible, .scope-exit:focus-visible,
+.scope-iso-btn:focus-visible, .scope-link:focus-visible,
+.scope-infobox-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+/* InfoBox: Isolate button */
+.scope-infobox-btn svg { width: 14px; height: 14px; }
+
+/* Classic sidebar: Storeys block */
+.scope-storeys {
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.scope-storeys[hidden], .scope-storeys [hidden] { display: none; }
+
+.scope-storeys-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.scope-storeys-title {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.scope-storeys-meta { flex: 1; color: var(--text-muted); font-size: 11px; }
+
+.scope-link {
+  padding: 2px var(--space-xs);
+  border: none;
+  background: none;
+  color: var(--brand-teal);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scope-hint { margin: 0; }
+
+.scope-storey-rows { display: flex; flex-direction: column; gap: 2px; }
+
+.scope-storey-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+.scope-storey-row:hover { background: var(--input-bg); }
+.scope-storey-row.isolated { background: rgba(var(--brand-teal-rgb), 0.12); }
+
+.scope-storey-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.scope-storey-label input { flex: none; accent-color: var(--brand-teal); }
+.scope-storey-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-storey-count { flex: none; color: var(--text-muted); font-size: 11px; }
+
+/* Isolate icon in storey / class rows (both layouts) */
+.scope-iso-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.scope-iso-btn svg { width: 14px; height: 14px; }
+.scope-iso-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--brand-teal); }
+
+@media (hover: hover) {
+  .scope-storey-row .scope-iso-btn,
+  .pnl-filter-line .scope-iso-btn { opacity: 0; }
+  .scope-storey-row:hover .scope-iso-btn,
+  .scope-storey-row .scope-iso-btn:focus-visible,
+  .pnl-filter-line:hover .scope-iso-btn,
+  .pnl-filter-line .scope-iso-btn:focus-visible { opacity: 1; }
+}
+
+@media (max-width: 720px) {
+  .scope-banner { top: auto; bottom: 76px; font-size: 12px; }
+  html.ui-panels .scope-banner { top: auto; bottom: 76px; }
+  .scope-seg-btn, .scope-exit, .scope-iso-btn { min-width: 44px; min-height: 44px; }
+  .scope-storey-row { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-banner { transition: none; }
+}
