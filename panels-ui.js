@@ -17,7 +17,7 @@
  *   - rail + panels follow #toolbar's visibility (auth.js shows/hides it)
  *   - M hides/shows rail + panels (classic: sidebar)
  *
- * Phones (≤ 720 px): a bottom tab bar (Assets, Layers, Measure, Lighting,
+ * Phones (≤ 720 px): a bottom tab bar (Assets, Layers, Measure, Sun & time,
  * More) replaces the rail; panels open one at a time as bottom sheets
  * (swipe the header down to close). Walk and Transform move from the
  * hidden bottom toolbar into "More".
@@ -41,13 +41,18 @@
   // Sections shown inside another section's panel (no rail button of their
   // own), and panel titles that differ from the classic section title
   var MERGE_INTO = { revit: 'ifc' };
-  var TITLES = { ifc: 'Model filter' };
+  // Names and icons shared with geoBIM Desktop (classic sidebar unchanged)
+  var TITLES = {
+    ifc: 'Model filter', layers: 'Layers', lighting: 'Sun & time',
+    split: 'Split view', views: 'Saved views', about: 'About & help'
+  };
+  var ICONS = { views: '<i data-lucide="bookmark"></i>' };
   var CLIP_ID = 'clip';
   var CASCADE_X = 84;   // right of the rail (16 + 52 + 16)
   var CASCADE_Y = 70;   // leaves room for the search bar (step 4)
   var CASCADE_STEP = 26;
   var PHONE_TABS = [
-    ['assets', 'Assets'], ['layers', 'Layers'], ['drawing', 'Measure'], ['lighting', 'Lighting']
+    ['assets', 'Assets'], ['layers', 'Layers'], ['drawing', 'Measure'], ['lighting', 'Sun & time']
   ];
   var SWIPE_CLOSE_PX = 80;
   // Walk / Transform live in the classic bottom toolbar; on phones the tab
@@ -156,7 +161,7 @@
           into.el.querySelector('.panels-panel-body').appendChild(content);
           return;
         }
-        createPanel(id, TITLES[id] || (titleEl ? titleEl.textContent.trim() : id), iconEl ? iconEl.innerHTML : '', content, header.parentElement);
+        createPanel(id, TITLES[id] || (titleEl ? titleEl.textContent.trim() : id), ICONS[id] || (iconEl ? iconEl.innerHTML : ''), content, header.parentElement);
       });
     });
 
@@ -522,7 +527,7 @@
     {
       target: '.panels-rail',
       title: 'Tools',
-      text: 'Each icon opens a panel: assets, layers, filters, measuring, lighting, views. Keep several open, drag them by the title bar, Esc closes the top one.',
+      text: 'Each icon opens a panel: assets, layers, filters, measuring, sun & time, views. Keep several open, drag them by the title bar, Esc closes the top one.',
       position: 'right'
     },
     {
@@ -551,14 +556,14 @@
     },
     {
       target: '.panels-rail-btn[data-section="lighting"]',
-      title: 'Lighting, date & time',
+      title: 'Sun & time',
       text: 'Sun, shadows and ambient occlusion. Set date and time in local time at the site — time zone and daylight saving included.',
       position: 'right'
     },
     {
       target: null,
       title: 'You\'re ready!',
-      text: 'Press M to hide the panels, G for walk mode, H to hide elements. All shortcuts are under About & Help. Enjoy exploring!',
+      text: 'Press M to hide the panels, G for walk mode, H to hide elements. All shortcuts are under About & help. Enjoy exploring!',
       position: 'center'
     }
   ];
@@ -568,7 +573,7 @@
     {
       target: '.panels-tabs',
       title: 'Tools',
-      text: 'Assets, layers, measuring and lighting are one tap away; everything else is under More. Swipe a panel down to close it.',
+      text: 'Assets, layers, measuring and sun & time are one tap away; everything else is under More. Swipe a panel down to close it.',
       position: 'top'
     },
     {
