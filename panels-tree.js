@@ -58,7 +58,7 @@
       add(wrap, btn, sub);
       wrap.sub = sub;
       wrap.meta = btn.querySelector('.pnl-node-meta');
-      wrap.title = btn.querySelector('.pnl-node-title');
+      wrap.titleEl = btn.querySelector('.pnl-node-title');
       // opens without remembering it (e.g. a new loaded asset)
       wrap.expand = function() {
         if (btn.getAttribute('aria-expanded') === 'true') return;

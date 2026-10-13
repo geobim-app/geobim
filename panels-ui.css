@@ -1458,3 +1458,36 @@ html.ui-panels #measurementPanel { display: none !important; } /* inline display
   .pnl-choice,
   .pnl-tree .pnl-toggle-row .modern-toggle-btn { min-height: 44px; min-width: 44px; }
 }
+
+/* ===========================================================================
+   Model filter and Visibility panels (panels-filter.js)
+   =========================================================================== */
+.pnl-branch[hidden] { display: none; }
+.pnl-filter-actions { justify-content: flex-end; margin: 0 0 2px; }
+.pnl-filter-actions > button { flex: none; }
+.pnl-filter-groups { display: flex; flex-direction: column; gap: 2px; }
+
+/* most rows are on: normal text with a check, off rows muted */
+.pnl-filter-row { min-height: 28px; padding: 4px 8px; }
+.pnl-filter-row.sel .pnl-item-name { color: var(--text-primary); }
+.pnl-filter-row:not(.sel) .pnl-item-name { color: var(--text-muted); }
+
+.pnl-filter-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  background: var(--pnl-dot);
+}
+
+.pnl-filter-row:not(.sel) .pnl-filter-dot { opacity: 0.35; }
+
+.pnl-hidden-list { display: flex; flex-direction: column; gap: 2px; }
+.pnl-hidden-info { display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 5px 8px; }
+.pnl-tree .pnl-toggle-row #toggleHideMode .modern-badge { margin-left: auto; }
+
+@media (max-width: 720px) {
+  .pnl-filter-row,
+  .pnl-tree .pnl-filter-actions .pnl-link { min-height: 44px; }
+}

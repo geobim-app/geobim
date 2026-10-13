@@ -38,6 +38,10 @@
     ['settings', 'about']
   ];
   var ACCOUNT_ID = 'account';
+  // Sections shown inside another section's panel (no rail button of their
+  // own), and panel titles that differ from the classic section title
+  var MERGE_INTO = { revit: 'ifc' };
+  var TITLES = { ifc: 'Model filter' };
   var CLIP_ID = 'clip';
   var CASCADE_X = 84;   // right of the rail (16 + 52 + 16)
   var CASCADE_Y = 70;   // leaves room for the search bar (step 4)
@@ -144,7 +148,15 @@
           createDrawingPanels(content, header.parentElement);
           return;
         }
-        createPanel(id, titleEl ? titleEl.textContent.trim() : id, iconEl ? iconEl.innerHTML : '', content, header.parentElement);
+        var into = MERGE_INTO[id] && panels[MERGE_INTO[id]];
+        if (into) {
+          content.classList.remove('collapsed');
+          content.classList.add('expanded', 'panels-merged-content');
+          content.dataset.section = id;
+          into.el.querySelector('.panels-panel-body').appendChild(content);
+          return;
+        }
+        createPanel(id, TITLES[id] || (titleEl ? titleEl.textContent.trim() : id), iconEl ? iconEl.innerHTML : '', content, header.parentElement);
       });
     });
 
@@ -241,6 +253,7 @@
   }
 
   function openPanel(id) {
+    if (!panels[id] && MERGE_INTO[id]) id = MERGE_INTO[id];
     var p = panels[id];
     if (!p) return;
     hideMore();
@@ -258,6 +271,7 @@
   }
 
   function closePanel(id) {
+    if (!panels[id] && MERGE_INTO[id]) id = MERGE_INTO[id];
     var p = panels[id];
     var i = order.indexOf(id);
     if (!p || i === -1) return;
