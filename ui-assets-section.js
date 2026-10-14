@@ -64,6 +64,11 @@
                        title="CRS of the coordinates, e.g. 25832 — for IFC optionally with vertical datum: 25832+7837 (UTM 32N + DHHN2016)">
                 <input type="text" id="pointcloudRefHeightInput" class="zoffset-input-box" placeholder="±0.00 m a.s.l." inputmode="decimal" aria-label="Height of ±0.00 above sea level"
                        title="Height of ±0.00 (IFC z = 0) above sea level, e.g. 112.35 — only for IFC files without absolute heights">
+                <select id="pointcloudHeightDatumSelect" class="modern-select upload-height-datum" aria-label="Heights in the IFC file"
+                        title="Heights in the file: above sea level (NHN, EVRS, …) are converted to the ellipsoid; choose ellipsoidal when the file already has GPS heights">
+                  <option value="auto">Heights: above sea level</option>
+                  <option value="ellipsoid">Heights: ellipsoidal (GPS)</option>
+                </select>
               </div>
             </details>
             <button type="button" id="uploadPointCloudBtn" class="modern-btn modern-btn-primary">
@@ -214,6 +219,7 @@
     const latInput = document.getElementById('pointcloudLatInput');
     const epsgInput = document.getElementById('pointcloudEpsgInput');
     const refHeightInput = document.getElementById('pointcloudRefHeightInput');
+    const heightDatumSelect = document.getElementById('pointcloudHeightDatumSelect');
     const statusEl = document.getElementById('pointcloudUploadStatus');
     const FILE_LABEL = 'Upload IFC or point cloud…';
 
@@ -231,6 +237,7 @@
       if (fileInput) fileInput.value = '';
       if (fileLabel) fileLabel.textContent = FILE_LABEL;
       [nameInput, lonInput, latInput, epsgInput, refHeightInput].forEach(el => { if (el) el.value = ''; });
+      if (heightDatumSelect) heightDatumSelect.value = 'auto';
       if (form) form.hidden = true;
     };
 
@@ -247,6 +254,7 @@
       // EPSG applies to IFC and LAS/LAZ, ±0.00 to IFC only
       if (epsgInput) epsgInput.hidden = kind === 'scan';
       if (refHeightInput) refHeightInput.hidden = kind !== 'ifc';
+      if (heightDatumSelect) heightDatumSelect.hidden = kind !== 'ifc';
       if (form) form.hidden = false;
       showStatus('');
     });
@@ -298,7 +306,8 @@
           heading: 0,
           positionSource: positionSource,
           epsg: kind !== 'scan' ? (epsgInput?.value || '').trim() || undefined : undefined,
-          refHeight: kind === 'ifc' ? (refHeightInput?.value || '').trim().replace(',', '.') || undefined : undefined
+          refHeight: kind === 'ifc' ? (refHeightInput?.value || '').trim().replace(',', '.') || undefined : undefined,
+          heightDatum: kind === 'ifc' && heightDatumSelect?.value === 'ellipsoid' ? 'ellipsoid' : undefined
         });
         // The conversion runs on; its progress shows in the status line
         resetUploadForm();
