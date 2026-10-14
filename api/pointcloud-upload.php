@@ -106,6 +106,12 @@ if ($refHeight !== null) {
     }
     $refHeight = (float)$refHeight;
 }
+// Optional IFC height datum: 'ellipsoid' = heights in the file are already
+// ellipsoidal (GPS), the tiler then skips the geoid lift; default 'auto'
+$heightDatum = isset($_POST['height_datum']) ? trim($_POST['height_datum']) : 'auto';
+if (!in_array($heightDatum, ['auto', 'ellipsoid'], true)) {
+    fail('Height datum must be auto or ellipsoid');
+}
 
 $jobId = $slug . '_' . bin2hex(random_bytes(4));
 $jobDir = $modelDir . '/_staging/' . $jobId;
@@ -130,6 +136,9 @@ if ($epsg !== '') {
 }
 if ($refHeight !== null) {
     $job['ref_height'] = $refHeight;
+}
+if ($heightDatum !== 'auto') {
+    $job['height_datum'] = $heightDatum;
 }
 if ($lon !== null) {
     $job['lon'] = $lon;

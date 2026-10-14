@@ -105,9 +105,10 @@
     };
   }
 
-  // opts: { name, lon, lat, height, heading, epsg, refHeight } — epsg ("25832"
-  // or "25832+7837") and refHeight (orthometric height of IFC ±0.00) are
-  // optional georeferencing hints for the converter; lon/lat/height/heading are
+  // opts: { name, lon, lat, height, heading, epsg, refHeight, heightDatum } — epsg
+  // ("25832" or "25832+7837"), refHeight (orthometric height of IFC ±0.00) and
+  // heightDatum ('ellipsoid' = the IFC's heights are already ellipsoidal, not
+  // lifted via the geoid) are optional georeferencing hints for the converter; lon/lat/height/heading are
   // optional; when provided (non-null), the server bakes them into the
   // resulting tileset's root.transform (see scripts/convert_pointcloud.py).
   BimViewer.uploadPointCloud = async function(file, opts) {
@@ -129,6 +130,7 @@
     if (opts.refHeight !== undefined && opts.refHeight !== null && opts.refHeight !== '') {
       formData.append('ref_height', opts.refHeight);
     }
+    if (opts.heightDatum === 'ellipsoid') formData.append('height_datum', 'ellipsoid');
 
     this.updateStatus(`Uploading ${what}...`, 'loading');
 
