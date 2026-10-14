@@ -23,6 +23,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **IFC-Filter erkennt Modelle auch, wenn die Kacheln spät kommen** (`core.js` neu `detectIFCWhenTilesLoad()`, `index.html` `?v=`): Die IFC-Erkennung lief nur einmal, 4,5 s (eigene Tilesets) bzw. 1,5 s (Ion) nach dem Laden. War bis dahin keine Kachel mit Elementen fertig — Kamera woanders, langsames Netz, oder ein Tileset von geoBIM Tiler 1.9, dessen Wurzel keinen Inhalt hat —, blieb der Filter für immer bei „No IFC or Revit model loaded“, obwohl das Modell zu sehen war. Jetzt wird dann bei jeder geladenen Kachel erneut geprüft, bis das Modell erkannt ist; danach wird der Listener entfernt. Headless-Chrome: Betonkachel 12 s verzögert → alt nicht erkannt, neu `className` erkannt und Filter angewandt; normale Ladezeit und Klagenfurt unverändert.
 Live-Paket 2026-10-12 (Branch `deploy/2026-10-12`, aus `feature/panels-ui` übernommen: 058a127, c9cadf5).
 
 - **Scenes: Import / Export wieder normal hoch** (`scenes-styles.css`, `index.html` Cache-Parameter): In der Scenes-Section der klassischen Sidebar waren die Knöpfe Import und Export nur 16 px hoch — `.modern-group` macht die Zeile zur Spalte, und dort schrumpft `flex: 1 1 0` die Knöpfe aufs Padding. `.scenes-actions` ist jetzt ausdrücklich eine Zeile: New empty scene volle Breite, Import / Export nebeneinander.
