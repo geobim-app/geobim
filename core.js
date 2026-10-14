@@ -1264,6 +1264,8 @@ const BimViewer = {
                 if (typeof this.applyIFCFilter === 'function') {
                   await this.applyIFCFilter();
                 }
+              } else {
+                this.detectIFCWhenTilesLoad(assetData);
               }
             }
           } catch (detectError) {
@@ -1693,6 +1695,34 @@ const BimViewer = {
     return this.glbModels;
   },
 
+  // IFC detection reads the first loaded tiles. When none with features is ready at
+  // the timed check (camera elsewhere, slow network, a geobim tiler 1.9 tileset
+  // whose root has no content), detect again as tiles load instead of giving up.
+  detectIFCWhenTilesLoad(assetData) {
+    const tileset = assetData && assetData.tileset;
+    if (!tileset || assetData.ifcPropertyName || assetData.isPointCloud || assetData._ifcDetectRetry ||
+        typeof this.detectIFCProperties !== 'function') return;
+    let busy = false;
+    const stop = () => { if (assetData._ifcDetectRetry) { assetData._ifcDetectRetry(); assetData._ifcDetectRetry = null; } };
+    assetData._ifcDetectRetry = tileset.tileLoad.addEventListener(async (tile) => {
+      if (busy || !tile.content || !tile.content.featuresLength) return;
+      if (assetData.ifcPropertyName || assetData.isPointCloud || tileset.isDestroyed()) return stop();
+      busy = true;
+      try {
+        const detected = await this.detectIFCProperties(tileset);
+        if (detected && !assetData.ifcPropertyName) {
+          stop();
+          assetData.ifcPropertyName = detected;
+          if (typeof this.applyIFCFilter === 'function') await this.applyIFCFilter();
+        } else if (detected) stop();
+      } catch (e) {
+        console.warn('IFC detection retry failed:', e.message);
+      } finally {
+        busy = false;
+      }
+    });
+  },
+
   // Load a self-hosted 3D Tiles tileset (e.g. py3dtiles output, discovered by
   // api/models.php alongside GLBs — see fetchGLBModels/loadGLBAsset). Unlike the
   // GLB point-cloud wrapper (_loadGLBPointCloudAsTileset), there's no synthetic
@@ -1770,6 +1800,8 @@ const BimViewer = {
           if (detected) {
             assetData.ifcPropertyName = detected;
             if (typeof this.applyIFCFilter === 'function') await this.applyIFCFilter();
+          } else {
+            this.detectIFCWhenTilesLoad(assetData);
           }
         }, 4500);
       }
