@@ -173,12 +173,13 @@
       // Remove any default imagery layers added by Cesium Viewer
       viewer.imageryLayers.removeAll();
 
-      // Register built-in basemaps
-      this.basemapLayers = [
+      // Register built-in basemaps (ion: true = Cesium ion imagery, guests don't get it)
+      this.allBasemapLayers = [
         {
           id: 'bing-aerial-labels',
           name: 'Bing Aerial with Labels',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(3),
+          ion: true,
           layer: null,
           active: false
         },
@@ -186,6 +187,7 @@
           id: 'bing-aerial',
           name: 'Bing Aerial',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(2),
+          ion: true,
           layer: null,
           active: false
         },
@@ -193,6 +195,14 @@
           id: 'bing-roads',
           name: 'Bing Roads',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(4),
+          ion: true,
+          layer: null,
+          active: false
+        },
+        {
+          id: 'topplus',
+          name: 'TopPlusOpen',
+          providerFactory: () => Promise.resolve(this.createTopPlusProvider()),
           layer: null,
           active: false
         },
@@ -212,6 +222,7 @@
           id: 'google-contour',
           name: 'Google Maps Contour',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(3830186),
+          ion: true,
           layer: null,
           active: false
         },
@@ -219,6 +230,7 @@
           id: 'google-sat-labels',
           name: 'Google Maps Sat Labels',
           providerFactory: () => Cesium.IonImageryProvider.fromAssetId(3830183),
+          ion: true,
           layer: null,
           active: false
         },
@@ -249,8 +261,11 @@
         }
       });
 
+      this.applyImageryAccess();
+      window.addEventListener('ion-token-changed', () => this.onIonTokenChanged());
+
       // Activate default basemap
-      await this.switchBasemap('bing-aerial-labels');
+      await this.switchBasemap(this.defaultBasemapId());
 
       // Populate UI now that layers are registered
       this.populateUI();
@@ -262,10 +277,65 @@
     // BASEMAP MANAGEMENT (mutually exclusive)
     // =====================================
 
+    // Cesium ion imagery (Bing, Google 2D, ...) counts imagery sessions against the
+    // account of the token in use. Guests run on geobim.app's default token, so they
+    // get TopPlusOpen (BKG, open data) and no ion imagery at all; users signed in
+    // with their own ion account keep it, on their own quota.
+    ionImageryAllowed() {
+      return typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
+    },
+
+    isIonBasemap(id) {
+      return (this.allBasemapLayers || []).some(b => b.id === id && b.ion);
+    },
+
+    defaultBasemapId() {
+      return this.ionImageryAllowed() ? 'bing-aerial-labels' : 'topplus';
+    },
+
+    applyImageryAccess() {
+      const allowed = this.ionImageryAllowed();
+      this.basemapLayers = this.allBasemapLayers.filter(b => allowed || !b.ion);
+    },
+
+    // Same layer as the geoBIM Desktop globe fallback (WebMercator WMTS, no key)
+    createTopPlusProvider() {
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png',
+        maximumLevel: 18,
+        credit: new Cesium.Credit('TopPlusOpen © <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">Bundesamt für Kartographie und Geodäsie</a> (' +
+          new Date().getFullYear() + '), <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">dl-de/by-2-0</a>, sources: ' +
+          '<a href="https://sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf" target="_blank" rel="noopener">sg.geodatenzentrum.de/web_public/Datenquellen_TopPlus_Open.pdf</a>', true)
+      });
+    },
+
+    // ion imagery for special views (relief, Sentinel-2): TopPlusOpen for guests
+    imageryProviderFor(assetId) {
+      return this.ionImageryAllowed()
+        ? Cesium.IonImageryProvider.fromAssetId(assetId)
+        : Promise.resolve(this.createTopPlusProvider());
+    },
+
+    // Signing in or out of ion after start: rebuild the list, move off ion imagery
+    // when it's no longer allowed, and give a fresh sign-in the usual default
+    async onIonTokenChanged() {
+      if (!this.viewer || !this.allBasemapLayers) return;
+      const allowed = this.ionImageryAllowed();
+      if (!allowed && this.isIonBasemap(this.activeBasemap)) await this.switchBasemap('topplus');
+      const fromGuestDefault = allowed && this.activeBasemap === 'topplus' && this.basemapLayers.length < this.allBasemapLayers.length;
+      this.applyImageryAccess();
+      if (fromGuestDefault) await this.switchBasemap(this.defaultBasemapId());
+      this.populateUI();
+    },
+
     async switchBasemap(id) {
       if (!this.viewer) return;
 
       const target = this.basemapLayers.find(b => b.id === id);
+      if (!target && this.isIonBasemap(id)) {
+        console.log('Basemap ' + id + ' needs a Cesium ion sign-in — kept the current one');
+        return;
+      }
       if (!target) {
         console.error('Unknown basemap:', id);
         return;
@@ -429,6 +499,11 @@
       // Check duplicate
       if (this.overlayLayers.find(o => o.id === overlayId)) {
         BimViewer.updateStatus('Overlay already added', 'warning');
+        return;
+      }
+
+      if (!this.ionImageryAllowed()) {
+        BimViewer.updateStatus('Imagery overlays need a Cesium ion sign-in', 'warning');
         return;
       }
 
