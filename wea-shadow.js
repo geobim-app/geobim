@@ -845,7 +845,7 @@
     renderWMSList();
   }
 
-  var LAYER_PANEL_BASEMAPS = ['bing-aerial-labels', 'osm', 'google-contour', 'google-sat-labels'];
+  var LAYER_PANEL_BASEMAPS = ['bing-aerial-labels', 'topplus', 'osm', 'google-contour', 'google-sat-labels'];
 
   function renderBasemapList() {
     var container = document.getElementById('weaLayerBasemapList');

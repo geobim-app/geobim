@@ -656,7 +656,7 @@ window.GEOBIM_GEOID_TERRAIN = (function() {
       });
 
       // Add Natural Earth II shaded relief as base (Ion asset 3813)
-      var reliefProvider = Cesium.IonImageryProvider.fromAssetId(3813);
+      var reliefProvider = (typeof LayerManager !== 'undefined' ? LayerManager.imageryProviderFor(3813) : Cesium.IonImageryProvider.fromAssetId(3813));
 
       // Add pseudocolor imagery on top
       return Promise.all([reliefProvider, createCanvasImageryProvider()]).then(function(results) {
@@ -1013,7 +1013,7 @@ window.GEOBIM_BATHYMETRY = (function() {
     // Load bathymetry terrain + Sentinel-2 imagery
     Promise.all([
       Cesium.createWorldBathymetryAsync({ requestVertexNormals: true }),
-      Cesium.IonImageryProvider.fromAssetId(3954)
+      (typeof LayerManager !== 'undefined' ? LayerManager.imageryProviderFor(3954) : Cesium.IonImageryProvider.fromAssetId(3954))
     ]).then(function(results) {
       var bathyTerrain = results[0];
       var sentinel2 = results[1];
