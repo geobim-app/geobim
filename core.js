@@ -608,6 +608,8 @@ const BimViewer = {
         // Fallback if LayerManager not loaded
         console.warn('⚠️ LayerManager not found, loading Bing Aerial directly');
         try {
+          // guests on the default token get no ion imagery (imagery-session quota)
+          if (typeof BimIonAuth === 'undefined' || !BimIonAuth.isOAuthConnected()) throw new Error('no ion imagery for guests');
           const bingImagery = await Cesium.IonImageryProvider.fromAssetId(2);
           this.viewer.imageryLayers.addImageryProvider(bingImagery);
         } catch (error) {
