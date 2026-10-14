@@ -2216,6 +2216,14 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   margin-top: 6px;
 }
 
+.upload-height-datum {
+  grid-column: 1 / -1;
+}
+
+.upload-height-datum[hidden] {
+  display: none;
+}
+
 /* Local Models (ui-assets-section.js): load row + upload form */
 .local-models [hidden] {
   display: none !important;
