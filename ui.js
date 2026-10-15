@@ -599,8 +599,8 @@ const BimViewerUI = {
           <input type="number" 
                  id="zoffset_input_${assetId}"
                  class="zoffset-input-box"
-                 min="-15"
-                 max="15"
+                 min="-10000"
+                 max="10000"
                  step="0.01" 
                  value="${currentOffset.toFixed(2)}"
                  placeholder="0.00"
@@ -773,13 +773,14 @@ const BimViewerUI = {
   setAssetZOffsetFromInput(assetId, value) {
     let offsetValue = parseFloat(value);
     
-    // Clamp to valid range
+    // Clamp to valid range: georeferenced models without a height (e.g. an
+    // iModel placed at 0 m) need several hundred metres, the slider stays ±15 m
     if (isNaN(offsetValue)) {
       offsetValue = 0;
-    } else if (offsetValue < -200) {
-      offsetValue = -200;
-    } else if (offsetValue > 200) {
-      offsetValue = 200;
+    } else if (offsetValue < -10000) {
+      offsetValue = -10000;
+    } else if (offsetValue > 10000) {
+      offsetValue = 10000;
     }
     
     const slider = document.getElementById(`zoffset_slider_${assetId}`);
