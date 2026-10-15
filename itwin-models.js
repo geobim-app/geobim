@@ -41,6 +41,7 @@
   var signedInBefore = false;
   var listedFor = null;      // token the iTwin list was loaded with
   var iModelsOf = null;      // iTwin id whose iModels are shown
+  var listing = false;       // iTwin list request running
 
   function byId(id) { return document.getElementById(id); }
 
@@ -83,8 +84,13 @@
     var select = byId('itwinProjectSelect');
     if (!select) return;
     listedFor = auth.getToken();
+    // keep the current choice across a refresh
+    if (select.value) storeLast(select.value, LAST_ITWIN_KEY);
     select.innerHTML = '<option value="">Loading iTwins…</option>';
     select.disabled = true;
+    listing = true;
+    var refresh = byId('itwinRefreshBtn');
+    if (refresh) refresh.classList.add('is-spinning');
     try {
       var data = await apiGet(ITWINS_URL + '?' + new URLSearchParams({ $top: '1000', $orderby: 'displayName asc' }), 'application/vnd.bentley.itwin-platform.v1+json');
       var items = data.iTwins || [];
@@ -98,8 +104,10 @@
       if (select.value) listIModels(select.value);
     } catch (raw) {
       select.innerHTML = '<option value="">iTwins could not be loaded</option>';
-      listedFor = null;
       failListing(raw);
+    } finally {
+      listing = false;
+      if (refresh) refresh.classList.remove('is-spinning');
     }
   }
 
@@ -325,7 +333,11 @@
             '<span id="itwinAccountState"></span>' +
             '<button type="button" class="itwin-signout-btn" id="itwinSignOutBtn">Sign out</button>' +
           '</div>' +
-          '<select id="itwinProjectSelect" class="modern-select" aria-label="iTwin (project)"></select>' +
+          '<div class="itwin-project-row">' +
+            '<select id="itwinProjectSelect" class="modern-select" aria-label="iTwin (project)"></select>' +
+            '<button type="button" class="modern-btn itwin-refresh-btn" id="itwinRefreshBtn" ' +
+              'title="Refresh iTwins and iModels" aria-label="Refresh iTwins and iModels"><i data-lucide="refresh-cw"></i></button>' +
+          '</div>' +
           '<div class="itwin-imodel-list" id="itwinIModelList" hidden></div>' +
           '<details class="itwin-by-id">' +
             '<summary>Load by iModel ID</summary>' +
@@ -352,6 +364,7 @@
     });
     byId('itwinModelLoadBtn').addEventListener('click', function() { loadModel(); });
     byId('itwinProjectSelect').addEventListener('change', function(e) { listIModels(e.target.value); });
+    byId('itwinRefreshBtn').addEventListener('click', function() { if (!listing) listITwins(); });
     byId('itwinIModelList').addEventListener('click', function(e) {
       var row = e.target.closest('[data-imodel-id]');
       if (!row || row.disabled || loading) return;
