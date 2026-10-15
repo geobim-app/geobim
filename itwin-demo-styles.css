@@ -37,9 +37,118 @@
   outline-offset: 2px;
 }
 
+/* Your iModels (itwin-models.js): Bentley sign-in + own iModel by ID */
+.itwin-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.itwin-account [hidden],
+.itwin-account-signed[hidden] {
+  display: none;
+}
+
+.itwin-account-signed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.itwin-account-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.itwin-signout-btn {
+  padding: 2px var(--space-xs);
+  border: none;
+  background: none;
+  color: var(--brand-teal);
+  font: inherit;
+  cursor: pointer;
+}
+
+.itwin-load-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.itwin-load-row .zoffset-input-box {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.itwin-load-btn {
+  flex: none;
+}
+
+.itwin-account .modern-btn i[data-lucide],
+.itwin-account .modern-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.itwin-model-status.is-error {
+  color: var(--error);
+}
+
+.itwin-signin-btn:focus-visible,
+.itwin-signout-btn:focus-visible,
+.itwin-load-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
 @media (max-width: 768px) {
   .itwin-demo-view-btn,
-  .itwin-demo-load-btn {
+  .itwin-demo-load-btn,
+  .itwin-signin-btn,
+  .itwin-load-btn,
+  .itwin-signout-btn {
     min-height: 44px;
   }
+
+  .itwin-load-btn {
+    min-width: 44px;
+  }
+}
+
+/* itwin-callback.html */
+.itwin-callback-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.itwin-callback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  max-width: 480px;
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.itwin-callback-message.is-error {
+  color: var(--error);
+}
+
+.itwin-callback-back[hidden] {
+  display: none;
 }

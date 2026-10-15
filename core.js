@@ -1288,8 +1288,10 @@ const BimViewer = {
 
   // opts.noFlyTo: caller positions the camera itself (e.g. itwin-demo.js).
   // Returns the assetData, or undefined on failure / already loaded.
+  // opts: noFlyTo; accessToken (Bentley sign-in, itwin-auth.js) instead of a
+  // share key; throwErrors to let the caller handle failures (e.g. a 401)
   async loadITwinModel(shareKey, iModelId, modelName = null, opts = {}) {
-    if (!shareKey || !iModelId) {
+    if ((!shareKey && !opts.accessToken) || !iModelId) {
       this.updateStatus('❌ Share Key and iModel ID required', 'error');
       return;
     }
@@ -1303,7 +1305,13 @@ const BimViewer = {
     try {
       this.updateStatus(`Loading iTwin Model...`, 'loading');
       
-      Cesium.ITwinPlatform.defaultShareKey = shareKey;
+      if (shareKey) {
+        Cesium.ITwinPlatform.defaultShareKey = shareKey;
+      } else {
+        // a share key would win over the token in ITwinPlatform
+        Cesium.ITwinPlatform.defaultShareKey = undefined;
+        Cesium.ITwinPlatform.defaultAccessToken = opts.accessToken;
+      }
       
       const tileset = await Cesium.ITwinData.createTilesetFromIModelId({
         iModelId: iModelId
@@ -1390,6 +1398,7 @@ const BimViewer = {
     } catch (error) {
       console.error('❌ iTwin Model import error:', error);
       this.updateStatus(`iTwin import failed: ${error.message}`, 'error');
+      if (opts.throwErrors) throw error;
     }
   },
 
