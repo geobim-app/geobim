@@ -30,7 +30,9 @@
   var CLIENT_ID = 'spa-K1Bw2oHFKzK2iZxJkL3GpHtQ0';
   var SCOPE = 'itwin-platform';
   var AUTHORIZE_URL = 'https://ims.bentley.com/connect/authorize';
-  var TOKEN_URL = 'https://ims.bentley.com/connect/token';
+  // IMS answers the token request without CORS headers, so the browser
+  // exchanges the code through our relay (api/itwin-token.php, same origin)
+  var TOKEN_RELAY = '/api/itwin-token.php';
   var END_SESSION_URL = 'https://ims.bentley.com/connect/endsession';
 
   // Redirect URIs registered for the client; the callback is only offered on
@@ -129,19 +131,17 @@
 
       var response;
       try {
-        response = await fetch(TOKEN_URL, {
+        response = await fetch(TOKEN_RELAY, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
-            grant_type: 'authorization_code',
             code: code,
             redirect_uri: pkce.redirectUri,
-            client_id: CLIENT_ID,
             code_verifier: pkce.verifier
           })
         });
       } catch (e) {
-        throw new Error('Bentley sign-in service not reachable from this page');
+        throw new Error('geoBIM.app sign-in service not reachable');
       }
       var data = await response.json().catch(function() { return {}; });
       if (!response.ok || !data.access_token) {
