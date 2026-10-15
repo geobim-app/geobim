@@ -213,6 +213,115 @@
 
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
+  // ---------------------------------------------------------------------------
+  // Height correction per iModel (Z offset of the asset card)
+  // Bentley may place an iModel without its IFC height (e.g. at 0 m). The Z
+  // offset set on an own iModel is saved and applied again on the next load:
+  // in the geoBIM account (Firestore itwin_placements/{uid}/models/{iModelId})
+  // when signed in and allowed by the rules, else in this browser.
+  // ---------------------------------------------------------------------------
+  var OFFSETS_KEY = 'geobim_itwin_offsets';
+  var COLLECTION = 'itwin_placements';
+
+  function localOffsets() {
+    try { return JSON.parse(localStorage.getItem(OFFSETS_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function storeLocalOffset(iModelId, z) {
+    try {
+      var all = localOffsets();
+      if (z) all[iModelId] = z; else delete all[iModelId];
+      localStorage.setItem(OFFSETS_KEY, JSON.stringify(all));
+    } catch (e) {}
+  }
+
+  function accountDoc(iModelId) {
+    try {
+      var user = window.firebase && firebase.auth && firebase.auth().currentUser;
+      var db = window.BimAuth && BimAuth.getFirebaseDb && BimAuth.getFirebaseDb();
+      if (!user || !user.uid || !db) return null;
+      return db.collection(COLLECTION).doc(user.uid).collection('models').doc(iModelId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Resolves to { z, where: 'account' | 'browser' } or null
+  async function loadOffset(iModelId) {
+    var ref = accountDoc(iModelId);
+    if (ref) {
+      try {
+        var snap = await ref.get();
+        if (snap.exists && typeof snap.data().zOffset === 'number') return { z: snap.data().zOffset, where: 'account' };
+      } catch (e) {
+        console.warn('iTwin height correction: account not readable (' + (e.code || e.message) + '), using this browser');
+      }
+    }
+    var z = localOffsets()[iModelId];
+    return typeof z === 'number' ? { z: z, where: 'browser' } : null;
+  }
+
+  // Resolves to 'account' or 'browser'
+  async function saveOffset(iModelId, z) {
+    storeLocalOffset(iModelId, z);
+    var ref = accountDoc(iModelId);
+    if (!ref) return 'browser';
+    try {
+      if (z) {
+        await ref.set({ zOffset: z, updatedAt: new Date().toISOString() });
+      } else {
+        await ref.delete();
+      }
+      return 'account';
+    } catch (e) {
+      console.warn('iTwin height correction: not saved to the account (' + (e.code || e.message) + '), kept in this browser');
+      return 'browser';
+    }
+  }
+
+  var applying = {};       // iModel ids whose saved offset is being applied
+  var saveTimers = {};
+
+  function ownITwin(assetId) {
+    var ad = BimViewer.loadedAssets && BimViewer.loadedAssets.get(String(assetId));
+    return ad && ad.type === 'ITWIN' && ad.iModelId && !ad.shareKey ? ad : null;
+  }
+
+  // Save after the Z offset of an own iModel changed (input, slider release,
+  // clamp to terrain, reset) — debounced, not while a saved value is applied
+  if (typeof BimViewer.applyIndividualZOffset === 'function') {
+    var origApply = BimViewer.applyIndividualZOffset;
+    BimViewer.applyIndividualZOffset = async function(assetId, offsetMeters, isLiveUpdate) {
+      var result = await origApply.apply(this, arguments);
+      var ad = !isLiveUpdate && ownITwin(assetId);
+      if (ad && !applying[ad.iModelId]) {
+        var id = ad.iModelId;
+        var z = Math.round(Number(offsetMeters) * 1000) / 1000 || 0;
+        clearTimeout(saveTimers[id]);
+        saveTimers[id] = setTimeout(function() {
+          saveOffset(id, z).then(function(where) {
+            showStatus(z ? 'Height correction ' + (z > 0 ? '+' : '') + z.toFixed(2) + ' m saved ' +
+              (where === 'account' ? 'to your account.' : 'in this browser.') : 'Height correction removed.');
+            markLoaded();
+          });
+        }, 800);
+      }
+      return result;
+    };
+  }
+
+  async function applySavedOffset(iModelId) {
+    var saved = await loadOffset(iModelId);
+    if (!saved || !saved.z) return;
+    applying[iModelId] = true;
+    try {
+      await BimViewer.applyIndividualZOffset('itwin_' + iModelId, saved.z, false);
+      showStatus('Saved height correction applied: ' + (saved.z > 0 ? '+' : '') + saved.z.toFixed(2) + ' m' +
+        (saved.where === 'browser' ? ' (this browser).' : '.'));
+    } finally {
+      applying[iModelId] = false;
+    }
+  }
+
   // Resolves to the completed export (its displayName names the asset)
   async function ensureExport(iModelId) {
     showStatus('Checking mesh export…');
@@ -260,6 +369,7 @@
       if (!ad) throw new Error('The iModel could not be loaded');
       storeLast(id);
       showStatus('');
+      await applySavedOffset(id);
       markLoaded();
     } catch (raw) {
       var err = classify(raw);
@@ -368,9 +478,9 @@
     byId('itwinIModelList').addEventListener('click', function(e) {
       var row = e.target.closest('[data-imodel-id]');
       if (!row || row.disabled || loading) return;
-      if (row.classList.contains('is-loaded')) {
-        var ad = BimViewer.loadedAssets.get('itwin_' + row.dataset.imodelId);
-        if (ad && ad.tileset) BimViewer.viewer.flyTo(ad.tileset);
+      var ad = BimViewer.loadedAssets.get('itwin_' + row.dataset.imodelId);
+      if (ad && ad.tileset) {
+        BimViewer.viewer.flyTo(ad.tileset);
         return;
       }
       loadModel(row.dataset.imodelId);
@@ -382,6 +492,16 @@
     render();
     setInterval(render, 30000);
     return true;
+  }
+
+  // List marks follow removed iModels at once
+  if (typeof BimViewer.unloadAsset === 'function') {
+    var origUnload = BimViewer.unloadAsset;
+    BimViewer.unloadAsset = function(assetId) {
+      var result = origUnload.apply(this, arguments);
+      if (String(assetId).indexOf('itwin_') === 0) setTimeout(markLoaded, 0);
+      return result;
+    };
   }
 
   function start() {
