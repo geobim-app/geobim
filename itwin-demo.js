@@ -209,7 +209,7 @@
     if (!group) return false;
 
     group.insertAdjacentHTML('afterend',
-      '<div class="modern-divider"><span class="modern-divider-text">Bentley iTwin Demo</span></div>' +
+      '<div class="modern-divider"><span class="modern-divider-text">Bentley iTwin</span></div>' +
       '<div class="modern-group itwin-demo" id="itwinDemo">' +
         '<div class="modern-hint">Train station iModel, surroundings and reality mesh streamed from the Bentley iTwin platform (Cesium sample data).</div>' +
         '<button type="button" class="modern-btn modern-btn-primary itwin-demo-load-btn" id="itwinDemoLoadBtn">' +
