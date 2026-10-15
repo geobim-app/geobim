@@ -13,8 +13,9 @@
 // ===============================
 // ITWIN MODELS (Preview)
 // "Your iModels" under the iTwin demo in the Assets section: sign in with a
-// Bentley account (itwin-auth.js), enter an iModel ID, load it as a normal
-// asset via BimViewer.loadITwinModel() with the access token.
+// Bentley account (itwin-auth.js), pick an iTwin and one of its iModels (or
+// enter an iModel ID), load it as a normal asset via BimViewer.loadITwinModel()
+// with the access token.
 //
 // CesiumJS only loads a *completed* mesh export (ITwinData returns nothing
 // otherwise), so a new iModel gets one started here (Mesh Export API,
@@ -29,20 +30,120 @@
   var ACCEPT = 'application/vnd.bentley.itwin-platform.v1+json';
   var DEFAULT_IMODEL = 'aab829fe-327e-42e7-8212-a7575bdf51a0';
   var LAST_KEY = 'geobim_itwin_last_imodel';
+  var LAST_ITWIN_KEY = 'geobim_itwin_last_itwin';
+  var ITWINS_URL = 'https://api.bentley.com/itwins/';
+  var IMODELS_URL = 'https://api.bentley.com/imodels/';
   var GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   var POLL_MS = 10000;
   var EXPORT_TIMEOUT_MS = 30 * 60 * 1000;
 
   var loading = false;
   var signedInBefore = false;
+  var listedFor = null;      // token the iTwin list was loaded with
+  var iModelsOf = null;      // iTwin id whose iModels are shown
 
   function byId(id) { return document.getElementById(id); }
 
-  function recallLast() {
-    try { return localStorage.getItem(LAST_KEY) || DEFAULT_IMODEL; } catch (e) { return DEFAULT_IMODEL; }
+  function recallLast(key, fallback) {
+    try { return localStorage.getItem(key || LAST_KEY) || (fallback === undefined ? DEFAULT_IMODEL : fallback); } catch (e) { return fallback === undefined ? DEFAULT_IMODEL : fallback; }
   }
-  function storeLast(id) {
-    try { localStorage.setItem(LAST_KEY, id); } catch (e) {}
+  function storeLast(id, key) {
+    try { localStorage.setItem(key || LAST_KEY, id); } catch (e) {}
+  }
+
+  function escapeHtml(text) {
+    return String(text == null ? '' : text).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // iTwins / iModels APIs (CORS open, token from the sign-in)
+  async function apiGet(url, accept) {
+    var token = auth.getToken();
+    if (!token) throw apiError('auth', 'No valid Bentley session');
+    var res = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: accept, Prefer: 'return=minimal' } });
+    if (res.status === 401) throw apiError('auth', 'Unauthorized');
+    if (res.status === 403) throw apiError('forbidden', 'Forbidden');
+    if (!res.ok) throw new Error('Bentley API request failed (' + res.status + ')');
+    return res.json();
+  }
+
+  function failListing(raw) {
+    var err = classify(raw);
+    if (err.kind === 'auth') {
+      auth.logout(false);
+      showStatus('Bentley session expired — please sign in again.', true);
+      render();
+    } else {
+      showStatus(err.message, true);
+    }
+  }
+
+  async function listITwins() {
+    var select = byId('itwinProjectSelect');
+    if (!select) return;
+    listedFor = auth.getToken();
+    select.innerHTML = '<option value="">Loading iTwins…</option>';
+    select.disabled = true;
+    try {
+      var data = await apiGet(ITWINS_URL + '?' + new URLSearchParams({ $top: '1000', $orderby: 'displayName asc' }), 'application/vnd.bentley.itwin-platform.v1+json');
+      var items = data.iTwins || [];
+      var last = recallLast(LAST_ITWIN_KEY, '');
+      select.innerHTML = '<option value="">' + (items.length ? 'Select an iTwin…' : 'No iTwins found for your account.') + '</option>' +
+        items.map(function(t) {
+          var label = t.displayName + (t.number && t.number !== t.displayName ? ' (' + t.number + ')' : '');
+          return '<option value="' + escapeHtml(t.id) + '"' + (t.id === last ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+        }).join('');
+      select.disabled = !items.length;
+      if (select.value) listIModels(select.value);
+    } catch (raw) {
+      select.innerHTML = '<option value="">iTwins could not be loaded</option>';
+      listedFor = null;
+      failListing(raw);
+    }
+  }
+
+  async function listIModels(iTwinId) {
+    var list = byId('itwinIModelList');
+    if (!list) return;
+    iModelsOf = iTwinId;
+    if (!iTwinId) { list.innerHTML = ''; list.hidden = true; return; }
+    storeLast(iTwinId, LAST_ITWIN_KEY);
+    list.hidden = false;
+    list.innerHTML = '<div class="modern-hint">Loading iModels…</div>';
+    try {
+      var data = await apiGet(IMODELS_URL + '?' + new URLSearchParams({ iTwinId: iTwinId, $top: '1000', $orderBy: 'name asc' }), 'application/vnd.bentley.itwin-platform.v2+json');
+      if (iModelsOf !== iTwinId) return;  // another iTwin was picked meanwhile
+      var items = data.iModels || [];
+      list.innerHTML = items.length ? items.map(function(m) {
+        var empty = m.state === 'notInitialized';
+        var name = m.displayName || m.name || m.id;
+        return '<button type="button" class="itwin-imodel-row" data-imodel-id="' + escapeHtml(m.id) + '"' +
+          ' data-imodel-name="' + escapeHtml(name) + '"' + (empty ? ' disabled' : '') +
+          ' title="' + (empty ? 'This iModel has no data yet' : 'Load ' + escapeHtml(name)) + '">' +
+          '<span class="itwin-imodel-name">' + escapeHtml(name) + '</span>' +
+          '<span class="itwin-imodel-meta">' + (empty ? 'empty' : '') + '</span>' +
+          '<i data-lucide="plus"></i></button>';
+      }).join('') : '<div class="modern-hint">No iModels in this iTwin.</div>';
+      markLoaded();
+      if (window.lucide) lucide.createIcons();
+    } catch (raw) {
+      list.innerHTML = '';
+      list.hidden = true;
+      failListing(raw);
+    }
+  }
+
+  // Rows of iModels that are already loaded show it
+  function markLoaded() {
+    var list = byId('itwinIModelList');
+    if (!list) return;
+    Array.prototype.forEach.call(list.querySelectorAll('[data-imodel-id]'), function(row) {
+      var isLoaded = BimViewer.loadedAssets.has('itwin_' + row.dataset.imodelId);
+      row.classList.toggle('is-loaded', isLoaded);
+      var meta = row.querySelector('.itwin-imodel-meta');
+      if (meta && !row.disabled) meta.textContent = isLoaded ? 'loaded' : '';
+    });
   }
 
   function showStatus(text, isError) {
@@ -128,9 +229,9 @@
     throw new Error('Mesh export is still running — try loading again later');
   }
 
-  async function loadModel() {
+  async function loadModel(fromId) {
     var input = byId('itwinModelIdInput');
-    var id = (input && input.value || '').trim();
+    var id = (typeof fromId === 'string' ? fromId : (input && input.value || '')).trim();
     if (!GUID.test(id)) {
       showStatus('Enter an iModel ID (a GUID like ' + DEFAULT_IMODEL + ').', true);
       return;
@@ -151,6 +252,7 @@
       if (!ad) throw new Error('The iModel could not be loaded');
       storeLast(id);
       showStatus('');
+      markLoaded();
     } catch (raw) {
       var err = classify(raw);
       if (err.kind === 'auth') {
@@ -199,6 +301,12 @@
     if (loadBtn) loadBtn.disabled = loading;
     var idInput = byId('itwinModelIdInput');
     if (idInput) idInput.disabled = loading;
+    var list = byId('itwinIModelList');
+    if (list) list.classList.toggle('is-busy', loading);
+    // fresh sign-in (or a new token): list the iTwins once
+    if (token && listedFor !== token && !loading) listITwins();
+    if (!token) listedFor = null;
+    markLoaded();
   }
 
   function inject() {
@@ -217,12 +325,17 @@
             '<span id="itwinAccountState"></span>' +
             '<button type="button" class="itwin-signout-btn" id="itwinSignOutBtn">Sign out</button>' +
           '</div>' +
-          '<div class="itwin-load-row">' +
-            '<input type="text" id="itwinModelIdInput" class="zoffset-input-box" placeholder="iModel ID" ' +
-              'aria-label="iModel ID" spellcheck="false" autocomplete="off">' +
-            '<button type="button" class="modern-btn modern-btn-primary itwin-load-btn" id="itwinModelLoadBtn" ' +
-              'title="Load iModel" aria-label="Load iModel"><i data-lucide="plus"></i></button>' +
-          '</div>' +
+          '<select id="itwinProjectSelect" class="modern-select" aria-label="iTwin (project)"></select>' +
+          '<div class="itwin-imodel-list" id="itwinIModelList" hidden></div>' +
+          '<details class="itwin-by-id">' +
+            '<summary>Load by iModel ID</summary>' +
+            '<div class="itwin-load-row">' +
+              '<input type="text" id="itwinModelIdInput" class="zoffset-input-box" placeholder="iModel ID" ' +
+                'aria-label="iModel ID" spellcheck="false" autocomplete="off">' +
+              '<button type="button" class="modern-btn modern-btn-primary itwin-load-btn" id="itwinModelLoadBtn" ' +
+                'title="Load iModel" aria-label="Load iModel"><i data-lucide="plus"></i></button>' +
+            '</div>' +
+          '</details>' +
         '</div>' +
         '<div class="modern-hint itwin-model-status" id="itwinModelStatus" role="status" hidden></div>' +
       '</div>');
@@ -237,7 +350,18 @@
       showStatus('');
       render();
     });
-    byId('itwinModelLoadBtn').addEventListener('click', loadModel);
+    byId('itwinModelLoadBtn').addEventListener('click', function() { loadModel(); });
+    byId('itwinProjectSelect').addEventListener('change', function(e) { listIModels(e.target.value); });
+    byId('itwinIModelList').addEventListener('click', function(e) {
+      var row = e.target.closest('[data-imodel-id]');
+      if (!row || row.disabled || loading) return;
+      if (row.classList.contains('is-loaded')) {
+        var ad = BimViewer.loadedAssets.get('itwin_' + row.dataset.imodelId);
+        if (ad && ad.tileset) BimViewer.viewer.flyTo(ad.tileset);
+        return;
+      }
+      loadModel(row.dataset.imodelId);
+    });
     byId('itwinModelIdInput').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') loadModel();
     });
