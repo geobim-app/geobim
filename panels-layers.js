@@ -23,7 +23,7 @@
 (function() {
   'use strict';
 
-  var CURATED_TERRAIN = ['world', 'terrain_2426648'];
+  var CURATED_TERRAIN = ['world', 'mapterhorn', 'terrain_2426648'];
   var tree = BimPanelsTree.create('geobim_layers_tree');
   var node = tree.node;
   var el = tree.el;
