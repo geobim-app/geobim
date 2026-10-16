@@ -199,6 +199,7 @@
       if (r.geoidInfo) {
         results.undulation = r.geoidInfo.undulation;
         results.orthometric = r.geoidInfo.orthometric;
+        results.geoidModel = r.geoidInfo.model;
       }
       this.measurementStore.pending = {
         type: 'coordinates',

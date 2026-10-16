@@ -11,7 +11,8 @@
  */
 
 // ===============================
-// GEOID MODULE — EGM96 undulation lookup
+// GEOID MODULE — EGM96 undulation lookup, GCG2016 (BKG) inside Germany
+// (grid from mapterhorn-terrain.js) so "above sea level" there is NHN (DHHN2016)
 // ===============================
 'use strict';
 
@@ -30,6 +31,9 @@ var GEOBIM_GEOID = (function() {
     if (loadPromise) return loadPromise;
 
     loading = true;
+    if (typeof GEOBIM_MAPTERHORN !== 'undefined') {
+      GEOBIM_MAPTERHORN.loadGCG().catch(function(err) { console.warn('GCG2016 grid not loaded, using EGM96:', err); });
+    }
     loadPromise = fetch('data/egm96-1deg.json')
       .then(function(res) { return res.json(); })
       .then(function(data) {
@@ -95,11 +99,17 @@ var GEOBIM_GEOID = (function() {
    * @returns {{orthometric: number, undulation: number}|null}
    */
   function toOrthometric(ellipsoidalHeight, lat, lon) {
-    var N = getUndulation(lat, lon);
+    var model = 'GCG2016';
+    var N = (typeof GEOBIM_MAPTERHORN !== 'undefined') ? GEOBIM_MAPTERHORN.gcg2016(lat, lon) : null;
+    if (N === null) {
+      model = 'EGM96';
+      N = getUndulation(lat, lon);
+    }
     if (N === null) return null;
     return {
       orthometric: ellipsoidalHeight - N,
-      undulation: N
+      undulation: N,
+      model: model
     };
   }
 
