@@ -58,16 +58,30 @@ window.GEOBIM_MAPTERHORN = (function() {
 
   // ---- Geoid ----
 
+  var gcgPromise = null;
+
+  function bin(url) {
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url);
+      return r.arrayBuffer();
+    });
+  }
+
+  // GCG2016 only (also used by the coordinate tool via geoid.js)
+  function loadGCG() {
+    if (gcgPromise) return gcgPromise;
+    gcgPromise = bin(GCG.url).then(function(buf) {
+      GCG.data = new Uint16Array(buf);
+    }).catch(function(err) {
+      gcgPromise = null;
+      throw err;
+    });
+    return gcgPromise;
+  }
+
   function loadGeoid() {
     if (geoidPromise) return geoidPromise;
-    function bin(url) {
-      return fetch(url).then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + url);
-        return r.arrayBuffer();
-      });
-    }
-    geoidPromise = Promise.all([bin(GCG.url), bin(EGM.url)]).then(function(res) {
-      GCG.data = new Uint16Array(res[0]);
+    geoidPromise = Promise.all([loadGCG(), bin(EGM.url)]).then(function(res) {
       EGM.data = new Float32Array(res[1]);
     }).catch(function(err) {
       geoidPromise = null;
@@ -271,7 +285,10 @@ window.GEOBIM_MAPTERHORN = (function() {
   return {
     TERRAIN_ID: TERRAIN_ID,
     createProvider: createProvider,
-    geoidHeight: function(lat, lon) { return GCG.data ? geoidHeight(lat, lon) : null; },
+    geoidHeight: function(lat, lon) { return GCG.data && EGM.data ? geoidHeight(lat, lon) : null; },
+    // GCG2016 undulation in Germany, null outside or before loadGCG() finished
+    gcg2016: function(lat, lon) { return GCG.data ? gcg2016(lat, lon) : null; },
+    loadGCG: loadGCG,
     loadGeoid: loadGeoid
   };
 

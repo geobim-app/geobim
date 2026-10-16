@@ -627,7 +627,7 @@
     if (geoidInfo) {
       undulationHtml =
         '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">' +
-          '📐 Geoid undulation (N): <strong>' + geoidInfo.undulation.toFixed(2) + ' m</strong><br>' +
+          '📐 Geoid undulation (N, ' + geoidInfo.model + '): <strong>' + geoidInfo.undulation.toFixed(2) + ' m</strong><br>' +
           '🏛️ Height above sea level: <strong>' + geoidInfo.orthometric.toFixed(2) + ' m</strong>' +
         '</div>';
     }
