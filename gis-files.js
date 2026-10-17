@@ -472,7 +472,13 @@ window.GEOBIM_GIS_FILES = (function() {
     // GPX track with timestamps: playable (gis-track-player.js)
     if (layer.format === 'GPX') {
       var moving = layer.dataSource.entities.values.find(function(e) { return e.position instanceof Cesium.SampledPositionProperty; });
-      if (moving) layer.track = { entity: moving };
+      if (moving) {
+        layer.track = { entity: moving };
+        // The track line sits on the same entity, which is only "available"
+        // during the track's time: without this it is invisible at today's
+        // scene time. The moving pin has no position outside that time anyway.
+        moving.availability = undefined;
+      }
     }
     await addToViewer(layer.dataSource);
     layers.push(layer);
