@@ -41,6 +41,13 @@
   height: 14px;
 }
 
+/* The panel layout draws eye / x masks on .layer-toggle-btn / .layer-remove-btn;
+   these buttons bring their own Lucide icons */
+.layer-overlay-list.gis-files-list .gis-file-btn::after {
+  content: none;
+  display: none;
+}
+
 .gis-file-btn:focus-visible,
 .gis-files-add:focus-visible {
   outline: 2px solid var(--brand-teal);
