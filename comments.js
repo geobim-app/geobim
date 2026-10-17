@@ -26,6 +26,23 @@
   // UTILITY FUNCTIONS
   // =====================================
   
+  // Comment fields are stored HTML-escaped (sanitizeInput in comments.js), but
+  // documents written past the app (open demo collections) can hold raw HTML.
+  // Decode the entities sanitizeInput() produces, then escape everything once:
+  // same display for app data, plain text for anything else.
+  function escapeStored(value) {
+    return String(value == null ? '' : value)
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Firestore ids are [A-Za-z0-9]; anything else must not reach an onclick
+  function safeId(id) {
+    return /^[A-Za-z0-9_-]+$/.test(String(id)) ? String(id) : '';
+  }
+
   function sanitizeInput(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -791,7 +808,7 @@
     return `
       <div class="modern-infobox" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0; min-width: 300px;">
         <h3 style="margin: 0; padding: 15px; background: rgba(46, 207, 176, 0.1); border-bottom: 2px solid rgba(46, 207, 176, 0.3); color: #2ECFB0; font-size: 18px;">
-          ${typeEmoji} ${comment.title}
+          ${typeEmoji} ${escapeStored(comment.title)}
         </h3>
         
         <div style="padding: 15px;">
@@ -802,34 +819,34 @@
           <div style="margin-bottom: 15px;">
             ${priorityBadge}
             <span style="background: rgba(255,255,255,0.1); color: white; padding: 3px 8px; border-radius: 3px; margin-left: 5px;">
-              ${categoryEmoji} ${comment.category}
+              ${categoryEmoji} ${escapeStored(comment.category)}
             </span>
           </div>
           
           ${areaInfo}
           
           <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin-bottom: 12px; line-height: 1.6;">
-            ${comment.text}
+            ${escapeStored(comment.text)}
           </div>
           
           <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 10px;">
-            ${comment.author ? '<strong>By:</strong> ' + comment.author + '<br>' : ''}
+            ${comment.author ? '<strong>By:</strong> ' + escapeStored(comment.author) + '<br>' : ''}
             ${timeLabel}: ${new Date(comment.timestamp).toLocaleString('de-DE')}
           </div>
           
           <div style="display: flex; gap: 8px;">
-            <button onclick="BimViewer.editComment('${comment.id}')"
+            <button onclick="BimViewer.editComment('${safeId(comment.id)}')"
                     style="flex: 1; background: #2196f3; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">
               ✏️ Edit
             </button>
-            <button onclick="BimViewer.deleteComment('${comment.id}')"
+            <button onclick="BimViewer.deleteComment('${safeId(comment.id)}')"
                     style="flex: 1; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">
               🗑️ Delete
             </button>
           </div>
           ${typeof GEOBIM_BCF !== 'undefined' ? `
           <div style="margin-top: 8px;">
-            <button onclick="GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${comment.id}'))"
+            <button onclick="GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${safeId(comment.id)}'))"
                     style="width: 100%; background: rgba(46, 207, 176, 0.15); color: #2ECFB0; border: 1px solid rgba(46, 207, 176, 0.3); padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;"
                     onmouseover="this.style.background='rgba(46, 207, 176, 0.25)'"
                     onmouseout="this.style.background='rgba(46, 207, 176, 0.15)'">

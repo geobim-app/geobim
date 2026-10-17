@@ -361,7 +361,8 @@
         var compAvg = (data.sumRating / data.count).toFixed(1);
         var compColor = parseFloat(compAvg) >= 3 ? '#e74c3c' : parseFloat(compAvg) >= 2 ? '#FBBF24' : '#2ECFB0';
         html += '<tr style="border-top: 1px solid rgba(255,255,255,0.05);">';
-        html += '<td style="padding: 6px 0; color: rgba(255,255,255,0.8);">' + comp + '</td>';
+        var compText = String(comp).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        html += '<td style="padding: 6px 0; color: rgba(255,255,255,0.8);">' + compText + '</td>';
         html += '<td style="text-align: center; color: rgba(255,255,255,0.6);">' + data.count + '</td>';
         html += '<td style="text-align: center; color: ' + compColor + '; font-weight: 600;">' + compAvg + '</td>';
         html += '</tr>';

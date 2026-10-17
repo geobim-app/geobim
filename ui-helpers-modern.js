@@ -203,6 +203,27 @@ BimViewer.updateLoadedAssetsCount = function() {
 // ===============================
 // COMMENTS LIST UPDATE (Modern Style with Area Support)
 // ===============================
+// Comment fields are stored HTML-escaped (sanitizeInput in comments.js), but
+// documents written past the app (open demo collections) can hold raw HTML.
+// Decode the entities sanitizeInput() produces, then escape everything once:
+// same display for app data, plain text for anything else.
+function commentPlainText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+}
+
+function commentHtml(value) {
+  return commentPlainText(value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Firestore ids are [A-Za-z0-9]; anything else must not reach an onclick
+function commentId(id) {
+  return /^[A-Za-z0-9_-]+$/.test(String(id)) ? String(id) : '';
+}
+
 BimViewer.updateCommentsList = function() {
   // Ensure floating panel exists
   if (!document.getElementById('floatingCommentsPanel')) {
@@ -225,7 +246,9 @@ BimViewer.updateCommentsList = function() {
   );
   
   sortedComments.forEach(comment => {
-    const priorityClass = comment.priority ? comment.priority.toLowerCase() : 'normal';
+    const priorityKey = String(comment.priority || '').toLowerCase();
+    const priorityClass = ['high', 'normal', 'low'].includes(priorityKey) ? priorityKey : 'normal';
+    const id = commentId(comment.id);
     const typeClasses = { 'point': 'type-point', 'circle': 'type-circle', 'polyline': 'type-polyline', 'area': 'type-area' };
     const typeClass = typeClasses[comment.type] || 'type-point';
     const timeLabel = comment.isUpdated ? 'Updated' : 'Created';
@@ -238,9 +261,10 @@ BimViewer.updateCommentsList = function() {
     });
     
     // Truncate text for preview
-    const truncatedText = comment.text.length > 60 
-      ? comment.text.substring(0, 60) + '...' 
-      : comment.text;
+    const plainText = commentPlainText(comment.text);
+    const truncatedText = commentHtml(plainText.length > 60
+      ? plainText.substring(0, 60) + '...'
+      : plainText);
     
     // Type emoji and label
     const typeEmojis = { 'point': '📍', 'circle': '⭕', 'polyline': '〰️', 'area': '⬡' };
@@ -249,22 +273,22 @@ BimViewer.updateCommentsList = function() {
     const typeLabel = typeLabelsMap[comment.type] || 'Point';
     
     html += `
-      <div class="modern-comment-item priority-${priorityClass} ${typeClass}" onclick="BimViewer.flyToComment('${comment.id}')">
+      <div class="modern-comment-item priority-${priorityClass} ${typeClass}" onclick="BimViewer.flyToComment('${id}')">
         <div class="modern-comment-header">
-          <div class="modern-comment-title">${typeEmoji} ${comment.title}</div>
+          <div class="modern-comment-title">${typeEmoji} ${commentHtml(comment.title)}</div>
           <div class="modern-comment-controls">
             ${typeof GEOBIM_BCF !== 'undefined' ? `<button class="modern-comment-btn bcf-btn"
-                    onclick="event.stopPropagation(); GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${comment.id}'))"
+                    onclick="event.stopPropagation(); GEOBIM_BCF.exportComment(BimViewer.comments.comments.find(c => c.id === '${id}'))"
                     title="Export BCF">
               📦
             </button>` : ''}
             <button class="modern-comment-btn edit-btn"
-                    onclick="event.stopPropagation(); BimViewer.editComment('${comment.id}')"
+                    onclick="event.stopPropagation(); BimViewer.editComment('${id}')"
                     title="Edit">
               ✏️
             </button>
             <button class="modern-comment-btn delete-btn"
-                    onclick="event.stopPropagation(); BimViewer.deleteComment('${comment.id}')"
+                    onclick="event.stopPropagation(); BimViewer.deleteComment('${id}')"
                     title="Delete">
               🗑️
             </button>
@@ -273,9 +297,9 @@ BimViewer.updateCommentsList = function() {
         <div class="modern-comment-text">${truncatedText}</div>
         <div class="modern-comment-meta">
           <span class="modern-comment-type">${typeLabel}</span>
-          <span class="modern-comment-category">${comment.category || 'General'}</span>
-          <span class="modern-comment-priority ${priorityClass}">${comment.priority || 'Normal'}</span>
-          ${comment.author ? '<span>' + comment.author + '</span>' : ''}
+          <span class="modern-comment-category">${commentHtml(comment.category || 'General')}</span>
+          <span class="modern-comment-priority ${priorityClass}">${commentHtml(comment.priority || 'Normal')}</span>
+          ${comment.author ? '<span>' + commentHtml(comment.author) + '</span>' : ''}
           <span>${timeStr}</span>
         </div>
       </div>
