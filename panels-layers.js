@@ -118,7 +118,9 @@
     var presets = (typeof LayerManager !== 'undefined' && LayerManager.wmsPresets) || [];
     var groups = {};
     var order = [];
+    var hidden = (typeof LayerManager !== 'undefined' && LayerManager.hiddenPresetGroups) || [];
     presets.forEach(function(p, index) {
+      if (hidden.indexOf(p.group) !== -1) return;
       if (!groups[p.group]) { groups[p.group] = []; order.push(p.group); }
       groups[p.group].push({ preset: p, index: index });
     });
