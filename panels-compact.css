@@ -1,0 +1,370 @@
+/*
+ * geobim.app — Panel UI, compact desktop style (beta)
+ * Closer to geoBIM Desktop: slim rail, small dense panels, quiet buttons
+ * (teal only for active states), flat search bar, demo banner as a small
+ * pill. Loaded by panels-ui-loader.js after panels-ui.css. Desktop only:
+ * phones keep the tab bar and 44 px touch targets of panels-ui.css.
+ */
+
+@media (min-width: 721px) {
+
+  /* ===============================
+     CHROME
+     =============================== */
+  /* Walk / Transform are rail buttons now (panels-ui.js addRailActions) */
+  html.ui-panels #bottomToolbar {
+    display: none !important;
+  }
+
+  /* Demo banner: small pill top right instead of a bar across the top
+     (texts and links unchanged, demo.js untouched) */
+  html.ui-panels #demoBanner {
+    left: auto;
+    right: 56px; /* left of the home button */
+    top: var(--space-md);
+    gap: var(--space-sm);
+    padding: 4px 6px 4px 4px;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+    font-size: 11px;
+  }
+
+  html.ui-panels #demoBanner .demo-label {
+    padding: 2px 8px;
+    font-size: 10px;
+  }
+
+  html.ui-panels #demoBanner .demo-login {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
+  html.ui-panels body.demo-active #cesiumContainer {
+    top: 0 !important;
+  }
+
+  html.ui-panels body:has(#demoBanner) .panels-search {
+    top: var(--space-md);
+  }
+
+  /* Cesium home button (top right): same glass look as the rail */
+  html.ui-panels .cesium-viewer-toolbar {
+    top: var(--space-md);
+    right: var(--space-md);
+  }
+
+  html.ui-panels .cesium-viewer-toolbar .cesium-button.cesium-toolbar-button {
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-muted);
+    fill: currentColor;
+  }
+
+  html.ui-panels .cesium-viewer-toolbar .cesium-button.cesium-toolbar-button:hover {
+    color: var(--text-primary);
+    border-color: var(--border-default);
+  }
+
+  html.ui-panels .cesium-viewer-toolbar .cesium-toolbar-button svg {
+    width: 18px;
+    height: 18px;
+    margin: 6px;
+  }
+
+  /* ===============================
+     RAIL
+     =============================== */
+  html.ui-panels .panels-rail {
+    left: var(--space-md);
+    width: 40px;
+    padding: 6px 4px;
+    gap: 1px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  html.ui-panels .panels-rail-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+  }
+
+  html.ui-panels .panels-rail-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  html.ui-panels .panels-rail-btn.active {
+    background: transparent;
+  }
+
+  html.ui-panels .panels-rail-btn.active::before {
+    left: -4px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+  }
+
+  html.ui-panels .panels-rail-sep {
+    width: 20px;
+    margin: 3px 0;
+  }
+
+  /* ===============================
+     SEARCH
+     =============================== */
+  html.ui-panels .panels-search {
+    top: var(--space-md);
+    width: min(360px, calc(100vw - 220px));
+  }
+
+  html.ui-panels .panels-search-box {
+    height: 32px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  html.ui-panels .panels-search-input {
+    font-size: 12px;
+  }
+
+  html.ui-panels .panels-search-box svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* ===============================
+     PANELS
+     =============================== */
+  html.ui-panels .panels-panel {
+    width: min(300px, calc(100vw - 2 * var(--space-lg)));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    font-size: 12px;
+  }
+
+  html.ui-panels .panels-panel.is-top {
+    border-color: var(--border-default);
+  }
+
+  /* Desktop order: grip · title · close (no coloured icon) */
+  html.ui-panels .panels-panel-head {
+    gap: 6px;
+    padding: 6px 6px 6px var(--space-sm);
+    border-bottom-color: transparent;
+  }
+
+  html.ui-panels .panels-panel-icon {
+    display: none;
+  }
+
+  html.ui-panels .panels-panel-grip {
+    order: -1;
+    opacity: 0.45;
+  }
+
+  html.ui-panels .panels-panel-grip svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  html.ui-panels .panels-panel-title {
+    font-size: 12px;
+  }
+
+  html.ui-panels .panels-panel-close {
+    width: 24px;
+    height: 24px;
+  }
+
+  html.ui-panels .panels-panel-close svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  html.ui-panels .panels-panel-body > .modern-section-content,
+  html.ui-panels .panels-account {
+    padding: 2px var(--space-md) var(--space-md);
+  }
+
+  /* ===============================
+     CONTENT INSIDE PANELS
+     =============================== */
+  html.ui-panels .panels-panel .modern-btn {
+    padding: 6px 10px;
+    gap: 6px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  html.ui-panels .panels-panel .modern-btn:hover,
+  html.ui-panels .panels-panel .modern-btn:active {
+    transform: none;
+  }
+
+  html.ui-panels .panels-panel .modern-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Primary: teal outline instead of a filled gradient */
+  html.ui-panels .panels-panel .modern-btn-primary {
+    background: rgba(var(--brand-teal-rgb), 0.1);
+    border: 1px solid rgba(var(--brand-teal-rgb), 0.35);
+    color: var(--brand-teal);
+    box-shadow: none;
+  }
+
+  html.ui-panels .panels-panel .modern-btn-primary:hover {
+    background: rgba(var(--brand-teal-rgb), 0.18);
+    box-shadow: none;
+  }
+
+  html.ui-panels .panels-panel .modern-btn-success,
+  html.ui-panels .panels-panel .modern-btn-accent,
+  html.ui-panels .panels-panel .modern-btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-subtle);
+  }
+
+  html.ui-panels .panels-panel .modern-btn-success:hover,
+  html.ui-panels .panels-panel .modern-btn-accent:hover,
+  html.ui-panels .panels-panel .modern-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  html.ui-panels .panels-panel .modern-toggle-btn {
+    padding: 5px 10px;
+    border-width: 1px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  html.ui-panels .panels-panel .modern-toggle-btn.active {
+    background: rgba(var(--brand-teal-rgb), 0.12);
+    border-color: rgba(var(--brand-teal-rgb), 0.5);
+    color: var(--brand-teal);
+    box-shadow: none;
+  }
+
+  html.ui-panels .panels-panel .modern-icon-btn {
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  html.ui-panels .panels-panel .modern-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    transform: none;
+  }
+
+  html.ui-panels .panels-panel .modern-input,
+  html.ui-panels .panels-panel .modern-select {
+    padding: 5px 8px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+  }
+
+  html.ui-panels .panels-panel .modern-input:focus,
+  html.ui-panels .panels-panel .modern-select:focus {
+    box-shadow: none;
+  }
+
+  html.ui-panels .panels-panel .modern-label {
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  html.ui-panels .panels-panel .modern-divider {
+    margin: 10px 0 6px;
+  }
+
+  html.ui-panels .panels-panel .modern-divider-text {
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  html.ui-panels .panels-panel .modern-hint {
+    padding: 6px 8px;
+    border-left-width: 2px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  html.ui-panels .panels-panel .modern-info-box {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  html.ui-panels .panels-panel .modern-slider-group {
+    margin-bottom: 4px;
+    padding: 4px 6px;
+    background: transparent;
+  }
+
+  /* Tree rows a touch denser */
+  html.ui-panels .pnl-node,
+  html.ui-panels .pnl-item {
+    min-height: 26px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  html.ui-panels .pnl-top > .pnl-node {
+    font-size: 10px;
+  }
+  /* Number boxes (date, Z offset), time chips, hints */
+  html.ui-panels .panels-panel .zoffset-input-box {
+    padding: 4px 8px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  html.ui-panels .panels-clock-time {
+    font-size: 15px;
+  }
+
+  html.ui-panels .pnl-choice {
+    min-width: 32px;
+    min-height: 24px;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  html.ui-panels .panels-panel .modern-hint.pnl-hint {
+    background: transparent;
+    border-left-color: var(--border-default);
+    color: var(--text-muted);
+  }
+
+  html.ui-panels .pnl-tree .pnl-field {
+    min-height: 28px;
+  }
+
+  html.ui-panels .pnl-tree .pnl-tools .ms-tool-btn,
+  html.ui-panels .pnl-tree .pnl-tools .modern-btn {
+    min-height: 28px;
+    padding: 4px 8px;
+  }
+}

@@ -18,7 +18,7 @@
 (function() {
   'use strict';
 
-  var VERSION = '0.14.4'; // cache-bust for panels-ui.js / panels-ui.css
+  var VERSION = '0.15.0'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
   var BETA_HOSTS = ['beta.geobim.app'];
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
@@ -94,6 +94,7 @@
 
   document.documentElement.classList.add('ui-panels');
   addStylesheet('panels-ui.css');
+  addStylesheet('panels-compact.css');
 
   // Dynamic scripts run async by default; async = false keeps this order
   // (panels-tree.js before the panels that use it). panels-ui.js waits for

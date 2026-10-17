@@ -48,7 +48,7 @@
   };
   var ICONS = { views: '<i data-lucide="bookmark"></i>' };
   var CLIP_ID = 'clip';
-  var CASCADE_X = 84;   // right of the rail (16 + 52 + 16)
+  var CASCADE_X = 64;   // right of the rail (12 + 40 + 12, panels-compact.css)
   var CASCADE_Y = 70;   // leaves room for the search bar (step 4)
   var CASCADE_STEP = 26;
   var PHONE_TABS = [
@@ -58,8 +58,8 @@
   // Walk / Transform live in the classic bottom toolbar; on phones the tab
   // bar covers it, so "More" gets proxies that click the original buttons
   var MORE_ACTIONS = [
-    ['bottomWalkBtn', 'Walk', 'person-standing'],
-    ['gizmoTransformBtn', 'Transform', 'move-3d']
+    ['bottomWalkBtn', 'Walk', 'person-standing', 'G'],
+    ['gizmoTransformBtn', 'Transform', 'move-3d', 'X']
   ];
   var phone = window.matchMedia('(max-width: 720px)');
 
@@ -165,7 +165,45 @@
       });
     });
 
+    addRailActions();
     if (window.lucide) lucide.createIcons();
+  }
+
+  // Walk / Transform as rail buttons on desktop (the classic bottom toolbar is
+  // hidden by panels-compact.css). They click the original buttons, so G / X,
+  // the tour and every module keep working; on/off state is mirrored.
+  function addRailActions() {
+    var added = false;
+    MORE_ACTIONS.forEach(function(a) {
+      var target = document.getElementById(a[0]);
+      if (!target) return;
+      if (!added) addSeparator();
+      added = true;
+      var title = a[1] + ' (' + a[3] + ')';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'panels-rail-btn panels-rail-action';
+      btn.dataset.action = a[0];
+      btn.setAttribute('aria-label', title);
+      btn.innerHTML = '<i data-lucide="' + a[2] + '"></i>';
+      btn.addEventListener('click', function() {
+        btn.blur();
+        target.click();
+      });
+      btn.addEventListener('mouseenter', function() { showTip(btn, title); });
+      btn.addEventListener('mouseleave', hideTip);
+      btn.addEventListener('focus', function() { showTip(btn, title); });
+      btn.addEventListener('blur', hideTip);
+      rail.appendChild(btn);
+      var mirror = function() {
+        var on = target.classList.contains('active');
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.hidden = target.style.display === 'none';
+      };
+      mirror();
+      new MutationObserver(mirror).observe(target, { attributes: true, attributeFilter: ['class', 'style'] });
+    });
   }
 
   // "Measure & Clip" (ui.js 'drawing') becomes two panels: Measure keeps the
@@ -431,7 +469,7 @@
     tabs.appendChild(tabButton('more', 'More', '<i data-lucide="ellipsis"></i>'));
 
     // Everything else, in rail order
-    Array.prototype.forEach.call(rail.querySelectorAll('.panels-rail-btn'), function(btn) {
+    Array.prototype.forEach.call(rail.querySelectorAll('.panels-rail-btn[data-section]'), function(btn) {
       var id = btn.dataset.section;
       if (main.indexOf(id) !== -1) return;
       var item = tabButton(id, panels[id].title, panels[id].icon);
