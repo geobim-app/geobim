@@ -126,6 +126,22 @@
       </div>
 
       <div class="modern-divider">
+        <span class="modern-divider-text">GIS files</span>
+      </div>
+
+      <div id="gisFilesBlock" class="modern-group">
+        <button id="gisFilesAddBtn" class="modern-btn modern-btn-secondary gis-files-add">
+          <i data-lucide="file-plus"></i>
+          <span>Add GIS file…</span>
+        </button>
+        <input type="file" id="gisFilesInput" multiple hidden accept=".geojson,.json,.zip,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.gpx,.fgb">
+        <div id="gisFilesList" class="layer-overlay-list gis-files-list"></div>
+        <div class="modern-hint">
+          Drop GeoJSON, Shapefile (.zip, or .shp with .dbf and .prj), KML/KMZ, GPX or FlatGeobuf onto the map, or pick files. Files stay on this device and are gone after a reload.
+        </div>
+      </div>
+
+      <div class="modern-divider">
         <span class="modern-divider-text">Geoid</span>
       </div>
 
