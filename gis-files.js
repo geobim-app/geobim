@@ -427,6 +427,23 @@ window.GEOBIM_GIS_FILES = (function() {
     return ds;
   }
 
+  // Cesium hands the scene clock to the first data source with time data (GPX
+  // tracks, timed KML): the sun would jump to the track's date. Keep the clock.
+  async function addToViewer(ds) {
+    var viewer = BimViewer.viewer;
+    var c = viewer.clock;
+    var saved = {
+      startTime: c.startTime.clone(), stopTime: c.stopTime.clone(), currentTime: c.currentTime.clone(),
+      multiplier: c.multiplier, clockRange: c.clockRange, clockStep: c.clockStep, shouldAnimate: c.shouldAnimate
+    };
+    await viewer.dataSources.add(ds);
+    if (viewer.clockTrackedDataSource === ds) {
+      viewer.clockTrackedDataSource = undefined;
+      Object.keys(saved).forEach(function(k) { c[k] = saved[k]; });
+      if (viewer.timeline) viewer.timeline.zoomTo(saved.startTime, saved.stopTime);
+    }
+  }
+
   async function addLayer(item) {
     var viewer = BimViewer.viewer;
     var layer = {
@@ -452,7 +469,12 @@ window.GEOBIM_GIS_FILES = (function() {
     }
     layer.dataSource = await buildDataSource(layer);
     if (item.kind === 'cesium') layer.count = layer.dataSource.entities.values.length;
-    await viewer.dataSources.add(layer.dataSource);
+    // GPX track with timestamps: playable (gis-track-player.js)
+    if (layer.format === 'GPX') {
+      var moving = layer.dataSource.entities.values.find(function(e) { return e.position instanceof Cesium.SampledPositionProperty; });
+      if (moving) layer.track = { entity: moving };
+    }
+    await addToViewer(layer.dataSource);
     layers.push(layer);
     render();
     return layer;
@@ -534,7 +556,7 @@ window.GEOBIM_GIS_FILES = (function() {
     var old = l.dataSource;
     l.dataSource = await buildDataSource(l);
     l.dataSource.show = l.visible;
-    await BimViewer.viewer.dataSources.add(l.dataSource);
+    await addToViewer(l.dataSource);
     BimViewer.viewer.dataSources.remove(old, true);
     render();
   }
@@ -542,6 +564,7 @@ window.GEOBIM_GIS_FILES = (function() {
   function remove(id) {
     var l = find(id);
     if (!l) return;
+    if (typeof GEOBIM_TRACK_PLAYER !== 'undefined' && GEOBIM_TRACK_PLAYER.isPlaying(id)) GEOBIM_TRACK_PLAYER.stop();
     BimViewer.viewer.dataSources.remove(l.dataSource, true);
     layers.splice(layers.indexOf(l), 1);
     render();
@@ -587,6 +610,10 @@ window.GEOBIM_GIS_FILES = (function() {
       name.title = l.name;
       var actions = document.createElement('div');
       actions.className = 'layer-overlay-actions';
+      if (l.track && typeof GEOBIM_TRACK_PLAYER !== 'undefined') {
+        var playing = GEOBIM_TRACK_PLAYER.isPlaying(l.id);
+        actions.appendChild(iconButton(playing ? 'square' : 'play', playing ? 'Stop playback' : 'Play track as a camera flight', 'play', playing));
+      }
       if (l.hasZ) actions.appendChild(iconButton('mountain', l.mode === 'z' ? 'Using Z heights (above sea level) — click to drape on terrain' : 'Draped on terrain — click to use the Z heights (above sea level)', 'mode', l.mode === 'z'));
       actions.appendChild(iconButton('crosshair', 'Zoom to', 'zoom'));
       actions.appendChild(iconButton(l.visible ? 'eye' : 'eye-off', l.visible ? 'Hide' : 'Show', 'toggle', l.visible));
@@ -631,6 +658,11 @@ window.GEOBIM_GIS_FILES = (function() {
       else if (b.dataset.action === 'toggle') toggle(id);
       else if (b.dataset.action === 'remove') remove(id);
       else if (b.dataset.action === 'mode' && l) setMode(id, l.mode === 'z' ? 'clamp' : 'z');
+      else if (b.dataset.action === 'play' && l) {
+        if (GEOBIM_TRACK_PLAYER.isPlaying(id)) GEOBIM_TRACK_PLAYER.stop();
+        else GEOBIM_TRACK_PLAYER.start(l).finally(render);
+        render();
+      }
     });
     render();
     return true;
@@ -710,6 +742,7 @@ window.GEOBIM_GIS_FILES = (function() {
   else init();
 
   return {
+    render: render,
     addFiles: addFiles,
     layers: function() { return layers.slice(); },
     remove: remove,

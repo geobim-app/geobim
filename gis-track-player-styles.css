@@ -1,0 +1,141 @@
+/* ===============================
+   GIS TRACK PLAYER (gis-track-player.js)
+   =============================== */
+
+.track-player {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 1200;
+  width: min(560px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 6px);
+  padding: var(--space-sm, 10px) var(--space-md, 14px);
+  border-radius: var(--radius-lg, 12px);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary, #E2E8F0);
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.track-player.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.track-player-head,
+.track-player-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+}
+
+.track-player-head svg {
+  width: 16px;
+  height: 16px;
+  color: var(--brand-teal);
+  flex-shrink: 0;
+}
+
+.track-player-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-player-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #E2E8F0);
+  cursor: pointer;
+}
+
+.track-player-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.track-player-btn.active {
+  color: var(--brand-teal);
+}
+
+.track-player-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.track-player-btn:focus-visible,
+.track-player-slider:focus-visible,
+.track-player-select:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.track-player-slider {
+  width: 100%;
+  accent-color: var(--brand-teal);
+}
+
+.track-player-stats {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-player-select {
+  width: auto;
+  flex-shrink: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .track-player {
+    bottom: 132px;
+  }
+
+  .track-player-row {
+    flex-wrap: wrap;
+  }
+
+  .track-player-stats {
+    flex-basis: calc(100% - 52px);
+  }
+
+  .track-player-btn,
+  .track-player-select {
+    min-height: 44px;
+  }
+
+  .track-player-btn {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-player {
+    transition: none;
+  }
+}
