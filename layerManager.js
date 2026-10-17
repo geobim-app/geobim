@@ -160,6 +160,9 @@
       { group: 'Norway', label: 'Topographic Map (grayscale)', url: 'https://wms.geonorge.no/skwms1/wms.topograatone' },
       { group: 'Norway', label: 'Kartverket Tile Cache (WMTS: topo, grayscale, raster, nautical)', url: 'https://cache.kartverket.no/v1/wmts/1.0.0/WMTSCapabilities.xml' }
     ],
+    // Preset groups kept in the list above but not offered in the pickers
+    // (UI clean-up 2026-10-17). Remove a group here to show it again.
+    hiddenPresetGroups: ['Germany — Rhineland-Palatinate'],
     activeBasemap: null,
     activeTerrain: 'world',
 
@@ -582,6 +585,7 @@
       const groups = {};
       const order = [];
       this.wmsPresets.forEach((preset, index) => {
+        if (this.hiddenPresetGroups.includes(preset.group)) return;
         if (!groups[preset.group]) {
           groups[preset.group] = [];
           order.push(preset.group);
