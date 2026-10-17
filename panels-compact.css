@@ -304,9 +304,15 @@
 
   html.ui-panels .panels-panel .modern-hint {
     padding: 6px 8px;
-    border-left-width: 2px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid var(--border-default);
+    color: var(--text-muted);
     font-size: 11px;
     line-height: 1.45;
+  }
+
+  html.ui-panels .panels-panel .modern-hint strong {
+    color: var(--text-secondary);
   }
 
   html.ui-panels .panels-panel .modern-info-box {

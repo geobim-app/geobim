@@ -1,0 +1,238 @@
+/*
+ * geobim.app — Panel UI: Annotations panel + "Recent Annotations" widget (beta)
+ * Loaded by panels-ui-loader.js. comments-styles.css sets most of these with
+ * !important, so the overrides here need it too.
+ */
+
+/* ===============================
+   ANNOTATIONS PANEL
+   =============================== */
+html.ui-panels .panels-panel .annotation-type-grid {
+  gap: 4px;
+}
+
+html.ui-panels .panels-panel .modern-btn-icon-only {
+  width: auto !important;
+  height: 30px !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm);
+  font-size: 0 !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+html.ui-panels .panels-panel .modern-btn-icon-only svg {
+  width: 16px;
+  height: 16px;
+}
+
+html.ui-panels .panels-panel .modern-btn-icon-only:not(.active) {
+  background: transparent !important;
+  color: var(--text-muted);
+}
+
+html.ui-panels .panels-panel .modern-btn-icon-only.active {
+  background: rgba(var(--brand-teal-rgb), 0.12) !important;
+  border-color: rgba(var(--brand-teal-rgb), 0.5) !important;
+  color: var(--brand-teal) !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+html.ui-panels .panels-panel .modern-btn-small {
+  font-size: 12px !important;
+}
+
+html.ui-panels .panels-panel .modern-btn-small.active {
+  background: rgba(var(--brand-teal-rgb), 0.12) !important;
+  border: 1px solid rgba(var(--brand-teal-rgb), 0.5) !important;
+  color: var(--brand-teal) !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+html.ui-panels .panels-panel .modern-btn-small:not(.active) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+html.ui-panels .panels-panel .modern-btn-danger {
+  background: transparent !important;
+  border-color: var(--border-subtle) !important;
+  color: #F87171 !important;
+}
+
+html.ui-panels .panels-panel .modern-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
+/* "Add comment": teal outline like other primary buttons; while placing
+   (comments.js sets .active) filled a bit stronger instead of the orange pulse */
+html.ui-panels .panels-panel #toggleCommentMode {
+  background: rgba(var(--brand-teal-rgb), 0.1);
+  border: 1px solid rgba(var(--brand-teal-rgb), 0.35);
+  color: var(--brand-teal);
+  font-weight: 500;
+}
+
+html.ui-panels .panels-panel #toggleCommentMode:hover {
+  background: rgba(var(--brand-teal-rgb), 0.18);
+}
+
+html.ui-panels .panels-panel #toggleCommentMode.active {
+  background: rgba(var(--brand-teal-rgb), 0.28);
+  border-color: var(--brand-teal);
+  color: var(--text-primary);
+  animation: none;
+}
+
+/* ===============================
+   RECENT ANNOTATIONS WIDGET
+   =============================== */
+html.ui-panels #floatingCommentsPanel.pnl-annot-widget {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-header {
+  gap: 6px;
+  padding: 6px 6px 6px var(--space-sm);
+  background: transparent;
+  border-bottom: 0;
+}
+
+html.ui-panels .pnl-annot-widget .pnl-annot-grip {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+html.ui-panels .pnl-annot-widget .pnl-annot-grip svg {
+  width: 12px;
+  height: 12px;
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-btn {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-btn:hover {
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+html.ui-panels .pnl-annot-widget .floating-panel-body {
+  padding: 2px var(--space-sm) var(--space-sm);
+}
+
+html.ui-panels .pnl-annot-widget .floating-comments-list {
+  gap: 2px;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-item {
+  margin: 0;
+  padding: 6px 8px;
+  border-left-width: 2px;
+  border-left-style: solid;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: none;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-header {
+  margin-bottom: 2px;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-title {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-text {
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-meta {
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-type,
+html.ui-panels .pnl-annot-widget .modern-comment-category,
+html.ui-panels .pnl-annot-widget .modern-comment-priority {
+  padding: 0;
+  background: transparent;
+  font-weight: 500;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-priority.normal,
+html.ui-panels .pnl-annot-widget .modern-comment-priority.low {
+  color: var(--text-muted);
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-btn {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: none;
+}
+
+html.ui-panels .pnl-annot-widget .modern-comment-btn.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
+html.ui-panels .pnl-annot-widget .modern-empty-state-title {
+  font-style: normal;
+  font-size: 12px;
+}
+
+html.ui-panels .pnl-annot-widget .modern-empty-state-hint {
+  font-style: normal;
+  font-size: 11px;
+}
+
+@media (min-width: 721px) {
+  html.ui-panels #floatingCommentsPanel.pnl-annot-widget {
+    width: 300px;
+  }
+
+  html.ui-panels #floatingCommentsPanel.pnl-annot-widget:not([style*="left"]) {
+    right: var(--space-md);
+    bottom: 48px; /* above Cesium's fullscreen button */
+  }
+}
