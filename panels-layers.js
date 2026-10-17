@@ -8,6 +8,7 @@
  *   TERRAIN    Cesium ion · My terrain · Geoid / heights
  *   IMAGERY    Base map · My imagery
  *   WMS / WMTS Active services (grouped per service) · Presets · Add service…
+ *   GIS FILES  Add GIS file… · list of dropped / picked files (gis-files.js)
  *   3D LAYERS
  * Pure UI restructuring: the existing elements (IDs, handlers, LayerManager
  * re-renders) are moved into the nodes, never rebuilt. Two lists are
@@ -208,11 +209,15 @@
     add(addService.sub, select, urlRow && urlRow.closest('.layer-add-overlay'), wmsHint);
     add(wms.sub, take('wmsLayerPicker'), active, presets, addService);
 
+    // GIS FILES (gis-files.js)
+    var gis = node('gis', 'GIS files', false, { top: true, meta: true });
+    add(gis.sub, take('gisFilesBlock'));
+
     // 3D LAYERS
     var layers3d = node('3d', '3D layers', false, { top: true, meta: true });
     add(layers3d.sub, take('toggleOSMBuildings'), take('toggleGoogle3DTiles'), take('googleTilesQualityRow'), take('tilesetLayersList'));
 
-    add(root, terrain, imagery, wms, layers3d);
+    add(root, terrain, imagery, wms, gis, layers3d);
 
     // Leftovers: drop dividers and emptied wrappers, keep anything unknown
     var more = node('more', 'More', false, { top: true });
@@ -241,11 +246,15 @@
       imagery.meta.textContent = activeBasemapName();
       var n = typeof LayerManager !== 'undefined' ? (LayerManager.wmsLayers || []).length : 0;
       wms.meta.textContent = n ? n + ' active' : '';
+      var nGis = typeof GEOBIM_GIS_FILES !== 'undefined' ? GEOBIM_GIS_FILES.layers().length : 0;
+      gis.meta.textContent = nGis ? nGis + (nGis === 1 ? ' file' : ' files') : '';
       var on3d = layers3d.sub.querySelectorAll('.modern-toggle-btn.active, .layer-toggle-btn.active').length;
       layers3d.meta.textContent = on3d ? on3d + ' on' : '';
     };
     if (terrainList) new MutationObserver(sync).observe(terrainList, { childList: true });
     if (wmsList) new MutationObserver(function() { groupWms(); sync(); }).observe(wmsList, { childList: true });
+    var gisList = byId('gisFilesList');
+    if (gisList) new MutationObserver(sync).observe(gisList, { childList: true });
     splitTerrain(ownList, false);
     var basemapList = byId('basemapList');
     if (basemapList) new MutationObserver(sync).observe(basemapList, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });

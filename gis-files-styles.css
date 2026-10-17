@@ -1,0 +1,140 @@
+/* ===============================
+   GIS FILES (gis-files.js)
+   =============================== */
+
+.gis-files-add {
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-xs, 6px);
+}
+
+.gis-files-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.gis-files-list {
+  margin-top: var(--space-sm, 8px);
+}
+
+.gis-file-row.is-hidden .layer-overlay-name {
+  opacity: 0.5;
+}
+
+.gis-file-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gis-color, var(--brand-teal));
+  flex-shrink: 0;
+  margin-right: var(--space-xs, 6px);
+}
+
+.gis-file-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gis-file-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gis-file-btn:focus-visible,
+.gis-files-add:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .gis-file-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Drop hint over the whole page while files are dragged in */
+.gis-drop-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(10, 20, 30, 0.35);
+  border: 3px dashed var(--brand-teal);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.gis-drop-hint.visible {
+  opacity: 1;
+}
+
+.gis-drop-hint-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-md, 12px) var(--space-lg, 16px);
+  border-radius: var(--radius-lg, 12px);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary, #E2E8F0);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+}
+
+.gis-drop-hint-box svg {
+  color: var(--brand-teal);
+}
+
+/* Coordinate system dialog */
+.gis-crs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md, 16px);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.gis-crs-dialog {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-lg, 16px);
+  border-radius: var(--radius-lg, 12px);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-xl);
+  color: var(--text-primary, #E2E8F0);
+}
+
+.gis-crs-title {
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.gis-crs-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm, 8px);
+}
+
+.gis-crs-actions .modern-btn {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gis-drop-hint {
+    transition: none;
+  }
+}
