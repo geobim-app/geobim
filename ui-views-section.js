@@ -26,10 +26,39 @@
       </div>
 
       <div class="modern-hint">
-        <strong>Ctrl+1-9</strong> to save • <strong>1-9</strong> to load
+        <strong>1-9</strong> load the view in that slot
       </div>
 
       <div id="savedViewsList" class="modern-views-list"></div>
+
+      <div class="modern-label view-flight-label">Camera flight</div>
+      <div class="modern-group view-flight">
+        <select id="flightModeSelect" class="modern-select" aria-label="Flight">
+          <option value="orbit">Orbit</option>
+          <option value="flyover">Fly over</option>
+          <option value="tour">Tour through saved views</option>
+        </select>
+        <div id="flightTargetRow" class="view-flight-row">
+          <span class="view-flight-key">Around</span>
+          <select id="flightTargetSelect" class="modern-select" aria-label="Flight centre">
+            <option value="view">View centre</option>
+          </select>
+        </div>
+        <div class="view-flight-row">
+          <span class="view-flight-key">Duration</span>
+          <select id="flightDurationSelect" class="modern-select" aria-label="Flight duration">
+            <option value="10">10 s</option>
+            <option value="20">20 s</option>
+            <option value="30" selected>30 s</option>
+            <option value="60">1 min</option>
+            <option value="120">2 min</option>
+          </select>
+        </div>
+        <button type="button" id="flightStartBtn" class="modern-btn modern-btn-primary">
+          <i data-lucide="play"></i><span>Start flight</span>
+        </button>
+        <div class="modern-hint">Esc, a click in the view or unloading a model stops the flight.</div>
+      </div>
     `;
   }
 
