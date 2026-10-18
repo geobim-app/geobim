@@ -380,7 +380,7 @@ BimViewer.updateSavedViewsList = function() {
   if (!container) return;
   
   if (this.savedViews.size === 0) {
-    container.innerHTML = '<div class="modern-empty-state"><div class="modern-empty-state-icon"><i data-lucide="camera" style="width:28px;height:28px;stroke:var(--text-muted);"></i></div><div class="modern-empty-state-title">No saved views</div><div class="modern-empty-state-hint">Press 1-9 to save the current camera position</div></div>';
+    container.innerHTML = '<div class="modern-empty-state"><div class="modern-empty-state-icon"><i data-lucide="camera" style="width:28px;height:28px;stroke:var(--text-muted);"></i></div><div class="modern-empty-state-title">No saved views</div><div class="modern-empty-state-hint">Save the current camera position, then press 1-9 to load it</div></div>';
     if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide', node: container });
     return;
   }

@@ -185,6 +185,43 @@ def convert_e57_to_las(e57_path, las_path):
     las.write(las_path)
 
 
+def las_point_format(las_path):
+    import laspy
+    with laspy.open(las_path) as f:
+        return f.header.point_format.id
+
+
+def copy_las(src_path, dst_path):
+    """Chunked LAS/LAZ → uncompressed LAS copy, widened to LAS 1.4 point
+    format 6 (7 with RGB) when the source uses format 0-5.
+
+    py3dtiles looks up --extra-fields by the raw dtype name. On formats 0-5
+    classification lives in the bit field "raw_classification", so the
+    "classification" property was silently missing from the batch table and
+    the Classification colour mode / class filter in pointcloud.js had nothing
+    to read. Formats 6-10 store it as its own "classification" byte.
+    Chunked, not laspy.read(): a multi-GB file in one go needs several times
+    its size in RAM on a shared server."""
+    import copy
+    import laspy
+    with laspy.open(src_path) as reader:
+        header = reader.header
+        widen = header.point_format.id < 6
+        if widen:
+            dims = set(header.point_format.dimension_names)
+            header = copy.deepcopy(header)
+            header.set_version_and_point_format(
+                laspy.header.Version(1, 4), laspy.PointFormat(7 if "red" in dims else 6)
+            )
+        with laspy.open(dst_path, mode="w", header=header) as writer:
+            for points in reader.chunk_iterator(2_000_000):
+                if widen:
+                    wide = laspy.ScaleAwarePointRecord.zeros(len(points), header=header)
+                    wide.copy_fields_from(points)
+                    points = wide
+                writer.write_points(points)
+
+
 def patch_root_transform(tileset_path, lon, lat, height, heading):
     with open(tileset_path) as f:
         ts = json.load(f)
@@ -383,14 +420,12 @@ def main():
             # is to decompress ourselves first and hand py3dtiles an
             # uncompressed .las it's actually fast with.
             las_path = os.path.splitext(input_path)[0] + ".las"
-            import laspy
-            # Chunked, not laspy.read(): decompressing a multi-GB .laz in one
-            # go needs several times its size in RAM on a shared server.
-            with laspy.open(input_path) as reader, laspy.open(
-                las_path, mode="w", header=reader.header
-            ) as writer:
-                for points in reader.chunk_iterator(2_000_000):
-                    writer.write_points(points)
+            copy_las(input_path, las_path)
+            input_path = las_path
+        elif input_path.lower().endswith(".las") and las_point_format(input_path) < 6:
+            # Same widening as for .laz (see copy_las), without decompression.
+            las_path = os.path.splitext(input_path)[0] + ".pf6.las"
+            copy_las(input_path, las_path)
             input_path = las_path
         elif input_path.lower().endswith(".e57"):
             las_path = os.path.splitext(input_path)[0] + ".las"
@@ -443,12 +478,11 @@ def main():
                     # (lowercase) laspy dimension name — py3dtiles writes the batch
                     # table property key verbatim from what's passed here.
                     # "intensity" exists on every LAS point format. "classification"
-                    # only exists as its own field on LAS 1.4 point formats 6-10; on
-                    # older point formats (0-5 — still common, and what this script's
-                    # own convert_e57_to_las() above produces) it's packed into a
-                    # bit-field instead, so py3dtiles just logs a warning in
-                    # convert.log and omits the property for those files rather than
-                    # failing the conversion (verified in point_tiler.py).
+                    # only exists as its own field on LAS 1.4 point formats 6-10;
+                    # LAS/LAZ in formats 0-5 are widened to 6/7 above (copy_las), so
+                    # it is there for every LAS/LAZ upload. E57 (converted to format
+                    # 3) and PLY carry no classes; py3dtiles logs a warning and
+                    # omits the property instead of failing.
                     "--extra-fields", "intensity",
                     "--extra-fields", "classification",
                     *georef_args,

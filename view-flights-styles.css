@@ -1,0 +1,45 @@
+/* Camera flight block in Saved Views (view-flights.js, ui-views-section.js) */
+.view-flight-label {
+  margin-top: var(--space-md);
+}
+
+.view-flight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.view-flight-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.view-flight-row[hidden] {
+  display: none;
+}
+
+.view-flight-key {
+  flex: 0 0 64px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.view-flight-row .modern-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#flightStartBtn i[data-lucide] {
+  width: 16px;
+  height: 16px;
+}
+
+#flightStartBtn.active {
+  background: var(--brand-teal);
+}
+
+#flightStartBtn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
