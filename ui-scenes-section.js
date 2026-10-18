@@ -53,7 +53,7 @@
         <input type="file" id="sceneImportInput" accept=".json,application/json" hidden>
       </div>
 
-      <div class="modern-hint">Scenes are kept until you reload the page — export them to keep them.</div>
+      <div id="scenesStorageHint" class="modern-hint">Scenes are kept until you reload the page — export them to keep them.</div>
     `;
   }
 
@@ -159,6 +159,7 @@
     });
 
     render();
+    if (BimViewer.updateScenesStorageHint) BimViewer.updateScenesStorageHint();
   }
 
   window.GEOBIM_SCENES_UI = {
