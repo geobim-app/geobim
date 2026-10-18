@@ -5,10 +5,11 @@
  * layout; the classic sidebar sections stay as they are.
  *
  * VIEWS   SAVE (Save current view, Smooth transition) · SAVED · n (rows:
- *         name + time / height, click = go there, rename, delete)
+ *         name + time / height, click = go there, rename, delete) ·
+ *         CAMERA FLIGHT (view-flights.js: orbit, fly over, tour)
  * SCENES  SAVE (name, Save as new scene, Fly to scene) · SCENES · n (the
  *         scenes.js list + "Not restored" box) · FILE (New empty, Import,
- *         Export)
+ *         Export, storage hint of scenes-store.js)
  *
  * Pure UI restructuring: the elements of ui-views-section.js and
  * ui-scenes-section.js keep their IDs and handlers. Two additions, panel
@@ -16,8 +17,8 @@
  *   - views get a name (BimViewer.renameView) and are kept in this browser
  *     (localStorage); the rows are rendered here instead of the emoji rows
  *     of BimViewer.updateSavedViewsList
- *   - scenes.list is kept in this browser as well, the same JSON as the
- *     SavedScenes.json export; Firestore per user follows later
+ *   - scenes are stored by scenes-store.js (account or browser); scenes
+ *     this panel kept under geobim_saved_scenes before are moved there once
  * Every storage access is wrapped in try/catch: without storage both panels
  * work as before, only nothing survives a reload.
  */
@@ -126,22 +127,33 @@
     if (icon) icon.remove();
     var smooth = byId('smoothViewChk');
     var smoothLabel = smooth && smooth.closest('label');
-    add(save.sub, saveBtn, smoothLabel);
+    add(save.sub, saveBtn, smoothLabel, el('p', 'modern-hint pnl-hint', 'Keys 1-9 go to the view in that slot.'));
 
     // SAVED · n
     var saved = node('v:saved', 'Saved', true, { top: true, meta: true });
     list.className = 'pnl-views-list';
     saved.sub.appendChild(list);
 
-    add(root, save, saved);
-    content.innerHTML = ''; // the old hint ("Ctrl+1-9 …") had no handler behind it
+    // CAMERA FLIGHT (block of ui-views-section.js, handlers in view-flights.js)
+    var flightGroup = content.querySelector('.view-flight');
+    var flight = null;
+    if (flightGroup) {
+      flight = node('v:flight', 'Camera flight', false, { top: true });
+      flightGroup.classList.add('pnl-view-flight');
+      flight.sub.appendChild(flightGroup);
+    }
+
+    add(root, save, saved, flight);
+    content.innerHTML = ''; // drops the classic hint and the "Camera flight" label
     content.appendChild(root);
 
     // Name for new views, rename, storage after every change
     var origSave = BimViewer.saveView;
     BimViewer.saveView = function(slot) {
+      var before = Array.from(this.savedViews.keys());
       var r = origSave.apply(this, arguments);
-      var key = slot == null ? this.nextViewSlot - 1 : slot;
+      // view-flights.js picks the lowest free slot 1-9, so find the new one
+      var key = slot != null ? slot : Array.from(this.savedViews.keys()).find(function(k) { return before.indexOf(k) < 0; });
       var v = this.savedViews.get(key);
       if (v && !v.name) v.name = 'View ' + key;
       persistViews();
@@ -221,13 +233,20 @@
   // ---------------------------------------------------------------------------
   // SCENES panel
   // ---------------------------------------------------------------------------
-  function restoreScenes() {
-    var s = BimViewer.scenes;
-    if (s.list.length) return;
+  // Scenes this panel kept itself before scenes-store.js: hand them over
+  // once (only those not in the list yet), then drop the old key. Waits for
+  // the store, otherwise a slow Firestore load would see them as new again.
+  function migrateScenes() {
+    var store = BimViewer.scenesStore;
+    if (!store || !store.ready) { setTimeout(migrateScenes, 500); return; }
     var data = readJSON(SCENES_KEY);
-    var list = data && Array.isArray(data.scenes) ? data.scenes : null;
-    if (!list || !list.length) return;
-    try { BimViewer.importScenes(JSON.stringify({ scenes: list })); } catch (_) {}
+    var list = data && Array.isArray(data.scenes) ? data.scenes : [];
+    var have = BimViewer.scenes.list.map(function(s) { return s.name + '|' + s.modified; });
+    var missing = list.filter(function(s) { return s && have.indexOf(s.name + '|' + s.modified) < 0; });
+    if (missing.length) {
+      try { BimViewer.importScenes(JSON.stringify({ scenes: missing })); } catch (_) { return; }
+    }
+    try { localStorage.removeItem(SCENES_KEY); } catch (_) {}
   }
 
   function buildScenes(content) {
@@ -252,8 +271,8 @@
     var file = node('s:file', 'File', true, { top: true });
     var actions = content.querySelector('.scenes-actions');
     if (actions) actions.classList.add('pnl-scenes-file');
-    var hint = el('p', 'modern-hint pnl-hint',
-      'Scenes are kept in this browser. Export them to back them up or to open them in geoBIM Desktop.');
+    var hint = byId('scenesStorageHint'); // text from scenes-store.js (account or browser)
+    if (hint) hint.className = 'modern-hint pnl-hint';
     add(file.sub, actions, hint);
 
     add(root, save, scenes, file);
@@ -266,11 +285,11 @@
       origRender.apply(this, arguments);
       var n = BimViewer.scenes.list.length;
       scenes.meta.textContent = n ? String(n) : '';
-      writeJSON(SCENES_KEY, { scenes: BimViewer.scenes.list });
     };
 
-    restoreScenes();
     ui.render();
+    if (BimViewer.updateScenesStorageHint) BimViewer.updateScenesStorageHint();
+    migrateScenes();
     return true;
   }
 
