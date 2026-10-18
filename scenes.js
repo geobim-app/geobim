@@ -31,8 +31,8 @@
 // assets → content → environment → camera last. Whatever could not be
 // restored is collected and shown afterwards, it never aborts the load.
 //
-// Scenes live in memory for now (export to keep them); per-user storage in
-// Firestore follows later. Unknown fields of imported scenes are kept on save.
+// scenes-store.js keeps the list (Firestore per user, guests in localStorage).
+// Unknown fields of imported scenes are kept on save.
 // ===============================
 'use strict';
 
