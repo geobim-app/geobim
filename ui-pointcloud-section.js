@@ -51,6 +51,13 @@
           <option value="intensity">💡 Intensity-based</option>
           <option value="classification">🏷️ Classification</option>
         </select>
+        <div id="pcClassFilter" class="pc-class-filter" hidden>
+          <div class="pc-class-filter-head">
+            <span class="modern-label-small">Classes shown</span>
+            <button type="button" class="pc-class-all" onclick="BimViewer.showAllPointCloudClasses()">Show all</button>
+          </div>
+          <div id="pcClassList" class="pc-class-list"></div>
+        </div>
       </div>
 
       <div class="modern-divider">
@@ -157,8 +164,36 @@
     `;
   }
 
+  // ASPRS class checkboxes (pointcloud.js ASPRS_CLASSES), only in Classification mode
+  function updateClassFilter() {
+    var box = document.getElementById('pcClassFilter');
+    var list = document.getElementById('pcClassList');
+    if (!box || !list || !BimViewer.ASPRS_CLASSES) return;
+    var settings = BimViewer.pointCloudSettings || {};
+    box.hidden = settings.colorMode !== 'classification';
+    var hidden = settings.hiddenClasses || [];
+    list.innerHTML = BimViewer.ASPRS_CLASSES.map(function(c) {
+      return '<label class="pc-class-item" title="ASPRS class ' + c.code + '">' +
+        '<input type="checkbox"' + (hidden.indexOf(c.code) < 0 ? ' checked' : '') +
+        ' onchange="BimViewer.setPointCloudClassHidden(' + c.code + ', !this.checked)">' +
+        '<span class="pc-class-swatch" style="--pc-class-color:' + c.color + '"></span>' +
+        '<span class="pc-class-name">' + c.code + ' ' + c.name + '</span></label>';
+    }).join('');
+  }
+
+  function init() {
+    var tries = 0;
+    (function poll() {
+      if (document.getElementById('pcClassList')) { updateClassFilter(); return; }
+      if (++tries < 120) setTimeout(poll, 500);
+    })();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
   window.GEOBIM_POINTCLOUD_UI = {
-    getContent: getContent
+    getContent: getContent,
+    updateClassFilter: updateClassFilter
   };
 
 })();

@@ -41,6 +41,8 @@
     // Color & Shading
     shadingEnabled: true,
     colorMode: 'rgb', // 'rgb', 'height', 'intensity', 'classification'
+    hiddenClasses: [], // ASPRS class codes hidden in Classification mode
+
 
     // Performance
     geometricErrorScale: 1.0,
@@ -49,6 +51,35 @@
     // Tracking
     appliedTilesets: new Map() // Track which tilesets have settings applied
   };
+
+  // ASPRS LAS classes (LAS 1.4 R15, table 17) with the colours of the
+  // Classification mode; classes not listed render white.
+  BimViewer.ASPRS_CLASSES = [
+    { code: 0,  name: 'Never classified',    color: '#808080' },
+    { code: 1,  name: 'Unclassified',        color: '#808080' },
+    { code: 2,  name: 'Ground',              color: '#8B4513' },
+    { code: 3,  name: 'Low vegetation',      color: '#00FF00' },
+    { code: 4,  name: 'Medium vegetation',   color: '#228B22' },
+    { code: 5,  name: 'High vegetation',     color: '#006400' },
+    { code: 6,  name: 'Building',            color: '#FF0000' },
+    { code: 7,  name: 'Low point (noise)',   color: '#FF00FF' },
+    { code: 9,  name: 'Water',               color: '#0000FF' },
+    { code: 10, name: 'Rail',                color: '#8B008B' },
+    { code: 11, name: 'Road surface',        color: '#A9A9A9' },
+    { code: 13, name: 'Wire – guard',        color: '#FFD700' },
+    { code: 14, name: 'Wire – conductor',    color: '#FFA500' },
+    { code: 15, name: 'Transmission tower',  color: '#4B0082' },
+    { code: 17, name: 'Bridge deck',         color: '#D2B48C' },
+    { code: 18, name: 'High noise',          color: '#FF69B4' }
+  ];
+
+  // The class as a style expression. py3dtiles writes the batch-table key
+  // "classification" (convert_pointcloud.py), Cesium ion's tiler and other
+  // tools "Classification"; a missing property is undefined, so take
+  // whichever exists. Cesium's expression language has no defined() — the
+  // undefined literal is the guard, and it also compiles in the point-cloud
+  // shader (checked with both spellings).
+  var CLASS_EXPR = '(${classification} !== undefined ? ${classification} : ${Classification})';
 
   // Initialize Point Cloud settings
   BimViewer.initPointCloudSettings = function() {
@@ -382,31 +413,25 @@
           console.log('☁️ Color Mode: Intensity-based');
           break;
 
-        case 'classification':
-          // Color by ASPRS classification. Same casing bug as intensity — batch
-          // table key is the lowercase "classification" convert_pointcloud.py now
-          // requests, not "${Classification}". Note: only LAS 1.4 point formats 6-10
-          // expose "classification" as its own field; point formats 0-5 (still common,
-          // and what this app's own E57→LAS conversion in convert_pointcloud.py
-          // produces) pack it into a bit-field ("bit_fields") instead, so those files
-          // simply won't have this property — py3dtiles omits it gracefully (a logged
-          // warning in convert.log, not a conversion failure) and this mode falls
-          // through to the "true" catch-all, same as before, rather than breaking.
+        case 'classification': {
+          // Color by ASPRS classification. Before, only "${classification}"
+          // (lowercase, as convert_pointcloud.py requests it) was read; point
+          // formats 0-5 are now widened to 6/7 before tiling so the field
+          // exists for every LAS/LAZ upload. E57/PLY carry no classes — every
+          // point falls through to the white catch-all.
           styleJson.color = {
-            conditions: [
-              ["${classification} === 0", "color('#808080')"], // Never classified
-              ["${classification} === 1", "color('#808080')"], // Unclassified
-              ["${classification} === 2", "color('#8B4513')"], // Ground
-              ["${classification} === 3", "color('#00FF00')"], // Low Vegetation
-              ["${classification} === 4", "color('#228B22')"], // Medium Vegetation
-              ["${classification} === 5", "color('#006400')"], // High Vegetation
-              ["${classification} === 6", "color('#FF0000')"], // Building
-              ["${classification} === 9", "color('#0000FF')"], // Water
-              ["true", "color('#FFFFFF')"]
-            ]
+            conditions: this.ASPRS_CLASSES.map(function(c) {
+              return [CLASS_EXPR + ' === ' + c.code, "color('" + c.color + "')"];
+            }).concat([['true', "color('#FFFFFF')"]])
           };
+          // Hidden classes (checkbox list under Point Colors)
+          const hidden = (settings.hiddenClasses || []).filter(function(c) { return Number.isInteger(c); });
+          if (hidden.length) {
+            styleJson.show = '!(' + hidden.map(function(c) { return CLASS_EXPR + ' === ' + c; }).join(' || ') + ')';
+          }
           console.log('☁️ Color Mode: Classification-based');
           break;
+        }
 
         default:
           // unknown mode — fall through to plain RGB, no color key
@@ -459,8 +484,25 @@
       classification: 'Classification Colors'
     };
 
+    if (window.GEOBIM_POINTCLOUD_UI && GEOBIM_POINTCLOUD_UI.updateClassFilter) GEOBIM_POINTCLOUD_UI.updateClassFilter();
     this.updateStatus(`Color mode: ${modeLabels[mode]}`, 'success');
     console.log(`☁️ Color Mode changed to: ${mode}`);
+  };
+
+  // Hide / show one ASPRS class (Classification mode only)
+  BimViewer.setPointCloudClassHidden = function(code, hidden) {
+    code = Number(code);
+    if (!Number.isInteger(code)) return;
+    const list = (this.pointCloudSettings.hiddenClasses || []).filter(function(c) { return c !== code; });
+    if (hidden) list.push(code);
+    this.pointCloudSettings.hiddenClasses = list.sort(function(a, b) { return a - b; });
+    this._scheduleApplyPointCloudSettings();
+  };
+
+  BimViewer.showAllPointCloudClasses = function() {
+    this.pointCloudSettings.hiddenClasses = [];
+    this._scheduleApplyPointCloudSettings();
+    if (window.GEOBIM_POINTCLOUD_UI && GEOBIM_POINTCLOUD_UI.updateClassFilter) GEOBIM_POINTCLOUD_UI.updateClassFilter();
   };
 
   // Update Eye Dome Lighting
@@ -568,6 +610,7 @@
       maximumAttenuation: undefined,
       shadingEnabled: true,
       colorMode: 'rgb',
+      hiddenClasses: [],
       geometricErrorScale: 1.0,
       backFaceCulling: false,
       appliedTilesets: new Map()
@@ -588,6 +631,7 @@
     if (colorModeSelect) {
       colorModeSelect.value = settings.colorMode || 'rgb';
     }
+    if (window.GEOBIM_POINTCLOUD_UI && GEOBIM_POINTCLOUD_UI.updateClassFilter) GEOBIM_POINTCLOUD_UI.updateClassFilter();
     
     // EDL Toggle
     const edlToggle = document.getElementById('toggleEDL');
