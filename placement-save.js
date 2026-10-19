@@ -204,6 +204,13 @@
         var origin = Cesium.Cartesian3.fromDegrees(p.position.lon, p.position.lat, p.position.height);
         var enu = Cesium.Transforms.headingPitchRollToFixedFrame(
           origin, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(p.heading || 0), 0, 0));
+        // ECEF tilesets (py3dtiles point clouds) are not drawn in an ENU frame:
+        // save the transform in effect, ENU × inverse(base frame) × root —
+        // writing the bare ENU frame would tilt the cloud in the file
+        if (p.baseFrame) {
+          var rel = Cesium.Matrix4.multiply(enu, Cesium.Matrix4.inverse(p.baseFrame, new Cesium.Matrix4()), new Cesium.Matrix4());
+          enu = Cesium.Matrix4.multiply(rel, ad.tileset.root.transform, new Cesium.Matrix4());
+        }
         await post({
           kind: 'tileset',
           folder: tilesetFolder(ad.modelDef),
