@@ -137,6 +137,11 @@
             '<div class="splash-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets, Esc to exit)</span></div>' +
             '<div class="splash-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>' +
 
+            '<div class="splash-shortcut-group">Views &amp; Capture</div>' +
+            '<div class="splash-shortcut"><kbd>1 – 9</kbd><span>Go to the saved view in that slot</span></div>' +
+            '<div class="splash-shortcut"><kbd>F9</kbd><span>Screenshot as PNG (with logo and credits)</span></div>' +
+            '<div class="splash-shortcut"><kbd>ESC</kbd><span>Stop camera flight (orbit, fly over, tour)</span></div>' +
+
             '<div class="splash-shortcut-group">Selection</div>' +
             '<div class="splash-shortcut"><kbd>Left-click</kbd><span>Select element (show properties)</span></div>' +
             '<div class="splash-shortcut"><kbd>Right-click</kbd><span>Place comment (in comment mode)</span></div>' +

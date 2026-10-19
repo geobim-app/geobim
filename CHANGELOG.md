@@ -28,6 +28,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Tastenkürzel aus Paket A in Splash-Screen und About-Dialog** (`splash-screen.js`, `about-feedback.js`, `index.html` `?v=`): Im Shortcuts-Tab beider Fenster steht eine neue Gruppe „Views & Capture“ mit 1–9 (gespeicherte Ansicht im jeweiligen Slot laden), F9 (Screenshot als PNG mit Logo und Credits) und Esc (Kameraflug beenden).
 - **index.html: toter Verweis auf `ui-lighting-extension.js` entfernt** (die Datei gibt es nicht mehr, die Zeile war nur auskommentiert).
 - **WMS-Presets: Rheinland-Pfalz ausgeblendet** (`layerManager.js`, `index.html` `?v=`): Die Gruppe „Germany — Rhineland-Palatinate“ erscheint nicht mehr in der Preset-Auswahl der OGC-Services (UI aufgeräumt). Die Einträge bleiben in `wmsPresets`; `hiddenPresetGroups` steuert, welche Gruppen ausgeblendet sind. Eigene RLP-URLs lassen sich weiter von Hand eintragen.
 
