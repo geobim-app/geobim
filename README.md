@@ -76,11 +76,18 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
    ```
    Edit `config.js` and fill in your Firebase credentials. The Cesium Ion token is entered at runtime in the app.
 
-3. Serve locally:
-   ```bash
-   npx serve .
+3. Serve locally with PHP 8 (the default Cesium Ion token comes from `api/ion-config.php`):
+   ```powershell
+   .\dev\serve.ps1
    ```
-   Or open `index.html` directly in a browser.
+   Then open http://localhost:8000/. The script reads a Cesium Ion token restricted to `http://localhost:8000` from `~/.geobim/ion-dev-token.txt`; Ion login needs its own OAuth app with the redirect URI `http://localhost:8000/` (see `config.example.js`). Without PHP (`npx serve .`) the viewer does not start.
+
+   Uploads, converters, server models and the owner and iTwin logins need the production server and cannot be tested locally.
+
+4. Before committing, run the checks (on Windows in Git Bash, with a UTF-8 locale for `grep -P`):
+   ```bash
+   LC_ALL=C.UTF-8 bash qa-check.sh
+   ```
 
 ---
 

@@ -10,6 +10,12 @@
  * Change Date: 2030-03-01 — converts to MIT License
  */
 const GEOBIM_CONFIG = {
+  cesiumIon: {
+    // One Ion OAuth app per domain (each app allows a single redirect URI),
+    // e.g. a separate app with redirect http://localhost:8000/ for local development
+    clientId: window.location.hostname === 'localhost' ? 'your-localhost-oauth-client-id'
+      : 'your-oauth-client-id'
+  },
   firebase: {
     apiKey: "your-firebase-api-key",
     authDomain: "your-project.firebaseapp.com",
