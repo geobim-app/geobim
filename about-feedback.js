@@ -277,6 +277,11 @@
               <div class="about-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets, Esc to exit)</span></div>
               <div class="about-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>
 
+              <div class="about-shortcut-group-title">Views &amp; Capture</div>
+              <div class="about-shortcut"><kbd>1 – 9</kbd><span>Go to the saved view in that slot</span></div>
+              <div class="about-shortcut"><kbd>F9</kbd><span>Screenshot as PNG (with logo and credits)</span></div>
+              <div class="about-shortcut"><kbd>ESC</kbd><span>Stop camera flight (orbit, fly over, tour)</span></div>
+
               <div class="about-shortcut-group-title">Selection</div>
               <div class="about-shortcut"><kbd>Left-click</kbd><span>Select element (show properties)</span></div>
               <div class="about-shortcut"><kbd>Right-click</kbd><span>Place comment (in comment mode)</span></div>
