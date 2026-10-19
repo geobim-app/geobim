@@ -82,7 +82,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
    ```
    Then open http://localhost:8000/. The script reads a Cesium Ion token restricted to `http://localhost:8000` from `~/.geobim/ion-dev-token.txt`; Ion login needs its own OAuth app with the redirect URI `http://localhost:8000/` (see `config.example.js`). Without PHP (`npx serve .`) the viewer does not start.
 
-   Uploads, converters, server models and the owner login need the production server and cannot be tested locally. The Bentley (iTwin) sign-in works on localhost: `http://localhost:8000/itwin-callback.html` is a registered redirect URI, and `serve.ps1` enables cURL/OpenSSL for the token relay.
+   Uploads, converters, saving placements and the owner session need the production server and cannot be tested locally. "Server models" come read-only from a local folder of tilesets (`-ModelDir`, default `Documents\BIM_Zentral\3dtiles`, where geoBIM Desktop writes them; see `api/_dev.php`); the section shows after signing in with the owner account. The Bentley (iTwin) sign-in works on localhost: `http://localhost:8000/itwin-callback.html` is a registered redirect URI, and `serve.ps1` enables cURL/OpenSSL for the token relay.
 
 4. Before committing, run the checks (on Windows in Git Bash, with a UTF-8 locale for `grep -P`):
    ```bash

@@ -3,14 +3,17 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-cache');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_dev.php';
+// Local development: a folder of tilesets instead of model/ (see _dev.php)
+$devDir = geobim_dev_model_dir();
 // Server models are the owner's; everyone else gets an empty list (and model/
 // itself answers 404 to them, see model/.htaccess).
-if (!geobim_is_owner()) {
+if (!$devDir && !geobim_is_owner()) {
     echo '[]';
     exit;
 }
 
-$modelDir = __DIR__ . '/../model';
+$modelDir = $devDir ?: __DIR__ . '/../model';
 $models = [];
 // Placements saved in geobim.app (api/placement-save.php), keyed by GLB file name
 $saved = json_decode(@file_get_contents($modelDir . '/placements.json') ?: '{}', true) ?: [];

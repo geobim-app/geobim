@@ -26,5 +26,13 @@ if (isset($modes[$route])) {
     exit;
 }
 
+// model/ (model/.htaccess): files in the repo (Cesium_Man.glb, wind/, sib/) as they
+// are, the rest through api/model-file.php — with GEOBIM_DEV_MODEL_DIR from that folder
+if (preg_match('#^/model/(.+)$#', $path, $m) && !is_file(__DIR__ . '/../model/' . $m[1])) {
+    $_GET['path'] = rawurldecode($m[1]);
+    require __DIR__ . '/../api/model-file.php';
+    exit;
+}
+
 // Everything else: let the built-in server serve the file or run the PHP script
 return false;

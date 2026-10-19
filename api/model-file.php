@@ -4,18 +4,22 @@
 // many small files, so this stays lean: cookie check, path check, readfile
 // with caching headers.
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_dev.php';
 
-if (!geobim_is_owner()) {
+// Local development: a folder of tilesets instead of model/ (see _dev.php)
+$devDir = geobim_dev_model_dir();
+if (!$devDir && !geobim_is_owner()) {
     http_response_code(404);   // don't reveal what exists
     exit;
 }
-$modelDir = realpath(__DIR__ . '/../model');
+$modelDir = $devDir ?: realpath(__DIR__ . '/../model');
 $rel = $_GET['path'] ?? '';
 if ($rel === '' || strpos($rel, "\0") !== false || preg_match('#(^|/)(\.|_staging(/|$))#', $rel)) {
     http_response_code(404);
     exit;
 }
 $path = realpath($modelDir . '/' . $rel);
+if ($path !== false) $path = str_replace('\\', '/', $path);   // Windows (dev)
 if ($path === false || strpos($path, $modelDir . '/') !== 0 || !is_file($path)) {
     http_response_code(404);
     exit;

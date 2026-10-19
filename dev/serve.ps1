@@ -2,9 +2,14 @@
 #
 # Needs PHP 8 (winget install PHP.PHP.8.4), config.js and logo/ in the repo root,
 # and a localhost-restricted Cesium ion token in $HOME\.geobim\ion-dev-token.txt.
-# Upload, converter, server models, owner login and iTwin login need the server: test them on beta.
+# "Server models" come read-only from -ModelDir (default Documents\BIM_Zentral\3dtiles, see api/_dev.php).
+# Upload, converter, saving placements and the owner login need the server: test them on beta.
 
-param([int]$Port = 8000)
+param(
+    [int]$Port = 8000,
+    # Tilesets shown as "server models" (read-only), e.g. what geoBIM Desktop writes; '' = none
+    [string]$ModelDir = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'BIM_Zentral\3dtiles')
+)
 
 $root = Split-Path $PSScriptRoot -Parent
 $tokenFile = Join-Path $HOME '.geobim\ion-dev-token.txt'
@@ -20,6 +25,12 @@ $php = (Get-Command php -ErrorAction SilentlyContinue).Source
 if (-not $php) { throw 'php not found (winget install PHP.PHP.8.4, then open a new shell)' }
 
 $env:GEOBIM_ION_TOKEN_FILE = $tokenFile
+if ($ModelDir -and (Test-Path $ModelDir)) {
+    $env:GEOBIM_DEV_MODEL_DIR = $ModelDir
+    Write-Host "Server models from $ModelDir (read-only)"
+} else {
+    Remove-Item Env:GEOBIM_DEV_MODEL_DIR -ErrorAction SilentlyContinue
+}
 
 # cURL + OpenSSL for api/itwin-token.php (Bentley sign-in); CA bundle from Git for Windows
 $phpItem = Get-Item $php
