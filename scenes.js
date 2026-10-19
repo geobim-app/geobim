@@ -16,11 +16,20 @@
 // restored with one click ("scenes instead of screenshots"). Same JSON format
 // as geoBIM Desktop's SavedScenes.json (GeoBIMSavedScenesSubsystem), so files
 // can be exchanged:
-//   {"scenes": [{version, iD, name, modified, cameraLongitudeLatitudeHeight,
+//   {"scenes": [{version, id, name, modified, cameraLongitudeLatitudeHeight,
 //                cameraYaw, cameraPitch, assets, hiddenElements, cuts, ...}]}
 // Format details taken from a real Desktop file (Unreal's FJsonObjectConverter):
-// the id field is "iD", booleans keep the "b" prefix, enums are strings,
-// vectors are {x: lon, y: lat, z: height}, dates "YYYY.MM.DD-HH.MM.SS" (UTC).
+// the id field is written "id" (C++ field Id), booleans keep the "b" prefix,
+// enums are strings, vectors are {x: lon, y: lat, z: height}, dates
+// "YYYY.MM.DD-HH.MM.SS" (UTC). Unreal looks keys up case-insensitively, so
+// "iD" from older web files is read as well (normalizeSceneId).
+//
+// Asset ids (geobim-cloud docs/SPEC.md 1.5): > 0 Cesium ion; local tilesets
+// negative — the Desktop hashes the absolute path, the web the folder name, so
+// local models are matched by folder name and an updated scene keeps the id
+// and path it already has for a folder (placements, hiddenElements and
+// compare* of the Desktop point to that id); iTwin models
+// −1 − CRC32("itwin:" + iModelId) − 2^32 plus iTwinIModelId, like the Desktop.
 //
 // Phase 1 captures and restores camera, assets (+ visibility), basemap /
 // Google 3D Tiles, terrain and sun time. Hidden elements, cuts, measurements,
@@ -103,6 +112,55 @@
     try { return decodeURIComponent(key); } catch (e) { return key; }
   }
 
+  // Folder names compare case-insensitively (Windows paths from the Desktop)
+  function sameLocal(a, b) {
+    var ka = localKey(a), kb = localKey(b);
+    return !!ka && ka.toLowerCase() === kb.toLowerCase();
+  }
+
+  // Unreal's FCrc::StrCrc32, which the Desktop's ids use: the zlib CRC-32,
+  // fed every UTF-16 character as 4 bytes, little endian (UTF-32LE for plain
+  // text). Checked against an id of %LOCALAPPDATA%\GeoBIM\SavedScenes.json.
+  var CRC_TABLE = null;
+  function crc32(str) {
+    if (!CRC_TABLE) {
+      CRC_TABLE = [];
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        CRC_TABLE[n] = c >>> 0;
+      }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charCodeAt(i);
+      for (var b = 0; b < 4; b++) {
+        crc = CRC_TABLE[(crc ^ ch) & 0xFF] ^ (crc >>> 8);
+        ch >>>= 8;
+      }
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function normIModelId(id) { return String(id || '').trim().toLowerCase(); }
+
+  // Desktop GeoBIMITwinSubsystem: −1 − CRC32("itwin:" + iModelId) − 2^32
+  function iTwinAssetId(iModelId) {
+    return -1 - crc32('itwin:' + normIModelId(iModelId)) - 4294967296;
+  }
+  BimViewer.iTwinSceneAssetId = iTwinAssetId;
+
+  // "iD" (older web files) → "id", keeping the key order
+  BimViewer.normalizeSceneId = function(scene) {
+    if (!scene || typeof scene !== 'object' || !('iD' in scene)) return scene;
+    var out = {};
+    Object.keys(scene).forEach(function(k) {
+      if (k === 'iD') { if (!('id' in scene)) out.id = scene.iD; }
+      else out[k] = scene[k];
+    });
+    return out;
+  };
+
   function count(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
 
   function len(a) { return Array.isArray(a) ? a.length : 0; }
@@ -150,9 +208,19 @@
   function captureAssets() {
     var assets = [];
     BimViewer.loadedAssets.forEach(function(ad, key) {
-      if (/^itwin_/.test(key)) return; // iTwin demo: not part of the scene format
       var visible = ad.visible !== false;
-      if (ad.modelDef && ad.modelDef.file) {
+      if (/^itwin_reality_/.test(key)) return; // reality mesh: no scene format for it
+      if (/^itwin_/.test(key)) {
+        var iModelId = normIModelId(ad.iModelId || key.slice(6));
+        assets.push({
+          ionAssetId: iTwinAssetId(iModelId),
+          name: ad.name || ('iTwin ' + iModelId.slice(0, 8)),
+          type: '3DTILES',
+          bVisible: visible,
+          localPath: '',
+          iTwinIModelId: iModelId
+        });
+      } else if (ad.modelDef && ad.modelDef.file) {
         var file = String(ad.modelDef.file).split('?')[0];
         assets.push({
           ionAssetId: localId(localKey(file)),
@@ -210,7 +278,28 @@
   }
 
   function nextId() {
-    return BimViewer.scenes.list.reduce(function(m, s) { return Math.max(m, Number(s.iD) || 0); }, 0) + 1;
+    return BimViewer.scenes.list.reduce(function(m, s) { return Math.max(m, Number(s.id) || 0); }, 0) + 1;
+  }
+
+  // Captured assets that the scene already has (same local folder, ion id or
+  // iModel) keep the stored entry's id and localPath — a Desktop scene's
+  // CRC32-of-path ids are referenced by placements, hiddenElements and
+  // compare*. Fields the web doesn't know stay too. Only new ones get web ids.
+  function mergeAssets(old, captured) {
+    old = Array.isArray(old) ? old : [];
+    return captured.map(function(a) {
+      var prev = old.find(function(o) {
+        if (!o || typeof o !== 'object') return false;
+        if (a.iTwinIModelId) return normIModelId(o.iTwinIModelId) === a.iTwinIModelId;
+        if (a.localPath) return !!o.localPath && sameLocal(o.localPath, a.localPath);
+        return !o.localPath && !o.iTwinIModelId && Number(o.ionAssetId) === a.ionAssetId;
+      });
+      if (!prev) return a;
+      var merged = Object.assign({}, prev, a);
+      if (a.localPath || a.iTwinIModelId) merged.ionAssetId = prev.ionAssetId;
+      if (a.localPath) merged.localPath = prev.localPath;
+      return merged;
+    });
   }
 
   // =====================================
@@ -223,17 +312,17 @@
 
   BimViewer.saveNewScene = function(name) {
     name = String(name || '').trim() || ('Scene ' + nextId());
-    var scene = Object.assign({ iD: nextId(), name: name }, capture(), {
+    var scene = Object.assign({ id: nextId(), name: name }, capture(), {
       hiddenElements: [], cuts: [], bClippingEnabled: true, bClippingInverted: false,
       measurements: [], annotations: [], lights: [], placements: [], exposureEv: 0
     });
-    // Keep the Desktop's key order: version, iD, name, modified, ...
-    scene = Object.assign({ version: scene.version, iD: scene.iD, name: scene.name, modified: scene.modified }, scene);
+    // Keep the Desktop's key order: version, id, name, modified, ...
+    scene = Object.assign({ version: scene.version, id: scene.id, name: scene.name, modified: scene.modified }, scene);
     this.scenes.list.push(scene);
-    this.scenes.activeId = scene.iD;
+    this.scenes.activeId = scene.id;
     changed();
     this.updateStatus('Scene saved: ' + name, 'success');
-    return scene.iD;
+    return scene.id;
   };
 
   // Overwrites the captured fields, keeps name, id and everything phase 1
@@ -241,8 +330,10 @@
   BimViewer.updateScene = function(id) {
     var scene = this.getScene(id);
     if (!scene) return false;
-    Object.assign(scene, capture());
-    this.scenes.activeId = scene.iD;
+    var data = capture();
+    data.assets = mergeAssets(scene.assets, data.assets);
+    Object.assign(scene, data);
+    this.scenes.activeId = scene.id;
     changed();
     this.updateStatus('Scene updated: ' + scene.name, 'success');
     return true;
@@ -258,7 +349,7 @@
   };
 
   BimViewer.deleteScene = function(id) {
-    var i = this.scenes.list.findIndex(function(s) { return s.iD === id; });
+    var i = this.scenes.list.findIndex(function(s) { return s.id === id; });
     if (i < 0) return;
     this.scenes.list.splice(i, 1);
     if (this.scenes.activeId === id) this.scenes.activeId = 0;
@@ -266,7 +357,7 @@
   };
 
   BimViewer.getScene = function(id) {
-    return this.scenes.list.find(function(s) { return s.iD === id; }) || null;
+    return this.scenes.list.find(function(s) { return s.id === id; }) || null;
   };
 
   // =====================================
@@ -305,9 +396,32 @@
   }
 
   // Loaded-asset key a scene asset corresponds to (null = not loadable here)
+  // By folder name only: the Desktop stores absolute Windows paths
+  // ("C:/…/<folder>/tileset.json"), the web "model/<folder>/tileset.json"
   function findLocalDef(models, sceneAsset) {
-    var key = localKey(sceneAsset.localPath);
-    return models.find(function(m) { return localKey(m.file) === key; }) || null;
+    return models.find(function(m) { return sameLocal(m.file, sceneAsset.localPath); }) || null;
+  }
+
+  // Loaded key of an iModel ("itwin_<id>", whatever case it was loaded with)
+  function iTwinKey(iModelId) {
+    var want = 'itwin_' + iModelId;
+    return Array.from(BimViewer.loadedAssets.keys()).find(function(k) { return k.toLowerCase() === want; }) || want;
+  }
+
+  // iTwin demo iModels open with the demo's share key, others need the
+  // Bentley sign-in (itwin-auth.js). Returns false if it could not even try.
+  async function loadITwin(a, iModelId, problems) {
+    var label = a.name || ('iTwin ' + iModelId.slice(0, 8));
+    var shareKey = typeof BimViewer.iTwinDemoShareKey === 'function' ? BimViewer.iTwinDemoShareKey(iModelId) : null;
+    var auth = window.GEOBIM_ITWIN_AUTH;
+    var token = !shareKey && auth && auth.getToken ? auth.getToken() : null;
+    if (!shareKey && !token) {
+      problems.push('Sign in with Bentley to load "' + label + '" (iTwin)');
+      return false;
+    }
+    await BimViewer.loadITwinModel(shareKey, iModelId, a.name || null,
+      shareKey ? { noFlyTo: true } : { noFlyTo: true, accessToken: token });
+    return true;
   }
 
   async function restoreAssets(scene, problems) {
@@ -316,6 +430,8 @@
 
     // Which loaded-asset key each scene asset maps to
     var plan = wanted.map(function(a) {
+      var iModelId = normIModelId(a.iTwinIModelId);
+      if (iModelId) return { asset: a, iModelId: iModelId, key: iTwinKey(iModelId) };
       if (a.localPath) {
         var def = findLocalDef(models, a);
         return { asset: a, def: def, key: def ? 'glb_' + def.id : null };
@@ -345,7 +461,13 @@
         continue;
       }
       if (!BimViewer.loadedAssets.has(p.key)) {
-        if (p.def) {
+        if (p.iModelId) {
+          if (!(await loadITwin(a, p.iModelId, problems))) continue;
+          if (!BimViewer.loadedAssets.has(p.key)) {
+            problems.push('Could not load iTwin model "' + label + '" — no access, or its mesh export is not ready yet');
+            continue;
+          }
+        } else if (p.def) {
           await BimViewer.loadGLBAsset(p.def);
         } else {
           if (available.length && !available.some(function(x) { return Number(x.id) === a.ionAssetId; })) {
@@ -450,7 +572,7 @@
       await restoreEnvironment(scene, problems);
       // Camera last: loaders of self-hosted models fly to the model themselves
       if (!restoreCamera(scene)) problems.push('The scene has no valid camera position');
-      this.scenes.activeId = scene.iD;
+      this.scenes.activeId = scene.id;
     } catch (err) {
       console.error('Loading scene failed:', err);
       problems.push('Error: ' + err.message);
@@ -511,11 +633,10 @@
     var added = 0, skipped = 0;
     incoming.forEach(function(s) {
       if (!validScene(s)) { skipped++; return; }
-      var scene = JSON.parse(JSON.stringify(s));
-      // Plain "id" from other tools → the Desktop's "iD"
-      if (scene.iD === undefined && scene.id !== undefined) { scene.iD = scene.id; delete scene.id; }
-      if (!Number.isInteger(scene.iD) || BimViewer.getScene(scene.iD)) scene.iD = nextId();
-      if (typeof scene.name !== 'string' || !scene.name.trim()) scene.name = 'Scene ' + scene.iD;
+      // Desktop "id"; "iD" of older web files → "id"
+      var scene = BimViewer.normalizeSceneId(JSON.parse(JSON.stringify(s)));
+      if (!Number.isInteger(scene.id) || scene.id <= 0 || BimViewer.getScene(scene.id)) scene.id = nextId();
+      if (typeof scene.name !== 'string' || !scene.name.trim()) scene.name = 'Scene ' + scene.id;
       BimViewer.scenes.list.push(scene);
       added++;
     });

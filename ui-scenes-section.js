@@ -68,7 +68,7 @@
         '<div class="modern-empty-state-hint">Save the current view, models and sun as a scene, or import a SavedScenes.json</div></div>';
     } else {
       list.innerHTML = s.list.map(function(scene) {
-        var id = Number(scene.iD);
+        var id = Number(scene.id);
         var active = id === s.activeId;
         var meta = [BimViewer.summarizeScene(scene), BimViewer.sceneModifiedText(scene)].filter(Boolean).join(' — ');
         return '<div class="modern-view-item scenes-item' + (active ? ' active' : '') + '" data-id="' + id + '">' +
