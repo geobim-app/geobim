@@ -20,5 +20,14 @@ $php = (Get-Command php -ErrorAction SilentlyContinue).Source
 if (-not $php) { throw 'php not found (winget install PHP.PHP.8.4, then open a new shell)' }
 
 $env:GEOBIM_ION_TOKEN_FILE = $tokenFile
+
+# cURL + OpenSSL for api/itwin-token.php (Bentley sign-in); CA bundle from Git for Windows
+$phpItem = Get-Item $php
+if ($phpItem.LinkType) { $phpItem = Get-Item $phpItem.Target }  # winget alias → real install
+$ext = Join-Path $phpItem.DirectoryName 'ext'
+$phpArgs = @('-d', "extension_dir=$ext", '-d', 'extension=curl', '-d', 'extension=openssl')
+$caBundle = 'C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt'
+if (Test-Path $caBundle) { $phpArgs += @('-d', "curl.cainfo=$caBundle") }
+
 Write-Host "geoBIM.app: http://localhost:$Port/  (Ctrl+C stops)"
-& $php -S "localhost:$Port" -t $root (Join-Path $PSScriptRoot 'router.php')
+& $php @phpArgs -S "localhost:$Port" -t $root (Join-Path $PSScriptRoot 'router.php')

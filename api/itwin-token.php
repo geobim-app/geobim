@@ -17,7 +17,8 @@ header('X-Content-Type-Options: nosniff');
 
 const IMS_TOKEN_URL = 'https://ims.bentley.com/connect/token';
 const CLIENT_ID = 'spa-K1Bw2oHFKzK2iZxJkL3GpHtQ0';
-const ORIGINS = ['https://geobim.app', 'https://beta.geobim.app', 'https://viewer.geobim.app'];
+const ORIGINS = ['https://geobim.app', 'https://beta.geobim.app', 'https://viewer.geobim.app',
+    'http://localhost:8000']; // local development (dev/serve.ps1)
 
 function fail($status, $error) {
     http_response_code($status);

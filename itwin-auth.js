@@ -37,7 +37,8 @@
 
   // Redirect URIs registered for the client; the callback is only offered on
   // these origins (never built blindly from location.origin)
-  var ORIGINS = ['https://geobim.app', 'https://beta.geobim.app', 'https://viewer.geobim.app'];
+  var ORIGINS = ['https://geobim.app', 'https://beta.geobim.app', 'https://viewer.geobim.app',
+    'http://localhost:8000']; // local development (dev/serve.ps1)
   var CALLBACK_PATH = '/itwin-callback.html';
 
   var TOKEN_KEY = 'geobim_itwin_token';     // { token, expiresAt }
