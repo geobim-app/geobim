@@ -2075,14 +2075,32 @@ const BimViewer = {
     // Range 0–360 like the heading slider; pitch/roll are not kept (tilesets
     // from our tiler and Ion have none).
     let heading = 0;
+    // Frame the placement is measured against. undefined = root.transform
+    // itself (an ENU frame: Ion, geoBIM Tiler, a saved placement of those).
+    // A root.transform that is not an ENU frame — py3dtiles writes the points
+    // in ECEF axes with a pure translation, so read as ENU it has a heading of
+    // ~105° and ~40° pitch in Munich — gets ENU(origin, base heading) instead,
+    // and every edit is applied relative to it. Using inverse(root.transform)
+    // there rotated the whole cloud by that frame (tilted, floating).
+    let baseFrame;
     if (trusted) {
       const hpr = Cesium.Transforms.fixedFrameToHeadingPitchRoll(tileset.root.transform);
-      if (hpr && isFinite(hpr.heading)) {
+      const tilted = !hpr || Math.abs(hpr.pitch) > 0.01 || Math.abs(hpr.roll) > 0.01;
+      if (!tilted && isFinite(hpr.heading)) {
         heading = Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(hpr.heading));
         if (heading > 359.9995) heading = 0;
         if (Math.abs(hpr.pitch) > 1e-4 || Math.abs(hpr.roll) > 1e-4) {
           console.warn(`📐 ${assetData.name}: root.transform has pitch/roll, only the heading is kept`);
         }
+      } else if (tilted) {
+        // Heading of a placement saved in geobim.app (placement-save.php keeps
+        // it in asset.extras.placement), else north
+        const ex = tileset.asset && tileset.asset.extras && tileset.asset.extras.placement;
+        const saved = ex && ex.source === 'saved in geobim.app' && isFinite(ex.heading) ? Number(ex.heading) : 0;
+        heading = ((saved % 360) + 360) % 360;
+        baseFrame = Cesium.Transforms.headingPitchRollToFixedFrame(
+          originECEF, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+        console.log(`📐 ${assetData.name}: root.transform is not an ENU frame (ECEF tileset) — placement relative to its origin`);
       }
     }
 
@@ -2096,7 +2114,8 @@ const BimViewer = {
       // Original georef height — the zero-offset reference so the z-offset slider
       // ("relative to original") and the gizmo Z-handle share placement.height.
       baseHeight: carto.height,
-      trusted: trusted
+      trusted: trusted,
+      baseFrame: baseFrame
     };
     console.log(`📐 Placement baseline for ${assetData.name}: ` +
       `${assetData.placement.position.lon.toFixed(5)}, ${assetData.placement.position.lat.toFixed(5)}, ` +
@@ -2119,8 +2138,11 @@ const BimViewer = {
     const origin = Cesium.Cartesian3.fromDegrees(p.position.lon, p.position.lat, p.position.height);
     const enu = Cesium.Transforms.headingPitchRollToFixedFrame(origin, hpr);
 
-    const rootInverse = Cesium.Matrix4.inverse(tileset.root.transform, new Cesium.Matrix4());
-    tileset.modelMatrix = Cesium.Matrix4.multiply(enu, rootInverse, new Cesium.Matrix4());
+    // Relative to the starting frame: root.transform (ENU tilesets) or the
+    // frame initAssetPlacement built for ECEF tilesets — identity until edited
+    const base = p.baseFrame || tileset.root.transform;
+    const baseInverse = Cesium.Matrix4.inverse(base, new Cesium.Matrix4());
+    tileset.modelMatrix = Cesium.Matrix4.multiply(enu, baseInverse, new Cesium.Matrix4());
   },
 
   // Restart all GLB animations with a new multiplier (multiplier is read-only,
