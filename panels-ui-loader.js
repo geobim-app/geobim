@@ -8,7 +8,7 @@
  * Order of precedence:
  *   1. ?ui=panels | ?ui=classic   (remembered in localStorage for this browser)
  *   2. remembered choice
- *   3. default by host: beta.geobim.app → panels, everything else → classic
+ *   3. default by host: beta.geobim.app and localhost → panels, everything else → classic
  * Demo modes with their own trimmed UI (WEA, Bridge Inspector, StageTwin)
  * always stay classic for now.
  *
@@ -20,7 +20,7 @@
 
   var VERSION = '0.15.2'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
-  var BETA_HOSTS = ['beta.geobim.app'];
+  var BETA_HOSTS = ['beta.geobim.app', 'localhost']; // localhost: dev/serve.ps1
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
 
   function store(key, value) {
