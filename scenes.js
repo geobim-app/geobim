@@ -24,7 +24,7 @@
 // "YYYY.MM.DD-HH.MM.SS" (UTC). Unreal looks keys up case-insensitively, so
 // "iD" from older web files is read as well (normalizeSceneId).
 //
-// Asset ids (geobim-cloud docs/SPEC.md 1.5): > 0 Cesium ion; local tilesets
+// Asset ids (geobim-tiler docs/SPEC.md 1.5): > 0 Cesium ion; local tilesets
 // negative — the Desktop hashes the absolute path, the web the folder name, so
 // local models are matched by folder name and an updated scene keeps the id
 // and path it already has for a folder (placements, hiddenElements and

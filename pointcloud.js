@@ -54,7 +54,7 @@
 
   // ASPRS LAS classes 0–22 (LAS 1.4 R15, table 17) with the colours of the
   // Classification mode. Names and colours are shared with geoBIM Desktop
-  // (GeoBIMPointStyleSubsystem, geobim-cloud docs/SPEC.md ch. 3) — change
+  // (GeoBIMPointStyleSubsystem, geobim-tiler docs/SPEC.md ch. 3) — change
   // both together. Codes not listed render white.
   BimViewer.ASPRS_CLASSES = [
     { code: 0,  name: 'Never classified',    color: '#808080' },
