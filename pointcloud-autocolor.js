@@ -83,20 +83,17 @@
     return mode;
   };
 
-  // Self-hosted tilesets (core.js loadTilesetAsset): check once the cloud is
-  // recognised as a point cloud (that detection runs up to 4 s after loading)
+  // Self-hosted tilesets (core.js loadTilesetAsset). A root tile in .pnts is
+  // itself the proof of a point cloud — no need to wait for core.js's
+  // detection, which depends on tiles in view being loaded.
   var origLoad = BimViewer.loadTilesetAsset;
   if (typeof origLoad === 'function') {
     BimViewer.loadTilesetAsset = async function(modelDef) {
       var r = await origLoad.apply(this, arguments);
       var ad = this.loadedAssets.get('glb_' + modelDef.id);
-      if (ad && ad.modelDef === modelDef) {
-        var self = this, tries = 0;
-        (function wait() {
-          if (!self.loadedAssets.has(ad.id) || ad._autoColourChecked) return;
-          if (ad.isPointCloud) { ad._autoColourChecked = true; self.autoColourPointCloud(ad); return; }
-          if (++tries < 12) setTimeout(wait, 500);
-        })();
+      if (ad && ad.modelDef === modelDef && !ad._autoColourChecked) {
+        ad._autoColourChecked = true;
+        this.autoColourPointCloud(ad);
       }
       return r;
     };
