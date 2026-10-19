@@ -3,6 +3,9 @@ RewriteEngine On
 # Block access to VCS metadata and sensitive dotfiles (e.g. /.git/config leaks credentials)
 RewriteRule (^|/)\.(git|svn|hg|env)(/|$) - [F,L]
 
+# Local development only (dev/serve.ps1, api/_dev.php): not served
+RewriteRule ^(dev/|api/_dev\.php$) - [F,L]
+
 # Pass Basic Auth to PHP-FPM
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
