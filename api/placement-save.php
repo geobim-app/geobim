@@ -11,8 +11,11 @@
 //     stored in model/placements.json; api/models.php hands it out as the
 //     model's default position/heading/scale.
 //   add "reset": true to either to go back to the original.
+//   Local development (dev/serve.ps1): writes into the folder api/models.php
+//   lists from (GEOBIM_DEV_MODEL_DIR, see _dev.php) — still owner only.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_dev.php';
 
 function fail($message, $code = 400) {
     http_response_code($code);
@@ -25,7 +28,9 @@ $user = geobim_require_owner();
 
 $req = json_decode(file_get_contents('php://input'), true);
 if (!is_array($req)) fail('JSON body required');
-$modelDir = realpath(__DIR__ . '/../model');
+// Paths compared with "/" (realpath gives "\" on Windows, i.e. under dev/serve.ps1)
+function norm_path($p) { return $p === false ? false : str_replace('\\', '/', $p); }
+$modelDir = geobim_dev_model_dir() ?: norm_path(realpath(__DIR__ . '/../model'));
 $reset = !empty($req['reset']);
 
 function finite_num($v) { return (is_int($v) || is_float($v)) && is_finite((float)$v); }
@@ -67,7 +72,7 @@ $stamp = ['savedAt' => gmdate('c'), 'savedBy' => $user['email']];
 if (($req['kind'] ?? '') === 'tileset') {
     $folder = $req['folder'] ?? '';
     if (!valid_entry_name($folder)) fail('Invalid folder');
-    $dir = realpath($modelDir . '/' . $folder);
+    $dir = norm_path(realpath($modelDir . '/' . $folder));
     if ($dir === false || dirname($dir) !== $modelDir || !is_file("$dir/tileset.json")) fail('Not found', 404);
     $path = "$dir/tileset.json";
     $ts = json_decode(file_get_contents($path), true);
@@ -114,7 +119,7 @@ if (($req['kind'] ?? '') === 'tileset') {
 if (($req['kind'] ?? '') === 'glb') {
     $file = $req['file'] ?? '';
     if (!valid_entry_name($file) || !preg_match('/\.(glb|gltf)$/i', $file)) fail('Invalid file');
-    $real = realpath($modelDir . '/' . $file);
+    $real = norm_path(realpath($modelDir . '/' . $file));
     if ($real === false || dirname($real) !== $modelDir) fail('Not found', 404);
     $store = "$modelDir/placements.json";
     $fh = fopen($store, 'c+');
