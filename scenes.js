@@ -58,6 +58,9 @@
     'google-contour': 3830186
   };
 
+  // Scene field "terrain" ↔ LayerManager terrain id (mapterhorn-terrain.js)
+  var OPEN_TERRAIN = ['mapterhorn'];
+
   BimViewer.scenes = {
     list: [],          // scene objects in Desktop format (unknown fields kept)
     activeId: 0,       // scene loaded or saved last
@@ -254,7 +257,7 @@
     // month / day of that local date
     var now = Cesium.JulianDate.toDate(BimViewer.viewer.clock.currentTime);
     var local = new Date(now.getTime() + lon / 15 * 3600000);
-    return {
+    var env = {
       basemap: google ? 'GooglePhotorealistic' : 'WorldTerrain',
       imageryAssetId: BASEMAP_ION[basemap] || 0,
       terrainAssetId: tm ? Number(tm[1]) : 1,
@@ -264,6 +267,11 @@
       // Web-only extra: the exact basemap (OSM, "none", …); Desktop ignores it
       webBasemap: basemap || 'none'
     };
+    // Terrain without an ion asset, like the Desktop (SPEC 1.3 / point 12):
+    // terrain "mapterhorn", terrainAssetId stays 1 so older readers show
+    // Cesium World Terrain; for any other terrain the field is left out
+    if (OPEN_TERRAIN.indexOf(terrain) !== -1) env.terrain = terrain;
+    return env;
   }
 
   // Fields phase 1 captures; everything else in a scene is left as it is
@@ -332,6 +340,7 @@
     if (!scene) return false;
     var data = capture();
     data.assets = mergeAssets(scene.assets, data.assets);
+    if (!('terrain' in data)) delete scene.terrain; // switched away from Mapterhorn
     Object.assign(scene, data);
     this.scenes.activeId = scene.id;
     changed();
@@ -501,8 +510,18 @@
   async function restoreEnvironment(scene, problems) {
     var lm = window.LayerManager;
 
-    // Terrain (1 = Cesium World Terrain)
-    if (lm && typeof scene.terrainAssetId === 'number') {
+    // Terrain: "terrain" names one without an ion asset (Mapterhorn) and wins
+    // over terrainAssetId (1 = Cesium World Terrain, the fallback for older readers)
+    var open = typeof scene.terrain === 'string' ? scene.terrain.trim().toLowerCase() : '';
+    var openOk = !!(lm && open && OPEN_TERRAIN.indexOf(open) !== -1 &&
+      lm.terrainLayers.some(function(t) { return t.id === open; }));
+    if (open && !openOk) problems.push('Terrain "' + scene.terrain + '" is not available here — using terrainAssetId');
+    if (openOk) {
+      if (lm.activeTerrain !== open) {
+        await lm.switchTerrain(open);
+        if (lm.activeTerrain !== open) problems.push('Terrain "' + scene.terrain + '" could not be loaded');
+      }
+    } else if (lm && typeof scene.terrainAssetId === 'number') {
       var tid = scene.terrainAssetId > 1 ? 'terrain_' + scene.terrainAssetId : 'world';
       if (lm.activeTerrain !== tid) {
         if (tid === 'world' || lm.terrainLayers.some(function(t) { return t.id === tid; })) await lm.switchTerrain(tid);
