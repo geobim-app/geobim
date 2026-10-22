@@ -212,6 +212,9 @@
         {
           id: 'osm',
           name: 'OpenStreetMap',
+          // CARTO serves these tiles only with an API key since 09/2026
+          // ("API KEY REQUIRED" placeholders) — off until a key is set up
+          disabled: true,
           providerFactory: () => Promise.resolve(new Cesium.UrlTemplateImageryProvider({
             url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
             subdomains: ['a', 'b', 'c', 'd'],
@@ -298,7 +301,7 @@
 
     applyImageryAccess() {
       const allowed = this.ionImageryAllowed();
-      this.basemapLayers = this.allBasemapLayers.filter(b => allowed || !b.ion);
+      this.basemapLayers = this.allBasemapLayers.filter(b => !b.disabled && (allowed || !b.ion));
     },
 
     // Same layer as the geoBIM Desktop globe fallback (WebMercator WMTS, no key)
@@ -325,7 +328,8 @@
       if (!this.viewer || !this.allBasemapLayers) return;
       const allowed = this.ionImageryAllowed();
       if (!allowed && this.isIonBasemap(this.activeBasemap)) await this.switchBasemap('topplus');
-      const fromGuestDefault = allowed && this.activeBasemap === 'topplus' && this.basemapLayers.length < this.allBasemapLayers.length;
+      const offered = this.allBasemapLayers.filter(b => !b.disabled).length;
+      const fromGuestDefault = allowed && this.activeBasemap === 'topplus' && this.basemapLayers.length < offered;
       this.applyImageryAccess();
       if (fromGuestDefault) await this.switchBasemap(this.defaultBasemapId());
       this.populateUI();
