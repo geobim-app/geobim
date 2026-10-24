@@ -7,8 +7,6 @@
   <!-- Local development only (dev/ is blocked on the server, see .htaccess).
        docs/WEBXR_PLAN.md, phase 0: is "way B" (own WebXR binding, render per eye,
        blit into the XR framebuffer) feasible with CesiumJS 1.145, and how fast? -->
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
-  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
   <link rel="stylesheet" href="webxr-spike.css">
 </head>
 <body>
@@ -20,10 +18,12 @@
     <div id="spikeStats" class="spike-stats"></div>
     <div class="spike-hint">
       URL: <code>?scale=0.8</code> framebuffer scale · <code>?sse=16</code> tiles · <code>?asset=&lt;ionId&gt;</code> extra 3D Tiles ·
-      <code>?emulate=1</code> IWER (Quest 3 emulation, no headset) · <code>?mono=1</code> one eye only
+      <code>?emulate=1</code> IWER (Quest 3 emulation, no headset) · <code>?mono=1</code> one eye only ·
+      <code>?cdn=1</code> CesiumJS from the CDN instead of the local copy
     </div>
     <div class="spike-hint">In VR: left grip = leave VR · right trigger = show/hide fps label</div>
   </div>
-  <script src="webxr-spike.js"></script>
+  <!-- CesiumJS 1.145: local copy in cesium/ if present (faster), else the CDN; then webxr-spike.js -->
+  <script src="webxr-spike-loader.js"></script>
 </body>
 </html>
