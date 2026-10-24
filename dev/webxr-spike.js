@@ -334,14 +334,25 @@
     window.spikeXRDevice = device; // for scripted tests (poses, buttons)
   }
 
+  async function checkSupport() {
+    if (xr) return;
+    var supported = await navigator.xr.isSessionSupported('immersive-vr');
+    btn.disabled = !supported;
+    status(supported ? 'Ready — press Enter VR' + (EMULATE ? ' (IWER Quest 3 emulation)' : '')
+      : 'immersive-vr not supported here — start Quest Link (Meta as OpenXR runtime); this page checks again when a headset appears');
+  }
+
   async function start() {
     try {
       if (EMULATE) await installEmulator();
       await initViewer();
-      var supported = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-vr'));
-      btn.disabled = !supported;
-      status(supported ? 'Ready — press Enter VR' + (EMULATE ? ' (IWER Quest 3 emulation)' : '')
-        : 'immersive-vr not supported here (use Quest Link / Quest Browser, or ?emulate=1)');
+      if (!navigator.xr) {
+        status('No WebXR in this browser (needs Chrome/Edge or Quest Browser, on localhost or https)');
+        return;
+      }
+      await checkSupport();
+      // A headset connected later (Quest Link started after loading): check again
+      navigator.xr.addEventListener('devicechange', checkSupport);
     } catch (e) {
       console.error(e);
       status('Error: ' + e.message);
