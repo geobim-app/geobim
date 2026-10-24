@@ -132,11 +132,57 @@
   var tmpD = new Cesium.Cartesian3();
   var tmpU = new Cesium.Cartesian3();
 
+  // Headset eye frusta are asymmetric (wider to the outside). A PerspectiveFrustum
+  // takes that as xOffset/yOffset, but in metres at the near plane — and Cesium
+  // renders with a clone whose `near` it moves (often to metres or tens of
+  // metres). A fixed offset then all but vanishes, both eye images shift and
+  // the user sees double. So the offsets are kept as ratios of `near`: accessor
+  // properties on the frustum and on every clone Cesium makes of it.
+  var asymFrusta = []; // every frustum patched, to undo on exit
+
+  function makeAsymmetric(fr, xRatio, yRatio) {
+    if (!fr._xrAsym) {
+      asymFrusta.push(fr);
+      var proto = Object.getPrototypeOf(fr);
+      Object.defineProperty(fr, 'xOffset', {
+        configurable: true,
+        get: function() { return this.near * this._xRatio; },
+        set: function(v) { this._xRatio = this.near ? v / this.near : 0; }
+      });
+      Object.defineProperty(fr, 'yOffset', {
+        configurable: true,
+        get: function() { return this.near * this._yRatio; },
+        set: function(v) { this._yRatio = this.near ? v / this.near : 0; }
+      });
+      fr.clone = function(result) {
+        var c = proto.clone.call(this, result);
+        makeAsymmetric(c, this._xRatio, this._yRatio);
+        return c;
+      };
+      fr._xrAsym = true;
+    }
+    fr._xRatio = xRatio;
+    fr._yRatio = yRatio;
+  }
+
+  // Cesium reuses its scratch frusta for normal rendering: back to plain
+  // properties with offset 0, and force a matrix update
+  function undoAsymmetric() {
+    asymFrusta.forEach(function(fr) {
+      delete fr.xOffset;
+      delete fr.yOffset;
+      delete fr.clone;
+      delete fr._xrAsym;
+      fr.xOffset = 0;
+      fr.yOffset = 0;
+      fr._xOffset = undefined; // PerspectiveFrustum recomputes when these differ
+      fr._yOffset = undefined;
+    });
+    asymFrusta = [];
+  }
+
   // Camera for one XRView: pose (column-major view → reference space) and the
-  // asymmetric projection as fov + x/y offsets of a PerspectiveFrustum.
-  // Caveat checked by the spike: Cesium's multi-frustum code changes `near` on a
-  // clone, while xOffset/yOffset are absolute at the near plane — the small
-  // asymmetry of headset frusta then shrinks a bit.
+  // asymmetric projection as fov + near-relative x/y offsets.
   function setEyeCamera(f, view) {
     var m = view.transform.matrix;
     lastView = { m: m, p: view.projectionMatrix };
@@ -158,8 +204,7 @@
     fr.aspectRatio = hw / hh;
     fr.fov = 2 * Math.atan(fr.aspectRatio >= 1 ? hw : hh);
     fr.near = NEAR;
-    fr.xOffset = NEAR * (rightTan + leftTan) / 2;
-    fr.yOffset = NEAR * (topTan + bottomTan) / 2;
+    makeAsymmetric(fr, (rightTan + leftTan) / 2, (topTan + bottomTan) / 2);
   }
 
   function sizeCanvas(w, h) {
@@ -351,6 +396,7 @@
   function onEnd() {
     if (!xr) return;
     clearInterval(xr.watchdog);
+    undoAsymmetric();
     var s = xr.saved, cam = viewer.camera;
     cam.frustum = s.frustum;
     Cesium.Cartesian3.clone(s.position, cam.position);
@@ -413,6 +459,25 @@
   window.webxrSpike = {
     enter: function() { return enterVR(); },
     exit: function() { if (xr) return xr.session.end(); },
+    // Check that the near-relative offsets survive Cesium's clone + near change
+    testAsymmetry: function() {
+      var fr = new Cesium.PerspectiveFrustum({ fov: 1.5, aspectRatio: 0.95, near: 0.2, far: 1e7 });
+      makeAsymmetric(fr, 0.12, -0.05);
+      var m8Original = fr.projectionMatrix[8];
+      // what Scene does: clone into a scratch frustum, then move near
+      var c = fr.clone(new Cesium.PerspectiveFrustum());
+      c.near = 10;
+      var m8AtNear10 = c.projectionMatrix[8];
+      var xOffsetAtNear10 = c.xOffset;
+      // after VR: patched frusta undone, a normal clone into the same scratch has offset 0
+      undoAsymmetric();
+      new Cesium.PerspectiveFrustum({ fov: 1, aspectRatio: 1, near: 1, far: 10 }).clone(c);
+      return {
+        m8Original: +m8Original.toFixed(5), m8AtNear10: +m8AtNear10.toFixed(5),
+        xOffsetAtNear10: +xOffsetAtNear10.toFixed(4), expectedXOffset: 1.2,
+        plainCloneXOffset: c.xOffset, plainCloneM8: +c.projectionMatrix[8].toFixed(5)
+      };
+    },
     state: function() { return xr ? { fps: xr.fps, eye: xr.eye, glError: xr.glError, blitTest: readTestTarget() } : null; },
     // camera vs. local up, and the last XRView, for checking the pose math
     debug: function() {
