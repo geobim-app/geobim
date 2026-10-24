@@ -174,13 +174,23 @@
     if (xr) return;
     if (!(gl instanceof WebGL2RenderingContext)) { status('WebGL2 required for blitFramebuffer'); return; }
     var session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
-    try { if (gl.makeXRCompatible) await gl.makeXRCompatible(); } catch (e) { console.warn('makeXRCompatible', e); }
-    var layer = new XRWebGLLayer(session, gl, { antialias: false, framebufferScaleFactor: SCALE });
-    try { layer.fixedFoveation = 0.5; } catch (e) {}
-    session.updateRenderState({ baseLayer: layer, depthNear: NEAR, depthFar: 1e7 });
-    var refSpace;
-    try { refSpace = await session.requestReferenceSpace('local-floor'); }
-    catch (e) { refSpace = await session.requestReferenceSpace('local'); }
+    var refSpace, step = 'makeXRCompatible';
+    // Any failure from here on must end the session, or it stays open in the
+    // headset ("loading") and blocks every further requestSession
+    try {
+      if (gl.makeXRCompatible) await gl.makeXRCompatible();
+      step = 'XRWebGLLayer';
+      var layer = new XRWebGLLayer(session, gl, { antialias: false, framebufferScaleFactor: SCALE });
+      try { layer.fixedFoveation = 0.5; } catch (e) {}
+      step = 'updateRenderState';
+      session.updateRenderState({ baseLayer: layer, depthNear: NEAR, depthFar: 1e7 });
+      step = 'requestReferenceSpace';
+      try { refSpace = await session.requestReferenceSpace('local-floor'); }
+      catch (e) { refSpace = await session.requestReferenceSpace('local'); }
+    } catch (e) {
+      try { await session.end(); } catch (_) {}
+      throw new Error(step + ': ' + e.message);
+    }
 
     var cam = viewer.camera;
     xr = {
@@ -189,7 +199,7 @@
         position: Cesium.Cartesian3.clone(cam.position), direction: Cesium.Cartesian3.clone(cam.direction),
         up: Cesium.Cartesian3.clone(cam.up), right: Cesium.Cartesian3.clone(cam.right), frustum: cam.frustum.clone()
       },
-      frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, eye: ''
+      frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, eye: '', rafs: 0, noPose: 0
     };
     scene.screenSpaceCameraController.enableInputs = false;
     viewer.useDefaultRenderLoop = false;
@@ -205,17 +215,51 @@
     btn.textContent = 'Exit VR';
     status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ')');
     session.requestAnimationFrame(onFrame);
+    // If the browser never calls the XR frame loop, nothing else would report it
+    var started = performance.now(), sawFrame = false;
+    xr.watchdog = setInterval(function() {
+      if (!xr) return;
+      if (xr.rafs || xr.frames) sawFrame = true;
+      if (!sawFrame && performance.now() - started > 3000) {
+        status('No XR frames from the browser after 3 s (session ' + session.visibilityState + ') — check that the headset shows this page, not another app');
+      }
+    }, 1000);
   }
 
+  // A render error repeats every frame: report the first one and end the
+  // session instead of leaving the headset on "loading"
   function onFrame(t, frame) {
     if (!xr) return;
+    try {
+      renderFrame(frame);
+    } catch (e) {
+      console.error('[webxr-spike] frame failed', e);
+      var msg = 'Frame failed: ' + e.message;
+      xr.session.end().catch(function() {});
+      setTimeout(function() { status(msg + ' — session ended'); }, 0);
+    }
+  }
+
+  function renderFrame(frame) {
     var session = frame.session;
     session.requestAnimationFrame(onFrame);
-    var pose = frame.getViewerPose(xr.refSpace);
-    if (!pose) return; // tracking lost: keep the last image
-
+    xr.rafs++;
     var layer = session.renderState.baseLayer;
     var target = layer.framebuffer; // null in some emulators / inline: no blit possible
+    var pose = frame.getViewerPose(xr.refSpace);
+    if (!pose) {
+      // No head pose (tracking not ready / lost): still hand the compositor a
+      // frame — dark grey — so the headset does not hang on "loading"
+      xr.noPose++;
+      if (target) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+        gl.clearColor(0.1, 0.1, 0.12, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+      report(0);
+      return;
+    }
     var getViewport = function(view, i) { return layer.getViewport(view); };
     if (!target && BLITTEST) {
       var vp0 = layer.getViewport(pose.views[0]);
@@ -296,15 +340,17 @@
     xr.fps = xr.frames / secs;
     var ms = xr.renderMs / Math.max(1, xr.frames);
     var line = 'fps ' + xr.fps.toFixed(1) + ' · CPU ' + ms.toFixed(1) + ' ms/frame · eye ' + xr.eye +
-      ' · eyes blitted ' + eyesBlitted + ' · scale ' + SCALE + ' · SSE ' + SSE;
+      ' · eyes blitted ' + eyesBlitted + ' · scale ' + SCALE + ' · SSE ' + SSE +
+      ' · XR frames ' + xr.rafs + ' (no pose ' + xr.noPose + ')';
     statsEl.textContent = line;
     fpsLabel.text = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms';
     console.log('[webxr-spike] ' + line);
-    xr.frames = 0; xr.renderMs = 0; xr.lastReport = now;
+    xr.frames = 0; xr.renderMs = 0; xr.rafs = 0; xr.noPose = 0; xr.lastReport = now;
   }
 
   function onEnd() {
     if (!xr) return;
+    clearInterval(xr.watchdog);
     var s = xr.saved, cam = viewer.camera;
     cam.frustum = s.frustum;
     Cesium.Cartesian3.clone(s.position, cam.position);
