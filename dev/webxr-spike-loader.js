@@ -33,7 +33,8 @@
       var ok = window.Cesium && String(Cesium.VERSION).indexOf(VERSION) === 0;
       console.log('[webxr-spike] CesiumJS ' + (window.Cesium && Cesium.VERSION) + ' from ' + source + (ok ? '' : ' (expected ' + VERSION + ')'));
       window.WEBXR_SPIKE_CESIUM_SOURCE = source;
-      script('webxr-spike.js');
+      // Never a cached copy: an old webxr-spike.js left half-started sessions open
+      script('webxr-spike.js?v=' + Date.now());
     }, function() {
       if (source === 'local') start(CDN, 'CDN');
       else document.getElementById('spikeStatus').textContent = 'CesiumJS could not be loaded';
