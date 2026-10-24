@@ -24,6 +24,11 @@
   var EXTRA_ASSET = parseInt(params.get('asset'), 10) || 0;
   var EMULATE = params.get('emulate') === '1';
   var MONO = params.get('mono') === '1';
+  // Edge smoothing (the WebGL context itself must stay without antialias for
+  // the blit): Cesium's own MSAA resolves into the default framebuffer, FXAA
+  // is a post-process
+  var MSAA = clamp(parseInt(params.get('msaa'), 10) || 1, 1, 8);
+  var FXAA = params.get('fxaa') === '1';
   // Without a real XR framebuffer (emulator): blit both eyes side by side into
   // an own framebuffer, to check the stereo + blit path for GL errors
   var BLITTEST = params.get('blittest') === '1';
@@ -56,7 +61,7 @@
       baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
       navigationHelpButton: false, animation: false, timeline: false, fullscreenButton: false,
       infoBox: false, selectionIndicator: false, vrButton: false,
-      msaaSamples: 1,
+      msaaSamples: MSAA,
       contextOptions: {
         requestWebgl1: false,
         webgl: { alpha: false, antialias: false, preserveDrawingBuffer: false, xrCompatible: true }
@@ -67,7 +72,7 @@
     scene.globe.maximumScreenSpaceError = 4;
     scene.fog.enabled = true;
     scene.shadowMap.enabled = false;
-    scene.postProcessStages.fxaa.enabled = false;
+    scene.postProcessStages.fxaa.enabled = FXAA;
 
     var osm = await Cesium.createOsmBuildingsAsync();
     osm.maximumScreenSpaceError = SSE;
@@ -258,7 +263,7 @@
       if (ev.inputSource.handedness === 'right') { showFps = !showFps; fpsLabel.show = showFps; }
     });
     btn.textContent = 'Exit VR';
-    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ')');
+    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + ')');
     session.requestAnimationFrame(onFrame);
     // If the browser never calls the XR frame loop, nothing else would report it
     var started = performance.now(), sawFrame = false;
@@ -385,7 +390,7 @@
     xr.fps = xr.frames / secs;
     var ms = xr.renderMs / Math.max(1, xr.frames);
     var line = 'fps ' + xr.fps.toFixed(1) + ' · CPU ' + ms.toFixed(1) + ' ms/frame · eye ' + xr.eye +
-      ' · eyes blitted ' + eyesBlitted + ' · scale ' + SCALE + ' · SSE ' + SSE +
+      ' · eyes blitted ' + eyesBlitted + ' · scale ' + SCALE + ' · SSE ' + SSE + ' · MSAA ' + MSAA + (FXAA ? ' · FXAA' : '') +
       ' · XR frames ' + xr.rafs + ' (no pose ' + xr.noPose + ')';
     statsEl.textContent = line;
     fpsLabel.text = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms';
