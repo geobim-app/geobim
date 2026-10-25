@@ -7,8 +7,7 @@
  * (dev/webxr-spike.html) on Quest 3 + Link with a laptop RTX 2060: single-pass
  * + VR profile at framebuffer scale 0.6 holds 72 fps at ~3 ms CPU.
  *
- *   window.BimXR = { isSupported, enter, exit, isActive, getScale, setScale,
- *                    getSmoothing, setSmoothing(fxaa, msaa) }
+ *   window.BimXR = { isSupported, enter, exit, isActive, getQuality, setQuality }
  *
  * - Button "VR" in the bottom toolbar (and the panel rail), shown only when
  *   navigator.xr reports immersive-vr (checked again on devicechange).
@@ -17,7 +16,8 @@
  *   sun, moon, eye dome lighting); stands on the ground below the camera.
  * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
  *   monitor; restores camera, render loop and every changed setting.
- * - Right trigger: fps label in front of the eyes on/off.
+ * - Right trigger: fps label in front of the eyes on/off. Right stick press:
+ *   quality Calm (scale 0.6, aims at 72 fps) ↔ Sharp (0.8), remembered.
  *
  * Uses private Cesium parts (scene.context._gl, frustum offsets, the stereo
  * path of scene.useWebVR) — check after every Cesium update.
@@ -28,13 +28,17 @@
 
   var EYE_HEIGHT = 1.6;   // m above the ground for local-floor
   var NEAR = 0.2;         // m
-  var SCALE_KEY = 'geobim.xr.scale';
-  var SMOOTH_KEY = 'geobim.xr.smoothing';
-  // Image quality over full rate: 0.8 + FXAA runs at 36 fps on Quest 3 + Link
-  // (laptop RTX 2060, Link reprojects), calm edges; 0.6 without smoothing
-  // holds 72 fps but the edges flicker
-  var DEFAULT_SCALE = 0.8;
+  var QUALITY_KEY = 'geobim.xr.quality';
+  // Switched in the headset with a press on the right stick, remembered.
+  // Measured on Quest 3 + Link (laptop RTX 2060): 0.8 runs at ~36 fps, Link
+  // then reprojects every second frame (ASW) and the scene wobbles like hot
+  // air; without FXAA the edges flicker. MSAA (Cesium's own) costs too much.
+  var QUALITY = [
+    { name: 'Calm', scale: 0.6, fxaa: true },   // aims at the full 72 fps
+    { name: 'Sharp', scale: 0.8, fxaa: true }
+  ];
   var EXIT_HOLD_MS = 1000;
+  var NOTICE_MS = 3000;
 
   var viewer, scene, gl;
   var xr = null;          // active session state
@@ -46,32 +50,38 @@
     console.log('[webxr] ' + text);
   }
 
-  function getScale() {
-    var v;
-    try { v = parseFloat(localStorage.getItem(SCALE_KEY)); } catch (e) {}
-    return v >= 0.3 && v <= 1 ? v : DEFAULT_SCALE;
+  function getQuality() {
+    var i;
+    try { i = parseInt(localStorage.getItem(QUALITY_KEY), 10); } catch (e) {}
+    return QUALITY[i] ? i : 0;
   }
 
-  function setScale(v) {
-    v = Math.min(1, Math.max(0.3, +v || DEFAULT_SCALE));
-    try { localStorage.setItem(SCALE_KEY, String(v)); } catch (e) {}
-    return v;
+  // Remembered; while in VR applied at once (a new XR layer for the scale)
+  function setQuality(i) {
+    i = QUALITY[i] ? i : 0;
+    try { localStorage.setItem(QUALITY_KEY, String(i)); } catch (e) {}
+    if (xr) {
+      applyQuality(i);
+      notice('Quality: ' + QUALITY[i].name + ' (' + QUALITY[i].scale + ')');
+    }
+    return i;
   }
 
-  // Edge smoothing in VR (default FXAA). FXAA is a post-process; MSAA is
-  // Cesium's own (2 or 4 samples), it resolves into the canvas and so works
-  // with the blit. Both apply from the next enter().
-  function getSmoothing() {
-    var v = null;
-    try { v = JSON.parse(localStorage.getItem(SMOOTH_KEY)); } catch (e) {}
-    if (!v) return { fxaa: true, msaa: 1 };
-    return { fxaa: !!v.fxaa, msaa: v.msaa === 2 || v.msaa === 4 ? v.msaa : 1 };
+  function applyQuality(i) {
+    var q = QUALITY[i];
+    xr.quality = i;
+    scene.postProcessStages.fxaa.enabled = q.fxaa;
+    if (xr.scale !== q.scale) {
+      xr.scale = q.scale;
+      var layer = new XRWebGLLayer(xr.session, gl, { antialias: false, framebufferScaleFactor: q.scale });
+      xr.session.updateRenderState({ baseLayer: layer });
+    }
   }
 
-  function setSmoothing(fxaa, msaa) {
-    var v = { fxaa: !!fxaa, msaa: msaa === 2 || msaa === 4 ? msaa : 1 };
-    try { localStorage.setItem(SMOOTH_KEY, JSON.stringify(v)); } catch (e) {}
-    return v;
+  // Short text in front of the eyes (the fps label)
+  function notice(text) {
+    xr.notice = text;
+    xr.noticeUntil = performance.now() + NOTICE_MS;
   }
 
   // ---------------------------------------------------------------------------
@@ -270,9 +280,6 @@
       saved.stages.push([st, st.enabled]);
       st.enabled = false;
     }
-    var smooth = getSmoothing();
-    scene.postProcessStages.fxaa.enabled = smooth.fxaa;
-    scene.msaaSamples = smooth.msaa;
     eachTileset(function(ts) {
       if (ts.pointCloudShading && ts.pointCloudShading.eyeDomeLighting) {
         saved.edl.push(ts);
@@ -314,7 +321,7 @@
     if (typeof BimViewer.deactivateAllTools === 'function') { try { BimViewer.deactivateAllTools(); } catch (e) {} }
     if (BimViewer.isCameraFlightActive && BimViewer.isCameraFlightActive()) BimViewer.stopCameraFlight();
 
-    var scale = getScale();
+    var quality = getQuality(), scale = QUALITY[quality].scale;
     var session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
     var refSpace, step = 'makeXRCompatible';
     // Any failure from here on must end the session, or it stays open in the
@@ -341,8 +348,10 @@
         up: Cesium.Cartesian3.clone(cam.up), right: Cesium.Cartesian3.clone(cam.right), frustum: cam.frustum.clone(),
         profile: applyProfile(), inputs: scene.screenSpaceCameraController.enableInputs
       },
-      frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, exitHeld: 0, showFps: false
+      frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, exitHeld: 0, showFps: false,
+      stickDown: false, notice: '', noticeUntil: 0
     };
+    applyQuality(quality);
     scene.screenSpaceCameraController.enableInputs = false;
     viewer.useDefaultRenderLoop = false;
     scene.useWebVR = true; // private-ish: Cesium's side-by-side stereo path
@@ -355,9 +364,10 @@
 
     session.addEventListener('end', onEnd);
     session.addEventListener('selectstart', function(ev) {
-      if (ev.inputSource.handedness === 'right' && xr) { xr.showFps = !xr.showFps; xr.fpsLabel.show = xr.showFps; }
+      if (ev.inputSource.handedness === 'right' && xr) xr.showFps = !xr.showFps;
     });
     setActiveUI(true);
+    notice('Quality: ' + QUALITY[quality].name + ' · right stick press: switch');
     status('VR active — hold Y on the left controller to exit', 'success');
     if (typeof plausible !== 'undefined') plausible('Feature Used', { props: { feature: 'VR' } });
     session.requestAnimationFrame(onFrame);
@@ -381,12 +391,19 @@
     }
   }
 
+  function pressed(src, i) {
+    return !!(src.gamepad && src.gamepad.buttons[i] && src.gamepad.buttons[i].pressed);
+  }
+
   function pollInput(session) {
-    var held = false;
+    var held = false, stick = false;
     session.inputSources.forEach(function(src) {
-      // xr-standard: buttons[5] = B / Y
-      if (src.handedness === 'left' && src.gamepad && src.gamepad.buttons[5] && src.gamepad.buttons[5].pressed) held = true;
+      // xr-standard: buttons[3] = stick press, buttons[5] = B / Y
+      if (src.handedness === 'left' && pressed(src, 5)) held = true;
+      if (src.handedness === 'right' && pressed(src, 3)) stick = true;
     });
+    if (stick && !xr.stickDown) setQuality((xr.quality + 1) % QUALITY.length);
+    xr.stickDown = stick;
     var now = performance.now();
     if (!held) { xr.exitHeld = 0; return; }
     if (!xr.exitHeld) xr.exitHeld = now;
@@ -490,7 +507,11 @@
   }
 
   function placeFpsLabel(pose) {
-    if (!xr.showFps) return;
+    var noticing = performance.now() < xr.noticeUntil;
+    xr.fpsLabel.show = xr.showFps || noticing;
+    if (noticing) xr.fpsLabel.text = xr.notice;
+    else if (xr.notice) { xr.notice = ''; xr.fpsLabel.text = xr.fpsText || ''; }
+    if (!xr.fpsLabel.show) return;
     var m = pose.transform.matrix;
     // 2 m in front of the head, a bit below eye level
     var x = m[12] - m[8] * 2, y = m[13] - m[9] * 2 - 0.3, z = m[14] - m[10] * 2;
@@ -502,10 +523,11 @@
     if (now - xr.lastReport < 1000) return;
     xr.fps = xr.frames / ((now - xr.lastReport) / 1000);
     var ms = xr.renderMs / Math.max(1, xr.frames);
-    xr.fpsLabel.text = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms';
+    xr.fpsText = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms · ' + QUALITY[xr.quality].name;
+    if (!xr.notice) xr.fpsLabel.text = xr.fpsText;
     if (overlay) {
-      var sm = (scene.postProcessStages.fxaa.enabled ? ' · FXAA' : '') + (scene.msaaSamples > 1 ? ' · MSAA ' + scene.msaaSamples : '');
-      overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · scale ' + xr.scale + sm;
+      overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · ' +
+        QUALITY[xr.quality].name + ' (scale ' + xr.scale + (scene.postProcessStages.fxaa.enabled ? ', FXAA' : '') + ')';
     }
     xr.frames = 0; xr.renderMs = 0; xr.lastReport = now;
   }
@@ -548,7 +570,7 @@
         '<div class="xr-overlay-card">' +
           '<i data-lucide="glasses"></i>' +
           '<div class="xr-overlay-title">VR active in the headset</div>' +
-          '<div class="xr-overlay-hint">Exit: hold Y on the left controller · Right trigger: fps</div>' +
+          '<div class="xr-overlay-hint">Exit: hold Y on the left controller · Right trigger: fps · Right stick press: quality</div>' +
           '<div class="xr-overlay-stats"></div>' +
           '<button type="button" class="xr-overlay-btn">Exit VR</button>' +
         '</div>';
@@ -622,10 +644,8 @@
     isActive: function() { return !!xr; },
     enter: enter,
     exit: exit,
-    getScale: getScale,
-    setScale: setScale,
-    getSmoothing: getSmoothing,
-    setSmoothing: setSmoothing
+    getQuality: getQuality,
+    setQuality: setQuality
   };
 
   init();
