@@ -17,7 +17,7 @@
  * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
  *   monitor; restores camera, render loop and every changed setting.
  * - Right trigger: fps label in front of the eyes on/off. Right stick press:
- *   quality Calm (scale 0.6, aims at 72 fps) ↔ Sharp (0.8), remembered.
+ *   quality Sharp (0.8, default) ↔ Calm (0.6, aims at 72 fps), remembered.
  *
  * Uses private Cesium parts (scene.context._gl, frustum offsets, the stereo
  * path of scene.useWebVR) — check after every Cesium update.
@@ -34,10 +34,12 @@
   // then reprojects every second frame (ASW) and the scene wobbles like hot
   // air; without FXAA the edges flicker. MSAA (Cesium's own) costs too much.
   var QUALITY = [
-    { name: 'Calm', scale: 0.6, fxaa: true },   // aims at the full 72 fps
+    { name: 'Calm', scale: 0.6, fxaa: true },   // aims at 72 fps in light scenes
     { name: 'Sharp', scale: 0.8, fxaa: true }
   ];
+  var DEFAULT_QUALITY = 1; // Sharp: in the headset clearly more pleasant, even at fewer fps
   var EXIT_HOLD_MS = 1000;
+  var TILE_SSE_FACTOR = 2; // tilesets coarser while in VR
   var NOTICE_MS = 3000;
 
   var viewer, scene, gl;
@@ -53,12 +55,12 @@
   function getQuality() {
     var i;
     try { i = parseInt(localStorage.getItem(QUALITY_KEY), 10); } catch (e) {}
-    return QUALITY[i] ? i : 0;
+    return QUALITY[i] ? i : DEFAULT_QUALITY;
   }
 
   // Remembered; while in VR applied at once (a new XR layer for the scale)
   function setQuality(i) {
-    i = QUALITY[i] ? i : 0;
+    i = QUALITY[i] ? i : DEFAULT_QUALITY;
     try { localStorage.setItem(QUALITY_KEY, String(i)); } catch (e) {}
     if (xr) {
       applyQuality(i);
@@ -259,7 +261,7 @@
       backgroundColor: Cesium.Color.clone(scene.backgroundColor),
       fxaa: scene.postProcessStages.fxaa.enabled,
       ao: scene.postProcessStages.ambientOcclusion.enabled, bloom: scene.postProcessStages.bloom.enabled,
-      stages: [], edl: []
+      stages: [], edl: [], sse: []
     };
     scene.highDynamicRange = false;
     scene.msaaSamples = 1;
@@ -281,6 +283,10 @@
       st.enabled = false;
     }
     eachTileset(function(ts) {
+      // Coarser tiles: in the headset a model like the iTwin demo is the GPU
+      // cost (empty scene 36 fps, iModel 20-25 at the same settings)
+      saved.sse.push([ts, ts.maximumScreenSpaceError]);
+      ts.maximumScreenSpaceError = ts.maximumScreenSpaceError * TILE_SSE_FACTOR;
       if (ts.pointCloudShading && ts.pointCloudShading.eyeDomeLighting) {
         saved.edl.push(ts);
         ts.pointCloudShading.eyeDomeLighting = false;
@@ -305,6 +311,7 @@
     scene.postProcessStages.bloom.enabled = s.bloom;
     s.stages.forEach(function(e) { if (!e[0].isDestroyed()) e[0].enabled = e[1]; });
     s.edl.forEach(function(ts) { if (!ts.isDestroyed()) ts.pointCloudShading.eyeDomeLighting = true; });
+    s.sse.forEach(function(e) { if (!e[0].isDestroyed()) e[0].maximumScreenSpaceError = e[1]; });
   }
 
   // ---------------------------------------------------------------------------
