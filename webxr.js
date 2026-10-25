@@ -418,7 +418,7 @@
         sizeCanvas(vp.width, vp.height);
         setEyeCamera(xr.frame, view);
         scene.render(time);
-        if (target) blit(null, target, 0, 0, vp.width, vp.height, vp.x, vp.y);
+        if (target) blitStereo(target, vp, { x: vp.width, y: vp.y, width: 0, height: vp.height }, vp.width, vp.height);
       });
     }
     xr.renderMs += performance.now() - t0;
@@ -433,17 +433,19 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // Cesium expects the default framebuffer bound
   }
 
-  // Canvas (both eyes side by side) → XR framebuffer. The app's canvas may be
-  // multisampled (context antialias); a blit out of a multisampled buffer must
-  // keep its rectangle, so other layouts resolve into an own buffer first.
+  // Canvas (both eyes side by side) → XR framebuffer. The app's canvas is
+  // multisampled (core.js keeps the context's antialias, 4 samples) and has
+  // no alpha: a blit out of it must keep rectangle and format (RGB8), which
+  // the RGBA XR framebuffer never matches (GL_INVALID_OPERATION on Quest
+  // Link). So it is resolved into an own RGB8 buffer of the same size first.
   function blitStereo(target, vpL, vpR, w2, h) {
-    var sideBySide = vpL.x === 0 && vpL.y === 0 && vpR.x === vpL.width && vpR.y === 0 && vpR.height === h;
-    if (sideBySide) { blit(null, target, 0, 0, w2, h, 0, 0); return; }
     var src = null;
     if (gl.getContextAttributes().antialias) {
       src = resolveBuffer(w2, h);
       blit(null, src, 0, 0, w2, h, 0, 0);
     }
+    var sideBySide = vpL.x === 0 && vpL.y === 0 && vpR.x === vpL.width && vpR.y === 0 && vpR.height === h;
+    if (sideBySide) { blit(src, target, 0, 0, w2, h, 0, 0); return; }
     blit(src, target, 0, 0, vpL.width, h, vpL.x, vpL.y);
     blit(src, target, vpL.width, 0, vpR.width, h, vpR.x, vpR.y);
   }
@@ -454,7 +456,7 @@
     if (r) { gl.deleteFramebuffer(r.fb); gl.deleteRenderbuffer(r.rb); }
     var fb = gl.createFramebuffer(), rb = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w, h);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.getContextAttributes().alpha ? gl.RGBA8 : gl.RGB8, w, h);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
