@@ -28,6 +28,11 @@
   // the blit): Cesium's own MSAA resolves into the default framebuffer, FXAA
   // is a post-process
   var MSAA = clamp(parseInt(params.get('msaa'), 10) || 1, 1, 8);
+  // Single-pass stereo through Cesium's own (old WebVR) path: the scene is
+  // updated once per frame (primitives, tile selection, visible set, shadows),
+  // only the draw commands run twice — into the left and right half of a
+  // double-wide canvas, copied with one blit. Two-pass = two full renders.
+  var SINGLE = params.get('single') === '1';
   var FXAA = params.get('fxaa') === '1';
   // Without a real XR framebuffer (emulator): blit both eyes side by side into
   // an own framebuffer, to check the stereo + blit path for GL errors
@@ -212,6 +217,54 @@
     makeAsymmetric(fr, (rightTan + leftTan) / 2, (topTan + bottomTan) / 2);
   }
 
+  // Projection of one XRView as tangents of its frustum edges
+  function viewTans(view) {
+    var p = view.projectionMatrix;
+    return {
+      right: (1 + p[8]) / p[0], left: (p[8] - 1) / p[0],
+      top: (1 + p[9]) / p[5], bottom: (p[9] - 1) / p[5]
+    };
+  }
+
+  var tmpL = new Cesium.Cartesian3();
+  var tmpR = new Cesium.Cartesian3();
+
+  // Single pass: camera at the midpoint of both eyes, oriented like the left
+  // eye. Cesium's executeWebVRCommands then renders the left half with
+  // position + right·eyeSeparation/2 and xOffset = 0.5·eyeSeparation·near/fo
+  // (fo = near·focalLength), the right half mirrored. With eyeSeparation =
+  // −IPD the left half shows the left eye; focalLength is chosen so that the
+  // offset equals the left eye's frustum asymmetry (the right eye's is the
+  // mirror image on headsets — checked in debug()).
+  function setStereoCamera(f, left, right) {
+    var mL = left.transform.matrix, mR = right.transform.matrix;
+    toWorldVec(f, mL[12], mL[13], mL[14], tmpL);
+    toWorldVec(f, mR[12], mR[13], mR[14], tmpR);
+    var ipd = Cesium.Cartesian3.distance(tmpL, tmpR);
+    var cam = viewer.camera;
+    Cesium.Cartesian3.add(f.origin, Cesium.Cartesian3.midpoint(tmpL, tmpR, tmpV), cam.position);
+    toWorldVec(f, -mL[8], -mL[9], -mL[10], tmpD);
+    Cesium.Cartesian3.normalize(tmpD, cam.direction);
+    toWorldVec(f, mL[4], mL[5], mL[6], tmpU);
+    Cesium.Cartesian3.normalize(tmpU, cam.up);
+    Cesium.Cartesian3.cross(cam.direction, cam.up, cam.right);
+    Cesium.Cartesian3.normalize(cam.right, cam.right);
+
+    var tL = viewTans(left), tR = viewTans(right);
+    var hw = (tL.right - tL.left) / 2, hh = (tL.top - tL.bottom) / 2;
+    var fr = cam.frustum;
+    fr.aspectRatio = hw / hh;
+    fr.fov = 2 * Math.atan(fr.aspectRatio >= 1 ? hw : hh);
+    fr.near = NEAR;
+    var xRatioL = (tL.right + tL.left) / 2;
+    // culling of the shared pass uses the symmetric centre frustum
+    makeAsymmetric(fr, 0, (tL.top + tL.bottom) / 2);
+    scene.eyeSeparation = -ipd;
+    scene.focalLength = Math.abs(xRatioL) > 1e-6 ? -ipd / (2 * NEAR * xRatioL) : 1e9;
+    lastStereo = { ipd: ipd, xRatioL: xRatioL, xRatioR: (tR.right + tR.left) / 2, focalLength: scene.focalLength };
+  }
+  var lastStereo = null;
+
   function sizeCanvas(w, h) {
     var c = scene.canvas;
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
@@ -253,6 +306,7 @@
     };
     scene.screenSpaceCameraController.enableInputs = false;
     viewer.useDefaultRenderLoop = false;
+    if (SINGLE) scene.useWebVR = true; // private-ish: Cesium's side-by-side stereo path
     fpsLabel.show = showFps;
 
     session.addEventListener('end', onEnd);
@@ -263,7 +317,7 @@
       if (ev.inputSource.handedness === 'right') { showFps = !showFps; fpsLabel.show = showFps; }
     });
     btn.textContent = 'Exit VR';
-    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + ')');
+    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
     session.requestAnimationFrame(onFrame);
     // If the browser never calls the XR frame loop, nothing else would report it
     var started = performance.now(), sawFrame = false;
@@ -312,7 +366,10 @@
     }
     var getViewport = function(view, i) { return layer.getViewport(view); };
     if (!target && BLITTEST) {
-      var vp0 = layer.getViewport(pose.views[0]);
+      // The emulated layer derives its viewport from the canvas size, which
+      // this page changes (double width in single-pass): freeze the first one
+      if (!xr.testVp) { var v0 = layer.getViewport(pose.views[0]); xr.testVp = { width: v0.width, height: v0.height }; }
+      var vp0 = xr.testVp;
       target = testTarget(vp0.width, vp0.height);
       getViewport = function(view, i) { return { x: i * vp0.width, y: 0, width: vp0.width, height: vp0.height }; };
     }
@@ -323,6 +380,31 @@
 
     placeFpsLabel(pose);
     var views = pose.views;
+
+    if (SINGLE && target && views.length === 2 && !MONO) {
+      var iL = views[0].eye === 'right' ? 1 : 0, vL = views[iL], vR = views[1 - iL];
+      var vpL = getViewport(vL, 0), vpR = getViewport(vR, 1);
+      var w2 = vpL.width + vpR.width, h2 = vpL.height;
+      sizeCanvas(w2, h2);
+      setStereoCamera(xr.frame, vL, vR);
+      scene.render(time); // both eyes, side by side
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, target);
+      if (vpR.x === vpL.x + vpL.width && vpR.y === vpL.y && vpR.height === vpL.height) {
+        gl.blitFramebuffer(0, 0, w2, h2, vpL.x, vpL.y, vpL.x + w2, vpL.y + h2, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+      } else { // other layout: one blit per eye
+        gl.blitFramebuffer(0, 0, vpL.width, h2, vpL.x, vpL.y, vpL.x + vpL.width, vpL.y + vpL.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(vpL.width, 0, w2, h2, vpR.x, vpR.y, vpR.x + vpR.width, vpR.y + vpR.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      xr.eye = vpL.width + '×' + vpL.height + ' single-pass';
+      xr.renderMs += performance.now() - t0;
+      xr.frames++;
+      if (BLITTEST) xr.glError = gl.getError();
+      report(2);
+      return;
+    }
+
     var n = MONO || !target ? 1 : views.length;
     for (var i = 0; i < n; i++) {
       var vp = getViewport(views[i], i);
@@ -371,8 +453,17 @@
       for (var i = 0; i < px.length; i += 4) { s[0] += px[i]; s[1] += px[i + 1]; s[2] += px[i + 2]; }
       out.push(s.map(function(v) { return Math.round(v / (64 * 64)); }));
     }
+    // 5 × 3 grid: the same spot in both eyes should differ only by parallax
+    var diffs = [], one = new Uint8Array(4);
+    for (var gy = 1; gy <= 3; gy++) for (var gx = 1; gx <= 5; gx++) {
+      var x = Math.round(gx * w / 6), y = Math.round(gy * h / 4), a = [], b = [];
+      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, one); a = Array.from(one.slice(0, 3));
+      gl.readPixels(w + x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, one); b = Array.from(one.slice(0, 3));
+      diffs.push(Math.round((Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3));
+    }
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-    return { complete: testFbo.complete, size: (2 * w) + '×' + h, leftEyeRGB: out[0], rightEyeRGB: out[1] };
+    return { complete: testFbo.complete, size: (2 * w) + '×' + h, leftEyeRGB: out[0], rightEyeRGB: out[1],
+      gridDiff: diffs, gridDiffMean: Math.round(diffs.reduce(function(s, v) { return s + v; }, 0) / diffs.length) };
   }
 
   function placeFpsLabel(pose) {
@@ -401,6 +492,11 @@
   function onEnd() {
     if (!xr) return;
     clearInterval(xr.watchdog);
+    if (scene.useWebVR) {
+      scene.useWebVR = false;
+      scene.eyeSeparation = undefined;
+      scene.focalLength = undefined;
+    }
     undoAsymmetric();
     var s = xr.saved, cam = viewer.camera;
     cam.frustum = s.frustum;
@@ -464,6 +560,14 @@
   window.webxrSpike = {
     enter: function() { return enterVR(); },
     exit: function() { if (xr) return xr.session.end(); },
+    // Cesium's plain WebVR side-by-side mode on the normal view (no XR), to
+    // tell Cesium's own behaviour from this page's
+    webvr: function(on, sep, fov) {
+      scene.useWebVR = !!on;
+      if (fov) viewer.camera.frustum.fov = fov;
+      scene.eyeSeparation = on ? (sep === undefined ? undefined : sep) : undefined;
+      return { useWebVR: scene.useWebVR, eyeSeparation: scene.eyeSeparation, focalLength: scene.focalLength };
+    },
     // Check that the near-relative offsets survive Cesium's clone + near change
     testAsymmetry: function() {
       var fr = new Cesium.PerspectiveFrustum({ fov: 1.5, aspectRatio: 0.95, near: 0.2, far: 1e7 });
@@ -483,6 +587,19 @@
         plainCloneXOffset: c.xOffset, plainCloneM8: +c.projectionMatrix[8].toFixed(5)
       };
     },
+    // Test framebuffer as a data URL (both eyes side by side), to look at it
+    snapshot: function() {
+      if (!testFbo) return null;
+      var w = 2 * testFbo.w, h = testFbo.h, px = new Uint8Array(4 * w * h);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, testFbo.fb);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      var c2 = c.getContext('2d'), img = c2.createImageData(w, h);
+      for (var y = 0; y < h; y++) img.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+      c2.putImageData(img, 0, 0);
+      return c.toDataURL('image/png');
+    },
     state: function() { return xr ? { fps: xr.fps, eye: xr.eye, glError: xr.glError, blitTest: readTestTarget() } : null; },
     // camera vs. local up, and the last XRView, for checking the pose math
     debug: function() {
@@ -496,6 +613,7 @@
         headingDeg: +Cesium.Math.toDegrees(cam.heading).toFixed(1),
         heightM: +cam.positionCartographic.height.toFixed(1),
         frustum: { fov: cam.frustum.fov, aspect: cam.frustum.aspectRatio, xOffset: cam.frustum.xOffset, yOffset: cam.frustum.yOffset },
+        stereo: lastStereo,
         lastView: lastView && { matrix: Array.from(lastView.m).map(function(x) { return +x.toFixed(3); }), proj: Array.from(lastView.p).map(function(x) { return +x.toFixed(3); }) },
         frameUp: xr && r3(xr.frame.up), frameFwd: xr && r3(xr.frame.fwd)
       };
