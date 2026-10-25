@@ -320,11 +320,11 @@
     status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
     session.requestAnimationFrame(onFrame);
     // If the browser never calls the XR frame loop, nothing else would report it
-    var started = performance.now(), sawFrame = false;
+    var started = performance.now();
     xr.watchdog = setInterval(function() {
       if (!xr) return;
-      if (xr.rafs || xr.frames) sawFrame = true;
-      if (!sawFrame && performance.now() - started > 3000) {
+      // xr.sawFrame, not the counters: report() resets those every second
+      if (!xr.sawFrame && performance.now() - started > 3000) {
         status('No XR frames from the browser after 3 s (session ' + session.visibilityState + ') — check that the headset shows this page, not another app');
       }
     }, 1000);
@@ -348,6 +348,7 @@
     var session = frame.session;
     session.requestAnimationFrame(onFrame);
     xr.rafs++;
+    xr.sawFrame = true;
     var layer = session.renderState.baseLayer;
     var target = layer.framebuffer; // null in some emulators / inline: no blit possible
     var pose = frame.getViewerPose(xr.refSpace);
