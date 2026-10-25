@@ -30,7 +30,10 @@
   var NEAR = 0.2;         // m
   var SCALE_KEY = 'geobim.xr.scale';
   var SMOOTH_KEY = 'geobim.xr.smoothing';
-  var DEFAULT_SCALE = 0.6;
+  // Image quality over full rate: 0.8 + FXAA runs at 36 fps on Quest 3 + Link
+  // (laptop RTX 2060, Link reprojects), calm edges; 0.6 without smoothing
+  // holds 72 fps but the edges flicker
+  var DEFAULT_SCALE = 0.8;
   var EXIT_HOLD_MS = 1000;
 
   var viewer, scene, gl;
@@ -55,12 +58,13 @@
     return v;
   }
 
-  // Edge smoothing in VR (off by default: costs GPU time). FXAA is a
-  // post-process; MSAA is Cesium's own (2 or 4 samples), it resolves into the
-  // canvas and so works with the blit. Both apply from the next enter().
+  // Edge smoothing in VR (default FXAA). FXAA is a post-process; MSAA is
+  // Cesium's own (2 or 4 samples), it resolves into the canvas and so works
+  // with the blit. Both apply from the next enter().
   function getSmoothing() {
-    var v = {};
-    try { v = JSON.parse(localStorage.getItem(SMOOTH_KEY)) || {}; } catch (e) {}
+    var v = null;
+    try { v = JSON.parse(localStorage.getItem(SMOOTH_KEY)); } catch (e) {}
+    if (!v) return { fxaa: true, msaa: 1 };
     return { fxaa: !!v.fxaa, msaa: v.msaa === 2 || v.msaa === 4 ? v.msaa : 1 };
   }
 
