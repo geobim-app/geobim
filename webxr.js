@@ -7,13 +7,16 @@
  * (dev/webxr-spike.html) on Quest 3 + Link with a laptop RTX 2060: single-pass
  * + VR profile at framebuffer scale 0.6 holds 72 fps at ~3 ms CPU.
  *
- *   window.BimXR = { isSupported, enter, exit, isActive, getQuality, setQuality }
+ *   window.BimXR = { isSupported, enter, exit, isActive, getQuality, setQuality,
+ *                    on(enter|frame|exit, fn), toWorldVec, notice }
+ *   Movement lives in webxr-locomotion.js (changes the reference frame).
  *
  * - Button "VR" in the bottom toolbar (and the panel rail), shown only when
  *   navigator.xr reports immersive-vr (checked again on devicechange).
  * - Enter: ends walk mode, camera flights, gizmo and measuring; switches to
  *   the VR profile (no HDR, MSAA, post-processing, shadows, atmosphere, sky,
- *   sun, moon, eye dome lighting); stands on the ground below the camera.
+ *   sun, moon, eye dome lighting); stands on the ground below the camera
+ *   when that is less than 1 km below, else hovers at the camera position.
  * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
  *   monitor; restores camera, render loop and every changed setting.
  * - Right trigger: fps label in front of the eyes on/off. Right stick press:
@@ -28,6 +31,8 @@
 
   var EYE_HEIGHT = 1.6;   // m above the ground for local-floor
   var NEAR = 0.2;         // m
+  var STAND_MAX_ABOVE = 1000; // m: closer to the ground, VR starts standing on it
+  var MIN_GROUND = -500;      // m: lower ground heights are coarse-tile nonsense
   var QUALITY_KEY = 'geobim.xr.quality';
   // Switched in the headset with a press on the right stick, remembered.
   // Measured on Quest 3 + Link (laptop RTX 2060): 0.8 runs at ~36 fps, Link
@@ -44,6 +49,15 @@
 
   var viewer, scene, gl;
   var xr = null;          // active session state
+  // Other VR modules: enter(ctx) after the VR profile, frame(ctx) before
+  // every render, exit() before the settings come back
+  var hooks = { enter: [], frame: [], exit: [] };
+
+  function callHooks(list, ctx) {
+    list.forEach(function(fn) {
+      try { fn(ctx); } catch (e) { console.error('[webxr] hook failed', e); }
+    });
+  }
   var supported = false;
   var btn = null, overlay = null;
 
@@ -94,14 +108,18 @@
     var h;
     try { h = scene.sampleHeightSupported ? scene.sampleHeight(carto) : undefined; } catch (e) {}
     if (h === undefined) h = scene.globe.getHeight(carto);
-    return h;
+    // coarse terrain tiles (camera far away) give nonsense like −18 km
+    return h !== undefined && h > MIN_GROUND ? h : undefined;
   }
 
+  // Close to the ground: stand on it (model roof or terrain below the
+  // camera). Higher up (overview, globe): hover at the camera position.
   function makeFrame() {
     var cam = viewer.camera;
     var carto = Cesium.Cartographic.clone(cam.positionCartographic);
-    var ground = groundHeight(carto);
-    var height = ground !== undefined && ground < carto.height ? ground : carto.height - EYE_HEIGHT;
+    var ground = groundHeight(Cesium.Cartographic.clone(carto));
+    var stand = ground !== undefined && ground < carto.height && carto.height - ground < STAND_MAX_ABOVE;
+    var height = stand ? ground : carto.height - EYE_HEIGHT;
     var origin = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, height);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
     var east = Cesium.Matrix4.getColumn(enu, 0, new Cesium.Cartesian4());
@@ -374,6 +392,7 @@
       if (ev.inputSource.handedness === 'right' && xr) xr.showFps = !xr.showFps;
     });
     setActiveUI(true);
+    callHooks(hooks.enter, { session: session, refSpace: refSpace, ref: xr.frame, scene: scene, viewer: viewer });
     notice('Quality: ' + QUALITY[quality].name + ' · right stick press: switch');
     status('VR active — hold Y on the left controller to exit', 'success');
     if (typeof plausible !== 'undefined') plausible('Feature Used', { props: { feature: 'VR' } });
@@ -389,7 +408,7 @@
   function onFrame(t, frame) {
     if (!xr) return;
     try {
-      renderFrame(frame);
+      renderFrame(frame, t);
     } catch (e) {
       console.error('[webxr] frame failed', e);
       var msg = 'VR stopped: ' + e.message;
@@ -417,7 +436,7 @@
     else if (now - xr.exitHeld > EXIT_HOLD_MS) { xr.exitHeld = 0; session.end(); }
   }
 
-  function renderFrame(frame) {
+  function renderFrame(frame, t) {
     var session = frame.session;
     session.requestAnimationFrame(onFrame);
     pollInput(session);
@@ -438,6 +457,11 @@
     viewer.clock.tick();
     scene.initializeFrame();
     var time = viewer.clock.currentTime;
+    // Movement modules (webxr-locomotion.js) change xr.frame before the render
+    var dt = xr.lastT ? Math.min(0.1, (t - xr.lastT) / 1000) : 0;
+    xr.lastT = t;
+    var ctx = { frame: frame, pose: pose, session: session, refSpace: xr.refSpace, ref: xr.frame, dt: dt, scene: scene };
+    hooks.frame.forEach(function(fn) { fn(ctx); }); // errors end the session (onFrame)
     placeFpsLabel(pose);
 
     var views = pose.views;
@@ -542,6 +566,7 @@
   function onEnd() {
     if (!xr) return;
     var s = xr.saved, cam = viewer.camera;
+    callHooks(hooks.exit, {});
     scene.useWebVR = false;
     scene.eyeSeparation = undefined;
     scene.focalLength = undefined;
@@ -577,7 +602,8 @@
         '<div class="xr-overlay-card">' +
           '<i data-lucide="glasses"></i>' +
           '<div class="xr-overlay-title">VR active in the headset</div>' +
-          '<div class="xr-overlay-hint">Exit: hold Y on the left controller · Right trigger: fps · Right stick press: quality</div>' +
+          '<div class="xr-overlay-hint">Left stick: fly · Left grip / trigger: up / down · Right stick: turn, push forward: teleport</div>' +
+          '<div class="xr-overlay-hint">Exit: hold Y · Right trigger: fps · Right stick press: quality</div>' +
           '<div class="xr-overlay-stats"></div>' +
           '<button type="button" class="xr-overlay-btn">Exit VR</button>' +
         '</div>';
@@ -652,7 +678,11 @@
     enter: enter,
     exit: exit,
     getQuality: getQuality,
-    setQuality: setQuality
+    setQuality: setQuality,
+    // for other VR modules: BimXR.on('enter' | 'frame' | 'exit', fn)
+    on: function(name, fn) { if (hooks[name]) hooks[name].push(fn); },
+    toWorldVec: toWorldVec,
+    notice: function(text) { if (xr) notice(text); }
   };
 
   init();
