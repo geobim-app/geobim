@@ -34,6 +34,10 @@
   // double-wide canvas, copied with one blit. Two-pass = two full renders.
   var SINGLE = params.get('single') === '1';
   var FXAA = params.get('fxaa') === '1';
+  // GPU-bound in stereo (scale 0.6 → 67 fps): fewer full-screen passes —
+  // no HDR float target + tone mapping, no sky/ground atmosphere, sky box,
+  // sun, moon
+  var LITE = params.get('lite') === '1';
   // Without a real XR framebuffer (emulator): blit both eyes side by side into
   // an own framebuffer, to check the stereo + blit path for GL errors
   var BLITTEST = params.get('blittest') === '1';
@@ -78,6 +82,15 @@
     scene.fog.enabled = true;
     scene.shadowMap.enabled = false;
     scene.postProcessStages.fxaa.enabled = FXAA;
+    if (LITE) {
+      scene.highDynamicRange = false;
+      scene.skyAtmosphere.show = false;
+      scene.globe.showGroundAtmosphere = false;
+      scene.skyBox.show = false;
+      scene.sun.show = false;
+      scene.moon.show = false;
+      scene.backgroundColor = Cesium.Color.fromCssColorString('#9ec3dc'); // plain sky
+    }
 
     var osm = await Cesium.createOsmBuildingsAsync();
     osm.maximumScreenSpaceError = SSE;
@@ -317,7 +330,7 @@
       if (ev.inputSource.handedness === 'right') { showFps = !showFps; fpsLabel.show = showFps; }
     });
     btn.textContent = 'Exit VR';
-    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
+    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (LITE ? ', lite' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
     session.requestAnimationFrame(onFrame);
     // If the browser never calls the XR frame loop, nothing else would report it
     var started = performance.now();
