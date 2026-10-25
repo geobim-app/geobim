@@ -7,7 +7,8 @@
  * (dev/webxr-spike.html) on Quest 3 + Link with a laptop RTX 2060: single-pass
  * + VR profile at framebuffer scale 0.6 holds 72 fps at ~3 ms CPU.
  *
- *   window.BimXR = { isSupported, enter, exit, isActive, getScale, setScale }
+ *   window.BimXR = { isSupported, enter, exit, isActive, getScale, setScale,
+ *                    getSmoothing, setSmoothing(fxaa, msaa) }
  *
  * - Button "VR" in the bottom toolbar (and the panel rail), shown only when
  *   navigator.xr reports immersive-vr (checked again on devicechange).
@@ -28,6 +29,7 @@
   var EYE_HEIGHT = 1.6;   // m above the ground for local-floor
   var NEAR = 0.2;         // m
   var SCALE_KEY = 'geobim.xr.scale';
+  var SMOOTH_KEY = 'geobim.xr.smoothing';
   var DEFAULT_SCALE = 0.6;
   var EXIT_HOLD_MS = 1000;
 
@@ -50,6 +52,21 @@
   function setScale(v) {
     v = Math.min(1, Math.max(0.3, +v || DEFAULT_SCALE));
     try { localStorage.setItem(SCALE_KEY, String(v)); } catch (e) {}
+    return v;
+  }
+
+  // Edge smoothing in VR (off by default: costs GPU time). FXAA is a
+  // post-process; MSAA is Cesium's own (2 or 4 samples), it resolves into the
+  // canvas and so works with the blit. Both apply from the next enter().
+  function getSmoothing() {
+    var v = {};
+    try { v = JSON.parse(localStorage.getItem(SMOOTH_KEY)) || {}; } catch (e) {}
+    return { fxaa: !!v.fxaa, msaa: v.msaa === 2 || v.msaa === 4 ? v.msaa : 1 };
+  }
+
+  function setSmoothing(fxaa, msaa) {
+    var v = { fxaa: !!fxaa, msaa: msaa === 2 || msaa === 4 ? msaa : 1 };
+    try { localStorage.setItem(SMOOTH_KEY, JSON.stringify(v)); } catch (e) {}
     return v;
   }
 
@@ -249,6 +266,9 @@
       saved.stages.push([st, st.enabled]);
       st.enabled = false;
     }
+    var smooth = getSmoothing();
+    scene.postProcessStages.fxaa.enabled = smooth.fxaa;
+    scene.msaaSamples = smooth.msaa;
     eachTileset(function(ts) {
       if (ts.pointCloudShading && ts.pointCloudShading.eyeDomeLighting) {
         saved.edl.push(ts);
@@ -479,7 +499,10 @@
     xr.fps = xr.frames / ((now - xr.lastReport) / 1000);
     var ms = xr.renderMs / Math.max(1, xr.frames);
     xr.fpsLabel.text = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms';
-    if (overlay) overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · scale ' + xr.scale;
+    if (overlay) {
+      var sm = (scene.postProcessStages.fxaa.enabled ? ' · FXAA' : '') + (scene.msaaSamples > 1 ? ' · MSAA ' + scene.msaaSamples : '');
+      overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · scale ' + xr.scale + sm;
+    }
     xr.frames = 0; xr.renderMs = 0; xr.lastReport = now;
   }
 
@@ -596,7 +619,9 @@
     enter: enter,
     exit: exit,
     getScale: getScale,
-    setScale: setScale
+    setScale: setScale,
+    getSmoothing: getSmoothing,
+    setSmoothing: setSmoothing
   };
 
   init();
