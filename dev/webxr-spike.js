@@ -21,6 +21,7 @@
   var params = new URLSearchParams(location.search);
   var SCALE = clamp(parseFloat(params.get('scale')) || 0.8, 0.3, 1.0);
   var SSE = clamp(parseFloat(params.get('sse')) || 16, 1, 64);
+  var GLOBE_SSE = clamp(parseFloat(params.get('gsse')) || 4, 1, 32); // terrain detail
   var EXTRA_ASSET = parseInt(params.get('asset'), 10) || 0;
   var EMULATE = params.get('emulate') === '1';
   var MONO = params.get('mono') === '1';
@@ -78,7 +79,7 @@
     });
     scene = viewer.scene;
     gl = scene.context._gl; // private: the WebGL context the XR layer must share
-    scene.globe.maximumScreenSpaceError = 4;
+    scene.globe.maximumScreenSpaceError = GLOBE_SSE;
     scene.fog.enabled = true;
     scene.shadowMap.enabled = false;
     scene.postProcessStages.fxaa.enabled = FXAA;
@@ -330,7 +331,7 @@
       if (ev.inputSource.handedness === 'right') { showFps = !showFps; fpsLabel.show = showFps; }
     });
     btn.textContent = 'Exit VR';
-    status('In VR (scale ' + SCALE + ', SSE ' + SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (LITE ? ', lite' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
+    status('In VR (scale ' + SCALE + ', SSE ' + SSE + ', terrain SSE ' + GLOBE_SSE + (MONO ? ', mono' : '') + ', MSAA ' + MSAA + (FXAA ? ', FXAA' : '') + (LITE ? ', lite' : '') + (SINGLE ? ', single-pass stereo' : ', two-pass') + ')');
     session.requestAnimationFrame(onFrame);
     // If the browser never calls the XR frame loop, nothing else would report it
     var started = performance.now();
@@ -627,8 +628,7 @@
         headingDeg: +Cesium.Math.toDegrees(cam.heading).toFixed(1),
         heightM: +cam.positionCartographic.height.toFixed(1),
         frustum: { fov: cam.frustum.fov, aspect: cam.frustum.aspectRatio, xOffset: cam.frustum.xOffset, yOffset: cam.frustum.yOffset },
-        stereo: lastStereo,
-        lastView: lastView && { matrix: Array.from(lastView.m).map(function(x) { return +x.toFixed(3); }), proj: Array.from(lastView.p).map(function(x) { return +x.toFixed(3); }) },
+        stereo: lastStereo,        lastView: lastView && { matrix: Array.from(lastView.m).map(function(x) { return +x.toFixed(3); }), proj: Array.from(lastView.p).map(function(x) { return +x.toFixed(3); }) },
         frameUp: xr && r3(xr.frame.up), frameFwd: xr && r3(xr.frame.fwd)
       };
     }
