@@ -681,35 +681,203 @@
   }
 
   // Canvas (both eyes side by side) → XR framebuffer. The app's canvas is
-  // multisampled (core.js keeps the context's antialias, 4 samples) and has
-  // no alpha: a blit out of it must keep rectangle and format (RGB8), which
-  // the RGBA XR framebuffer never matches (GL_INVALID_OPERATION on Quest
-  // Link). So it is resolved into an own RGB8 buffer of the same size first.
+  // multisampled (core.js keeps the context's antialias, 4 samples): a blit
+  // out of it must keep rectangle and format exactly, so it is resolved into
+  // an own texture first. Its format depends on the browser (Chrome on
+  // Windows: RGB8; the Quest Browser gave GL_INVALID_OPERATION with RGB8), so
+  // the formats are tried once until one works. Into the XR framebuffer a
+  // blit is not allowed if the headset browser made it multisampled — then
+  // the texture is drawn as a full-screen quad instead.
+  var RESOLVE_FORMATS = ['RGB8', 'RGBA8', 'SRGB8_ALPHA8', 'RGB565'];
+  var resolveFormat = 0, resolveChecked = false; // kept across sessions
+  var copyMode = null, copyProgram = null;       // 'blit' | 'quad'
+
   function blitStereo(target, vpL, vpR, w2, h) {
     var src = null;
+    if (!w2 || !h) return;
     if (gl.getContextAttributes().antialias) {
       src = resolveBuffer(w2, h);
+      if (!resolveChecked) gl.getError(); // only this blit's error counts
       blit(null, src, 0, 0, w2, h, 0, 0);
+      if (!resolveChecked) {
+        var err = gl.getError();
+        if (!err) {
+          resolveChecked = true;
+          dlog('resolve: ' + RESOLVE_FORMATS[resolveFormat] + ' works');
+        } else if (err !== gl.INVALID_OPERATION) {
+          dlog('resolve: 0x' + err.toString(16) + ' (not a format mismatch), trying again');
+        } else if (resolveFormat < RESOLVE_FORMATS.length - 1) {
+          dlog('resolve: ' + RESOLVE_FORMATS[resolveFormat] + ' failed (0x' + err.toString(16) + '), trying the next format');
+          resolveFormat++;
+          dropResolve();
+          return; // the next frame tries again
+        } else {
+          resolveChecked = true;
+          dlog('resolve: no format works');
+        }
+      }
     }
+    if (!copyMode) copyMode = chooseCopyMode(target);
+    if (copyMode === 'quad' && src) { drawQuads(target, vpL, vpR, w2, h); return; }
+    if (!xr.copyChecked) gl.getError();
     var sideBySide = vpL.x === 0 && vpL.y === 0 && vpR.x === vpL.width && vpR.y === 0 && vpR.height === h;
-    if (sideBySide) { blit(src, target, 0, 0, w2, h, 0, 0); return; }
-    blit(src, target, 0, 0, vpL.width, h, vpL.x, vpL.y);
-    blit(src, target, vpL.width, 0, vpR.width, h, vpR.x, vpR.y);
+    if (sideBySide) blit(src, target, 0, 0, w2, h, 0, 0);
+    else {
+      blit(src, target, 0, 0, vpL.width, h, vpL.x, vpL.y);
+      blit(src, target, vpL.width, 0, vpR.width, h, vpR.x, vpR.y);
+    }
+    if (!xr.copyChecked) {
+      xr.copyChecked = true;
+      var e2 = gl.getError();
+      if (e2 && src) {
+        dlog('copy: blit into the XR framebuffer failed (0x' + e2.toString(16) + '), switching to quads');
+        copyMode = 'quad';
+      }
+    }
   }
 
-  function resolveBuffer(w, h) {
-    var r = xr.resolve;
-    if (r && r.w === w && r.h === h) return r.fb;
-    if (r) { gl.deleteFramebuffer(r.fb); gl.deleteRenderbuffer(r.rb); }
+  // A multisampled XR framebuffer cannot be the target of a blit
+  function chooseCopyMode(target) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    var samples = gl.getParameter(gl.SAMPLES);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var mode = samples > 0 ? 'quad' : 'blit';
+    dlog('copy: XR framebuffer samples ' + samples + ' → ' + mode);
+    return mode;
+  }
+
+  // ?xrdebug=1 only: copy the current canvas into a stand-in XR framebuffer
+  // (multisampled like the Quest Browser's, or plain) and read both eyes back
+  function copyTest(multisampled) {
+    if (!xr) return 'not in VR';
+    sizeCanvas(1200, 600);
+    scene.render(viewer.clock.currentTime);
+    var c = scene.canvas, w2 = c.width, h = c.height, w = w2 / 2;
     var fb = gl.createFramebuffer(), rb = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.getContextAttributes().alpha ? gl.RGBA8 : gl.RGB8, w, h);
+    if (multisampled) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, gl.RGBA8, w2 + 64, h + 32);
+    else gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w2 + 64, h + 32);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var saved = { mode: copyMode, checked: xr.copyChecked };
+    copyMode = null; xr.copyChecked = false;
+    gl.getError();
+    blitStereo(fb, { x: 0, y: 0, width: w, height: h }, { x: w + 64, y: 0, width: w, height: h }, w2, h);
+    var mode = copyMode, err = gl.getError();
+    // read back: resolve the stand-in into a plain buffer
+    var out = gl.createFramebuffer(), orb = gl.createRenderbuffer(), px = new Uint8Array(4), eyes = [];
+    gl.bindRenderbuffer(gl.RENDERBUFFER, orb);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w2 + 64, h + 32);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, out);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, orb);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+    gl.blitFramebuffer(0, 0, w2 + 64, h + 32, 0, 0, w2 + 64, h + 32, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, out);
+    [w / 2, w + 64 + w / 2].forEach(function(x) {
+      gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      eyes.push(Array.from(px.slice(0, 3)).join(','));
+    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-    xr.resolve = { fb: fb, rb: rb, w: w, h: h };
+    [fb, out].forEach(function(f) { gl.deleteFramebuffer(f); });
+    [rb, orb].forEach(function(r) { gl.deleteRenderbuffer(r); });
+    copyMode = saved.mode; xr.copyChecked = saved.checked;
+    return { size: w2 + '×' + h, mode: mode, glError: err, resolve: RESOLVE_FORMATS[resolveFormat], eyes: eyes, readError: gl.getError() };
+  }
+  if (DEBUG) window.BimXRDebug = { copyTest: copyTest };
+
+  function dropResolve() {
+    var r = xr.resolve;
+    if (r) { gl.deleteFramebuffer(r.fb); gl.deleteTexture(r.tex); }
+    xr.resolve = null;
+  }
+
+  // Texture-backed, so the quad path can sample it
+  function resolveBuffer(w, h) {
+    var r = xr.resolve;
+    if (r && r.w === w && r.h === h) return r.fb;
+    dropResolve();
+    var fb = gl.createFramebuffer(), tex = gl.createTexture();
+    var prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl[RESOLVE_FORMATS[resolveFormat]], w, h);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    xr.resolve = { fb: fb, tex: tex, w: w, h: h };
     return fb;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Quad copy: draws the resolved texture into each eye's viewport with an
+  // own tiny program. Cesium caches GL state, so everything touched is put
+  // back afterwards.
+  // ---------------------------------------------------------------------------
+  function initCopyProgram() {
+    var vs = '#version 300 es\nin vec2 p;\nuniform vec4 src;\nout vec2 uv;\n' +
+      'void main() { uv = mix(src.xy, src.zw, p * 0.5 + 0.5); gl_Position = vec4(p, 0.0, 1.0); }\n';
+    var fs = '#version 300 es\nprecision mediump float;\nin vec2 uv;\nuniform sampler2D t;\nout vec4 c;\n' +
+      'void main() { c = vec4(texture(t, uv).rgb, 1.0); }\n';
+    var prog = gl.createProgram();
+    [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]].forEach(function(s) {
+      var sh = gl.createShader(s[0]);
+      gl.shaderSource(sh, s[1]);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error('copy shader: ' + gl.getShaderInfoLog(sh));
+      gl.attachShader(prog, sh);
+    });
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('copy program: ' + gl.getProgramInfoLog(prog));
+    var prevVao = gl.getParameter(gl.VERTEX_ARRAY_BINDING), prevBuf = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+    var vao = gl.createVertexArray(), buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(prevVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, prevBuf);
+    copyProgram = { prog: prog, vao: vao, src: gl.getUniformLocation(prog, 'src'), t: gl.getUniformLocation(prog, 't') };
+  }
+
+  function drawQuads(target, vpL, vpR, w2, h) {
+    if (!copyProgram) initCopyProgram();
+    var caps = [gl.DEPTH_TEST, gl.BLEND, gl.SCISSOR_TEST, gl.CULL_FACE, gl.STENCIL_TEST];
+    var saved = {
+      prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING),
+      active: gl.getParameter(gl.ACTIVE_TEXTURE), viewport: gl.getParameter(gl.VIEWPORT),
+      mask: gl.getParameter(gl.COLOR_WRITEMASK), caps: caps.map(function(c) { return gl.isEnabled(c); })
+    };
+    gl.activeTexture(gl.TEXTURE0);
+    saved.tex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    caps.forEach(function(c) { gl.disable(c); });
+    gl.colorMask(true, true, true, true);
+    gl.useProgram(copyProgram.prog);
+    gl.bindVertexArray(copyProgram.vao);
+    gl.bindTexture(gl.TEXTURE_2D, xr.resolve.tex);
+    gl.uniform1i(copyProgram.t, 0);
+    [[vpL, 0, vpL.width], [vpR, vpL.width, w2]].forEach(function(e) {
+      var vp = e[0];
+      gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      gl.uniform4f(copyProgram.src, e[1] / w2, 0, e[2] / w2, 1);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    });
+    gl.bindTexture(gl.TEXTURE_2D, saved.tex);
+    gl.activeTexture(saved.active);
+    gl.bindVertexArray(saved.vao);
+    gl.useProgram(saved.prog);
+    gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
+    caps.forEach(function(c, i) { if (saved.caps[i]) gl.enable(c); });
+    gl.viewport(saved.viewport[0], saved.viewport[1], saved.viewport[2], saved.viewport[3]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   function placeFpsLabel(pose) {
@@ -753,7 +921,7 @@
     Cesium.Cartesian3.clone(s.up, cam.up);
     Cesium.Cartesian3.clone(s.right, cam.right);
     restoreProfile(s.profile);
-    if (xr.resolve) { gl.deleteFramebuffer(xr.resolve.fb); gl.deleteRenderbuffer(xr.resolve.rb); }
+    dropResolve();
     if (!xr.labels.isDestroyed()) scene.primitives.remove(xr.labels);
     scene.screenSpaceCameraController.enableInputs = s.inputs;
     xr = null;
