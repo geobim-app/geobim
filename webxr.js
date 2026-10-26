@@ -18,7 +18,10 @@
  * - Enter: ends walk mode, camera flights, gizmo and measuring; switches to
  *   the VR profile (no HDR, MSAA, post-processing, shadows, atmosphere, sky,
  *   sun, moon, eye dome lighting); stands on the ground below the camera
- *   when that is less than 1 km below, else hovers at the camera position.
+ *   when that is less than 1 km below, else hovers at the camera position;
+ *   from more than 5 km (globe view) 300 m above the screen centre.
+ * - ?xrdebug=1: log of messages, errors, XR layer and first frames on the
+ *   page after leaving VR (for headset browsers without remote console).
  * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
  *   monitor; restores camera, render loop and every changed setting.
  * - Right trigger: fps label in front of the eyes on/off. Right stick press:
@@ -35,6 +38,8 @@
   var NEAR = 0.2;         // m
   var STAND_MAX_ABOVE = 1000; // m: closer to the ground, VR starts standing on it
   var MIN_GROUND = -500;      // m: lower ground heights are coarse-tile nonsense
+  var FAR_START = 5000;       // m above ground: farther away, VR starts above the screen centre
+  var FAR_START_HOVER = 300;  // m above ground there
   // VR settings (webxr-settings.js shows them), per browser. Defaults from the
   // Quest 3 + Link tests on a laptop RTX 2060: resolution 0.8 + FXAA looks
   // clearly better than 0.6 at full rate; without smoothing the edges flicker.
@@ -160,6 +165,79 @@
   function status(text, type) {
     if (window.BimViewer && typeof BimViewer.updateStatus === 'function') BimViewer.updateStatus(text, type || 'info');
     console.log('[webxr] ' + text);
+    dlog(text);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ?xrdebug=1: a log on the page (for headsets without remote console, e.g.
+  // the Quest Browser): messages, errors, XR layer and the first frames.
+  // Shown after leaving VR.
+  // ---------------------------------------------------------------------------
+  var DEBUG = new URLSearchParams(location.search).get('xrdebug') === '1';
+  var debugLines = [], debugBox = null;
+
+  function dlog(text) {
+    if (!DEBUG) return;
+    var t = new Date().toISOString().slice(11, 23);
+    debugLines.push(t + '  ' + text);
+    if (debugLines.length > 300) debugLines.shift();
+    if (debugBox) debugBox.querySelector('pre').textContent = debugLines.join('\n');
+  }
+
+  function showDebug() {
+    if (!DEBUG) return;
+    if (!debugBox) {
+      debugBox = document.createElement('div');
+      debugBox.className = 'xr-debug';
+      debugBox.innerHTML = '<div class="xr-debug-head"><span>VR debug log</span>' +
+        '<button type="button" class="xr-debug-close" aria-label="Close debug log"><i data-lucide="x"></i></button></div><pre></pre>';
+      debugBox.querySelector('.xr-debug-close').addEventListener('click', function() { debugBox.classList.remove('visible'); });
+      document.body.appendChild(debugBox);
+      if (window.lucide) lucide.createIcons();
+    }
+    debugBox.querySelector('pre').textContent = debugLines.join('\n');
+    debugBox.classList.add('visible');
+  }
+
+  if (DEBUG) {
+    window.addEventListener('error', function(e) { dlog('ERROR ' + e.message + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+    window.addEventListener('unhandledrejection', function(e) { dlog('REJECTED ' + (e.reason && e.reason.message || e.reason)); });
+  }
+
+  // Layer, views and the first frames: what the headset browser hands us
+  function debugFrame(layer, target, pose, vpL, vpR, w2, h) {
+    if (!DEBUG || xr.debugFrames >= 3) return;
+    xr.debugFrames = (xr.debugFrames || 0) + 1;
+    var a = gl.getContextAttributes();
+    if (xr.debugFrames === 1) {
+      dlog('context: WebGL2 ' + (gl instanceof WebGL2RenderingContext) + ', antialias ' + a.antialias + ', alpha ' + a.alpha +
+        ', MAX_RENDERBUFFER ' + gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) + ', MAX_TEXTURE ' + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      dlog('layer: framebuffer ' + (target ? 'yes' : 'null') + ', size ' + layer.framebufferWidth + '×' + layer.framebufferHeight +
+        ', antialias ' + layer.antialias + ', views ' + pose.views.length + ' (' + pose.views.map(function(v) { return v.eye; }).join('/') + ')');
+      dlog('viewports: L ' + JSON.stringify(vpL) + ' R ' + JSON.stringify(vpR));
+      var t = viewTans(pose.views[0]);
+      dlog('left eye tan: l ' + t.left.toFixed(3) + ' r ' + t.right.toFixed(3) + ' b ' + t.bottom.toFixed(3) + ' t ' + t.top.toFixed(3));
+      var c = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+      dlog('camera: ' + (c ? Cesium.Math.toDegrees(c.longitude).toFixed(5) + ', ' + Cesium.Math.toDegrees(c.latitude).toFixed(5) + ', h ' + c.height.toFixed(1) + ' m' : 'n/a') +
+        ', heading ' + Cesium.Math.toDegrees(viewer.camera.heading).toFixed(1) + '°, pitch ' + Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(1) + '°');
+    }
+    // centre pixel of each eye in the canvas (did the scene render?)
+    var px = new Uint8Array(4), out = [];
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, xr.resolve ? xr.resolve.fb : null);
+    [vpL.width / 2, vpL.width + vpR.width / 2].forEach(function(x) {
+      gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      out.push(Array.from(px.slice(0, 3)).join(','));
+    });
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    var fbStatus = '';
+    if (target) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+      fbStatus = ', target status 0x' + gl.checkFramebufferStatus(gl.FRAMEBUFFER).toString(16);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    dlog('frame ' + xr.debugFrames + ': canvas ' + scene.canvas.width + '×' + scene.canvas.height + ' (drawing buffer ' +
+      gl.drawingBufferWidth + '×' + gl.drawingBufferHeight + '), centre RGB L ' + out[0] + ' R ' + out[1] +
+      ', glError 0x' + gl.getError().toString(16) + fbStatus + ', tiles loaded ' + scene.globe.tilesLoaded);
   }
 
   // ---------------------------------------------------------------------------
@@ -175,13 +253,27 @@
   }
 
   // Close to the ground: stand on it (model roof or terrain below the
-  // camera). Higher up (overview, globe): hover at the camera position.
+  // camera). Higher up: hover at the camera position. From far away (the
+  // globe view the app starts with, 10 000 km): hover 300 m above the point in
+  // the middle of the screen — before, VR showed only the empty sky there.
   function makeFrame() {
     var cam = viewer.camera;
     var carto = Cesium.Cartographic.clone(cam.positionCartographic);
     var ground = groundHeight(Cesium.Cartographic.clone(carto));
     var stand = ground !== undefined && ground < carto.height && carto.height - ground < STAND_MAX_ABOVE;
     var height = stand ? ground : carto.height - EYE_HEIGHT;
+    if (!stand && carto.height - (ground || 0) > FAR_START) {
+      var c = scene.canvas;
+      var centre = new Cesium.Cartesian2((c.clientWidth || c.width) / 2, (c.clientHeight || c.height) / 2);
+      var ray = centre.x > 0 && cam.getPickRay(centre);
+      var hit = ray ? scene.globe.pick(ray, scene) || cam.pickEllipsoid(centre) : undefined;
+      var target = hit ? Cesium.Cartographic.fromCartesian(hit) : carto; // else: below the camera
+      var g = groundHeight(Cesium.Cartographic.clone(target));
+      carto = new Cesium.Cartographic(target.longitude, target.latitude, 0);
+      height = (g !== undefined ? g : (hit ? target.height : 0)) + FAR_START_HOVER;
+      dlog('far start: camera ' + Math.round(cam.positionCartographic.height) + ' m up, VR hovers ' + FAR_START_HOVER +
+        ' m above ' + Cesium.Math.toDegrees(target.longitude).toFixed(5) + ', ' + Cesium.Math.toDegrees(target.latitude).toFixed(5));
+    }
     var origin = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, height);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
     var east = Cesium.Matrix4.getColumn(enu, 0, new Cesium.Cartesian4());
@@ -428,6 +520,8 @@
       try { refSpace = await session.requestReferenceSpace('local-floor'); }
       catch (e) { refSpace = await session.requestReferenceSpace('local'); }
       mark('refSpace');
+      step = 'start position';
+      var startFrame = makeFrame();
     } catch (e) {
       try { await session.end(); } catch (_) {}
       throw new Error(step + ': ' + e.message);
@@ -435,7 +529,7 @@
 
     var cam = viewer.camera;
     xr = {
-      session: session, refSpace: refSpace, frame: makeFrame(), scale: scale,
+      session: session, refSpace: refSpace, frame: startFrame, scale: scale,
       saved: {
         position: Cesium.Cartesian3.clone(cam.position), direction: Cesium.Cartesian3.clone(cam.direction),
         up: Cesium.Cartesian3.clone(cam.up), right: Cesium.Cartesian3.clone(cam.right), frustum: cam.frustum.clone(),
@@ -479,6 +573,7 @@
       renderFrame(frame, t);
     } catch (e) {
       console.error('[webxr] frame failed', e);
+      dlog('FRAME FAILED ' + e.message + (e.stack ? '\n' + e.stack.split('\n').slice(0, 4).join('\n') : ''));
       var msg = 'VR stopped: ' + e.message;
       xr.session.end().catch(function() {});
       setTimeout(function() { status(msg, 'error'); }, 0);
@@ -551,6 +646,7 @@
       setStereoCamera(xr.frame, vL, vR);
       scene.render(time); // both eyes, side by side
       if (target) blitStereo(target, vpL, vpR, w2, h);
+      debugFrame(layer, target, pose, vpL, vpR, w2, h);
     } else {
       // not a stereo headset: one full render per view
       views.forEach(function(view) {
@@ -569,9 +665,11 @@
 
   function logTiming(now) {
     var t = xr.timing, s = t.start, f = function(v) { return v === undefined ? '-' : Math.round(v - s) + ' ms'; };
-    console.log('[webxr] start: session ' + f(t.session) + ', XR-compatible ' + f(t.compatible) +
+    var line = 'start: session ' + f(t.session) + ', XR-compatible ' + f(t.compatible) +
       ', layer ' + f(t.layer) + ', reference space ' + f(t.refSpace) + ', first image ' + f(now) +
-      (prewarmMs !== null ? ' (context made XR-compatible in advance: ' + prewarmMs + ' ms)' : ''));
+      (prewarmMs !== null ? ' (context made XR-compatible in advance: ' + prewarmMs + ' ms)' : '');
+    console.log('[webxr] ' + line);
+    dlog(line);
     xr.timing = null;
   }
 
@@ -663,6 +761,7 @@
     viewer.resize();
     setActiveUI(false);
     status('VR ended', 'success');
+    showDebug();
   }
 
   // ---------------------------------------------------------------------------
@@ -725,7 +824,7 @@
     btn.addEventListener('click', function() {
       btn.blur();
       if (xr) exit();
-      else enter().catch(function(e) { console.error(e); status('VR failed: ' + e.message, 'error'); });
+      else enter().catch(function(e) { console.error(e); status('VR failed: ' + e.message, 'error'); showDebug(); });
     });
     showButton();
     bar.insertBefore(btn, walk.nextSibling);

@@ -150,6 +150,62 @@
   outline-offset: 2px;
 }
 
+/* ?xrdebug=1 log (webxr.js), shown after leaving VR */
+.xr-debug {
+  position: fixed;
+  left: var(--space-md);
+  right: var(--space-md);
+  bottom: var(--space-md);
+  z-index: 3100;
+  display: none;
+  max-height: 60vh;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+}
+
+.xr-debug.visible {
+  display: flex;
+}
+
+.xr-debug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  font-weight: 600;
+}
+
+.xr-debug-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.xr-debug-close:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.xr-debug pre {
+  margin: 0;
+  padding: var(--space-sm);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
 #bottomVrBtn.active {
   color: var(--brand-teal);
 }
