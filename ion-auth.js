@@ -38,6 +38,7 @@
   var oauthToken = null;       // { access_token, refresh_token, expires_at, user }
   var currentToken = null;     // active token string (default or oauth)
   var refreshTimer = null;
+  var MAX_TIMEOUT_MS = 2147483647;  // setTimeout limit; larger delays fire immediately
   var indicatorCreated = false;
 
   // ========================================================
@@ -306,6 +307,16 @@
     var ms = oauthToken.expires_at - Date.now();
     if (ms <= 0) {
       refreshAccessToken();
+      return;
+    }
+
+    // setTimeout holds at most 2^31-1 ms (~24.8 days); Cesium ion tokens last
+    // 30 days, and a larger delay fires at once — the app then refreshed in an
+    // endless loop, each refresh revoking the token just in use (401 on every
+    // ion request). Re-plan in a day instead.
+    if (ms > MAX_TIMEOUT_MS) {
+      refreshTimer = setTimeout(scheduleRefresh, 24 * 3600 * 1000);
+      console.log('[IonAuth] Token refresh due in', Math.round(ms / 86400000), 'days — re-checking in 24 h');
       return;
     }
 
