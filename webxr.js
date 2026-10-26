@@ -54,6 +54,14 @@
     vignette: true,       // darker edges while moving
     teleport: 'arc'       // arc | beam
   };
+  // Standalone headset browser (Quest Browser: the headset's mobile GPU
+  // renders everything): lighter defaults; "unusable" with the PC ones
+  var STANDALONE = /OculusBrowser|Quest/i.test(navigator.userAgent);
+  if (STANDALONE) {
+    DEFAULTS.scale = 0.6;
+    DEFAULTS.smoothing = 'off';
+    DEFAULTS.detail = 4;
+  }
   var CHOICES = {
     smoothing: ['off', 'fxaa', 'msaa2', 'msaa4'], detail: [1, 2, 4],
     turn: ['snap30', 'snap45', 'smooth'], pitch: ['level', 'deadzone', 'free'], teleport: ['arc', 'beam']
@@ -130,6 +138,7 @@
       xr.scale = scale;
       if (first) return; // enter() creates the first layer
       var layer = new XRWebGLLayer(xr.session, gl, { antialias: false, framebufferScaleFactor: scale });
+      foveate(layer);
       xr.session.updateRenderState({ baseLayer: layer });
     }
   }
@@ -140,6 +149,12 @@
     xr.saved.profile.sse.forEach(function(e) {
       if (!e[0].isDestroyed()) e[0].maximumScreenSpaceError = e[1] * factor;
     });
+  }
+
+  // Fixed foveation: fewer pixels towards the edges. Only works when Cesium
+  // renders straight into the XR framebuffer; strongest on standalone headsets.
+  function foveate(layer) {
+    try { if ('fixedFoveation' in layer) layer.fixedFoveation = STANDALONE ? 1 : 0.5; } catch (e) {}
   }
 
   // Short text in front of the eyes (the fps label)
@@ -221,14 +236,18 @@
       dlog('camera: ' + (c ? Cesium.Math.toDegrees(c.longitude).toFixed(5) + ', ' + Cesium.Math.toDegrees(c.latitude).toFixed(5) + ', h ' + c.height.toFixed(1) + ' m' : 'n/a') +
         ', heading ' + Cesium.Math.toDegrees(viewer.camera.heading).toFixed(1) + '°, pitch ' + Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(1) + '°');
     }
-    // centre pixel of each eye in the canvas (did the scene render?)
+    // centre pixel of each eye in the canvas (did the scene render?); the XR
+    // framebuffer itself cannot be read back
     var px = new Uint8Array(4), out = [];
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, xr.resolve ? xr.resolve.fb : null);
-    [vpL.width / 2, vpL.width + vpR.width / 2].forEach(function(x) {
-      gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
-      out.push(Array.from(px.slice(0, 3)).join(','));
-    });
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    if (directMode && target) out = ['(direct)', '(direct)'];
+    else {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, xr.resolve ? xr.resolve.fb : null);
+      [vpL.width / 2, vpL.width + vpR.width / 2].forEach(function(x) {
+        gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        out.push(Array.from(px.slice(0, 3)).join(','));
+      });
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    }
     var fbStatus = '';
     if (target) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, target);
@@ -513,6 +532,7 @@
       mark('compatible');
       step = 'XRWebGLLayer';
       var layer = new XRWebGLLayer(session, gl, { antialias: false, framebufferScaleFactor: scale });
+      foveate(layer);
       step = 'updateRenderState';
       session.updateRenderState({ baseLayer: layer, depthNear: NEAR, depthFar: 1e7 });
       mark('layer');
@@ -644,8 +664,13 @@
       var w2 = vpL.width + vpR.width, h = vpL.height;
       sizeCanvas(w2, h);
       setStereoCamera(xr.frame, vL, vR);
-      scene.render(time); // both eyes, side by side
-      if (target) blitStereo(target, vpL, vpR, w2, h);
+      var sideBySide = vpL.x === 0 && vpL.y === 0 && vpR.x === vpL.width && vpR.y === 0 && vpR.height === h;
+      if (target && sideBySide && directMode !== false) {
+        renderDirect(target, time); // both eyes straight into the XR framebuffer
+      } else {
+        scene.render(time); // both eyes, side by side, into the canvas
+        if (target) blitStereo(target, vpL, vpR, w2, h);
+      }
       debugFrame(layer, target, pose, vpL, vpR, w2, h);
     } else {
       // not a stereo headset: one full render per view
@@ -736,6 +761,44 @@
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Direct rendering: Cesium draws its final image into the default
+  // framebuffer (null). While scene.render runs, binding null binds the XR
+  // framebuffer instead, so both eyes land there without the resolve and copy
+  // passes (on the Quest those two extra full-screen passes over the double
+  // width made standalone VR unusable). The XR viewports must be side by side
+  // like Cesium's stereo halves. On a GL error in the first frames the copy
+  // path takes over.
+  // ---------------------------------------------------------------------------
+  var directMode = null; // null = untested, true = works, false = copy path
+
+  function renderDirect(target, time) {
+    var bind = gl.bindFramebuffer, drawBuffers = gl.drawBuffers, readBuffer = gl.readBuffer;
+    var check = directMode === null && !xr.directChecked;
+    if (check) gl.getError();
+    // For the default framebuffer Cesium also sets drawBuffers / readBuffer
+    // to BACK, which a framebuffer object does not accept
+    var back = function(v) { return v === gl.BACK ? gl.COLOR_ATTACHMENT0 : v; };
+    gl.bindFramebuffer = function(t, fb) { return bind.call(gl, t, fb == null ? target : fb); };
+    gl.drawBuffers = function(list) { return drawBuffers.call(gl, Array.prototype.map.call(list, back)); };
+    gl.readBuffer = function(v) { return readBuffer.call(gl, back(v)); };
+    try {
+      bind.call(gl, gl.FRAMEBUFFER, target); // Cesium assumes the default one is bound
+      scene.render(time);
+    } finally {
+      gl.bindFramebuffer = bind;
+      gl.drawBuffers = drawBuffers;
+      gl.readBuffer = readBuffer;
+      bind.call(gl, gl.FRAMEBUFFER, null);
+    }
+    if (check) {
+      xr.directChecked = true;
+      var err = gl.getError();
+      directMode = !err;
+      dlog('direct rendering into the XR framebuffer: ' + (err ? 'GL error 0x' + err.toString(16) + ', using the copy path' : 'works'));
+    }
+  }
+
   // A multisampled XR framebuffer cannot be the target of a blit
   function chooseCopyMode(target) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
@@ -785,7 +848,47 @@
     copyMode = saved.mode; xr.copyChecked = saved.checked;
     return { size: w2 + '×' + h, mode: mode, glError: err, resolve: RESOLVE_FORMATS[resolveFormat], eyes: eyes, readError: gl.getError() };
   }
-  if (DEBUG) window.BimXRDebug = { copyTest: copyTest };
+  // ?xrdebug=1 only: direct rendering into a stand-in XR framebuffer
+  function directTest(multisampled) {
+    if (!xr) return 'not in VR';
+    var w2 = 1200, h = 600;
+    sizeCanvas(w2, h);
+    var fb = gl.createFramebuffer(), rb = gl.createRenderbuffer(), db = gl.createRenderbuffer();
+    var storage = function(fmt) {
+      if (multisampled) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, fmt, w2, h);
+      else gl.renderbufferStorage(gl.RENDERBUFFER, fmt, w2, h);
+    };
+    gl.bindRenderbuffer(gl.RENDERBUFFER, rb); storage(gl.RGBA8);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, db); storage(gl.DEPTH24_STENCIL8);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, db);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var saved = { mode: directMode, checked: xr.directChecked };
+    directMode = null; xr.directChecked = false;
+    renderDirect(fb, viewer.clock.currentTime);
+    var works = directMode;
+    // read back both eye centres
+    var out = gl.createFramebuffer(), orb = gl.createRenderbuffer(), px = new Uint8Array(4), eyes = [];
+    gl.bindRenderbuffer(gl.RENDERBUFFER, orb);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w2, h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, out);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, orb);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+    gl.blitFramebuffer(0, 0, w2, h, 0, 0, w2, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, out);
+    [[w2 / 4, h / 2], [3 * w2 / 4, h / 2], [w2 / 4, h / 5], [3 * w2 / 4, h / 5]].forEach(function(p) {
+      gl.readPixels(Math.floor(p[0]), Math.floor(p[1]), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      eyes.push(Array.from(px.slice(0, 3)).join(','));
+    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    [fb, out].forEach(function(f) { gl.deleteFramebuffer(f); });
+    [rb, db, orb].forEach(function(r) { gl.deleteRenderbuffer(r); });
+    directMode = saved.mode; xr.directChecked = saved.checked;
+    return { works: works, pixels: eyes, readError: gl.getError(), canvasStillDefault: true };
+  }
+  if (DEBUG) window.BimXRDebug = { copyTest: copyTest, directTest: directTest };
 
   function dropResolve() {
     var r = xr.resolve;
