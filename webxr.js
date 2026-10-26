@@ -409,19 +409,25 @@
     if (BimViewer.isCameraFlightActive && BimViewer.isCameraFlightActive()) BimViewer.stopCameraFlight();
 
     var quality = getQuality(), scale = stageScale(quality);
+    // Where the time goes from the click to the first image (console)
+    var timing = { start: performance.now() }, mark = function(name) { timing[name] = performance.now(); };
     var session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    mark('session');
     var refSpace, step = 'makeXRCompatible';
     // Any failure from here on must end the session, or it stays open in the
     // headset ("loading") and blocks every further requestSession
     try {
-      if (gl.makeXRCompatible) await gl.makeXRCompatible();
+      await (compatible || makeCompatible()); // usually done in advance (prewarm)
+      mark('compatible');
       step = 'XRWebGLLayer';
       var layer = new XRWebGLLayer(session, gl, { antialias: false, framebufferScaleFactor: scale });
       step = 'updateRenderState';
       session.updateRenderState({ baseLayer: layer, depthNear: NEAR, depthFar: 1e7 });
+      mark('layer');
       step = 'requestReferenceSpace';
       try { refSpace = await session.requestReferenceSpace('local-floor'); }
       catch (e) { refSpace = await session.requestReferenceSpace('local'); }
+      mark('refSpace');
     } catch (e) {
       try { await session.end(); } catch (_) {}
       throw new Error(step + ': ' + e.message);
@@ -436,7 +442,7 @@
         profile: applyProfile(), inputs: scene.screenSpaceCameraController.enableInputs
       },
       frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, exitHeld: 0, showFps: false,
-      stickDown: false, notice: '', noticeUntil: 0
+      stickDown: false, notice: '', noticeUntil: 0, timing: timing
     };
     applyQuality(quality);
     scene.screenSpaceCameraController.enableInputs = false;
@@ -557,7 +563,16 @@
     }
     xr.renderMs += performance.now() - t0;
     xr.frames++;
+    if (xr.timing) logTiming(performance.now());
     report();
+  }
+
+  function logTiming(now) {
+    var t = xr.timing, s = t.start, f = function(v) { return v === undefined ? '-' : Math.round(v - s) + ' ms'; };
+    console.log('[webxr] start: session ' + f(t.session) + ', XR-compatible ' + f(t.compatible) +
+      ', layer ' + f(t.layer) + ', reference space ' + f(t.refSpace) + ', first image ' + f(now) +
+      (prewarmMs !== null ? ' (context made XR-compatible in advance: ' + prewarmMs + ' ms)' : ''));
+    xr.timing = null;
   }
 
   function blit(read, draw, sx, sy, w, h, dx, dy) {
@@ -718,10 +733,36 @@
     return true;
   }
 
+  // makeXRCompatible may have to move the WebGL context to the GPU of the
+  // headset runtime, which can take seconds (core.js creates the context
+  // without xrCompatible). Done in advance as soon as a headset is there.
+  var compatible = null, prewarmMs = null;
+
+  function makeCompatible() {
+    if (compatible) return compatible;
+    var g = BimViewer.viewer && BimViewer.viewer.scene.context._gl;
+    if (!g || !g.makeXRCompatible) return Promise.resolve();
+    var t0 = performance.now();
+    compatible = g.makeXRCompatible().then(function() {
+      prewarmMs = Math.round(performance.now() - t0);
+    }, function(e) {
+      compatible = null; // try again at enter()
+      throw e;
+    });
+    return compatible;
+  }
+
+  function prewarm() {
+    if (!supported || compatible) return;
+    if (!window.BimViewer || !BimViewer.viewer) { setTimeout(prewarm, 1000); return; }
+    makeCompatible().catch(function(e) { console.warn('[webxr] prewarm failed', e); });
+  }
+
   async function checkSupport() {
     try { supported = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-vr'); }
     catch (e) { supported = false; }
     showButton();
+    prewarm();
   }
 
   async function installEmulator() {
