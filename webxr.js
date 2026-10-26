@@ -7,8 +7,10 @@
  * (dev/webxr-spike.html) on Quest 3 + Link with a laptop RTX 2060: single-pass
  * + VR profile at framebuffer scale 0.6 holds 72 fps at ~3 ms CPU.
  *
- *   window.BimXR = { isSupported, enter, exit, isActive, getQuality, setQuality,
- *                    on(enter|frame|exit, fn), toWorldVec, notice }
+ *   window.BimXR = { isSupported, enter, exit, isActive, getSettings,
+ *                    setSettings(patch), defaults, onSettings(fn), getQuality,
+ *                    setQuality, on(enter|frame|exit, fn), toWorldVec, notice }
+ *   Settings form: webxr-settings.js.
  *   Movement lives in webxr-locomotion.js (changes the reference frame).
  *
  * - Button "VR" in the bottom toolbar (and the panel rail), shown only when
@@ -20,7 +22,7 @@
  * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
  *   monitor; restores camera, render loop and every changed setting.
  * - Right trigger: fps label in front of the eyes on/off. Right stick press:
- *   quality Sharp (0.8, default) ↔ Calm (0.6, aims at 72 fps), remembered.
+ *   quality Sharp (resolution from the settings) ↔ Calm (0.2 lower), remembered.
  *
  * Uses private Cesium parts (scene.context._gl, frustum offsets, the stereo
  * path of scene.useWebVR) — check after every Cesium update.
@@ -33,19 +35,113 @@
   var NEAR = 0.2;         // m
   var STAND_MAX_ABOVE = 1000; // m: closer to the ground, VR starts standing on it
   var MIN_GROUND = -500;      // m: lower ground heights are coarse-tile nonsense
+  // VR settings (webxr-settings.js shows them), per browser. Defaults from the
+  // Quest 3 + Link tests on a laptop RTX 2060: resolution 0.8 + FXAA looks
+  // clearly better than 0.6 at full rate; without smoothing the edges flicker.
+  var SETTINGS_KEY = 'geobim.xr.settings';
+  var DEFAULTS = {
+    scale: 0.8,           // framebuffer scale of the "Sharp" stage
+    smoothing: 'fxaa',    // off | fxaa | msaa2 | msaa4
+    detail: 2,            // tileset screen-space error × this while in VR
+    turn: 'snap30',       // snap30 | snap45 | smooth
+    speed: 1,             // flying speed factor
+    pitch: 'deadzone',    // level | deadzone (±15°) | free
+    vignette: true,       // darker edges while moving
+    teleport: 'arc'       // arc | beam
+  };
+  var CHOICES = {
+    smoothing: ['off', 'fxaa', 'msaa2', 'msaa4'], detail: [1, 2, 4],
+    turn: ['snap30', 'snap45', 'smooth'], pitch: ['level', 'deadzone', 'free'], teleport: ['arc', 'beam']
+  };
+  // Two stages switched in the headset with a press on the right stick:
+  // Sharp = the resolution from the settings, Calm = 0.2 lower (more fps).
+  // At ~36 fps Link reprojects every second frame (ASW): the scene wobbles
+  // like hot air, Calm can avoid that in light scenes.
   var QUALITY_KEY = 'geobim.xr.quality';
-  // Switched in the headset with a press on the right stick, remembered.
-  // Measured on Quest 3 + Link (laptop RTX 2060): 0.8 runs at ~36 fps, Link
-  // then reprojects every second frame (ASW) and the scene wobbles like hot
-  // air; without FXAA the edges flicker. MSAA (Cesium's own) costs too much.
-  var QUALITY = [
-    { name: 'Calm', scale: 0.6, fxaa: true },   // aims at 72 fps in light scenes
-    { name: 'Sharp', scale: 0.8, fxaa: true }
-  ];
-  var DEFAULT_QUALITY = 1; // Sharp: in the headset clearly more pleasant, even at fewer fps
+  var QUALITY_NAMES = ['Calm', 'Sharp'];
+  var DEFAULT_QUALITY = 1;
   var EXIT_HOLD_MS = 1000;
-  var TILE_SSE_FACTOR = 2; // tilesets coarser while in VR
   var NOTICE_MS = 3000;
+  var settingsListeners = [];
+
+  function getSettings() {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) {}
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(k) {
+      var v = s[k], d = DEFAULTS[k];
+      if (CHOICES[k]) out[k] = CHOICES[k].indexOf(v) !== -1 ? v : d;
+      else if (typeof d === 'number') out[k] = typeof v === 'number' && isFinite(v) ? v : d;
+      else out[k] = typeof v === typeof d ? v : d;
+    });
+    out.scale = Math.min(1, Math.max(0.5, out.scale));
+    out.speed = Math.min(4, Math.max(0.25, out.speed));
+    return out;
+  }
+
+  // Remembered; while in VR resolution, smoothing and detail apply at once
+  function setSettings(patch) {
+    var s = getSettings();
+    Object.keys(patch || {}).forEach(function(k) { if (k in DEFAULTS) s[k] = patch[k]; });
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
+    s = getSettings();
+    if (xr) {
+      applyQuality(xr.quality);
+      applyDetail(s.detail);
+    }
+    settingsListeners.forEach(function(fn) { try { fn(s); } catch (e) {} });
+    return s;
+  }
+
+  function stageScale(i) {
+    var s = getSettings().scale;
+    return i === 1 ? s : Math.max(0.4, Math.round((s - 0.2) * 10) / 10);
+  }
+
+  function getQuality() {
+    var i;
+    try { i = parseInt(localStorage.getItem(QUALITY_KEY), 10); } catch (e) {}
+    return QUALITY_NAMES[i] ? i : DEFAULT_QUALITY;
+  }
+
+  // Remembered; while in VR applied at once (a new XR layer for the scale)
+  function setQuality(i) {
+    i = QUALITY_NAMES[i] ? i : DEFAULT_QUALITY;
+    try { localStorage.setItem(QUALITY_KEY, String(i)); } catch (e) {}
+    if (xr) {
+      applyQuality(i);
+      notice('Quality: ' + QUALITY_NAMES[i] + ' (' + xr.scale + ')');
+    }
+    return i;
+  }
+
+  function applyQuality(i) {
+    var s = getSettings(), scale = stageScale(i);
+    xr.quality = i;
+    scene.postProcessStages.fxaa.enabled = s.smoothing === 'fxaa';
+    scene.msaaSamples = s.smoothing === 'msaa4' ? 4 : s.smoothing === 'msaa2' ? 2 : 1;
+    if (xr.scale !== scale) {
+      var first = xr.scale === undefined;
+      xr.scale = scale;
+      if (first) return; // enter() creates the first layer
+      var layer = new XRWebGLLayer(xr.session, gl, { antialias: false, framebufferScaleFactor: scale });
+      xr.session.updateRenderState({ baseLayer: layer });
+    }
+  }
+
+  // Coarser tiles in the headset: the model is the cost (iTwin demo 20-25
+  // fps against 36 in an empty scene)
+  function applyDetail(factor) {
+    xr.saved.profile.sse.forEach(function(e) {
+      if (!e[0].isDestroyed()) e[0].maximumScreenSpaceError = e[1] * factor;
+    });
+  }
+
+  // Short text in front of the eyes (the fps label)
+  function notice(text) {
+    xr.notice = text;
+    xr.noticeUntil = performance.now() + NOTICE_MS;
+  }
 
   var viewer, scene, gl;
   var xr = null;          // active session state
@@ -64,40 +160,6 @@
   function status(text, type) {
     if (window.BimViewer && typeof BimViewer.updateStatus === 'function') BimViewer.updateStatus(text, type || 'info');
     console.log('[webxr] ' + text);
-  }
-
-  function getQuality() {
-    var i;
-    try { i = parseInt(localStorage.getItem(QUALITY_KEY), 10); } catch (e) {}
-    return QUALITY[i] ? i : DEFAULT_QUALITY;
-  }
-
-  // Remembered; while in VR applied at once (a new XR layer for the scale)
-  function setQuality(i) {
-    i = QUALITY[i] ? i : DEFAULT_QUALITY;
-    try { localStorage.setItem(QUALITY_KEY, String(i)); } catch (e) {}
-    if (xr) {
-      applyQuality(i);
-      notice('Quality: ' + QUALITY[i].name + ' (' + QUALITY[i].scale + ')');
-    }
-    return i;
-  }
-
-  function applyQuality(i) {
-    var q = QUALITY[i];
-    xr.quality = i;
-    scene.postProcessStages.fxaa.enabled = q.fxaa;
-    if (xr.scale !== q.scale) {
-      xr.scale = q.scale;
-      var layer = new XRWebGLLayer(xr.session, gl, { antialias: false, framebufferScaleFactor: q.scale });
-      xr.session.updateRenderState({ baseLayer: layer });
-    }
-  }
-
-  // Short text in front of the eyes (the fps label)
-  function notice(text) {
-    xr.notice = text;
-    xr.noticeUntil = performance.now() + NOTICE_MS;
   }
 
   // ---------------------------------------------------------------------------
@@ -304,7 +366,7 @@
       // Coarser tiles: in the headset a model like the iTwin demo is the GPU
       // cost (empty scene 36 fps, iModel 20-25 at the same settings)
       saved.sse.push([ts, ts.maximumScreenSpaceError]);
-      ts.maximumScreenSpaceError = ts.maximumScreenSpaceError * TILE_SSE_FACTOR;
+      ts.maximumScreenSpaceError = ts.maximumScreenSpaceError * getSettings().detail;
       if (ts.pointCloudShading && ts.pointCloudShading.eyeDomeLighting) {
         saved.edl.push(ts);
         ts.pointCloudShading.eyeDomeLighting = false;
@@ -346,7 +408,7 @@
     if (typeof BimViewer.deactivateAllTools === 'function') { try { BimViewer.deactivateAllTools(); } catch (e) {} }
     if (BimViewer.isCameraFlightActive && BimViewer.isCameraFlightActive()) BimViewer.stopCameraFlight();
 
-    var quality = getQuality(), scale = QUALITY[quality].scale;
+    var quality = getQuality(), scale = stageScale(quality);
     var session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
     var refSpace, step = 'makeXRCompatible';
     // Any failure from here on must end the session, or it stays open in the
@@ -393,7 +455,7 @@
     });
     setActiveUI(true);
     callHooks(hooks.enter, { session: session, refSpace: refSpace, ref: xr.frame, scene: scene, viewer: viewer });
-    notice('Quality: ' + QUALITY[quality].name + ' · right stick press: switch');
+    notice('Quality: ' + QUALITY_NAMES[quality] + ' · right stick press: switch');
     status('VR active — hold Y on the left controller to exit', 'success');
     if (typeof plausible !== 'undefined') plausible('Feature Used', { props: { feature: 'VR' } });
     session.requestAnimationFrame(onFrame);
@@ -428,7 +490,7 @@
       if (src.handedness === 'left' && pressed(src, 5)) held = true;
       if (src.handedness === 'right' && pressed(src, 3)) stick = true;
     });
-    if (stick && !xr.stickDown) setQuality((xr.quality + 1) % QUALITY.length);
+    if (stick && !xr.stickDown) setQuality((xr.quality + 1) % QUALITY_NAMES.length);
     xr.stickDown = stick;
     var now = performance.now();
     if (!held) { xr.exitHeld = 0; return; }
@@ -554,11 +616,12 @@
     if (now - xr.lastReport < 1000) return;
     xr.fps = xr.frames / ((now - xr.lastReport) / 1000);
     var ms = xr.renderMs / Math.max(1, xr.frames);
-    xr.fpsText = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms · ' + QUALITY[xr.quality].name;
+    xr.fpsText = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms · ' + QUALITY_NAMES[xr.quality];
     if (!xr.notice) xr.fpsLabel.text = xr.fpsText;
     if (overlay) {
       overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · ' +
-        QUALITY[xr.quality].name + ' (scale ' + xr.scale + (scene.postProcessStages.fxaa.enabled ? ', FXAA' : '') + ')';
+        QUALITY_NAMES[xr.quality] + ' (scale ' + xr.scale + (scene.postProcessStages.fxaa.enabled ? ', FXAA' : '') +
+        (scene.msaaSamples > 1 ? ', MSAA ' + scene.msaaSamples : '') + ')';
     }
     xr.frames = 0; xr.renderMs = 0; xr.lastReport = now;
   }
@@ -605,9 +668,22 @@
           '<div class="xr-overlay-hint">Left stick: fly · Left grip / trigger: up / down · Right stick: turn, push forward: teleport</div>' +
           '<div class="xr-overlay-hint">Exit: hold Y · Right trigger: fps · Right stick press: quality</div>' +
           '<div class="xr-overlay-stats"></div>' +
-          '<button type="button" class="xr-overlay-btn">Exit VR</button>' +
+          '<div class="xr-overlay-actions">' +
+            '<button type="button" class="xr-overlay-btn xr-overlay-btn-secondary" aria-expanded="false">' +
+              '<i data-lucide="sliders-horizontal"></i><span>VR settings</span></button>' +
+            '<button type="button" class="xr-overlay-btn">Exit VR</button>' +
+          '</div>' +
+          '<div class="xr-overlay-settings" hidden></div>' +
         '</div>';
-      overlay.querySelector('.xr-overlay-btn').addEventListener('click', exit);
+      var buttons = overlay.querySelectorAll('.xr-overlay-btn');
+      buttons[1].addEventListener('click', exit);
+      var panel = overlay.querySelector('.xr-overlay-settings');
+      if (window.BimXRSettings) BimXRSettings.render(panel);
+      else buttons[0].hidden = true;
+      buttons[0].addEventListener('click', function() {
+        panel.hidden = !panel.hidden;
+        buttons[0].setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+      });
       document.body.appendChild(overlay);
       if (window.lucide) lucide.createIcons();
     }
@@ -616,6 +692,7 @@
 
   function showButton() {
     if (btn) btn.style.display = supported ? '' : 'none';
+    document.dispatchEvent(new CustomEvent('geobim:xr-support', { detail: supported }));
   }
 
   // Next to Walk; the toolbar is built by ui.js. Runs from a MutationObserver
@@ -677,6 +754,10 @@
     isActive: function() { return !!xr; },
     enter: enter,
     exit: exit,
+    getSettings: getSettings,
+    setSettings: setSettings,
+    defaults: function() { return JSON.parse(JSON.stringify(DEFAULTS)); },
+    onSettings: function(fn) { settingsListeners.push(fn); },
     getQuality: getQuality,
     setQuality: setQuality,
     // for other VR modules: BimXR.on('enter' | 'frame' | 'exit', fn)
