@@ -1,0 +1,222 @@
+/* ===============================
+   CONSTRUCTION SCHEDULE (construction-schedule.js)
+   =============================== */
+
+.schedule-player {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 1200;
+  width: min(640px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 6px);
+  padding: var(--space-sm, 10px) var(--space-md, 14px);
+  border-radius: var(--radius-lg, 12px);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary, #E2E8F0);
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.schedule-player.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.schedule-player-head,
+.schedule-player-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  min-width: 0;
+}
+
+.schedule-player-head svg {
+  width: 16px;
+  height: 16px;
+  color: var(--brand-teal);
+  flex-shrink: 0;
+}
+
+.schedule-player-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-player-date {
+  flex-shrink: 0;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-teal);
+}
+
+.schedule-player-phase,
+.schedule-player-tasks {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-player-phase {
+  font-weight: 600;
+  color: var(--text-primary, #E2E8F0);
+}
+
+.schedule-player-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #E2E8F0);
+  cursor: pointer;
+}
+
+.schedule-player-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.schedule-player-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.schedule-player-btn:focus-visible,
+.schedule-player-slider:focus-visible,
+.schedule-player-select:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.schedule-player-track {
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.schedule-player-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--brand-teal);
+}
+
+/* Phase starts below the slider */
+.schedule-player-ticks {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 6px;
+}
+
+.schedule-player-tick {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 6px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+.schedule-player-tick:hover {
+  background: var(--brand-teal);
+}
+
+.schedule-player-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.schedule-player-select {
+  width: auto;
+  flex-shrink: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12px;
+}
+
+.schedule-player-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.schedule-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: 6px;
+  border-radius: 2px;
+}
+
+.schedule-swatch.build {
+  background: #FF9A1F;
+}
+
+.schedule-swatch.remove {
+  background: #E5484D;
+}
+
+.modern-icon-btn.schedule-card-btn.active {
+  color: var(--brand-teal);
+}
+
+@media (max-width: 720px) {
+  .schedule-player {
+    bottom: 132px;
+  }
+
+  .schedule-player-row {
+    flex-wrap: wrap;
+  }
+
+  .schedule-player-tasks {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .schedule-player-legend {
+    display: none;
+  }
+
+  .schedule-player-btn,
+  .schedule-player-select {
+    min-height: 44px;
+  }
+
+  .schedule-player-btn {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-player {
+    transition: none;
+  }
+}
