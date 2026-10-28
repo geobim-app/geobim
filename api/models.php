@@ -4,22 +4,24 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache');
 require __DIR__ . '/_owner_auth.php';
 require __DIR__ . '/_dev.php';
+require __DIR__ . '/_guest_models.php';
 // Local development: a folder of tilesets instead of model/ (see _dev.php)
 $devDir = geobim_dev_model_dir();
-// Server models are the owner's; everyone else gets an empty list (and model/
-// itself answers 404 to them, see model/.htaccess).
-if (!$devDir && !geobim_is_owner()) {
+$modelDir = $devDir ?: __DIR__ . '/../model';
+// Server models are the owner's; everyone else gets only the entries of
+// model/guest-models.json (model-file.php serves no others, 404).
+$guestList = (!$devDir && !geobim_is_owner()) ? geobim_guest_models($modelDir) : null;
+if ($guestList !== null && !$guestList) {
     echo '[]';
     exit;
 }
-
-$modelDir = $devDir ?: __DIR__ . '/../model';
 $models = [];
 // Placements saved in geobim.app (api/placement-save.php), keyed by GLB file name
 $saved = json_decode(@file_get_contents($modelDir . '/placements.json') ?: '{}', true) ?: [];
 
 foreach (glob($modelDir . '/*.{glb,gltf}', GLOB_BRACE) as $path) {
     $filename = basename($path);
+    if ($guestList !== null && !in_array($filename, $guestList, true)) continue;
 
     // Skip non-model files (e.g. tileset.gltf)
     if (stripos($filename, 'tileset') !== false) continue;
@@ -50,6 +52,7 @@ foreach (glob($modelDir . '/*.{glb,gltf}', GLOB_BRACE) as $path) {
 // becomes the id/display name, same convention as the GLB files above.
 foreach (glob($modelDir . '/*/tileset.json') as $path) {
     $folder = basename(dirname($path));
+    if ($guestList !== null && !in_array($folder, $guestList, true)) continue;
 
     $id = preg_replace('/[^a-z0-9]+/', '_', strtolower($folder));
     $id = trim($id, '_');
