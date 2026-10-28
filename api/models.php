@@ -16,6 +16,15 @@ if ($guestList !== null && !$guestList) {
     exit;
 }
 $models = [];
+// Display names: model/model-names.json maps a GLB file / tileset folder name
+// to the name shown in the app (e.g. {"siegtalbruecke_4d_tiled": "Siegtalbrücke 4D"});
+// the file/folder name stays the id that scenes, placements and
+// guest-models.json refer to. Without an alias: the name without "(IFC)".
+$aliases = json_decode(@file_get_contents($modelDir . '/model-names.json') ?: '{}', true) ?: [];
+function geobim_model_name($key, $fallback, $aliases) {
+    if (isset($aliases[$key]) && is_string($aliases[$key]) && trim($aliases[$key]) !== '') return trim($aliases[$key]);
+    return trim(preg_replace('/\s*\(IFC\)\s*$/i', '', $fallback)) ?: $fallback;
+}
 // Placements saved in geobim.app (api/placement-save.php), keyed by GLB file name
 $saved = json_decode(@file_get_contents($modelDir . '/placements.json') ?: '{}', true) ?: [];
 
@@ -33,7 +42,7 @@ foreach (glob($modelDir . '/*.{glb,gltf}', GLOB_BRACE) as $path) {
 
     // Human-readable name: replace underscores/hyphens with spaces, title case
     $displayName = str_replace(['_', '-'], ' ', $name);
-    $displayName = ucwords($displayName);
+    $displayName = geobim_model_name($filename, ucwords($displayName), $aliases);
 
     $models[] = [
         'id'   => $id,
@@ -58,7 +67,7 @@ foreach (glob($modelDir . '/*/tileset.json') as $path) {
     $id = trim($id, '_');
 
     $displayName = str_replace(['_', '-'], ' ', $folder);
-    $displayName = ucwords($displayName);
+    $displayName = geobim_model_name($folder, ucwords($displayName), $aliases);
 
     $models[] = [
         'id'   => $id,
