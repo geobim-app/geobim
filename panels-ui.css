@@ -1105,6 +1105,10 @@ html.ui-panels #floatingAssetsPanel { display: none !important; }
   z-index: calc(var(--z-panels) - 1);
 }
 .pnl-loaded-widget[hidden] { display: none; }
+/* floating: the header is the drag handle (panels-assets.js) */
+.pnl-loaded-widget .pnl-loaded-head { cursor: grab; touch-action: none; }
+.pnl-loaded-widget.dragging .pnl-loaded-head { cursor: grabbing; }
+.pnl-loaded-widget.dragging { user-select: none; }
 .pnl-loaded-widget .pnl-loaded-body {
   overflow-y: auto;
   min-height: 0;
@@ -1120,6 +1124,7 @@ html.ui-panels #floatingAssetsPanel { display: none !important; }
     bottom: calc(var(--panels-tabbar-h) + var(--space-sm));
     max-height: 35vh;
   }
+  .pnl-loaded-widget .pnl-loaded-head { cursor: pointer; touch-action: auto; }
 }
 
 .pnl-tree #loadedAssetsList {
