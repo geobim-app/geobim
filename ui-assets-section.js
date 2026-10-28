@@ -194,6 +194,8 @@
         if (!BimViewer.glbModels.length && BimViewer.fetchGLBModels) {
           await BimViewer.fetchGLBModels();
         }
+        // several calls may await at once (timers, geobim-guest-start): fill once
+        if (glbSelector.options.length > 1) return;
         BimViewer.glbModels.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m.id;
