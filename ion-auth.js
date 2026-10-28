@@ -38,6 +38,7 @@
   var oauthToken = null;       // { access_token, refresh_token, expires_at, user }
   var currentToken = null;     // active token string (default or oauth)
   var refreshTimer = null;
+  var MAX_TIMEOUT_MS = 2147483647;  // setTimeout limit; larger delays fire immediately
   var indicatorCreated = false;
 
   // ========================================================
@@ -309,6 +310,16 @@
       return;
     }
 
+    // setTimeout holds at most 2^31-1 ms (~24.8 days); Cesium ion tokens last
+    // 30 days, and a larger delay fires at once — the app then refreshed in an
+    // endless loop, each refresh revoking the token just in use (401 on every
+    // ion request). Re-plan in a day instead.
+    if (ms > MAX_TIMEOUT_MS) {
+      refreshTimer = setTimeout(scheduleRefresh, 24 * 3600 * 1000);
+      console.log('[IonAuth] Token refresh due in', Math.round(ms / 86400000), 'days — re-checking in 24 h');
+      return;
+    }
+
     refreshTimer = setTimeout(function() {
       refreshAccessToken();
     }, ms);
@@ -338,6 +349,39 @@
     } catch (err) {
       console.warn('[IonAuth] Could not fetch user profile:', err);
     }
+  }
+
+  // Is a stored access token still accepted by Cesium ion? Ion can revoke a
+  // token before its expiry (e.g. when the OAuth app's tokens are reset); the
+  // viewer then got 401 for terrain, imagery and every asset and showed an
+  // empty globe. 'invalid' only for 401 — a network error, timeout or other
+  // status keeps the session (offline must not sign anyone out).
+  async function verifyAccessToken(token) {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function() { ctrl.abort(); }, 5000) : null;
+    try {
+      var resp = await fetch(ION_API_URL + '/me', {
+        headers: { 'Authorization': 'Bearer ' + token },
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      return resp.status === 401 ? 'invalid' : (resp.ok ? 'ok' : 'unknown');
+    } catch (e) {
+      return 'unknown';
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  // One-time hint once the viewer can show it
+  function noticeSessionDropped() {
+    var tries = 0;
+    (function wait() {
+      if (window.BimViewer && BimViewer.viewer && typeof BimViewer.updateStatus === 'function') {
+        BimViewer.updateStatus('Your Cesium ion sign-in is no longer valid — using the demo token. Connect Cesium ion again for your own assets.', 'warning');
+      } else if (++tries < 60) {
+        setTimeout(wait, 500);
+      }
+    })();
   }
 
   // ========================================================
@@ -543,6 +587,23 @@
           // No refresh possible — clear and use default
           clearOAuthToken();
           applyDefaultToken();
+        }
+      } else if (await verifyAccessToken(stored.access_token) === 'invalid') {
+        console.warn('[IonAuth] Stored OAuth token rejected by Cesium ion (401)');
+        var renewed = false;
+        if (stored.refresh_token) {
+          // Mark it expired so a failed refresh clears the session
+          oauthToken.expires_at = Date.now() - 1;
+          renewed = await refreshAccessToken();
+        }
+        if (!renewed) {
+          // A failed refresh has already cleared it and applied the default
+          if (oauthToken) {
+            clearOAuthToken();
+            applyDefaultToken();
+          }
+          noticeSessionDropped();
+          console.log('[IonAuth] OAuth session dropped — using default token');
         }
       } else {
         applyOAuthToken();
