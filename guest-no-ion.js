@@ -30,6 +30,8 @@
 window.BimGuest = (function() {
   'use strict';
 
+  var OPEN_TERRAIN = ['mapterhorn', 'arcgis-elevation'];
+
   var NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
   var MIN_SEARCH_INTERVAL = 1100;   // Nominatim usage policy: at most 1 request/s
 
@@ -104,7 +106,8 @@ window.BimGuest = (function() {
         // event lets ui-assets-section.js list the guest server models
         document.body.classList.add('no-ion');
         window.dispatchEvent(new Event('geobim-guest-start'));
-        this.terrainLayers = this.terrainLayers.filter(function(t) { return t.id === 'mapterhorn'; });
+        // open terrain only: Mapterhorn, ArcGIS World Elevation (arcgis.js)
+        this.terrainLayers = this.terrainLayers.filter(function(t) { return OPEN_TERRAIN.indexOf(t.id) !== -1; });
         await this.switchTerrain('mapterhorn');
         this.updateTerrainUI();
       }
