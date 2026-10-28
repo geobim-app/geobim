@@ -5,7 +5,9 @@
  * Returns the default (demo) Cesium Ion access token.
  * Keeps the token server-side instead of hardcoded in JS source.
  *
- * Licensed under the Business Source License 1.1 (BSL 1.1)
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
 header('Content-Type: application/json');
