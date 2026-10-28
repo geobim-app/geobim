@@ -1,6 +1,8 @@
 /* ===============================
    SECTION PROFILE STYLES
-   2D cross section panel (section-profile.js)
+   2D section drawing panel (section-profile.js). The drawing itself is on
+   white paper; its colours are part of the drawing (and the SVG export), so
+   section-profile.js sets them as SVG attributes.
    =============================== */
 
 /* Bottom centre, above the bottom toolbar: the Loaded Assets panel sits top
@@ -9,12 +11,12 @@
    controls. One level above the other panels, so it's never covered. */
 .section-profile-panel {
   position: fixed;
-  left: max(var(--space-lg), calc(50vw - 280px));
+  left: max(var(--space-lg), calc(50vw - 380px));
   bottom: 96px;
-  width: min(560px, calc(100vw - 2 * var(--space-lg)));
-  height: min(360px, calc(100vh - 96px - var(--space-lg)));
-  min-width: 280px;
-  min-height: 200px;
+  width: min(760px, calc(100vw - 2 * var(--space-lg)));
+  height: min(500px, calc(100vh - 96px - var(--space-lg)));
+  min-width: 360px;
+  min-height: 260px;
   background: var(--bg-overlay);
   backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
@@ -42,10 +44,70 @@
   height: 14px;
 }
 
+.section-profile-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm) var(--space-xs);
+}
+
+.section-profile-toolbar .sp-depth {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-right: var(--space-xs);
+}
+
+.section-profile-toolbar .sp-tool-gap {
+  flex: 0 0 var(--space-sm);
+}
+
+.sp-tool-btn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 var(--space-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sp-tool-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.sp-tool-btn:hover {
+  background: rgba(var(--brand-teal-rgb), 0.3);
+  color: var(--text-primary);
+}
+
+.sp-tool-btn.active {
+  border-color: rgba(var(--brand-teal-rgb), 0.5);
+  color: var(--brand-teal);
+}
+
+.sp-tool-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
 .section-profile-body {
   position: relative;
   flex: 1;
   min-height: 0;
+  margin: 0 var(--space-sm);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #FCFCF9;
 }
 
 .section-profile-svg {
@@ -55,70 +117,40 @@
   height: 100%;
   cursor: grab;
   touch-action: none;
+  user-select: none;
 }
 
 .section-profile-svg:active {
   cursor: grabbing;
 }
 
-.section-profile-svg .sp-grid {
-  stroke: var(--border-subtle);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.section-profile-svg .sp-grid-zero {
-  stroke: var(--border-default);
-}
-
-.section-profile-svg .sp-label {
-  fill: var(--text-muted);
-  font-family: 'Courier New', monospace;
-}
-
-.section-profile-svg .sp-cut {
-  fill: none;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.section-profile-svg .sp-cut:hover {
-  stroke: var(--brand-teal);
-  stroke-width: 3;
-}
-
-.section-profile-svg .sp-axis {
+/* Hovered element: brand colour over the attribute colours. */
+.section-profile-svg .sp-fill.sp-hover {
   fill: var(--brand-teal);
-  stroke: var(--text-primary);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
+  stroke: var(--brand-teal);
 }
 
-.section-profile-status,
-.section-profile-hover,
-.section-profile-legend {
-  position: absolute;
-  left: var(--space-sm);
+.section-profile-svg .sp-edge.sp-hover {
+  stroke: var(--brand-teal);
+}
+
+.section-profile-footer {
+  min-height: 26px;
+  padding: var(--space-xs) var(--space-sm);
   font-size: 11px;
-  color: var(--text-secondary);
-  pointer-events: none;
-}
-
-.section-profile-status {
-  top: var(--space-sm);
-}
-
-.section-profile-legend {
-  top: var(--space-xs);
-  left: auto;
-  right: var(--space-sm);
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.section-profile-hover {
-  bottom: calc(var(--space-lg) + var(--space-xs));
+.section-profile-footer.sp-footer-hover {
   color: var(--brand-teal);
+}
+
+@media (pointer: coarse) {
+  .sp-tool-btn {
+    min-width: 44px;
+    height: 44px;
+  }
 }

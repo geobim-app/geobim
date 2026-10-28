@@ -25,6 +25,58 @@
   color: var(--text-secondary);
 }
 
+.axis-mode-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--input-bg);
+  border-radius: var(--radius-sm);
+}
+
+.axis-mode-btn {
+  flex: 1;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.axis-mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.axis-mode-btn.active {
+  background: rgba(var(--brand-teal-rgb), 0.25);
+  color: var(--brand-teal);
+}
+
+.axis-mode-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+.axis-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.axis-storey-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .axis-row {
   display: flex;
   align-items: center;
@@ -120,7 +172,13 @@
   color: var(--brand-teal);
 }
 
+.axis-step-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 @media (pointer: coarse) {
+  .axis-mode-btn,
   .axis-step-btn,
   .axis-icon-btn {
     min-width: 44px;
