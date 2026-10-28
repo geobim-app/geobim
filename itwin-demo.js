@@ -83,6 +83,14 @@
     return exp !== null && Date.now() > exp;
   }
 
+  // Share key for a demo iModel (scenes.js loads saved iTwin assets with it);
+  // null for other iModels or once the key has expired
+  BimViewer.iTwinDemoShareKey = function(iModelId) {
+    var id = String(iModelId || '').trim().toLowerCase();
+    var isDemo = IMODELS.some(function(m) { return m.id === id; });
+    return isDemo && !isExpired() ? SHARE_KEY : null;
+  };
+
   async function loadRealityMesh() {
     if (BimViewer.loadedAssets.has(REALITY_ASSET_ID)) return;
     Cesium.ITwinPlatform.defaultShareKey = SHARE_KEY;

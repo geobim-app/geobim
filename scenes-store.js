@@ -9,7 +9,7 @@
 // ===============================
 // SCENES STORE v1.0 — keeps the scenes of scenes.js across reloads
 //   Signed in (not anonymous): Firestore collection "scenes", one document
-//     per scene, id "<uid>_<scene iD>":
+//     per scene, id "<uid>_<scene id>":
 //     { ownerUid, sceneId, name, createdAt, modifiedAt, payload }
 //     payload = the scene as JSON text in the Desktop format (SavedScenes.json
 //     entry). Firestore allows no nested arrays and the Desktop fields may
@@ -63,7 +63,7 @@
   function readLocal() {
     try {
       var data = JSON.parse(localStorage.getItem(localKey()) || 'null');
-      return data && Array.isArray(data.scenes) ? data.scenes : [];
+      return data && Array.isArray(data.scenes) ? data.scenes.map(BimViewer.normalizeSceneId) : [];
     } catch (e) { return []; }
   }
 
@@ -93,22 +93,23 @@
       known.add(doc.id);
       try {
         var s = JSON.parse(doc.data().payload);
-        if (s && typeof s === 'object') scenes.push(s);
+        // stored before the switch to the Desktop's "id": "iD" → "id"
+        if (s && typeof s === 'object') scenes.push(BimViewer.normalizeSceneId(s));
       } catch (e) {
         console.warn('Scenes: unreadable document ' + doc.id, e);
       }
     });
-    return scenes.sort(function(a, b) { return (Number(a.iD) || 0) - (Number(b.iD) || 0); });
+    return scenes.sort(function(a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
   }
 
   function cloudSave(scene) {
     var payload = JSON.stringify(scene);
     if (payload.length > MAX_PAYLOAD) return Promise.reject(new Error('Scene too large for the account storage'));
-    var id = docId(scene.iD);
+    var id = docId(scene.id);
     var now = new Date().toISOString();
     var data = {
       ownerUid: store.uid,
-      sceneId: Number(scene.iD),
+      sceneId: Number(scene.id),
       name: String(scene.name || ''),
       modifiedAt: now,
       payload: payload
@@ -147,16 +148,16 @@
     var pending = BimViewer.scenes.list.filter(function(s) { return !s._fromStore; });
     stored.forEach(function(s) { Object.defineProperty(s, '_fromStore', { value: true, enumerable: false, writable: true }); });
     var list = stored.slice();
-    var maxId = list.reduce(function(m, s) { return Math.max(m, Number(s.iD) || 0); }, 0);
+    var maxId = list.reduce(function(m, s) { return Math.max(m, Number(s.id) || 0); }, 0);
     var added = [];
     pending.forEach(function(s) {
-      if (list.some(function(x) { return x.iD === s.iD; })) s.iD = ++maxId;
-      else maxId = Math.max(maxId, Number(s.iD) || 0);
+      if (list.some(function(x) { return x.id === s.id; })) s.id = ++maxId;
+      else maxId = Math.max(maxId, Number(s.id) || 0);
       list.push(s);
-      added.push(s.iD);
+      added.push(s.id);
     });
     BimViewer.scenes.list = list;
-    if (!list.some(function(s) { return s.iD === BimViewer.scenes.activeId; })) BimViewer.scenes.activeId = 0;
+    if (!list.some(function(s) { return s.id === BimViewer.scenes.activeId; })) BimViewer.scenes.activeId = 0;
     return added;
   }
 
@@ -203,7 +204,7 @@
     var orig = BimViewer[name];
     if (typeof orig !== 'function') return;
     BimViewer[name] = function() {
-      var before = BimViewer.scenes.list.map(function(s) { return s.iD; });
+      var before = BimViewer.scenes.list.map(function(s) { return s.id; });
       var result = orig.apply(this, arguments);
       try { after.call(this, result, Array.prototype.slice.call(arguments), before); }
       catch (e) { console.warn('Scenes store: ' + name, e); }
@@ -218,7 +219,7 @@
     if (before.indexOf(args[0]) >= 0 && !BimViewer.getScene(args[0])) persist([], [args[0]]);
   });
   wrap('importScenes', function(r, args, before) {
-    var added = BimViewer.scenes.list.map(function(s) { return s.iD; })
+    var added = BimViewer.scenes.list.map(function(s) { return s.id; })
       .filter(function(id) { return before.indexOf(id) < 0; });
     if (added.length) persist(added);
   });

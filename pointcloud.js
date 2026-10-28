@@ -49,8 +49,10 @@
     appliedTilesets: new Map() // Track which tilesets have settings applied
   };
 
-  // ASPRS LAS classes (LAS 1.4 R15, table 17) with the colours of the
-  // Classification mode; classes not listed render white.
+  // ASPRS LAS classes 0–22 (LAS 1.4 R15, table 17) with the colours of the
+  // Classification mode. Names and colours are shared with geoBIM Desktop
+  // (GeoBIMPointStyleSubsystem, geobim-tiler docs/SPEC.md ch. 3) — change
+  // both together. Codes not listed render white.
   BimViewer.ASPRS_CLASSES = [
     { code: 0,  name: 'Never classified',    color: '#808080' },
     { code: 1,  name: 'Unclassified',        color: '#808080' },
@@ -60,14 +62,21 @@
     { code: 5,  name: 'High vegetation',     color: '#006400' },
     { code: 6,  name: 'Building',            color: '#FF0000' },
     { code: 7,  name: 'Low point (noise)',   color: '#FF00FF' },
+    { code: 8,  name: 'Model key point',     color: '#FFC800' },
     { code: 9,  name: 'Water',               color: '#0000FF' },
     { code: 10, name: 'Rail',                color: '#8B008B' },
     { code: 11, name: 'Road surface',        color: '#A9A9A9' },
-    { code: 13, name: 'Wire – guard',        color: '#FFD700' },
-    { code: 14, name: 'Wire – conductor',    color: '#FFA500' },
+    { code: 12, name: 'Overlap',             color: '#C8C878' },
+    { code: 13, name: 'Wire guard',          color: '#FFD700' },
+    { code: 14, name: 'Wire conductor',      color: '#FFA500' },
     { code: 15, name: 'Transmission tower',  color: '#4B0082' },
+    { code: 16, name: 'Wire connector',      color: '#FF963C' },
     { code: 17, name: 'Bridge deck',         color: '#D2B48C' },
-    { code: 18, name: 'High noise',          color: '#FF69B4' }
+    { code: 18, name: 'High noise',          color: '#FF69B4' },
+    { code: 19, name: 'Overhead structure',  color: '#78A0FF' },
+    { code: 20, name: 'Ignored ground',      color: '#B47850' },
+    { code: 21, name: 'Snow',                color: '#F0F0FF' },
+    { code: 22, name: 'Temporal exclusion',  color: '#64648C' }
   ];
 
   // The class as a style expression. py3dtiles writes the batch-table key

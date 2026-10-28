@@ -213,3 +213,12 @@
   color: rgba(255, 255, 255, 0.3);
   font-style: italic;
 }
+
+/* Ion terrain / imagery picker (ion-layer-assets.js) */
+.ion-layer-picker {
+  margin-bottom: var(--space-xs);
+}
+
+.ion-layer-picker[hidden] {
+  display: none;
+}

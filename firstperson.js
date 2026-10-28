@@ -130,6 +130,10 @@
     showBanner();
     updatePanelState();
 
+    // Also when started with G (the click handler in ui.js only covers clicks)
+    var walkBtn = document.getElementById('bottomWalkBtn');
+    if (walkBtn) walkBtn.classList.add('active');
+
     console.log('🚶 First-Person mode activated (G to exit)');
   }
 

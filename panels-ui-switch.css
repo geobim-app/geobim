@@ -1,0 +1,54 @@
+/*
+ * geobim.app — "New interface" button (beta only)
+ * Loaded by panels-ui-loader.js on beta.geobim.app when the classic sidebar
+ * is shown, so testers can switch back to the panel UI. Bottom right, above
+ * the Cesium timeline (the top edge belongs to the demo banner).
+ */
+.panels-switch-btn {
+  position: fixed;
+  right: var(--space-md);
+  bottom: 40px;
+  z-index: var(--z-toolbar);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--brand-teal-rgb), 0.4);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  color: var(--brand-teal);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.panels-switch-btn:hover {
+  background: rgba(var(--brand-teal-rgb), 0.15);
+  border-color: rgba(var(--brand-teal-rgb), 0.7);
+}
+
+.panels-switch-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.panels-switch-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 768px) {
+  /* the bottom toolbar spans the full width on phones */
+  .panels-switch-btn {
+    bottom: 76px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panels-switch-btn { transition: none; }
+}
