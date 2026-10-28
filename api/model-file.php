@@ -5,17 +5,19 @@
 // with caching headers.
 require __DIR__ . '/_owner_auth.php';
 require __DIR__ . '/_dev.php';
+require __DIR__ . '/_guest_models.php';
 
 // Local development: a folder of tilesets instead of model/ (see _dev.php)
 $devDir = geobim_dev_model_dir();
-if (!$devDir && !geobim_is_owner()) {
-    http_response_code(404);   // don't reveal what exists
-    exit;
-}
 $modelDir = $devDir ?: realpath(__DIR__ . '/../model');
 $rel = $_GET['path'] ?? '';
 if ($rel === '' || strpos($rel, "\0") !== false || preg_match('#(^|/)(\.|_staging(/|$))#', $rel)) {
     http_response_code(404);
+    exit;
+}
+// Everyone but the owner: only the entries of model/guest-models.json
+if (!$devDir && !geobim_is_owner() && !geobim_guest_may_read($modelDir, $rel)) {
+    http_response_code(404);   // don't reveal what exists
     exit;
 }
 $path = realpath($modelDir . '/' . $rel);

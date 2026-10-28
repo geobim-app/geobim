@@ -145,7 +145,7 @@
     banner.innerHTML =
       '<span class="wea-demo-label">WEA Demo</span>' +
       '<span class="wea-demo-hint">Wind Energy Shadow Analysis</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="wea-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="wea-demo-license" title="Mozilla Public License 2.0">MPL 2.0</a>' +
       '<a href="/" class="wea-demo-login" id="weaDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);

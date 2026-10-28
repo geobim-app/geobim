@@ -61,11 +61,7 @@
             <div class="about-info-grid">
               <div class="about-info-item">
                 <span class="about-info-label">License</span>
-                <span class="about-info-value">BSL 1.1 (Non-commercial)</span>
-              </div>
-              <div class="about-info-item">
-                <span class="about-info-label">Change Date</span>
-                <span class="about-info-value">2030-03-01 → MIT</span>
+                <span class="about-info-value">MPL 2.0 (Open Source)</span>
               </div>
               <div class="about-info-item">
                 <span class="about-info-label">Contact</span>

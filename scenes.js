@@ -55,8 +55,8 @@
     'google-contour': 3830186
   };
 
-  // Scene field "terrain" ↔ LayerManager terrain id (mapterhorn-terrain.js)
-  var OPEN_TERRAIN = ['mapterhorn'];
+  // Scene field "terrain" ↔ LayerManager terrain id (mapterhorn-terrain.js, arcgis.js)
+  var OPEN_TERRAIN = ['mapterhorn', 'arcgis-elevation'];
 
   BimViewer.scenes = {
     list: [],          // scene objects in Desktop format (unknown fields kept)

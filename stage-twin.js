@@ -136,7 +136,7 @@
     banner.innerHTML =
       '<span class="st-label">StageTwin</span>' +
       '<span class="st-hint">' + PROJECT_LABEL + '</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="st-license" title="Business Source License 1.1">BSL 1.1</a>';
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="st-license" title="Mozilla Public License 2.0">MPL 2.0</a>';
 
     document.body.appendChild(banner);
     document.body.classList.add('stage-twin-active');

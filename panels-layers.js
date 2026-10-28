@@ -26,7 +26,7 @@
   'use strict';
 
   var ION_TERRAIN = ['world', 'terrain_2426648'];
-  var OPEN_TERRAIN = ['mapterhorn']; // no Cesium ion involved (mapterhorn-terrain.js)
+  var OPEN_TERRAIN = ['mapterhorn', 'arcgis-elevation']; // no Cesium ion involved (mapterhorn-terrain.js, arcgis.js)
   var tree = BimPanelsTree.create('geobim_layers_tree');
   var node = tree.node;
   var el = tree.el;

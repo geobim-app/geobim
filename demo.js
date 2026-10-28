@@ -91,7 +91,7 @@
     banner.innerHTML =
       '<span class="demo-label">Demo</span>' +
       '<span class="demo-hint">Guest access</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="demo-license" title="Mozilla Public License 2.0">MPL 2.0</a>' +
       '<a href="/" class="demo-login" id="demoSignIn">Sign in for more features →</a>';
 
     document.body.appendChild(banner);

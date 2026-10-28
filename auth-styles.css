@@ -354,6 +354,19 @@ body.guest-mode #ionAuthIndicator {
   display: none !important;
 }
 
+/* No Cesium ion without sign-in (body.no-ion, guest-no-ion.js): no ion asset
+   list, no Google 3D Tiles / OSM Buildings, no upload — guests pick from the
+   server models instead. */
+body.no-ion .modern-group:has(> #ionAssetSelector),
+body.no-ion .pnl-branch[data-node="ion"],
+body.no-ion #toggleOSMBuildings,
+body.no-ion #toggleGoogle3DTiles,
+body.no-ion #googleTilesQualityRow,
+body.no-ion .local-models-upload,
+body.no-ion .pnl-branch[data-node="server:upload"] {
+  display: none !important;
+}
+
 /* Cesium ion indicator docked in the sidebar under the account badge
    (account-ui.js); the dropdown opens inline so the sidebar can't clip it */
 .ion-auth-indicator.in-sidebar {

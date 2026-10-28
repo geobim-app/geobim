@@ -333,19 +333,19 @@
   color: rgba(255, 255, 255, 0.22);
 }
 
-.splash-bsl {
+.splash-license {
   font-size: 0.7rem;
   color: #666;
   margin-top: 12px;
   line-height: 1.5;
 }
 
-.splash-bsl a {
+.splash-license a {
   color: #2ECFB0;
   text-decoration: none;
 }
 
-.splash-bsl a:hover {
+.splash-license a:hover {
   text-decoration: underline;
 }
 

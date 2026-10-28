@@ -370,7 +370,7 @@
 
     banner.innerHTML =
       '<span class="bridge-demo-label">Bridge Inspector</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="bridge-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="bridge-demo-license" title="Mozilla Public License 2.0">MPL 2.0</a>' +
       '<a href="/" class="bridge-demo-login" id="bridgeDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);

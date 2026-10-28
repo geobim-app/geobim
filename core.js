@@ -500,10 +500,13 @@ const BimViewer = {
       Cesium.Ion.defaultAccessToken = ionToken;
       console.log('✅ Ion Token applied from user input');
       
-      console.log('🌍 Loading Cesium World Terrain...');
+      // Guests get no Cesium ion content: Mapterhorn replaces World Terrain
+      // once LayerManager is up (guest-no-ion.js)
+      const noIon = typeof BimGuest !== 'undefined' && BimGuest.active();
+      console.log(noIon ? '🌍 Guest: terrain from Mapterhorn (no Cesium ion)' : '🌍 Loading Cesium World Terrain...');
       
       this.viewer = new Cesium.Viewer('cesiumContainer', {
-        terrain: Cesium.Terrain.fromWorldTerrain(),
+        terrain: noIon ? undefined : Cesium.Terrain.fromWorldTerrain(),
         baseLayer: false,   // LayerManager handles basemap
         baseLayerPicker: false,
         geocoder: true,
@@ -545,7 +548,11 @@ const BimViewer = {
       try {
         const geocodeToken = (typeof BimIonAuth !== 'undefined' && BimIonAuth.getDefaultToken())
           || Cesium.Ion.defaultAccessToken;
-        if (this.viewer.geocoder && geocodeToken) {
+        if (this.viewer.geocoder && noIon) {
+          // Guests: OpenStreetMap Nominatim instead of the ion geocoder
+          this.viewer.geocoder.viewModel._geocoderServices = BimGuest.geocoderServices();
+          console.log('✅ Geocoder: OpenStreetMap Nominatim (guest)');
+        } else if (this.viewer.geocoder && geocodeToken) {
           this.viewer.geocoder.viewModel._geocoderServices = [
             new Cesium.IonGeocoderService({
               scene: this.viewer.scene,
@@ -613,7 +620,8 @@ const BimViewer = {
           console.warn('⚠️ Using OSM imagery as fallback');
           this.viewer.imageryLayers.addImageryProvider(
             new Cesium.OpenStreetMapImageryProvider({
-              url: 'https://a.tile.openstreetmap.org/'
+              url: 'https://a.tile.openstreetmap.org/',
+              maximumLevel: 19 // OSM serves z0-19; deeper requests get 400 without CORS headers
             })
           );
         }
@@ -899,7 +907,7 @@ const BimViewer = {
         } else if (this.viewer.imageryLayers.length === 0) {
           // Fallback: re-add OSM imagery
           this.viewer.imageryLayers.addImageryProvider(
-            new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' })
+            new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/', maximumLevel: 19 })
           );
         }
         if (this.osmBuildings.tileset) {
@@ -2656,7 +2664,8 @@ const BimViewer = {
     if (this.viewer.imageryLayers.length === 0) {
       try {
         const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://a.tile.openstreetmap.org/'
+          url: 'https://a.tile.openstreetmap.org/',
+          maximumLevel: 19
         });
         this.viewer.imageryLayers.addImageryProvider(osmProvider);
       } catch (error) {

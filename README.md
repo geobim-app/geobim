@@ -4,7 +4,7 @@
 
 [Live Demo](https://geobim.app/demo)
 
-![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)
+![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)
 ![CesiumJS 1.145](https://img.shields.io/badge/CesiumJS-1.145-teal.svg)
 
 ---
@@ -22,6 +22,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **Asset Management** — Load and manage 3D Tiles from Cesium Ion; save the position of self-hosted models (owner)
 - **IFC Upload** — Own IFC → 3D Tiles tiler (3D Tiles 1.1, all property sets, EPSG and ±0.00 height, IfcAlignment axes), plus LAS/LAZ/E57 point cloud upload up to 3 GB (owner)
 - **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings; 59 verified WMS/WMTS/WFS presets
+- **ArcGIS** — Esri base maps, ArcGIS MapServer layers, ArcGIS World Elevation terrain and I3S scene layers (Building Scene Layers with discipline, category and level filters)
 - **IFC & Revit Filtering** — Show/hide by entity class or category (40+ IFC classes, 43 Revit categories with German names) with color-coded visualization; unlisted types stay visible via "Other"
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
 - **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes, plus sections along an IfcAlignment axis by station with a live 2D cross section
@@ -116,6 +117,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 | `pointcloud.js` | Point cloud detection, Eye Dome Lighting, color modes |
 | `z-offset.js` | Per-asset vertical offset system |
 | `layerManager.js` | Basemap switching and terrain provider management |
+| `arcgis.js` | Esri base maps, ArcGIS MapServer layers, World Elevation terrain, I3S scene layers |
 | `lighting.js` | Dynamic sun/shadows, atmosphere, time-based positioning |
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Collapsible sidebar toolbar with 12 sections |
@@ -175,7 +177,7 @@ The SensorThings API is one of the download services recommended by the [INSPIRE
 
 ## License
 
-Licensed under the [Business Source License 1.1](LICENSE). Non-commercial use, research, and education permitted. Commercial use requires written permission — [info@geobim.app](mailto:info@geobim.app). Converts to MIT on 2030-03-01.
+Licensed under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). You may use, modify and redistribute geoBIM.app, including commercially. Modified MPL-licensed files must stay under the MPL; your own modules in separate files may use any license. The name and logo "geoBIM.app" are not covered by the license. Project implementations, hosting and support: [info@geobim.app](mailto:info@geobim.app).
 
 ---
 

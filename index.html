@@ -28,15 +28,15 @@
   <link rel="stylesheet" href="style.css?v=20261014">
 
   <!-- Auth Styles -->
-  <link rel="stylesheet" href="auth-styles.css">
+  <link rel="stylesheet" href="auth-styles.css?v=20261028">
 
   <!-- Z-Offset Styles -->
   <link rel="stylesheet" href="integrated-zoffset-styles.css?v=20261010">
 
   <!-- Clipping Planes Styles -->
   <link rel="stylesheet" href="clipping-planes-styles.css">
-  <link rel="stylesheet" href="alignment-section-styles.css">
-  <link rel="stylesheet" href="section-profile-styles.css">
+  <link rel="stylesheet" href="alignment-section-styles.css?v=20261027">
+  <link rel="stylesheet" href="section-profile-styles.css?v=20261027">
   <link rel="stylesheet" href="placement-save-styles.css">
   <link rel="stylesheet" href="scenes-styles.css?v=20261012">
   <link rel="stylesheet" href="view-flights-styles.css?v=20261018">
@@ -57,6 +57,7 @@
 
   <!-- Layer Manager Styles -->
   <link rel="stylesheet" href="layer-manager-styles.css?v=20261011">
+  <link rel="stylesheet" href="arcgis-styles.css?v=20261028-2">
 
   <!-- Sequencing Styles -->
   <link rel="stylesheet" href="sequencing-styles.css">
@@ -71,9 +72,10 @@
   <link rel="stylesheet" href="splat-styles.css">
   <link rel="stylesheet" href="gis-files-styles.css?v=20261017">
   <link rel="stylesheet" href="gis-track-player-styles.css?v=20261017">
+  <link rel="stylesheet" href="construction-schedule-styles.css?v=20261027">
 
   <!-- Panel UI switch (?ui=panels / beta.geobim.app) — keep last in <head> -->
-  <script src="panels-ui-loader.js?v=0.15.4"></script>
+  <script src="panels-ui-loader.js?v=0.15.8"></script>
 
 </head>
 <body>
@@ -267,7 +269,7 @@
   <script src="splash-screen.js?v=20261019"></script>
 
   <!-- Ion Auth (OAuth2 PKCE — must load before auth.js) -->
-  <script src="ion-auth.js?v=20261012"></script>
+  <script src="ion-auth.js?v=20261026-2"></script>
 
   <!-- Auth Module -->
   <script src="auth.js?v=20261012"></script>
@@ -276,7 +278,8 @@
   <script src="auth-gate.js"></script>
 
   <!-- 1. Core Modules (Foundation) -->
-  <script src="core.js?v=20261019"></script>
+  <script src="core.js?v=20261028"></script>
+  <script src="clipping-planes-guard.js?v=20261027"></script>
   <script src="features.js?v=20261013"></script>
   <script src="hideFeatures.js"></script>
   <script src="model-scope.js?v=20261013"></script>
@@ -296,7 +299,7 @@
   <script src="ui-visibility-section.js"></script>
   <script src="ui-ifc-section.js"></script>
   <script src="ui-revit-section.js"></script>
-  <script src="ui-assets-section.js?v=20261014"></script>
+  <script src="ui-assets-section.js?v=20261028-2"></script>
   <script src="ui-drawing-section.js"></script>
   <script src="ui-views-section.js?v=20261018"></script>
   <script src="ui-scenes-section.js?v=20261019-f"></script>
@@ -319,6 +322,7 @@
   <!-- 3.5. Layer Manager -->
   <script src="layerManager.js?v=20261022-2"></script>
   <script src="mapterhorn-terrain.js?v=20261016-2"></script>
+  <script src="arcgis.js?v=20261028-2"></script>
   <script src="gis-files.js?v=20261017-2"></script>
   <script src="gis-track-player.js?v=20261017"></script>
 
@@ -348,20 +352,22 @@
 
   <!-- 5. UI Module v3.3 -->
   <script src="ui.js?v=20261015"></script>
+  <script src="guest-no-ion.js?v=20261028-2"></script>
 
   <!-- 6. UI Extensions -->
   <script src="ui-clipping-extension.js?v=20261012"></script>
   <script src="ui-z-offset-extension.js"></script>
   <script src="clipping-planes.js"></script>
-  <script src="alignment-section.js"></script>
-  <script src="section-profile.js"></script>
+  <script src="alignment-section.js?v=20261027"></script>
+  <script src="section-profile.js?v=20261027"></script>
   <script src="account-ui.js"></script>
   <script src="ion-layer-assets.js?v=20261011"></script>
   <script src="owner-session.js"></script>
   <script src="placement-save.js?v=20261019"></script>
   <script src="sequencing.js"></script>
+  <script src="construction-schedule.js?v=20261027"></script>
   <script src="glb-gizmo.js"></script>
-  <script src="scenes.js?v=20261022"></script>
+  <script src="scenes.js?v=20261028"></script>
   <script src="scenes-store.js?v=20261019-f"></script>
   <script src="view-flights.js?v=20261018"></script>
   <script src="wea-shadow.js?v=20261014"></script>
