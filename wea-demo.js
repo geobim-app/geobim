@@ -2,9 +2,9 @@
  * geoBIM.app — WEA Demo Mode
  *
  * Copyright (c) 2026 geobim.app
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Change Date: 2030-03-01 | Change License: MIT
- * See LICENSE file for full terms.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Allows anonymous 30-minute access to ONLY the WEA Shadow module.
  * Activated via URL: /wea-shadow
@@ -145,7 +145,7 @@
     banner.innerHTML =
       '<span class="wea-demo-label">WEA Demo</span>' +
       '<span class="wea-demo-hint">Wind Energy Shadow Analysis</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="wea-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="wea-demo-license" title="Mozilla Public License 2.0">MPL 2.0</a>' +
       '<a href="/" class="wea-demo-login" id="weaDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);

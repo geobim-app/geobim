@@ -1,13 +1,10 @@
 /**
  * geoBIM.app
- * © 2026 Christof Lorenz. All rights reserved.
+ * © 2026 Christof Lorenz
  *
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Non-commercial use, evaluation, research, and education permitted.
- * Commercial use requires written permission.
- * Contact: info@geobim.app
- *
- * Change Date: 2030-03-01 — converts to MIT License
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
 // ===============================
@@ -64,11 +61,7 @@
             <div class="about-info-grid">
               <div class="about-info-item">
                 <span class="about-info-label">License</span>
-                <span class="about-info-value">BSL 1.1 (Non-commercial)</span>
-              </div>
-              <div class="about-info-item">
-                <span class="about-info-label">Change Date</span>
-                <span class="about-info-value">2030-03-01 → MIT</span>
+                <span class="about-info-value">MPL 2.0 (Open Source)</span>
               </div>
               <div class="about-info-item">
                 <span class="about-info-label">Contact</span>
@@ -79,7 +72,7 @@
                 <span class="about-info-value">CesiumJS · Firebase · 3D Tiles</span>
               </div>
             </div>
-            <p class="about-copyright">© 2026 Christof Lorenz. All rights reserved.</p>
+            <p class="about-copyright">© 2026 Christof Lorenz</p>
             <button class="about-tour-btn" onclick="BimViewer.closeAboutDialog();setTimeout(function(){BimTour.start()},300);">
               Take a guided tour
             </button>

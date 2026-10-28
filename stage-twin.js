@@ -2,9 +2,9 @@
  * geoBIM.app — StageTwin (Client Progress Viewer)
  *
  * Copyright (c) 2026 geobim.app
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Change Date: 2030-03-01 | Change License: MIT
- * See LICENSE file for full terms.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Slim, single-purpose client view of construction progress: auto-loads one
  * asset and shows only the 4D construction-sequencing timeline (sequencing.js)
@@ -136,7 +136,7 @@
     banner.innerHTML =
       '<span class="st-label">StageTwin</span>' +
       '<span class="st-hint">' + PROJECT_LABEL + '</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="st-license" title="Business Source License 1.1">BSL 1.1</a>';
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="st-license" title="Mozilla Public License 2.0">MPL 2.0</a>';
 
     document.body.appendChild(banner);
     document.body.classList.add('stage-twin-active');

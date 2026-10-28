@@ -4,7 +4,7 @@
 
 [Live Demo](https://geobim.app/demo)
 
-![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)
+![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)
 ![CesiumJS 1.145](https://img.shields.io/badge/CesiumJS-1.145-teal.svg)
 
 ---
@@ -168,7 +168,7 @@ The SensorThings API is one of the download services recommended by the [INSPIRE
 
 ## License
 
-Licensed under the [Business Source License 1.1](LICENSE). Non-commercial use, research, and education permitted. Commercial use requires written permission — [info@geobim.app](mailto:info@geobim.app). Converts to MIT on 2030-03-01.
+Licensed under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). You may use, modify and redistribute geoBIM.app, including commercially. Modified MPL-licensed files must stay under the MPL; your own modules in separate files may use any license. The name and logo "geoBIM.app" are not covered by the license. Project implementations, hosting and support: [info@geobim.app](mailto:info@geobim.app).
 
 ---
 

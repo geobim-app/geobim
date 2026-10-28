@@ -2,9 +2,9 @@
  * geoBIM.app — Bridge Inspector Demo Mode
  *
  * Copyright (c) 2026 geobim.app
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Change Date: 2030-03-01 | Change License: MIT
- * See LICENSE file for full terms.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Anonymous 30-minute access to a curated Bridge Inspection workflow.
  * Activated via URL: /bridge-inspector
@@ -370,7 +370,7 @@
 
     banner.innerHTML =
       '<span class="bridge-demo-label">Bridge Inspector</span>' +
-      '<a href="https://spdx.org/licenses/BSL-1.1.html" target="_blank" rel="noopener" class="bridge-demo-license" title="Business Source License 1.1">BSL 1.1</a>' +
+      '<a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener" class="bridge-demo-license" title="Mozilla Public License 2.0">MPL 2.0</a>' +
       '<a href="/" class="bridge-demo-login" id="bridgeDemoTimerSignIn">Sign in for full access →</a>';
 
     document.body.appendChild(banner);

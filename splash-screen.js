@@ -1,13 +1,10 @@
 /**
  * geoBIM.app
- * © 2026 Christof Lorenz. All rights reserved.
+ * © 2026 Christof Lorenz
  *
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Non-commercial use, evaluation, research, and education permitted.
- * Commercial use requires written permission.
- * Contact: info@geobim.app
- *
- * Change Date: 2030-03-01 — converts to MIT License
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
 // ===============================
@@ -67,11 +64,7 @@
           '<div class="splash-info-grid">' +
             '<div class="splash-info-item">' +
               '<span class="splash-info-label">License</span>' +
-              '<span class="splash-info-value">BSL 1.1 (Non-commercial)</span>' +
-            '</div>' +
-            '<div class="splash-info-item">' +
-              '<span class="splash-info-label">Change Date</span>' +
-              '<span class="splash-info-value">2030-03-01 &rarr; MIT</span>' +
+              '<span class="splash-info-value">MPL 2.0 (Open Source)</span>' +
             '</div>' +
             '<div class="splash-info-item">' +
               '<span class="splash-info-label">Contact</span>' +
@@ -156,9 +149,9 @@
               '<a href="mailto:info@geobim.app" class="splash-cta-link" onclick="if(typeof plausible!==\'undefined\')plausible(\'Contact Click\')">Contact me</a></p>' +
             '<p class="splash-privacy">Privacy-friendly analytics (no cookies)</p>' +
           '</div>' +
-          '<p class="splash-bsl">' +
-            '&copy; 2026 Christof Lorenz &mdash; Licensed under BSL 1.1 &mdash; Non-commercial use, research &amp; education permitted.<br>' +
-            'Commercial use requires written permission. <a href="mailto:info@geobim.app">info@geobim.app</a>' +
+          '<p class="splash-license">' +
+            '&copy; 2026 Christof Lorenz &mdash; Open source under the <a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener">Mozilla Public License 2.0</a>.<br>' +
+            'Project implementations and support: <a href="mailto:info@geobim.app">info@geobim.app</a>' +
           '</p>' +
         '</div>' +
 
