@@ -170,11 +170,13 @@
       var sx = e.clientX, sy = e.clientY, ox = widget.offsetLeft, oy = widget.offsetTop;
       var moving = false;
       dragged = false;
+      // capture right away: move/up must reach the header even when the
+      // pointer leaves it before the drag threshold
+      head.setPointerCapture(e.pointerId);
       function move(ev) {
         if (!moving && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < DRAG_THRESHOLD) return;
         if (!moving) {
           moving = true;
-          head.setPointerCapture(ev.pointerId);
           widget.classList.add('dragging');
         }
         placeWidget(widget, [ox + ev.clientX - sx, oy + ev.clientY - sy]);
