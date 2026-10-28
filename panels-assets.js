@@ -10,7 +10,13 @@
  *   BENTLEY ITWIN  the iTwin demo block (itwin-demo.js)
  *   ESRI ARCGIS    I3S demo scene layers + own I3S URL (arcgis.js)
  *   SERVER MODELS  owner only, as before: Models · Upload IFC / point cloud…
- *   LOADED · n     the loaded asset cards, moved here from the floating panel
+ *
+ * The loaded asset cards get their own widget at the bottom left (next to the
+ * rail, above the tab bar on phones): shown while assets are loaded,
+ * collapsible (click the header), floating: drag the header to move it
+ * (desktop; position and open state in localStorage, the default spot again
+ * on phones), hidden with the rest of the panel UI (M, signed out). It
+ * replaces the classic floating "Loaded Assets" panel.
  *
  * Pure UI restructuring: the existing elements keep their IDs and handlers.
  * #ionAssetSelector stays the source of truth (hidden): ui.js fills it, the
@@ -126,6 +132,113 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Loaded widget (bottom left)
+  // ---------------------------------------------------------------------------
+  var LOADED_OPEN_KEY = 'geobim_loaded_widget_open';
+  var LOADED_POS_KEY = 'geobim_loaded_widget_pos';
+  var DRAG_THRESHOLD = 4;   // px before a press on the header becomes a drag
+  var phone = window.matchMedia('(max-width: 720px)');
+
+  // Inline left/top only on desktop; phones keep the docked spot from the CSS
+  function placeWidget(widget, pos) {
+    if (phone.matches || !pos) {
+      widget.style.left = widget.style.top = widget.style.bottom = widget.style.maxHeight = '';
+      return;
+    }
+    var w = widget.offsetWidth || 340;
+    var headH = 36;   // the header stays reachable
+    var x = Math.max(8, Math.min(pos[0], window.innerWidth - w - 8));
+    var y = Math.max(8, Math.min(pos[1], window.innerHeight - headH - 8));
+    widget.style.left = Math.round(x) + 'px';
+    widget.style.top = Math.round(y) + 'px';
+    widget.style.bottom = 'auto';
+    // the list scrolls instead of the widget running off the bottom edge
+    widget.style.maxHeight = Math.min(420, Math.max(headH, Math.round(window.innerHeight - y - 16))) + 'px';
+  }
+
+  function loadWidgetPos() {
+    try {
+      var p = JSON.parse(localStorage.getItem(LOADED_POS_KEY) || 'null');
+      return Array.isArray(p) && p.length === 2 && p.every(isFinite) ? p : null;
+    } catch (_) { return null; }
+  }
+
+  function makeWidgetDraggable(widget, head) {
+    var pos = loadWidgetPos();
+    var dragged = false;
+    head.addEventListener('pointerdown', function(e) {
+      if (e.button !== 0 || phone.matches) return;
+      var sx = e.clientX, sy = e.clientY, ox = widget.offsetLeft, oy = widget.offsetTop;
+      var moving = false;
+      dragged = false;
+      // capture right away: move/up must reach the header even when the
+      // pointer leaves it before the drag threshold
+      head.setPointerCapture(e.pointerId);
+      function move(ev) {
+        if (!moving && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < DRAG_THRESHOLD) return;
+        if (!moving) {
+          moving = true;
+          widget.classList.add('dragging');
+        }
+        placeWidget(widget, [ox + ev.clientX - sx, oy + ev.clientY - sy]);
+      }
+      function up() {
+        head.removeEventListener('pointermove', move);
+        head.removeEventListener('pointerup', up);
+        head.removeEventListener('pointercancel', up);
+        if (!moving) return;
+        widget.classList.remove('dragging');
+        dragged = true;   // the click that follows must not collapse
+        pos = [widget.offsetLeft, widget.offsetTop];
+        try { localStorage.setItem(LOADED_POS_KEY, JSON.stringify(pos)); } catch (_) {}
+      }
+      head.addEventListener('pointermove', move);
+      head.addEventListener('pointerup', up);
+      head.addEventListener('pointercancel', up);
+    });
+    var replace = function() { placeWidget(widget, pos); };
+    window.addEventListener('resize', replace);
+    if (phone.addEventListener) phone.addEventListener('change', replace);
+    // the widget has no size while hidden: place it when it first shows
+    new MutationObserver(replace).observe(widget, { attributes: true, attributeFilter: ['hidden'] });
+    return function wasDragged() { var d = dragged; dragged = false; return d; };
+  }
+
+  function buildLoadedWidget(actions, list) {
+    var widget = el('section', 'pnl-loaded-widget pnl-top');
+    widget.id = 'pnlLoadedWidget';
+    widget.setAttribute('aria-label', 'Loaded assets');
+    widget.hidden = true;
+    var head = el('button', 'pnl-node pnl-loaded-head');
+    head.type = 'button';
+    head.appendChild(el('span', 'pnl-node-title', 'Loaded'));
+    var meta = el('span', 'pnl-node-meta');
+    head.appendChild(meta);
+    var body = el('div', 'pnl-tree pnl-loaded-body');
+    add(body, actions, list);
+    var open = true;
+    try { open = localStorage.getItem(LOADED_OPEN_KEY) !== '0'; } catch (_) {}
+    var setOpen = function(now) {
+      open = now;
+      head.setAttribute('aria-expanded', now ? 'true' : 'false');
+      body.hidden = !now;
+      try { localStorage.setItem(LOADED_OPEN_KEY, now ? '1' : '0'); } catch (_) {}
+    };
+    add(widget, head, body);
+    // inside .panels-ui: follows its visibility (M, signed out)
+    (document.querySelector('.panels-ui') || document.body).appendChild(widget);
+    var wasDragged = makeWidgetDraggable(widget, head);
+    head.addEventListener('click', function() {
+      if (wasDragged()) return;
+      setOpen(!open);
+      head.blur();
+    });
+    setOpen(open);
+    widget.meta = meta;
+    return widget;
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
   function build(content) {
@@ -173,13 +286,12 @@
       server.hidden = true;
     }
 
-    // LOADED · n (moved out of the floating panel, which stays hidden here)
-    var loaded = node('loaded', 'Loaded', true, { top: true, meta: true });
+    // LOADED · n: own widget (moved out of the floating panel, which stays hidden here)
     if (typeof BimViewer.createLoadedAssetsPanel === 'function') BimViewer.createLoadedAssetsPanel();
     var floating = byId('floatingAssetsPanel');
-    add(loaded.sub, floating && floating.querySelector('.assets-panel-actions'), byId('loadedAssetsList'));
+    var loaded = buildLoadedWidget(floating && floating.querySelector('.assets-panel-actions'), byId('loadedAssetsList'));
 
-    add(root, ion, itwin, arcgis, server, loaded);
+    add(root, ion, itwin, arcgis, server);
 
     // Leftovers: the classic "Loaded Assets" button (keeps #loadedAssetsCount),
     // dividers, emptied wrappers; anything unknown goes to "More"
@@ -258,17 +370,14 @@
     window.addEventListener('ion-token-changed', ionMeta);
     rebuild();
 
-    // Loaded cards: count, chips, eye state; a new card opens the node
+    // Loaded cards: count, chips, eye state; the widget shows while any is loaded
     var loadedList = byId('loadedAssetsList');
-    var syncLoaded = function(records) {
+    var syncLoaded = function() {
       if (!loadedList) return;
       var cards = loadedList.querySelectorAll(':scope > .modern-asset-item');
       Array.prototype.forEach.call(cards, decorateCard);
       loaded.meta.textContent = String(cards.length);
-      var added = Array.isArray(records) && records.some(function(r) {
-        return Array.prototype.some.call(r.addedNodes, function(n) { return n.classList && n.classList.contains('modern-asset-item'); });
-      });
-      if (added) loaded.expand();
+      loaded.hidden = cards.length === 0;
     };
     if (loadedList) new MutationObserver(syncLoaded).observe(loadedList, { childList: true });
     syncLoaded();
