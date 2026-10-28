@@ -2,9 +2,9 @@
 // SIB Module — Parametric Bridge Generator for geobim.app
 //
 // Copyright (c) 2026 geobim.app
-// Licensed under the Business Source License 1.1 (BSL 1.1)
-// Change Date: 2030-03-01 | Change License: MIT
-// See LICENSE file for full terms.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 // Generates parametric GLB bridge models from SIB data,
 // places them georeferenced in the Cesium viewer.

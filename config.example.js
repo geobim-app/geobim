@@ -1,13 +1,10 @@
 /**
  * geoBIM.app
- * © 2026 Christof Lorenz. All rights reserved.
+ * © 2026 Christof Lorenz
  *
- * Licensed under the Business Source License 1.1 (BSL 1.1)
- * Non-commercial use, evaluation, research, and education permitted.
- * Commercial use requires written permission.
- * Contact: info@geobim.app
- *
- * Change Date: 2030-03-01 — converts to MIT License
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 const GEOBIM_CONFIG = {
   cesiumIon: {
