@@ -5,7 +5,7 @@
  * layout; the classic sidebar keeps its flat Layer Manager.
  *
  * Like geoBIM Desktop's imagery widget the panel becomes collapsible nodes:
- *   TERRAIN    Cesium ion · My terrain · Geoid / heights
+ *   TERRAIN    Cesium ion · Open terrain · My terrain · Geoid / heights
  *   IMAGERY    Base map · My imagery
  *   WMS / WMTS Active services (grouped per service) · Presets · Add service…
  *   GIS FILES  Add GIS file… · list of dropped / picked files (gis-files.js)
@@ -13,7 +13,8 @@
  * Pure UI restructuring: the existing elements (IDs, handlers, LayerManager
  * re-renders) are moved into the nodes, never rebuilt. Two lists are
  * post-processed after each LayerManager re-render:
- *   - #terrainList: rows of terrain the user added move to "My terrain"
+ *   - #terrainList: open (non-ion) terrain like Mapterhorn moves to "Open
+ *     terrain", rows of terrain the user added to "My terrain"
  *   - #wmsLayersList: layer rows are grouped per service, with "Remove service"
  * Anything in the section this module doesn't know lands in "More", so no
  * control gets lost when another module adds one.
@@ -24,7 +25,8 @@
 (function() {
   'use strict';
 
-  var CURATED_TERRAIN = ['world', 'mapterhorn', 'terrain_2426648'];
+  var ION_TERRAIN = ['world', 'terrain_2426648'];
+  var OPEN_TERRAIN = ['mapterhorn']; // no Cesium ion involved (mapterhorn-terrain.js)
   var tree = BimPanelsTree.create('geobim_layers_tree');
   var node = tree.node;
   var el = tree.el;
@@ -34,16 +36,17 @@
   var take = byId; // reads as "move this existing element into the tree"
 
   // ---------------------------------------------------------------------------
-  // Terrain: own rows out of #terrainList into "My terrain"
+  // Terrain: open terrain and own rows out of #terrainList
   // ---------------------------------------------------------------------------
-  // rerendered: LayerManager rebuilt #terrainList (old own rows are stale)
-  function splitTerrain(own, rerendered) {
+  // rerendered: LayerManager rebuilt #terrainList (moved rows are stale)
+  function splitTerrain(open, own, rerendered) {
     var list = byId('terrainList');
     if (!list) return;
-    if (rerendered) own.innerHTML = '';
+    if (rerendered) { open.innerHTML = ''; own.innerHTML = ''; }
     Array.prototype.forEach.call(list.querySelectorAll(':scope > .layer-terrain-item'), function(row) {
       var radio = row.querySelector('input[name="terrain"]');
-      if (radio && CURATED_TERRAIN.indexOf(radio.value) === -1) own.appendChild(row);
+      if (!radio || ION_TERRAIN.indexOf(radio.value) !== -1) return;
+      (OPEN_TERRAIN.indexOf(radio.value) !== -1 ? open : own).appendChild(row);
     });
   }
 
@@ -173,6 +176,11 @@
     var terrain = node('terrain', 'Terrain', false, { top: true, meta: true });
     var ion = node('terrain:ion', 'Cesium ion', false);
     add(ion.sub, take('terrainList'));
+    // Open terrain is for guests too, so not under the signed-in "My terrain"
+    var openTerrain = node('terrain:open', 'Open terrain', false);
+    var openList = el('div', 'layer-terrain-list');
+    wireOwnTerrain(openList);
+    add(openTerrain.sub, openList);
     var mine = node('terrain:mine', 'My terrain', false, { cls: 'pnl-signed-in' });
     var ownList = el('div', 'layer-terrain-list pnl-own-terrain');
     wireOwnTerrain(ownList);
@@ -183,7 +191,7 @@
     add(mine.sub, ownList, take('terrainAssetIdPicker'), addTerrain, terrainHint);
     var geoid = node('terrain:geoid', 'Geoid / heights', false, { cls: 'pnl-signed-in' });
     add(geoid.sub, take('toggleGeoidTerrain'), take('toggleBathymetry'));
-    add(terrain.sub, ion, mine, geoid);
+    add(terrain.sub, ion, openTerrain, mine, geoid);
 
     // IMAGERY
     var imagery = node('imagery', 'Imagery', true, { top: true, meta: true });
@@ -242,8 +250,9 @@
     var wmsList = byId('wmsLayersList');
     var sync = function(records) {
       var rerendered = Array.isArray(records) && records.some(function(r) { return r.target === terrainList && r.addedNodes.length; });
-      splitTerrain(ownList, rerendered);
+      splitTerrain(openList, ownList, rerendered);
       ownList.hidden = !ownList.children.length;
+      openTerrain.hidden = !openList.children.length;
       terrain.meta.textContent = activeTerrainName();
       imagery.meta.textContent = activeBasemapName();
       var n = typeof LayerManager !== 'undefined' ? (LayerManager.wmsLayers || []).length : 0;
@@ -257,7 +266,7 @@
     if (wmsList) new MutationObserver(function() { groupWms(); sync(); }).observe(wmsList, { childList: true });
     var gisList = byId('gisFilesList');
     if (gisList) new MutationObserver(sync).observe(gisList, { childList: true });
-    splitTerrain(ownList, false);
+    splitTerrain(openList, ownList, false);
     var basemapList = byId('basemapList');
     if (basemapList) new MutationObserver(sync).observe(basemapList, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     new MutationObserver(sync).observe(layers3d.sub, { subtree: true, attributes: true, attributeFilter: ['class'] });

@@ -59,7 +59,8 @@
   // bar covers it, so "More" gets proxies that click the original buttons
   var MORE_ACTIONS = [
     ['bottomWalkBtn', 'Walk', 'person-standing', 'G'],
-    ['gizmoTransformBtn', 'Transform', 'move-3d', 'X']
+    ['gizmoTransformBtn', 'Transform', 'move-3d', 'X'],
+    ['bottomVrBtn', 'VR', 'glasses', ''] // webxr.js, only shown with a headset
   ];
   var phone = window.matchMedia('(max-width: 720px)');
 
@@ -179,7 +180,7 @@
       if (!target) return;
       if (!added) addSeparator();
       added = true;
-      var title = a[1] + ' (' + a[3] + ')';
+      var title = a[3] ? a[1] + ' (' + a[3] + ')' : a[1];
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'panels-rail-btn panels-rail-action';

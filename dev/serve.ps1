@@ -1,13 +1,13 @@
 # Local development server for geoBIM.app: http://localhost:8000/
 #
-# Needs PHP 8 (winget install PHP.PHP.8.4), config.js and logo/ in the repo root,
+# Needs PHP 8 (winget install PHP.PHP.8.5), config.js and logo/ in the repo root,
 # and a localhost-restricted Cesium ion token in $HOME\.geobim\ion-dev-token.txt.
-# "Server models" come read-only from -ModelDir (default Documents\BIM_Zentral\3dtiles, see api/_dev.php).
-# Upload, converter, saving placements and the owner login need the server: test them on beta.
+# "Server models" come from -ModelDir (default Documents\BIM_Zentral\3dtiles, see api/_dev.php).
+# Saving a placement (owner sign-in) writes into -ModelDir; upload and converter need the server: test them on beta.
 
 param(
     [int]$Port = 8000,
-    # Tilesets shown as "server models" (read-only), e.g. what geoBIM Desktop writes; '' = none
+    # Tilesets shown as "server models", e.g. what geoBIM Desktop writes; '' = none
     [string]$ModelDir = (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'BIM_Zentral\3dtiles')
 )
 
@@ -22,21 +22,23 @@ if (-not (Test-Path $tokenFile) -or (Get-Item $tokenFile).Length -eq 0) {
 }
 
 $php = (Get-Command php -ErrorAction SilentlyContinue).Source
-if (-not $php) { throw 'php not found (winget install PHP.PHP.8.4, then open a new shell)' }
+if (-not $php) { throw 'php not found (winget install PHP.PHP.8.5, then open a new shell)' }
 
 $env:GEOBIM_ION_TOKEN_FILE = $tokenFile
 if ($ModelDir -and (Test-Path $ModelDir)) {
     $env:GEOBIM_DEV_MODEL_DIR = $ModelDir
-    Write-Host "Server models from $ModelDir (read-only)"
+    Write-Host "Server models from $ModelDir (placement save writes there)"
 } else {
     Remove-Item Env:GEOBIM_DEV_MODEL_DIR -ErrorAction SilentlyContinue
 }
 
-# cURL + OpenSSL for api/itwin-token.php (Bentley sign-in); CA bundle from Git for Windows
+# Extensions the API needs (a winget PHP has no php.ini): cURL + OpenSSL for
+# api/itwin-token.php (Bentley sign-in), mbstring for api/placement-save.php;
+# CA bundle from Git for Windows
 $phpItem = Get-Item $php
 if ($phpItem.LinkType) { $phpItem = Get-Item $phpItem.Target }  # winget alias → real install
 $ext = Join-Path $phpItem.DirectoryName 'ext'
-$phpArgs = @('-d', "extension_dir=$ext", '-d', 'extension=curl', '-d', 'extension=openssl')
+$phpArgs = @('-d', "extension_dir=$ext", '-d', 'extension=curl', '-d', 'extension=openssl', '-d', 'extension=mbstring')
 $caBundle = 'C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt'
 if (Test-Path $caBundle) { $phpArgs += @('-d', "curl.cainfo=$caBundle") }
 

@@ -1,0 +1,217 @@
+/* VR mode (webxr.js): card on the monitor while the headset shows the scene */
+.xr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.xr-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.xr-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 360px;
+  margin: 0 var(--space-md);
+  padding: var(--space-xl);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.xr-overlay-card i[data-lucide] {
+  width: 40px;
+  height: 40px;
+  color: var(--brand-teal);
+}
+
+.xr-overlay-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xr-overlay-hint,
+.xr-overlay-stats {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.xr-overlay-stats {
+  min-height: 1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.xr-overlay-btn {
+  min-height: 44px;
+  margin-top: var(--space-sm);
+  padding: 0 var(--space-lg);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--brand-teal);
+  color: #0D1017;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.xr-overlay-btn:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.xr-overlay-card {
+  max-height: calc(100vh - 2 * var(--space-md));
+  overflow-y: auto;
+}
+
+.xr-overlay-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.xr-overlay-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.xr-overlay-btn-secondary i[data-lucide] {
+  width: 16px;
+  height: 16px;
+  color: var(--brand-teal);
+}
+
+.xr-overlay-settings {
+  width: 100%;
+  text-align: left;
+}
+
+.xr-overlay-settings[hidden],
+.xr-settings-block[hidden] {
+  display: none;
+}
+
+/* VR settings form (webxr-settings.js): Settings section and monitor card */
+.xr-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.xr-settings-title {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-xs);
+}
+
+.xr-settings-title i[data-lucide] {
+  width: 16px;
+  height: 16px;
+  color: var(--brand-teal);
+}
+
+.xr-settings-row {
+  margin: 0;
+}
+
+.xr-settings-hint {
+  margin-top: var(--space-xs);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.xr-settings-toggle,
+.xr-settings-reset {
+  min-height: 44px;
+}
+
+.xr-settings-toggle:focus-visible,
+.xr-settings-reset:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+/* ?xrdebug=1 log (webxr.js), shown after leaving VR */
+.xr-debug {
+  position: fixed;
+  left: var(--space-md);
+  right: var(--space-md);
+  bottom: var(--space-md);
+  z-index: 3100;
+  display: none;
+  max-height: 60vh;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+}
+
+.xr-debug.visible {
+  display: flex;
+}
+
+.xr-debug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  font-weight: 600;
+}
+
+.xr-debug-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.xr-debug-close:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.xr-debug pre {
+  margin: 0;
+  padding: var(--space-sm);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+#bottomVrBtn.active {
+  color: var(--brand-teal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xr-overlay {
+    transition: none;
+  }
+}

@@ -209,6 +209,9 @@
         {
           id: 'osm',
           name: 'OpenStreetMap',
+          // CARTO serves these tiles only with an API key since 09/2026
+          // ("API KEY REQUIRED" placeholders) — off until a key is set up
+          disabled: true,
           providerFactory: () => Promise.resolve(new Cesium.UrlTemplateImageryProvider({
             url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
             subdomains: ['a', 'b', 'c', 'd'],
@@ -295,7 +298,7 @@
 
     applyImageryAccess() {
       const allowed = this.ionImageryAllowed();
-      this.basemapLayers = this.allBasemapLayers.filter(b => allowed || !b.ion);
+      this.basemapLayers = this.allBasemapLayers.filter(b => !b.disabled && (allowed || !b.ion));
     },
 
     // Same layer as the geoBIM Desktop globe fallback (WebMercator WMTS, no key)
@@ -322,7 +325,8 @@
       if (!this.viewer || !this.allBasemapLayers) return;
       const allowed = this.ionImageryAllowed();
       if (!allowed && this.isIonBasemap(this.activeBasemap)) await this.switchBasemap('topplus');
-      const fromGuestDefault = allowed && this.activeBasemap === 'topplus' && this.basemapLayers.length < this.allBasemapLayers.length;
+      const offered = this.allBasemapLayers.filter(b => !b.disabled).length;
+      const fromGuestDefault = allowed && this.activeBasemap === 'topplus' && this.basemapLayers.length < offered;
       this.applyImageryAccess();
       if (fromGuestDefault) await this.switchBasemap(this.defaultBasemapId());
       this.populateUI();
@@ -341,13 +345,16 @@
         return;
       }
 
-      // Remove current basemap layer
-      const current = this.basemapLayers.find(b => b.active);
-      if (current && current.layer) {
-        this.viewer.imageryLayers.remove(current.layer, false);
-        current.layer = null;
-        current.active = false;
-      }
+      // Only the latest call wins: an ion provider takes a while to load, and a
+      // second click in the meantime used to leave two basemaps on (and checked)
+      const seq = this._basemapSeq = (this._basemapSeq || 0) + 1;
+
+      // Remove every other basemap — also one without a layer ("none")
+      this.basemapLayers.forEach(b => {
+        if (b.layer) this.viewer.imageryLayers.remove(b.layer, false);
+        b.layer = null;
+        b.active = false;
+      });
 
       // Activate "none" — just deactivate, no new layer
       if (id === 'none') {
@@ -361,6 +368,7 @@
 
       try {
         const provider = await target.providerFactory();
+        if (seq !== this._basemapSeq) return; // another basemap was chosen meanwhile
         // Guard: if Google 3D Tiles activated while provider was loading, don't add imagery
         if (BimViewer.googleTiles && BimViewer.googleTiles.enabled) {
           console.log('Basemap load skipped — Google 3D Tiles active');
@@ -375,6 +383,7 @@
         BimViewer.updateStatus('Basemap: ' + target.name, 'success');
       } catch (error) {
         console.error('Failed to load basemap:', target.name, error);
+        if (seq === this._basemapSeq) this.updateBasemapUI(); // nothing is on now
         var isOAuth = typeof BimIonAuth !== 'undefined' && BimIonAuth.isOAuthConnected();
         if (isOAuth) {
           BimViewer.updateStatus(target.name + ' — activate this asset in your Cesium Ion My Assets', 'error');

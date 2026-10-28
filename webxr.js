@@ -1,0 +1,1078 @@
+/**
+ * geobim.app — VR mode (WebXR, immersive-vr)
+ *
+ * docs/WEBXR_PLAN.md, phase 1 ("way B"): own XR session on Cesium's WebGL2
+ * context, own render loop, single-pass stereo through Cesium's side-by-side
+ * stereo path, one blit into the XR framebuffer. Measured with the spike
+ * (dev/webxr-spike.html) on Quest 3 + Link with a laptop RTX 2060: single-pass
+ * + VR profile at framebuffer scale 0.6 holds 72 fps at ~3 ms CPU.
+ *
+ *   window.BimXR = { isSupported, enter, exit, isActive, getSettings,
+ *                    setSettings(patch), defaults, onSettings(fn), getQuality,
+ *                    setQuality, on(enter|frame|exit, fn), toWorldVec, notice }
+ *   Settings form: webxr-settings.js.
+ *   Movement lives in webxr-locomotion.js (changes the reference frame).
+ *
+ * - Button "VR" in the bottom toolbar (and the panel rail), shown only when
+ *   navigator.xr reports immersive-vr (checked again on devicechange).
+ * - Enter: ends walk mode, camera flights, gizmo and measuring; switches to
+ *   the VR profile (no HDR, MSAA, post-processing, shadows, atmosphere, sky,
+ *   sun, moon, eye dome lighting); stands on the ground below the camera
+ *   when that is less than 1 km below, else hovers at the camera position;
+ *   from more than 5 km (globe view) 300 m above the screen centre.
+ * - ?xrdebug=1: log of messages, errors, XR layer and first frames on the
+ *   page after leaving VR (for headset browsers without remote console).
+ * - Exit: Y (left controller) held 1 s, the system menu, or the button on the
+ *   monitor; restores camera, render loop and every changed setting.
+ * - Right trigger: fps label in front of the eyes on/off. Right stick press:
+ *   quality Sharp (resolution from the settings) ↔ Calm (0.2 lower), remembered.
+ *
+ * Uses private Cesium parts (scene.context._gl, frustum offsets, the stereo
+ * path of scene.useWebVR) — check after every Cesium update.
+ * ?xr=emulate (localhost only): Meta's IWER emulates a Quest 3 without headset.
+ */
+(function() {
+  'use strict';
+
+  var EYE_HEIGHT = 1.6;   // m above the ground for local-floor
+  var NEAR = 0.2;         // m
+  var STAND_MAX_ABOVE = 1000; // m: closer to the ground, VR starts standing on it
+  var MIN_GROUND = -500;      // m: lower ground heights are coarse-tile nonsense
+  var FAR_START = 5000;       // m above ground: farther away, VR starts above the screen centre
+  var FAR_START_HOVER = 300;  // m above ground there
+  // VR settings (webxr-settings.js shows them), per browser. Defaults from the
+  // Quest 3 + Link tests on a laptop RTX 2060: resolution 0.8 + FXAA looks
+  // clearly better than 0.6 at full rate; without smoothing the edges flicker.
+  var SETTINGS_KEY = 'geobim.xr.settings';
+  var DEFAULTS = {
+    scale: 0.8,           // framebuffer scale of the "Sharp" stage
+    smoothing: 'fxaa',    // off | fxaa | msaa2 | msaa4
+    detail: 2,            // tileset screen-space error × this while in VR
+    turn: 'snap30',       // snap30 | snap45 | smooth
+    speed: 1,             // flying speed factor
+    pitch: 'deadzone',    // level | deadzone (±15°) | free
+    vignette: true,       // darker edges while moving
+    teleport: 'arc'       // arc | beam
+  };
+  var CHOICES = {
+    smoothing: ['off', 'fxaa', 'msaa2', 'msaa4'], detail: [1, 2, 4],
+    turn: ['snap30', 'snap45', 'smooth'], pitch: ['level', 'deadzone', 'free'], teleport: ['arc', 'beam']
+  };
+  // Two stages switched in the headset with a press on the right stick:
+  // Sharp = the resolution from the settings, Calm = 0.2 lower (more fps).
+  // At ~36 fps Link reprojects every second frame (ASW): the scene wobbles
+  // like hot air, Calm can avoid that in light scenes.
+  var QUALITY_KEY = 'geobim.xr.quality';
+  var QUALITY_NAMES = ['Calm', 'Sharp'];
+  var DEFAULT_QUALITY = 1;
+  var EXIT_HOLD_MS = 1000;
+  var NOTICE_MS = 3000;
+  var settingsListeners = [];
+
+  function getSettings() {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) {}
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(k) {
+      var v = s[k], d = DEFAULTS[k];
+      if (CHOICES[k]) out[k] = CHOICES[k].indexOf(v) !== -1 ? v : d;
+      else if (typeof d === 'number') out[k] = typeof v === 'number' && isFinite(v) ? v : d;
+      else out[k] = typeof v === typeof d ? v : d;
+    });
+    out.scale = Math.min(1, Math.max(0.5, out.scale));
+    out.speed = Math.min(4, Math.max(0.25, out.speed));
+    return out;
+  }
+
+  // Remembered; while in VR resolution, smoothing and detail apply at once
+  function setSettings(patch) {
+    var s = getSettings();
+    Object.keys(patch || {}).forEach(function(k) { if (k in DEFAULTS) s[k] = patch[k]; });
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
+    s = getSettings();
+    if (xr) {
+      applyQuality(xr.quality);
+      applyDetail(s.detail);
+    }
+    settingsListeners.forEach(function(fn) { try { fn(s); } catch (e) {} });
+    return s;
+  }
+
+  function stageScale(i) {
+    var s = getSettings().scale;
+    return i === 1 ? s : Math.max(0.4, Math.round((s - 0.2) * 10) / 10);
+  }
+
+  function getQuality() {
+    var i;
+    try { i = parseInt(localStorage.getItem(QUALITY_KEY), 10); } catch (e) {}
+    return QUALITY_NAMES[i] ? i : DEFAULT_QUALITY;
+  }
+
+  // Remembered; while in VR applied at once (a new XR layer for the scale)
+  function setQuality(i) {
+    i = QUALITY_NAMES[i] ? i : DEFAULT_QUALITY;
+    try { localStorage.setItem(QUALITY_KEY, String(i)); } catch (e) {}
+    if (xr) {
+      applyQuality(i);
+      notice('Quality: ' + QUALITY_NAMES[i] + ' (' + xr.scale + ')');
+    }
+    return i;
+  }
+
+  function applyQuality(i) {
+    var s = getSettings(), scale = stageScale(i);
+    xr.quality = i;
+    scene.postProcessStages.fxaa.enabled = s.smoothing === 'fxaa';
+    scene.msaaSamples = s.smoothing === 'msaa4' ? 4 : s.smoothing === 'msaa2' ? 2 : 1;
+    if (xr.scale !== scale) {
+      var first = xr.scale === undefined;
+      xr.scale = scale;
+      if (first) return; // enter() creates the first layer
+      var layer = new XRWebGLLayer(xr.session, gl, { antialias: false, framebufferScaleFactor: scale });
+      xr.session.updateRenderState({ baseLayer: layer });
+    }
+  }
+
+  // Coarser tiles in the headset: the model is the cost (iTwin demo 20-25
+  // fps against 36 in an empty scene)
+  function applyDetail(factor) {
+    xr.saved.profile.sse.forEach(function(e) {
+      if (!e[0].isDestroyed()) e[0].maximumScreenSpaceError = e[1] * factor;
+    });
+  }
+
+  // Short text in front of the eyes (the fps label)
+  function notice(text) {
+    xr.notice = text;
+    xr.noticeUntil = performance.now() + NOTICE_MS;
+  }
+
+  var viewer, scene, gl;
+  var xr = null;          // active session state
+  // Other VR modules: enter(ctx) after the VR profile, frame(ctx) before
+  // every render, exit() before the settings come back
+  var hooks = { enter: [], frame: [], exit: [] };
+
+  function callHooks(list, ctx) {
+    list.forEach(function(fn) {
+      try { fn(ctx); } catch (e) { console.error('[webxr] hook failed', e); }
+    });
+  }
+  var supported = false;
+  var btn = null, overlay = null;
+
+  function status(text, type) {
+    if (window.BimViewer && typeof BimViewer.updateStatus === 'function') BimViewer.updateStatus(text, type || 'info');
+    console.log('[webxr] ' + text);
+    dlog(text);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ?xrdebug=1: a log on the page (for headsets without remote console, e.g.
+  // the Quest Browser): messages, errors, XR layer and the first frames.
+  // Shown after leaving VR.
+  // ---------------------------------------------------------------------------
+  var DEBUG = new URLSearchParams(location.search).get('xrdebug') === '1';
+  var debugLines = [], debugBox = null;
+
+  function dlog(text) {
+    if (!DEBUG) return;
+    var t = new Date().toISOString().slice(11, 23);
+    debugLines.push(t + '  ' + text);
+    if (debugLines.length > 300) debugLines.shift();
+    if (debugBox) debugBox.querySelector('pre').textContent = debugLines.join('\n');
+  }
+
+  function showDebug() {
+    if (!DEBUG) return;
+    if (!debugBox) {
+      debugBox = document.createElement('div');
+      debugBox.className = 'xr-debug';
+      debugBox.innerHTML = '<div class="xr-debug-head"><span>VR debug log</span>' +
+        '<button type="button" class="xr-debug-close" aria-label="Close debug log"><i data-lucide="x"></i></button></div><pre></pre>';
+      debugBox.querySelector('.xr-debug-close').addEventListener('click', function() { debugBox.classList.remove('visible'); });
+      document.body.appendChild(debugBox);
+      if (window.lucide) lucide.createIcons();
+    }
+    debugBox.querySelector('pre').textContent = debugLines.join('\n');
+    debugBox.classList.add('visible');
+  }
+
+  if (DEBUG) {
+    window.addEventListener('error', function(e) { dlog('ERROR ' + e.message + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+    window.addEventListener('unhandledrejection', function(e) { dlog('REJECTED ' + (e.reason && e.reason.message || e.reason)); });
+  }
+
+  // Layer, views and the first frames: what the headset browser hands us
+  function debugFrame(layer, target, pose, vpL, vpR, w2, h) {
+    if (!DEBUG || xr.debugFrames >= 3) return;
+    xr.debugFrames = (xr.debugFrames || 0) + 1;
+    var a = gl.getContextAttributes();
+    if (xr.debugFrames === 1) {
+      dlog('context: WebGL2 ' + (gl instanceof WebGL2RenderingContext) + ', antialias ' + a.antialias + ', alpha ' + a.alpha +
+        ', MAX_RENDERBUFFER ' + gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) + ', MAX_TEXTURE ' + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      dlog('layer: framebuffer ' + (target ? 'yes' : 'null') + ', size ' + layer.framebufferWidth + '×' + layer.framebufferHeight +
+        ', antialias ' + layer.antialias + ', views ' + pose.views.length + ' (' + pose.views.map(function(v) { return v.eye; }).join('/') + ')');
+      dlog('viewports: L ' + JSON.stringify(vpL) + ' R ' + JSON.stringify(vpR));
+      var t = viewTans(pose.views[0]);
+      dlog('left eye tan: l ' + t.left.toFixed(3) + ' r ' + t.right.toFixed(3) + ' b ' + t.bottom.toFixed(3) + ' t ' + t.top.toFixed(3));
+      var c = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+      dlog('camera: ' + (c ? Cesium.Math.toDegrees(c.longitude).toFixed(5) + ', ' + Cesium.Math.toDegrees(c.latitude).toFixed(5) + ', h ' + c.height.toFixed(1) + ' m' : 'n/a') +
+        ', heading ' + Cesium.Math.toDegrees(viewer.camera.heading).toFixed(1) + '°, pitch ' + Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(1) + '°');
+    }
+    // centre pixel of each eye in the canvas (did the scene render?)
+    var px = new Uint8Array(4), out = [];
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, xr.resolve ? xr.resolve.fb : null);
+    [vpL.width / 2, vpL.width + vpR.width / 2].forEach(function(x) {
+      gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      out.push(Array.from(px.slice(0, 3)).join(','));
+    });
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    var fbStatus = '';
+    if (target) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+      fbStatus = ', target status 0x' + gl.checkFramebufferStatus(gl.FRAMEBUFFER).toString(16);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    dlog('frame ' + xr.debugFrames + ': canvas ' + scene.canvas.width + '×' + scene.canvas.height + ' (drawing buffer ' +
+      gl.drawingBufferWidth + '×' + gl.drawingBufferHeight + '), centre RGB L ' + out[0] + ' R ' + out[1] +
+      ', glError 0x' + gl.getError().toString(16) + fbStatus + ', tiles loaded ' + scene.globe.tilesLoaded);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reference frame: ENU at the start position, rotated by the camera heading.
+  // XR local-floor: x right, y up, -z forward.
+  // ---------------------------------------------------------------------------
+  function groundHeight(carto) {
+    var h;
+    try { h = scene.sampleHeightSupported ? scene.sampleHeight(carto) : undefined; } catch (e) {}
+    if (h === undefined) h = scene.globe.getHeight(carto);
+    // coarse terrain tiles (camera far away) give nonsense like −18 km
+    return h !== undefined && h > MIN_GROUND ? h : undefined;
+  }
+
+  // Close to the ground: stand on it (model roof or terrain below the
+  // camera). Higher up: hover at the camera position. From far away (the
+  // globe view the app starts with, 10 000 km): hover 300 m above the point in
+  // the middle of the screen — before, VR showed only the empty sky there.
+  function makeFrame() {
+    var cam = viewer.camera;
+    var carto = Cesium.Cartographic.clone(cam.positionCartographic);
+    var ground = groundHeight(Cesium.Cartographic.clone(carto));
+    var stand = ground !== undefined && ground < carto.height && carto.height - ground < STAND_MAX_ABOVE;
+    var height = stand ? ground : carto.height - EYE_HEIGHT;
+    if (!stand && carto.height - (ground || 0) > FAR_START) {
+      var c = scene.canvas;
+      var centre = new Cesium.Cartesian2((c.clientWidth || c.width) / 2, (c.clientHeight || c.height) / 2);
+      var ray = centre.x > 0 && cam.getPickRay(centre);
+      var hit = ray ? scene.globe.pick(ray, scene) || cam.pickEllipsoid(centre) : undefined;
+      var target = hit ? Cesium.Cartographic.fromCartesian(hit) : carto; // else: below the camera
+      var g = groundHeight(Cesium.Cartographic.clone(target));
+      carto = new Cesium.Cartographic(target.longitude, target.latitude, 0);
+      height = (g !== undefined ? g : (hit ? target.height : 0)) + FAR_START_HOVER;
+      dlog('far start: camera ' + Math.round(cam.positionCartographic.height) + ' m up, VR hovers ' + FAR_START_HOVER +
+        ' m above ' + Cesium.Math.toDegrees(target.longitude).toFixed(5) + ', ' + Cesium.Math.toDegrees(target.latitude).toFixed(5));
+    }
+    var origin = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, height);
+    var enu = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+    var east = Cesium.Matrix4.getColumn(enu, 0, new Cesium.Cartesian4());
+    var north = Cesium.Matrix4.getColumn(enu, 1, new Cesium.Cartesian4());
+    var up = Cesium.Matrix4.getColumn(enu, 2, new Cesium.Cartesian4());
+    var h = cam.heading; // compass: 0 = north, clockwise
+    var c = Math.cos(h), s = Math.sin(h);
+    return {
+      origin: origin,
+      right: new Cesium.Cartesian3(east.x * c - north.x * s, east.y * c - north.y * s, east.z * c - north.z * s),
+      up: new Cesium.Cartesian3(up.x, up.y, up.z),
+      fwd: new Cesium.Cartesian3(north.x * c + east.x * s, north.y * c + east.y * s, north.z * c + east.z * s)
+    };
+  }
+
+  // XR reference-space vector → world vector
+  function toWorldVec(f, x, y, z, out) {
+    out.x = f.right.x * x + f.up.x * y - f.fwd.x * z;
+    out.y = f.right.y * x + f.up.y * y - f.fwd.y * z;
+    out.z = f.right.z * x + f.up.z * y - f.fwd.z * z;
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Asymmetric eye frusta. Cesium's PerspectiveFrustum.clone does not copy
+  // xOffset/yOffset, and Scene moves `near` per frustum: the offsets are kept
+  // as ratios of near via accessor properties on the frustum and every clone
+  // (else double vision in the headset). Undone on exit.
+  // ---------------------------------------------------------------------------
+  var asymFrusta = [];
+
+  function makeAsymmetric(fr, xRatio, yRatio) {
+    if (!fr._xrAsym) {
+      asymFrusta.push(fr);
+      var proto = Object.getPrototypeOf(fr);
+      Object.defineProperty(fr, 'xOffset', {
+        configurable: true,
+        get: function() { return this.near * this._xRatio; },
+        set: function(v) { this._xRatio = this.near ? v / this.near : 0; }
+      });
+      Object.defineProperty(fr, 'yOffset', {
+        configurable: true,
+        get: function() { return this.near * this._yRatio; },
+        set: function(v) { this._yRatio = this.near ? v / this.near : 0; }
+      });
+      fr.clone = function(result) {
+        var c = proto.clone.call(this, result);
+        makeAsymmetric(c, this._xRatio, this._yRatio);
+        return c;
+      };
+      fr._xrAsym = true;
+    }
+    fr._xRatio = xRatio;
+    fr._yRatio = yRatio;
+  }
+
+  function undoAsymmetric() {
+    asymFrusta.forEach(function(fr) {
+      delete fr.xOffset;
+      delete fr.yOffset;
+      delete fr.clone;
+      delete fr._xrAsym;
+      fr.xOffset = 0;
+      fr.yOffset = 0;
+      fr._xOffset = undefined; // PerspectiveFrustum recomputes when these differ
+      fr._yOffset = undefined;
+    });
+    asymFrusta = [];
+  }
+
+  // Projection of one XRView as tangents of its frustum edges
+  function viewTans(view) {
+    var p = view.projectionMatrix;
+    return {
+      right: (1 + p[8]) / p[0], left: (p[8] - 1) / p[0],
+      top: (1 + p[9]) / p[5], bottom: (p[9] - 1) / p[5]
+    };
+  }
+
+  var tmpV = new Cesium.Cartesian3(), tmpD = new Cesium.Cartesian3(), tmpU = new Cesium.Cartesian3();
+  var tmpL = new Cesium.Cartesian3(), tmpR = new Cesium.Cartesian3();
+
+  function orientCamera(f, m) {
+    var cam = viewer.camera;
+    toWorldVec(f, -m[8], -m[9], -m[10], tmpD);           // view -z
+    Cesium.Cartesian3.normalize(tmpD, cam.direction);
+    toWorldVec(f, m[4], m[5], m[6], tmpU);               // view +y
+    Cesium.Cartesian3.normalize(tmpU, cam.up);
+    Cesium.Cartesian3.cross(cam.direction, cam.up, cam.right);
+    Cesium.Cartesian3.normalize(cam.right, cam.right);
+  }
+
+  function setFov(t) {
+    var fr = viewer.camera.frustum;
+    var hw = (t.right - t.left) / 2, hh = (t.top - t.bottom) / 2;
+    fr.aspectRatio = hw / hh;
+    fr.fov = 2 * Math.atan(fr.aspectRatio >= 1 ? hw : hh);
+    fr.near = NEAR;
+    return fr;
+  }
+
+  // One eye (fallback when the session does not give exactly two views)
+  function setEyeCamera(f, view) {
+    var m = view.transform.matrix;
+    toWorldVec(f, m[12], m[13], m[14], tmpV);
+    Cesium.Cartesian3.add(f.origin, tmpV, viewer.camera.position);
+    orientCamera(f, m);
+    var t = viewTans(view);
+    makeAsymmetric(setFov(t), (t.right + t.left) / 2, (t.top + t.bottom) / 2);
+  }
+
+  // Single pass: camera at the midpoint of both eyes, oriented like the left
+  // eye. Cesium's stereo path renders the left half at
+  // position + right·eyeSeparation/2 with xOffset = 0.5·eyeSeparation·near/fo
+  // (fo = near·focalLength), the right half mirrored. eyeSeparation = −IPD
+  // puts the left eye left; focalLength makes the offset match the left
+  // eye's frustum asymmetry (the right one is its mirror image on headsets).
+  function setStereoCamera(f, left, right) {
+    var mL = left.transform.matrix, mR = right.transform.matrix;
+    toWorldVec(f, mL[12], mL[13], mL[14], tmpL);
+    toWorldVec(f, mR[12], mR[13], mR[14], tmpR);
+    var ipd = Cesium.Cartesian3.distance(tmpL, tmpR);
+    Cesium.Cartesian3.add(f.origin, Cesium.Cartesian3.midpoint(tmpL, tmpR, tmpV), viewer.camera.position);
+    orientCamera(f, mL);
+    var t = viewTans(left);
+    var xRatioL = (t.right + t.left) / 2;
+    // culling of the shared pass uses the symmetric centre frustum
+    makeAsymmetric(setFov(t), 0, (t.top + t.bottom) / 2);
+    scene.eyeSeparation = -ipd;
+    scene.focalLength = Math.abs(xRatioL) > 1e-6 ? -ipd / (2 * NEAR * xRatioL) : 1e9;
+  }
+
+  function sizeCanvas(w, h) {
+    var c = scene.canvas;
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // VR profile: everything that costs extra full-screen passes goes off and
+  // comes back on exit
+  // ---------------------------------------------------------------------------
+  function eachTileset(fn) {
+    var p = scene.primitives;
+    for (var i = 0; i < p.length; i++) {
+      var prim = p.get(i);
+      if (prim instanceof Cesium.Cesium3DTileset) fn(prim);
+    }
+  }
+
+  function applyProfile() {
+    var saved = {
+      highDynamicRange: scene.highDynamicRange, msaaSamples: scene.msaaSamples,
+      requestRenderMode: scene.requestRenderMode, shadows: scene.shadowMap.enabled,
+      skyAtmosphere: scene.skyAtmosphere && scene.skyAtmosphere.show,
+      groundAtmosphere: scene.globe.showGroundAtmosphere,
+      skyBox: scene.skyBox && scene.skyBox.show, sun: scene.sun && scene.sun.show, moon: scene.moon && scene.moon.show,
+      backgroundColor: Cesium.Color.clone(scene.backgroundColor),
+      fxaa: scene.postProcessStages.fxaa.enabled,
+      ao: scene.postProcessStages.ambientOcclusion.enabled, bloom: scene.postProcessStages.bloom.enabled,
+      stages: [], edl: [], sse: []
+    };
+    scene.highDynamicRange = false;
+    scene.msaaSamples = 1;
+    scene.requestRenderMode = false;
+    scene.shadowMap.enabled = false;
+    if (scene.skyAtmosphere) scene.skyAtmosphere.show = false;
+    scene.globe.showGroundAtmosphere = false;
+    if (scene.skyBox) scene.skyBox.show = false;
+    if (scene.sun) scene.sun.show = false;
+    if (scene.moon) scene.moon.show = false;
+    scene.backgroundColor = Cesium.Color.fromCssColorString('#9ec3dc'); // plain sky
+    scene.postProcessStages.fxaa.enabled = false;
+    scene.postProcessStages.ambientOcclusion.enabled = false;
+    scene.postProcessStages.bloom.enabled = false;
+    var stages = scene.postProcessStages;
+    for (var i = 0; i < stages.length; i++) {
+      var st = stages.get(i);
+      saved.stages.push([st, st.enabled]);
+      st.enabled = false;
+    }
+    eachTileset(function(ts) {
+      // Coarser tiles: in the headset a model like the iTwin demo is the GPU
+      // cost (empty scene 36 fps, iModel 20-25 at the same settings)
+      saved.sse.push([ts, ts.maximumScreenSpaceError]);
+      ts.maximumScreenSpaceError = ts.maximumScreenSpaceError * getSettings().detail;
+      if (ts.pointCloudShading && ts.pointCloudShading.eyeDomeLighting) {
+        saved.edl.push(ts);
+        ts.pointCloudShading.eyeDomeLighting = false;
+      }
+    });
+    return saved;
+  }
+
+  function restoreProfile(s) {
+    scene.highDynamicRange = s.highDynamicRange;
+    scene.msaaSamples = s.msaaSamples;
+    scene.requestRenderMode = s.requestRenderMode;
+    scene.shadowMap.enabled = s.shadows;
+    if (scene.skyAtmosphere) scene.skyAtmosphere.show = s.skyAtmosphere;
+    scene.globe.showGroundAtmosphere = s.groundAtmosphere;
+    if (scene.skyBox) scene.skyBox.show = s.skyBox;
+    if (scene.sun) scene.sun.show = s.sun;
+    if (scene.moon) scene.moon.show = s.moon;
+    scene.backgroundColor = s.backgroundColor;
+    scene.postProcessStages.fxaa.enabled = s.fxaa;
+    scene.postProcessStages.ambientOcclusion.enabled = s.ao;
+    scene.postProcessStages.bloom.enabled = s.bloom;
+    s.stages.forEach(function(e) { if (!e[0].isDestroyed()) e[0].enabled = e[1]; });
+    s.edl.forEach(function(ts) { if (!ts.isDestroyed()) ts.pointCloudShading.eyeDomeLighting = true; });
+    s.sse.forEach(function(e) { if (!e[0].isDestroyed()) e[0].maximumScreenSpaceError = e[1]; });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Session
+  // ---------------------------------------------------------------------------
+  async function enter() {
+    if (xr) return;
+    if (!supported) { status('VR is not available here', 'error'); return; }
+    viewer = BimViewer.viewer;
+    scene = viewer.scene;
+    gl = scene.context._gl; // private: the WebGL context the XR layer must share
+    if (!(gl instanceof WebGL2RenderingContext)) { status('VR needs WebGL2', 'error'); return; }
+
+    if (typeof BimViewer.deactivateAllTools === 'function') { try { BimViewer.deactivateAllTools(); } catch (e) {} }
+    if (BimViewer.isCameraFlightActive && BimViewer.isCameraFlightActive()) BimViewer.stopCameraFlight();
+
+    var quality = getQuality(), scale = stageScale(quality);
+    // Where the time goes from the click to the first image (console)
+    var timing = { start: performance.now() }, mark = function(name) { timing[name] = performance.now(); };
+    var session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    mark('session');
+    var refSpace, step = 'makeXRCompatible';
+    // Any failure from here on must end the session, or it stays open in the
+    // headset ("loading") and blocks every further requestSession
+    try {
+      await (compatible || makeCompatible()); // usually done in advance (prewarm)
+      mark('compatible');
+      step = 'XRWebGLLayer';
+      var layer = new XRWebGLLayer(session, gl, { antialias: false, framebufferScaleFactor: scale });
+      step = 'updateRenderState';
+      session.updateRenderState({ baseLayer: layer, depthNear: NEAR, depthFar: 1e7 });
+      mark('layer');
+      step = 'requestReferenceSpace';
+      try { refSpace = await session.requestReferenceSpace('local-floor'); }
+      catch (e) { refSpace = await session.requestReferenceSpace('local'); }
+      mark('refSpace');
+      step = 'start position';
+      var startFrame = makeFrame();
+    } catch (e) {
+      try { await session.end(); } catch (_) {}
+      throw new Error(step + ': ' + e.message);
+    }
+
+    var cam = viewer.camera;
+    xr = {
+      session: session, refSpace: refSpace, frame: startFrame, scale: scale,
+      saved: {
+        position: Cesium.Cartesian3.clone(cam.position), direction: Cesium.Cartesian3.clone(cam.direction),
+        up: Cesium.Cartesian3.clone(cam.up), right: Cesium.Cartesian3.clone(cam.right), frustum: cam.frustum.clone(),
+        profile: applyProfile(), inputs: scene.screenSpaceCameraController.enableInputs
+      },
+      frames: 0, renderMs: 0, lastReport: performance.now(), fps: 0, exitHeld: 0, showFps: false,
+      stickDown: false, notice: '', noticeUntil: 0, timing: timing
+    };
+    applyQuality(quality);
+    scene.screenSpaceCameraController.enableInputs = false;
+    viewer.useDefaultRenderLoop = false;
+    scene.useWebVR = true; // private-ish: Cesium's side-by-side stereo path
+    xr.labels = scene.primitives.add(new Cesium.LabelCollection());
+    xr.fpsLabel = xr.labels.add({
+      text: '', show: false, font: '28px sans-serif', fillColor: Cesium.Color.fromCssColorString('#2ECFB0'),
+      outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY, scale: 0.5
+    });
+
+    session.addEventListener('end', onEnd);
+    session.addEventListener('selectstart', function(ev) {
+      if (ev.inputSource.handedness === 'right' && xr) xr.showFps = !xr.showFps;
+    });
+    setActiveUI(true);
+    callHooks(hooks.enter, { session: session, refSpace: refSpace, ref: xr.frame, scene: scene, viewer: viewer });
+    notice('Quality: ' + QUALITY_NAMES[quality] + ' · right stick press: switch');
+    status('VR active — hold Y on the left controller to exit', 'success');
+    if (typeof plausible !== 'undefined') plausible('Feature Used', { props: { feature: 'VR' } });
+    session.requestAnimationFrame(onFrame);
+  }
+
+  function exit() {
+    if (xr) return xr.session.end().catch(function() { onEnd(); });
+  }
+
+  // A render error repeats every frame: report the first one and end the
+  // session instead of leaving the headset on "loading"
+  function onFrame(t, frame) {
+    if (!xr) return;
+    try {
+      renderFrame(frame, t);
+    } catch (e) {
+      console.error('[webxr] frame failed', e);
+      dlog('FRAME FAILED ' + e.message + (e.stack ? '\n' + e.stack.split('\n').slice(0, 4).join('\n') : ''));
+      var msg = 'VR stopped: ' + e.message;
+      xr.session.end().catch(function() {});
+      setTimeout(function() { status(msg, 'error'); }, 0);
+    }
+  }
+
+  function pressed(src, i) {
+    return !!(src.gamepad && src.gamepad.buttons[i] && src.gamepad.buttons[i].pressed);
+  }
+
+  function pollInput(session) {
+    var held = false, stick = false;
+    session.inputSources.forEach(function(src) {
+      // xr-standard: buttons[3] = stick press, buttons[5] = B / Y
+      if (src.handedness === 'left' && pressed(src, 5)) held = true;
+      if (src.handedness === 'right' && pressed(src, 3)) stick = true;
+    });
+    if (stick && !xr.stickDown) setQuality((xr.quality + 1) % QUALITY_NAMES.length);
+    xr.stickDown = stick;
+    var now = performance.now();
+    if (!held) { xr.exitHeld = 0; return; }
+    if (!xr.exitHeld) xr.exitHeld = now;
+    else if (now - xr.exitHeld > EXIT_HOLD_MS) { xr.exitHeld = 0; session.end(); }
+  }
+
+  function renderFrame(frame, t) {
+    var session = frame.session;
+    session.requestAnimationFrame(onFrame);
+    pollInput(session);
+    var layer = session.renderState.baseLayer;
+    var target = layer.framebuffer; // null in emulators: draw straight into the canvas
+    var pose = frame.getViewerPose(xr.refSpace);
+    if (!pose) {
+      // tracking not ready: still hand the compositor a frame
+      if (target) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+        gl.clearColor(0.1, 0.1, 0.12, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+      return;
+    }
+    var t0 = performance.now();
+    viewer.clock.tick();
+    scene.initializeFrame();
+    var time = viewer.clock.currentTime;
+    // Movement modules (webxr-locomotion.js) change xr.frame before the render
+    var dt = xr.lastT ? Math.min(0.1, (t - xr.lastT) / 1000) : 0;
+    xr.lastT = t;
+    var ctx = { frame: frame, pose: pose, session: session, refSpace: xr.refSpace, ref: xr.frame, dt: dt, scene: scene };
+    hooks.frame.forEach(function(fn) { fn(ctx); }); // errors end the session (onFrame)
+    placeFpsLabel(pose);
+
+    var views = pose.views;
+    scene.useWebVR = views.length === 2;
+    if (views.length === 2) {
+      var iL = views[0].eye === 'right' ? 1 : 0, vL = views[iL], vR = views[1 - iL];
+      var vpL, vpR;
+      if (target) {
+        vpL = layer.getViewport(vL); vpR = layer.getViewport(vR);
+      } else {
+        // The emulated layer derives its viewport from the canvas size, which
+        // this module doubles: keep the first one
+        if (!xr.emuVp) { var v0 = layer.getViewport(vL); xr.emuVp = { width: v0.width, height: v0.height }; }
+        vpL = { x: 0, y: 0, width: xr.emuVp.width, height: xr.emuVp.height };
+        vpR = { x: vpL.width, y: 0, width: vpL.width, height: vpL.height };
+      }
+      var w2 = vpL.width + vpR.width, h = vpL.height;
+      sizeCanvas(w2, h);
+      setStereoCamera(xr.frame, vL, vR);
+      scene.render(time); // both eyes, side by side
+      if (target) blitStereo(target, vpL, vpR, w2, h);
+      debugFrame(layer, target, pose, vpL, vpR, w2, h);
+    } else {
+      // not a stereo headset: one full render per view
+      views.forEach(function(view) {
+        var vp = layer.getViewport(view);
+        sizeCanvas(vp.width, vp.height);
+        setEyeCamera(xr.frame, view);
+        scene.render(time);
+        if (target) blitStereo(target, vp, { x: vp.width, y: vp.y, width: 0, height: vp.height }, vp.width, vp.height);
+      });
+    }
+    xr.renderMs += performance.now() - t0;
+    xr.frames++;
+    if (xr.timing) logTiming(performance.now());
+    report();
+  }
+
+  function logTiming(now) {
+    var t = xr.timing, s = t.start, f = function(v) { return v === undefined ? '-' : Math.round(v - s) + ' ms'; };
+    var line = 'start: session ' + f(t.session) + ', XR-compatible ' + f(t.compatible) +
+      ', layer ' + f(t.layer) + ', reference space ' + f(t.refSpace) + ', first image ' + f(now) +
+      (prewarmMs !== null ? ' (context made XR-compatible in advance: ' + prewarmMs + ' ms)' : '');
+    console.log('[webxr] ' + line);
+    dlog(line);
+    xr.timing = null;
+  }
+
+  function blit(read, draw, sx, sy, w, h, dx, dy) {
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
+    gl.blitFramebuffer(sx, sy, sx + w, sy + h, dx, dy, dx + w, dy + h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); // Cesium expects the default framebuffer bound
+  }
+
+  // Canvas (both eyes side by side) → XR framebuffer. The app's canvas is
+  // multisampled (core.js keeps the context's antialias, 4 samples): a blit
+  // out of it must keep rectangle and format exactly, so it is resolved into
+  // an own texture first. Its format depends on the browser (Chrome on
+  // Windows: RGB8; the Quest Browser gave GL_INVALID_OPERATION with RGB8), so
+  // the formats are tried once until one works. Into the XR framebuffer a
+  // blit is not allowed if the headset browser made it multisampled — then
+  // the texture is drawn as a full-screen quad instead.
+  var RESOLVE_FORMATS = ['RGB8', 'RGBA8', 'SRGB8_ALPHA8', 'RGB565'];
+  var resolveFormat = 0, resolveChecked = false; // kept across sessions
+  var copyMode = null, copyProgram = null;       // 'blit' | 'quad'
+
+  function blitStereo(target, vpL, vpR, w2, h) {
+    var src = null;
+    if (!w2 || !h) return;
+    if (gl.getContextAttributes().antialias) {
+      src = resolveBuffer(w2, h);
+      if (!resolveChecked) gl.getError(); // only this blit's error counts
+      blit(null, src, 0, 0, w2, h, 0, 0);
+      if (!resolveChecked) {
+        var err = gl.getError();
+        if (!err) {
+          resolveChecked = true;
+          dlog('resolve: ' + RESOLVE_FORMATS[resolveFormat] + ' works');
+        } else if (err !== gl.INVALID_OPERATION) {
+          dlog('resolve: 0x' + err.toString(16) + ' (not a format mismatch), trying again');
+        } else if (resolveFormat < RESOLVE_FORMATS.length - 1) {
+          dlog('resolve: ' + RESOLVE_FORMATS[resolveFormat] + ' failed (0x' + err.toString(16) + '), trying the next format');
+          resolveFormat++;
+          dropResolve();
+          return; // the next frame tries again
+        } else {
+          resolveChecked = true;
+          dlog('resolve: no format works');
+        }
+      }
+    }
+    if (!copyMode) copyMode = chooseCopyMode(target);
+    if (copyMode === 'quad' && src) { drawQuads(target, vpL, vpR, w2, h); return; }
+    if (!xr.copyChecked) gl.getError();
+    var sideBySide = vpL.x === 0 && vpL.y === 0 && vpR.x === vpL.width && vpR.y === 0 && vpR.height === h;
+    if (sideBySide) blit(src, target, 0, 0, w2, h, 0, 0);
+    else {
+      blit(src, target, 0, 0, vpL.width, h, vpL.x, vpL.y);
+      blit(src, target, vpL.width, 0, vpR.width, h, vpR.x, vpR.y);
+    }
+    if (!xr.copyChecked) {
+      xr.copyChecked = true;
+      var e2 = gl.getError();
+      if (e2 && src) {
+        dlog('copy: blit into the XR framebuffer failed (0x' + e2.toString(16) + '), switching to quads');
+        copyMode = 'quad';
+      }
+    }
+  }
+
+  // A multisampled XR framebuffer cannot be the target of a blit
+  function chooseCopyMode(target) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    var samples = gl.getParameter(gl.SAMPLES);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var mode = samples > 0 ? 'quad' : 'blit';
+    dlog('copy: XR framebuffer samples ' + samples + ' → ' + mode);
+    return mode;
+  }
+
+  // ?xrdebug=1 only: copy the current canvas into a stand-in XR framebuffer
+  // (multisampled like the Quest Browser's, or plain) and read both eyes back
+  function copyTest(multisampled) {
+    if (!xr) return 'not in VR';
+    sizeCanvas(1200, 600);
+    scene.render(viewer.clock.currentTime);
+    var c = scene.canvas, w2 = c.width, h = c.height, w = w2 / 2;
+    var fb = gl.createFramebuffer(), rb = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+    if (multisampled) gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, gl.RGBA8, w2 + 64, h + 32);
+    else gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w2 + 64, h + 32);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var saved = { mode: copyMode, checked: xr.copyChecked };
+    copyMode = null; xr.copyChecked = false;
+    gl.getError();
+    blitStereo(fb, { x: 0, y: 0, width: w, height: h }, { x: w + 64, y: 0, width: w, height: h }, w2, h);
+    var mode = copyMode, err = gl.getError();
+    // read back: resolve the stand-in into a plain buffer
+    var out = gl.createFramebuffer(), orb = gl.createRenderbuffer(), px = new Uint8Array(4), eyes = [];
+    gl.bindRenderbuffer(gl.RENDERBUFFER, orb);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, w2 + 64, h + 32);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, out);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, orb);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+    gl.blitFramebuffer(0, 0, w2 + 64, h + 32, 0, 0, w2 + 64, h + 32, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, out);
+    [w / 2, w + 64 + w / 2].forEach(function(x) {
+      gl.readPixels(Math.floor(x), Math.floor(h / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      eyes.push(Array.from(px.slice(0, 3)).join(','));
+    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    [fb, out].forEach(function(f) { gl.deleteFramebuffer(f); });
+    [rb, orb].forEach(function(r) { gl.deleteRenderbuffer(r); });
+    copyMode = saved.mode; xr.copyChecked = saved.checked;
+    return { size: w2 + '×' + h, mode: mode, glError: err, resolve: RESOLVE_FORMATS[resolveFormat], eyes: eyes, readError: gl.getError() };
+  }
+  if (DEBUG) window.BimXRDebug = { copyTest: copyTest };
+
+  function dropResolve() {
+    var r = xr.resolve;
+    if (r) { gl.deleteFramebuffer(r.fb); gl.deleteTexture(r.tex); }
+    xr.resolve = null;
+  }
+
+  // Texture-backed, so the quad path can sample it
+  function resolveBuffer(w, h) {
+    var r = xr.resolve;
+    if (r && r.w === w && r.h === h) return r.fb;
+    dropResolve();
+    var fb = gl.createFramebuffer(), tex = gl.createTexture();
+    var prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl[RESOLVE_FORMATS[resolveFormat]], w, h);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    xr.resolve = { fb: fb, tex: tex, w: w, h: h };
+    return fb;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Quad copy: draws the resolved texture into each eye's viewport with an
+  // own tiny program. Cesium caches GL state, so everything touched is put
+  // back afterwards.
+  // ---------------------------------------------------------------------------
+  function initCopyProgram() {
+    var vs = '#version 300 es\nin vec2 p;\nuniform vec4 src;\nout vec2 uv;\n' +
+      'void main() { uv = mix(src.xy, src.zw, p * 0.5 + 0.5); gl_Position = vec4(p, 0.0, 1.0); }\n';
+    var fs = '#version 300 es\nprecision mediump float;\nin vec2 uv;\nuniform sampler2D t;\nout vec4 c;\n' +
+      'void main() { c = vec4(texture(t, uv).rgb, 1.0); }\n';
+    var prog = gl.createProgram();
+    [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]].forEach(function(s) {
+      var sh = gl.createShader(s[0]);
+      gl.shaderSource(sh, s[1]);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error('copy shader: ' + gl.getShaderInfoLog(sh));
+      gl.attachShader(prog, sh);
+    });
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('copy program: ' + gl.getProgramInfoLog(prog));
+    var prevVao = gl.getParameter(gl.VERTEX_ARRAY_BINDING), prevBuf = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+    var vao = gl.createVertexArray(), buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(prevVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, prevBuf);
+    copyProgram = { prog: prog, vao: vao, src: gl.getUniformLocation(prog, 'src'), t: gl.getUniformLocation(prog, 't') };
+  }
+
+  function drawQuads(target, vpL, vpR, w2, h) {
+    if (!copyProgram) initCopyProgram();
+    var caps = [gl.DEPTH_TEST, gl.BLEND, gl.SCISSOR_TEST, gl.CULL_FACE, gl.STENCIL_TEST];
+    var saved = {
+      prog: gl.getParameter(gl.CURRENT_PROGRAM), vao: gl.getParameter(gl.VERTEX_ARRAY_BINDING),
+      active: gl.getParameter(gl.ACTIVE_TEXTURE), viewport: gl.getParameter(gl.VIEWPORT),
+      mask: gl.getParameter(gl.COLOR_WRITEMASK), caps: caps.map(function(c) { return gl.isEnabled(c); })
+    };
+    gl.activeTexture(gl.TEXTURE0);
+    saved.tex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    caps.forEach(function(c) { gl.disable(c); });
+    gl.colorMask(true, true, true, true);
+    gl.useProgram(copyProgram.prog);
+    gl.bindVertexArray(copyProgram.vao);
+    gl.bindTexture(gl.TEXTURE_2D, xr.resolve.tex);
+    gl.uniform1i(copyProgram.t, 0);
+    [[vpL, 0, vpL.width], [vpR, vpL.width, w2]].forEach(function(e) {
+      var vp = e[0];
+      gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      gl.uniform4f(copyProgram.src, e[1] / w2, 0, e[2] / w2, 1);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    });
+    gl.bindTexture(gl.TEXTURE_2D, saved.tex);
+    gl.activeTexture(saved.active);
+    gl.bindVertexArray(saved.vao);
+    gl.useProgram(saved.prog);
+    gl.colorMask(saved.mask[0], saved.mask[1], saved.mask[2], saved.mask[3]);
+    caps.forEach(function(c, i) { if (saved.caps[i]) gl.enable(c); });
+    gl.viewport(saved.viewport[0], saved.viewport[1], saved.viewport[2], saved.viewport[3]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function placeFpsLabel(pose) {
+    var noticing = performance.now() < xr.noticeUntil;
+    xr.fpsLabel.show = xr.showFps || noticing;
+    if (noticing) xr.fpsLabel.text = xr.notice;
+    else if (xr.notice) { xr.notice = ''; xr.fpsLabel.text = xr.fpsText || ''; }
+    if (!xr.fpsLabel.show) return;
+    var m = pose.transform.matrix;
+    // 2 m in front of the head, a bit below eye level
+    var x = m[12] - m[8] * 2, y = m[13] - m[9] * 2 - 0.3, z = m[14] - m[10] * 2;
+    xr.fpsLabel.position = Cesium.Cartesian3.add(xr.frame.origin, toWorldVec(xr.frame, x, y, z, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+  }
+
+  function report() {
+    var now = performance.now();
+    if (now - xr.lastReport < 1000) return;
+    xr.fps = xr.frames / ((now - xr.lastReport) / 1000);
+    var ms = xr.renderMs / Math.max(1, xr.frames);
+    xr.fpsText = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(0) + ' ms · ' + QUALITY_NAMES[xr.quality];
+    if (!xr.notice) xr.fpsLabel.text = xr.fpsText;
+    if (overlay) {
+      overlay.querySelector('.xr-overlay-stats').textContent = xr.fps.toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms CPU · ' +
+        QUALITY_NAMES[xr.quality] + ' (scale ' + xr.scale + (scene.postProcessStages.fxaa.enabled ? ', FXAA' : '') +
+        (scene.msaaSamples > 1 ? ', MSAA ' + scene.msaaSamples : '') + ')';
+    }
+    xr.frames = 0; xr.renderMs = 0; xr.lastReport = now;
+  }
+
+  function onEnd() {
+    if (!xr) return;
+    var s = xr.saved, cam = viewer.camera;
+    callHooks(hooks.exit, {});
+    scene.useWebVR = false;
+    scene.eyeSeparation = undefined;
+    scene.focalLength = undefined;
+    undoAsymmetric();
+    cam.frustum = s.frustum;
+    Cesium.Cartesian3.clone(s.position, cam.position);
+    Cesium.Cartesian3.clone(s.direction, cam.direction);
+    Cesium.Cartesian3.clone(s.up, cam.up);
+    Cesium.Cartesian3.clone(s.right, cam.right);
+    restoreProfile(s.profile);
+    dropResolve();
+    if (!xr.labels.isDestroyed()) scene.primitives.remove(xr.labels);
+    scene.screenSpaceCameraController.enableInputs = s.inputs;
+    xr = null;
+    viewer.useDefaultRenderLoop = true;
+    viewer.resize();
+    setActiveUI(false);
+    status('VR ended', 'success');
+    showDebug();
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI: toolbar button, monitor overlay while in VR
+  // ---------------------------------------------------------------------------
+  function setActiveUI(on) {
+    if (btn) {
+      btn.classList.toggle('active', on);
+      btn.title = on ? 'Exit VR' : 'Enter VR (WebXR headset)';
+    }
+    if (on && !overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'xr-overlay';
+      overlay.innerHTML =
+        '<div class="xr-overlay-card">' +
+          '<i data-lucide="glasses"></i>' +
+          '<div class="xr-overlay-title">VR active in the headset</div>' +
+          '<div class="xr-overlay-hint">Left stick: fly · Left grip / trigger: up / down · Right stick: turn, push forward: teleport</div>' +
+          '<div class="xr-overlay-hint">Exit: hold Y · Right trigger: fps · Right stick press: quality</div>' +
+          '<div class="xr-overlay-stats"></div>' +
+          '<div class="xr-overlay-actions">' +
+            '<button type="button" class="xr-overlay-btn xr-overlay-btn-secondary" aria-expanded="false">' +
+              '<i data-lucide="sliders-horizontal"></i><span>VR settings</span></button>' +
+            '<button type="button" class="xr-overlay-btn">Exit VR</button>' +
+          '</div>' +
+          '<div class="xr-overlay-settings" hidden></div>' +
+        '</div>';
+      var buttons = overlay.querySelectorAll('.xr-overlay-btn');
+      buttons[1].addEventListener('click', exit);
+      var panel = overlay.querySelector('.xr-overlay-settings');
+      if (window.BimXRSettings) BimXRSettings.render(panel);
+      else buttons[0].hidden = true;
+      buttons[0].addEventListener('click', function() {
+        panel.hidden = !panel.hidden;
+        buttons[0].setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+      });
+      document.body.appendChild(overlay);
+      if (window.lucide) lucide.createIcons();
+    }
+    if (overlay) overlay.classList.toggle('visible', on);
+  }
+
+  function showButton() {
+    if (btn) btn.style.display = supported ? '' : 'none';
+    document.dispatchEvent(new CustomEvent('geobim:xr-support', { detail: supported }));
+  }
+
+  // Next to Walk; the toolbar is built by ui.js. Runs from a MutationObserver
+  // so the button exists before the panel UI copies the toolbar actions.
+  function addButton() {
+    var bar = document.getElementById('bottomToolbar');
+    var walk = document.getElementById('bottomWalkBtn');
+    if (!bar || !walk) return false;
+    if (document.getElementById('bottomVrBtn')) return true;
+    btn = document.createElement('button');
+    btn.className = 'bottom-toolbar-btn';
+    btn.id = 'bottomVrBtn';
+    btn.title = 'Enter VR (WebXR headset)';
+    btn.innerHTML = '<i data-lucide="glasses"></i><span class="bottom-toolbar-label">VR</span>';
+    btn.addEventListener('click', function() {
+      btn.blur();
+      if (xr) exit();
+      else enter().catch(function(e) { console.error(e); status('VR failed: ' + e.message, 'error'); showDebug(); });
+    });
+    showButton();
+    bar.insertBefore(btn, walk.nextSibling);
+    if (window.lucide) lucide.createIcons();
+    return true;
+  }
+
+  // makeXRCompatible may have to move the WebGL context to the GPU of the
+  // headset runtime, which can take seconds (core.js creates the context
+  // without xrCompatible). Done in advance as soon as a headset is there.
+  var compatible = null, prewarmMs = null;
+
+  function makeCompatible() {
+    if (compatible) return compatible;
+    var g = BimViewer.viewer && BimViewer.viewer.scene.context._gl;
+    if (!g || !g.makeXRCompatible) return Promise.resolve();
+    var t0 = performance.now();
+    compatible = g.makeXRCompatible().then(function() {
+      prewarmMs = Math.round(performance.now() - t0);
+    }, function(e) {
+      compatible = null; // try again at enter()
+      throw e;
+    });
+    return compatible;
+  }
+
+  function prewarm() {
+    if (!supported || compatible) return;
+    if (!window.BimViewer || !BimViewer.viewer) { setTimeout(prewarm, 1000); return; }
+    makeCompatible().catch(function(e) { console.warn('[webxr] prewarm failed', e); });
+  }
+
+  async function checkSupport() {
+    try { supported = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-vr'); }
+    catch (e) { supported = false; }
+    showButton();
+    prewarm();
+  }
+
+  async function installEmulator() {
+    // Meta's Immersive Web Emulation Runtime, Quest 3 with Touch controllers
+    var iwer = await import('https://cdn.jsdelivr.net/npm/iwer@2.5.0/+esm');
+    var device = new iwer.XRDevice(iwer.metaQuest3);
+    device.installRuntime({ forceInstall: true }); // Chrome has its own navigator.xr
+    device.position.set(0, EYE_HEIGHT, 0);
+    window.BimXREmulator = device;
+  }
+
+  async function init() {
+    var bar = document.getElementById('bottomToolbar');
+    if (bar && !addButton()) {
+      var obs = new MutationObserver(function() { if (addButton()) obs.disconnect(); });
+      obs.observe(bar, { childList: true });
+    }
+    var local = ['localhost', '127.0.0.1'].indexOf(location.hostname) !== -1;
+    if (local && new URLSearchParams(location.search).get('xr') === 'emulate') {
+      try { await installEmulator(); } catch (e) { console.warn('[webxr] emulator not loaded', e); }
+    }
+    if (!navigator.xr) return;
+    await checkSupport();
+    // A headset connected later (Quest Link started after loading)
+    navigator.xr.addEventListener('devicechange', checkSupport);
+  }
+
+  window.BimXR = {
+    isSupported: function() { return supported; },
+    isActive: function() { return !!xr; },
+    enter: enter,
+    exit: exit,
+    getSettings: getSettings,
+    setSettings: setSettings,
+    defaults: function() { return JSON.parse(JSON.stringify(DEFAULTS)); },
+    onSettings: function(fn) { settingsListeners.push(fn); },
+    getQuality: getQuality,
+    setQuality: setQuality,
+    // for other VR modules: BimXR.on('enter' | 'frame' | 'exit', fn)
+    on: function(name, fn) { if (hooks[name]) hooks[name].push(fn); },
+    toWorldVec: toWorldVec,
+    notice: function(text) { if (xr) notice(text); }
+  };
+
+  init();
+})();
