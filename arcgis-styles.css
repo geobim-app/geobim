@@ -1,0 +1,102 @@
+/* ArcGIS (arcgis.js): service entry in the OGC layer picker, I3S filters on the asset card */
+.arcgis-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.arcgis-pick:hover {
+  background: var(--input-bg);
+}
+
+.arcgis-pick:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.arcgis-pick-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arcgis-pick-title {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcgis-pick-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.arcgis-pick i[data-lucide] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--brand-teal);
+}
+
+.arcgis-i3s-filter,
+.arcgis-i3s-level {
+  margin-top: var(--space-sm);
+}
+
+.arcgis-i3s-filter summary {
+  min-height: 32px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.arcgis-i3s-filter summary:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.arcgis-i3s-mode {
+  margin: var(--space-xs) 0;
+}
+
+.arcgis-i3s-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 32px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.arcgis-i3s-row-sub {
+  padding-left: var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.arcgis-i3s-row input {
+  accent-color: var(--brand-teal);
+}
+
+.arcgis-i3s-row input:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .arcgis-i3s-row,
+  .arcgis-i3s-filter summary {
+    min-height: 44px;
+  }
+}

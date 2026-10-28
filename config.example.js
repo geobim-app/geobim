@@ -23,5 +23,10 @@ const GEOBIM_CONFIG = {
     storageBucket: "your-project.firebasestorage.app",
     messagingSenderId: "your-messaging-sender-id",
     appId: "your-app-id"
+  },
+  // Optional (arcgis.js): ArcGIS Location Platform API key, sent as token to
+  // Esri services; the public services used without it work too
+  arcgis: {
+    apiKey: ''
   }
 };

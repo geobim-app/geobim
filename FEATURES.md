@@ -39,6 +39,7 @@
 | Basemap Switcher | 6 options: Bing Aerial (default), Bing Roads, OSM, Google Contour, Google Satellite w/ Labels, None. | `layerManager.js` |
 | OGC Service Presets | 59 verified WMS/WMTS/WFS services as a grouped dropdown (international, Rhineland-Palatinate, Bavaria, Netherlands/PDOK, Norway); picking one fills the URL and runs discovery. | `layerManager.js`, `ui-layer-section.js` |
 | Terrain Providers | Cesium World Terrain (default), Cesium World Bathymetry, custom terrain via Ion Asset ID. | `layerManager.js` |
+| ArcGIS | Esri World Imagery / Streets / Topographic base maps; ArcGIS MapServer URLs as imagery layers in the OGC list; ArcGIS World Elevation terrain (lifted to the ellipsoid via GCG2016/EGM2008); I3S scene layers as assets with Building Scene Layer filters (Full model / Overview, disciplines, categories, level) and element fields in the InfoBox. Optional key `GEOBIM_CONFIG.arcgis.apiKey`. | `arcgis.js` |
 | OSM Buildings | Toggle OpenStreetMap 3D building footprints. Auto-disabled when Google 3D Tiles active. | `core.js` |
 | Google 3D Tiles | Photorealistic 3D buildings (Ion Asset 2275207). 3 quality presets: Performance, Balanced, Quality. | `core.js` |
 | Globe Transparency | Toggle terrain translucency and adjust opacity (0–1) for underground viewing. | `core.js` |
@@ -406,6 +407,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | `pointcloud.js` | Point cloud detection, EDL, color modes, rendering presets |
 | `z-offset.js` | Per-asset vertical offset system |
 | `layerManager.js` | Basemap switching, terrain provider management |
+| `arcgis.js` | Esri base maps, ArcGIS MapServer layers, World Elevation terrain, I3S scene layers |
 | `lighting.js` | Dynamic shadows, atmosphere, time-based sun positioning |
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
 | `ui.js` | Main toolbar with 12 collapsible sections, event handlers, asset UI |
