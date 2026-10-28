@@ -1080,8 +1080,47 @@ body.guest-mode .pnl-signed-in { display: none; }
 .pnl-tree #ionAssetSelector { display: none !important; } /* rows mirror it */
 .pnl-tree #importSelectedAsset { margin-top: 4px; }
 
-/* the floating "Loaded Assets" panel is replaced by the Loaded node */
+/* the floating "Loaded Assets" panel is replaced by the Loaded widget */
 html.ui-panels #floatingAssetsPanel { display: none !important; }
+
+/* Loaded widget (panels-assets.js): bottom left, right of the rail, above
+   Cesium's credits; the panels stack above it */
+.pnl-loaded-widget {
+  position: fixed;
+  left: calc(var(--space-lg) + 52px + var(--space-md));
+  bottom: 40px;
+  width: min(340px, calc(100vw - 2 * var(--space-lg)));
+  max-height: min(45vh, 420px);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  font-size: 14px;
+  z-index: calc(var(--z-panels) - 1);
+}
+.pnl-loaded-widget[hidden] { display: none; }
+.pnl-loaded-widget .pnl-loaded-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: var(--space-xs);
+}
+.pnl-loaded-widget .pnl-loaded-body[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .pnl-loaded-widget {
+    left: var(--space-sm);
+    right: var(--space-sm);
+    width: auto;
+    bottom: calc(var(--panels-tabbar-h) + var(--space-sm));
+    max-height: 35vh;
+  }
+}
 
 .pnl-tree #loadedAssetsList {
   display: flex;

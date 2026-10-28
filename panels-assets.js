@@ -9,7 +9,11 @@
  *                  search from 8 entries), "Import Selected"
  *   BENTLEY ITWIN  the iTwin demo block (itwin-demo.js)
  *   SERVER MODELS  owner only, as before: Models · Upload IFC / point cloud…
- *   LOADED · n     the loaded asset cards, moved here from the floating panel
+ *
+ * The loaded asset cards get their own widget at the bottom left (next to the
+ * rail, above the tab bar on phones): shown while assets are loaded,
+ * collapsible (state in localStorage), hidden with the rest of the panel UI
+ * (M, signed out). It replaces the classic floating "Loaded Assets" panel.
  *
  * Pure UI restructuring: the existing elements keep their IDs and handlers.
  * #ionAssetSelector stays the source of truth (hidden): ui.js fills it, the
@@ -125,6 +129,40 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Loaded widget (bottom left)
+  // ---------------------------------------------------------------------------
+  var LOADED_OPEN_KEY = 'geobim_loaded_widget_open';
+
+  function buildLoadedWidget(actions, list) {
+    var widget = el('section', 'pnl-loaded-widget pnl-top');
+    widget.id = 'pnlLoadedWidget';
+    widget.setAttribute('aria-label', 'Loaded assets');
+    widget.hidden = true;
+    var head = el('button', 'pnl-node pnl-loaded-head');
+    head.type = 'button';
+    head.appendChild(el('span', 'pnl-node-title', 'Loaded'));
+    var meta = el('span', 'pnl-node-meta');
+    head.appendChild(meta);
+    var body = el('div', 'pnl-tree pnl-loaded-body');
+    add(body, actions, list);
+    var open = true;
+    try { open = localStorage.getItem(LOADED_OPEN_KEY) !== '0'; } catch (_) {}
+    var setOpen = function(now) {
+      open = now;
+      head.setAttribute('aria-expanded', now ? 'true' : 'false');
+      body.hidden = !now;
+      try { localStorage.setItem(LOADED_OPEN_KEY, now ? '1' : '0'); } catch (_) {}
+    };
+    head.addEventListener('click', function() { setOpen(!open); head.blur(); });
+    setOpen(open);
+    add(widget, head, body);
+    // inside .panels-ui: follows its visibility (M, signed out)
+    (document.querySelector('.panels-ui') || document.body).appendChild(widget);
+    widget.meta = meta;
+    return widget;
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
   function build(content) {
@@ -168,13 +206,12 @@
       server.hidden = true;
     }
 
-    // LOADED · n (moved out of the floating panel, which stays hidden here)
-    var loaded = node('loaded', 'Loaded', true, { top: true, meta: true });
+    // LOADED · n: own widget (moved out of the floating panel, which stays hidden here)
     if (typeof BimViewer.createLoadedAssetsPanel === 'function') BimViewer.createLoadedAssetsPanel();
     var floating = byId('floatingAssetsPanel');
-    add(loaded.sub, floating && floating.querySelector('.assets-panel-actions'), byId('loadedAssetsList'));
+    var loaded = buildLoadedWidget(floating && floating.querySelector('.assets-panel-actions'), byId('loadedAssetsList'));
 
-    add(root, ion, itwin, server, loaded);
+    add(root, ion, itwin, server);
 
     // Leftovers: the classic "Loaded Assets" button (keeps #loadedAssetsCount),
     // dividers, emptied wrappers; anything unknown goes to "More"
@@ -241,17 +278,14 @@
     window.addEventListener('ion-token-changed', ionMeta);
     rebuild();
 
-    // Loaded cards: count, chips, eye state; a new card opens the node
+    // Loaded cards: count, chips, eye state; the widget shows while any is loaded
     var loadedList = byId('loadedAssetsList');
-    var syncLoaded = function(records) {
+    var syncLoaded = function() {
       if (!loadedList) return;
       var cards = loadedList.querySelectorAll(':scope > .modern-asset-item');
       Array.prototype.forEach.call(cards, decorateCard);
       loaded.meta.textContent = String(cards.length);
-      var added = Array.isArray(records) && records.some(function(r) {
-        return Array.prototype.some.call(r.addedNodes, function(n) { return n.classList && n.classList.contains('modern-asset-item'); });
-      });
-      if (added) loaded.expand();
+      loaded.hidden = cards.length === 0;
     };
     if (loadedList) new MutationObserver(syncLoaded).observe(loadedList, { childList: true });
     syncLoaded();
