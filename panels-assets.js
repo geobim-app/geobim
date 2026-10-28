@@ -8,6 +8,7 @@
  *   CESIUM ION     the asset list as rows with check marks (multi-select,
  *                  search from 8 entries), "Import Selected"
  *   BENTLEY ITWIN  the iTwin demo block (itwin-demo.js)
+ *   ESRI ARCGIS    I3S demo scene layers + own I3S URL (arcgis.js)
  *   SERVER MODELS  owner only, as before: Models · Upload IFC / point cloud…
  *   LOADED · n     the loaded asset cards, moved here from the floating panel
  *
@@ -151,6 +152,10 @@
     var itwin = node('itwin', 'Bentley iTwin', false, { top: true });
     itwin.hidden = true;
 
+    // ESRI ARCGIS (arcgis.js may add its block later)
+    var arcgis = node('arcgis', 'Esri ArcGIS', false, { top: true });
+    arcgis.hidden = true;
+
     // SERVER MODELS (owner only: ui-assets-section.js un-hides #glbSection)
     var server = node('server', 'Server models', false, { top: true });
     var glbSection = byId('glbSection');
@@ -174,7 +179,7 @@
     var floating = byId('floatingAssetsPanel');
     add(loaded.sub, floating && floating.querySelector('.assets-panel-actions'), byId('loadedAssetsList'));
 
-    add(root, ion, itwin, server, loaded);
+    add(root, ion, itwin, arcgis, server, loaded);
 
     // Leftovers: the classic "Loaded Assets" button (keeps #loadedAssetsCount),
     // dividers, emptied wrappers; anything unknown goes to "More"
@@ -185,6 +190,7 @@
       if (e.parentNode !== content) return;
       if (e.querySelector('#loadedAssetsCount')) { parked.appendChild(e); return; }
       if (e.id === 'itwinDemo') { itwin.sub.appendChild(e); itwin.hidden = false; return; }
+      if (e.id === 'arcgisDemo') { arcgis.sub.appendChild(e); arcgis.hidden = false; return; }
       var labelOnly = !e.querySelector('input, button, select, textarea, a, [id]') &&
         (e.children.length ? Array.prototype.every.call(e.children, function(c) { return c.classList.contains('modern-label'); }) : !e.textContent.trim());
       if (e.classList.contains('modern-divider') || labelOnly) {
@@ -208,8 +214,19 @@
       itwin.sub.appendChild(block);
       itwin.hidden = false;
     };
-    new MutationObserver(placeItwin).observe(ion.sub, { childList: true });
+    // same for the ArcGIS block (after the ion group or the iTwin block)
+    var placeArcgis = function() {
+      var block = byId('arcgisDemo');
+      if (!block || block.parentNode === arcgis.sub) return;
+      var divider = block.previousElementSibling;
+      if (divider && divider.classList.contains('modern-divider')) divider.remove();
+      arcgis.sub.appendChild(block);
+      arcgis.hidden = false;
+    };
+    new MutationObserver(function() { placeItwin(); placeArcgis(); }).observe(ion.sub, { childList: true });
+    new MutationObserver(placeArcgis).observe(itwin.sub, { childList: true });
     placeItwin();
+    placeArcgis();
 
     // Ion list mirrors the select (ui.js refills it on token change)
     var ionMeta = function() {

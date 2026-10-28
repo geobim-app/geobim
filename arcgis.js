@@ -40,9 +40,16 @@ window.BimArcGIS = (function() {
     { id: 'esri-topo', name: 'Esri Topographic', service: 'World_Topo_Map' }
   ];
   var PRESETS = [
-    { group: 'ArcGIS', label: 'Esri World Hillshade (MapServer)', url: SERVICES + 'Elevation/World_Hillshade/MapServer' },
-    { group: 'ArcGIS', label: 'Turanga Library — Building Scene Layer (I3S)', url: 'https://tiles.arcgis.com/tiles/cFEFS0EWrhfDeVw9/arcgis/rest/services/Turanga_Library/SceneServer' },
-    { group: 'ArcGIS', label: 'San Francisco 3D objects (I3S)', url: 'https://tiles.arcgis.com/tiles/z2tnIkrLQ2BRzr6P/arcgis/rest/services/SanFrancisco_3DObjects_1_7/SceneServer' }
+    { group: 'ArcGIS', label: 'Esri World Hillshade (MapServer)', url: SERVICES + 'Elevation/World_Hillshade/MapServer' }
+  ];
+  // Demo assets in the Assets section (like the Bentley iTwin demo)
+  var DEMOS = [
+    { key: 'turanga', label: 'Turanga Library', icon: 'library', where: 'Christchurch, NZ',
+      name: 'Turanga Library (Esri demo)',
+      url: 'https://tiles.arcgis.com/tiles/cFEFS0EWrhfDeVw9/arcgis/rest/services/Turanga_Library/SceneServer' },
+    { key: 'sf', label: 'San Francisco 3D', icon: 'building-2', where: 'San Francisco, US',
+      name: 'San Francisco 3D buildings (Esri demo)',
+      url: 'https://tiles.arcgis.com/tiles/z2tnIkrLQ2BRzr6P/arcgis/rest/services/SanFrancisco_3DObjects_1_7/SceneServer' }
   ];
   var REST_URL = /\/rest\/services\/.+\/(MapServer|SceneServer)(\/layers\/\d+)?\/?$/i;
   var LEVEL_FIELDS = ['BldgLevel', 'Level', 'level'];
@@ -272,16 +279,20 @@ window.BimArcGIS = (function() {
     return (provider.layers || []).map(function(l) { return l.tileset; }).filter(Boolean);
   }
 
-  async function loadI3S(url, name) {
+  function idFor(url) {
+    return 'i3s_' + hash(url.replace(/\/+$/, ''));
+  }
+
+  async function loadI3S(url, name, where) {
     var viewer = BimViewer.viewer;
     var base = url.replace(/\/+$/, '');
-    var id = 'i3s_' + hash(base);
+    var id = idFor(base);
     if (BimViewer.loadedAssets.has(id)) {
       BimViewer.zoomToAsset(id);
       return;
     }
     try {
-      BimViewer.updateStatus('Loading I3S scene layer...', 'loading');
+      BimViewer.updateStatus('Loading ' + (name || 'I3S scene layer') + (where ? ' (' + where + ')' : '') + '...', 'loading');
       if (!geoidPromise) {
         geoidPromise = Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(GEOID_URL);
         geoidPromise.catch(function() { geoidPromise = null; });
@@ -307,7 +318,91 @@ window.BimArcGIS = (function() {
     } catch (err) {
       console.error('I3S scene layer failed:', err);
       BimViewer.updateStatus('I3S scene layer failed: ' + err.message, 'error');
+    } finally {
+      renderDemo();
     }
+  }
+
+  // ---- Assets section: "Esri ArcGIS" block (demos + own I3S URL) ----
+
+  var loading = {};
+
+  async function loadDemo(key) {
+    var demo = DEMOS.find(function(d) { return d.key === key; });
+    if (!demo || loading[key]) return;
+    loading[key] = true;
+    renderDemo();
+    try {
+      await loadI3S(demo.url, demo.name, demo.where);
+    } finally {
+      loading[key] = false;
+      renderDemo();
+    }
+  }
+
+  async function loadOwnUrl() {
+    var input = document.getElementById('arcgisI3sUrl');
+    var url = input ? input.value.trim() : '';
+    if (!/\/SceneServer(\/layers\/\d+)?\/?$/i.test(url.split('?')[0])) {
+      BimViewer.updateStatus('Please enter an I3S scene layer URL ending in /SceneServer', 'error');
+      return;
+    }
+    var base = url.split('?')[0];
+    var name = base.split('/').filter(function(p) { return !/^(SceneServer|layers|\d+)$/i.test(p); }).pop();
+    try {
+      var json = await resourceFor(base).getDerivedResource({ queryParameters: { f: 'json' } }).fetchJson();
+      name = (json.layers && json.layers[0] && json.layers[0].name) || json.name || name;
+    } catch (_) { /* the provider reports the real error */ }
+    await loadI3S(base, name);
+  }
+
+  function renderDemo() {
+    var list = document.getElementById('arcgisDemoList');
+    if (!list) return;
+    Array.prototype.forEach.call(list.querySelectorAll('[data-arcgis-demo]'), function(btn) {
+      var key = btn.dataset.arcgisDemo;
+      var demo = DEMOS.find(function(d) { return d.key === key; });
+      var loaded = BimViewer.loadedAssets && BimViewer.loadedAssets.has(idFor(demo.url));
+      btn.classList.toggle('active', !!loaded);
+      btn.disabled = !!loading[key];
+      btn.title = loading[key] ? 'Loading…' : loaded ? 'Loaded — click to fly there' : 'Load ' + demo.label + ' (' + demo.where + ')';
+    });
+  }
+
+  function injectDemo() {
+    if (document.getElementById('arcgisDemo')) return true;
+    var selector = document.getElementById('ionAssetSelector');
+    var group = selector && selector.closest('.modern-group');
+    if (!group) return false;
+    var after = document.getElementById('itwinDemo') || group;
+    after.insertAdjacentHTML('afterend',
+      '<div class="modern-divider"><span class="modern-divider-text">Esri ArcGIS</span></div>' +
+      '<div class="modern-group arcgis-demo" id="arcgisDemo">' +
+        '<div class="modern-hint">I3S scene layers streamed from ArcGIS: a Revit building with disciplines and levels, and a city of 3D buildings (Esri sample data).</div>' +
+        '<div class="arcgis-demo-list" id="arcgisDemoList">' +
+          DEMOS.map(function(d) {
+            return '<button type="button" class="modern-btn modern-btn-small arcgis-demo-btn" data-arcgis-demo="' + d.key + '">' +
+              '<i data-lucide="' + d.icon + '"></i><span>' + escapeHtml(d.label) + '</span></button>';
+          }).join('') +
+        '</div>' +
+        '<label class="modern-label-small" for="arcgisI3sUrl">Own I3S scene layer</label>' +
+        '<div class="arcgis-url-row">' +
+          '<input type="url" id="arcgisI3sUrl" class="modern-input" placeholder="https://…/SceneServer">' +
+          '<button type="button" class="modern-btn modern-btn-primary arcgis-url-btn" id="arcgisI3sLoadBtn" title="Load scene layer" aria-label="Load scene layer">' +
+            '<i data-lucide="plus"></i></button>' +
+        '</div>' +
+      '</div>');
+    document.getElementById('arcgisDemoList').addEventListener('click', function(e) {
+      var b = e.target.closest('[data-arcgis-demo]');
+      if (b) loadDemo(b.dataset.arcgisDemo);
+    });
+    document.getElementById('arcgisI3sLoadBtn').addEventListener('click', loadOwnUrl);
+    document.getElementById('arcgisI3sUrl').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') loadOwnUrl();
+    });
+    if (window.lucide) lucide.createIcons();
+    renderDemo();
+    return true;
   }
 
   // Oblique view onto all shown layers (the service extent alone gives a
@@ -500,6 +595,7 @@ window.BimArcGIS = (function() {
       var card = document.getElementById('asset_' + assetId);
       if (card) card.remove();
       this.updateStatus('Asset unloaded', 'success');
+      renderDemo();
     };
 
     var origZoom = BimViewer.zoomToAsset;
@@ -557,8 +653,15 @@ window.BimArcGIS = (function() {
 
   hook();
 
+  var tries = 0;
+  (function poll() {
+    if (injectDemo() || ++tries > 120) return;
+    setTimeout(poll, 500);
+  })();
+
   return {
     loadI3S: loadI3S,
+    loadDemo: loadDemo,
     TERRAIN_ID: TERRAIN_ID
   };
 })();

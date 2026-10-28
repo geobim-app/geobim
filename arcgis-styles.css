@@ -100,3 +100,55 @@
     min-height: 44px;
   }
 }
+
+/* Assets section: "Esri ArcGIS" block (demo scene layers + own I3S URL) */
+.arcgis-demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.arcgis-demo-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.arcgis-demo-btn {
+  justify-content: flex-start;
+  min-height: 44px;
+}
+
+.arcgis-demo-btn.active {
+  border-color: var(--brand-teal);
+  color: var(--brand-teal);
+}
+
+.arcgis-demo .modern-btn i[data-lucide],
+.arcgis-demo .modern-btn svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.arcgis-url-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.arcgis-url-row .modern-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.arcgis-url-btn {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.arcgis-demo-btn:focus-visible,
+.arcgis-url-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
