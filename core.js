@@ -500,10 +500,13 @@ const BimViewer = {
       Cesium.Ion.defaultAccessToken = ionToken;
       console.log('✅ Ion Token applied from user input');
       
-      console.log('🌍 Loading Cesium World Terrain...');
+      // Guests get no Cesium ion content: Mapterhorn replaces World Terrain
+      // once LayerManager is up (guest-no-ion.js)
+      const noIon = typeof BimGuest !== 'undefined' && BimGuest.active();
+      console.log(noIon ? '🌍 Guest: terrain from Mapterhorn (no Cesium ion)' : '🌍 Loading Cesium World Terrain...');
       
       this.viewer = new Cesium.Viewer('cesiumContainer', {
-        terrain: Cesium.Terrain.fromWorldTerrain(),
+        terrain: noIon ? undefined : Cesium.Terrain.fromWorldTerrain(),
         baseLayer: false,   // LayerManager handles basemap
         baseLayerPicker: false,
         geocoder: true,
@@ -545,7 +548,11 @@ const BimViewer = {
       try {
         const geocodeToken = (typeof BimIonAuth !== 'undefined' && BimIonAuth.getDefaultToken())
           || Cesium.Ion.defaultAccessToken;
-        if (this.viewer.geocoder && geocodeToken) {
+        if (this.viewer.geocoder && noIon) {
+          // Guests: OpenStreetMap Nominatim instead of the ion geocoder
+          this.viewer.geocoder.viewModel._geocoderServices = BimGuest.geocoderServices();
+          console.log('✅ Geocoder: OpenStreetMap Nominatim (guest)');
+        } else if (this.viewer.geocoder && geocodeToken) {
           this.viewer.geocoder.viewModel._geocoderServices = [
             new Cesium.IonGeocoderService({
               scene: this.viewer.scene,
