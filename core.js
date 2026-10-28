@@ -613,7 +613,8 @@ const BimViewer = {
           console.warn('⚠️ Using OSM imagery as fallback');
           this.viewer.imageryLayers.addImageryProvider(
             new Cesium.OpenStreetMapImageryProvider({
-              url: 'https://a.tile.openstreetmap.org/'
+              url: 'https://a.tile.openstreetmap.org/',
+              maximumLevel: 19 // OSM serves z0-19; deeper requests get 400 without CORS headers
             })
           );
         }
@@ -899,7 +900,7 @@ const BimViewer = {
         } else if (this.viewer.imageryLayers.length === 0) {
           // Fallback: re-add OSM imagery
           this.viewer.imageryLayers.addImageryProvider(
-            new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' })
+            new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/', maximumLevel: 19 })
           );
         }
         if (this.osmBuildings.tileset) {
@@ -2652,7 +2653,8 @@ const BimViewer = {
     if (this.viewer.imageryLayers.length === 0) {
       try {
         const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://a.tile.openstreetmap.org/'
+          url: 'https://a.tile.openstreetmap.org/',
+          maximumLevel: 19
         });
         this.viewer.imageryLayers.addImageryProvider(osmProvider);
       } catch (error) {
