@@ -5,7 +5,7 @@
 [Live Demo](https://geobim.app/demo)
 
 ![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)
-![CesiumJS 1.145](https://img.shields.io/badge/CesiumJS-1.145-teal.svg)
+![CesiumJS 1.147](https://img.shields.io/badge/CesiumJS-1.147-teal.svg)
 
 ---
 
@@ -98,7 +98,7 @@ The free plan covers personal projects and exploratory commercial evaluation. A 
 
 | Layer | Technology |
 |---|---|
-| 3D Rendering | CesiumJS 1.145 |
+| 3D Rendering | CesiumJS 1.147 |
 | Code Style | Vanilla JavaScript, IIFE modules |
 | BIM Conversion | Cesium Ion (IFC / Revit → 3D Tiles) |
 | Backend / Auth | Firebase (Firestore, Email/Password Auth) |
