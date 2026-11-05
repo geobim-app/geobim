@@ -1,37 +1,43 @@
-# Deploy geobim.app: on every push to main, connect to the server via SSH.
-# The deploy key is restricted in authorized_keys with
-# command="/usr/local/bin/geobim-deploy", so the connection can only run the
-# deploy script (git fetch + git merge --ff-only origin/main), nothing else.
+# Deploy geobim.app via SSH:
+#   push to staging → beta.geobim.app  (forced command /usr/local/bin/geobim-deploy-staging)
+#   push to main    → geobim.app       (forced command /usr/local/bin/geobim-deploy)
+# Each environment has its own deploy key, restricted in authorized_keys with
+# command="...", so a connection can only run that one deploy script.
 # Setup: DEPLOYMENT.md
 
 name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One deploy at a time; a newer push waits instead of cancelling a running merge
+# One deploy per branch at a time; a newer push waits instead of cancelling a running one
 concurrency:
-  group: deploy-production
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   deploy:
+    if: github.ref_name == 'main' || github.ref_name == 'staging'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      url: ${{ github.ref_name == 'main' && 'https://geobim.app' || 'https://beta.geobim.app' }}
     steps:
       - name: Set up SSH key and known_hosts
         env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          # Separate secret names, so staging can never fall back to the production key
+          DEPLOY_KEY: ${{ github.ref_name == 'main' && secrets.DEPLOY_KEY || secrets.DEPLOY_STAGING_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           if [ -z "$DEPLOY_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
-            echo "::error::Secrets DEPLOY_KEY and DEPLOY_KNOWN_HOSTS must be set (DEPLOYMENT.md)"
+            echo "::error::Deploy key for ${{ github.ref_name }} or DEPLOY_KNOWN_HOSTS not set (DEPLOYMENT.md)"
             exit 1
           fi
           install -m 700 -d ~/.ssh
@@ -40,7 +46,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Run geobim-deploy on the server
+      - name: Run deploy script on the server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
