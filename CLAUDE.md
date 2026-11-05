@@ -73,7 +73,7 @@ window.BimViewer = {
 - **Kein Framework:** Vanilla JS + HTML + CSS (kein React/Vue/Bundler)
 - **Module Pattern:** Jedes Modul erweitert `BimViewer` — NICHT bestehende Module ändern
 - **Neue Features:** Separates Modul (`feature-name.js`), in `index.html` einbinden
-- **Kein Build-Prozess:** `git pull` = Deployment
+- **Kein Build-Prozess:** Push auf `main` = Deployment (GitHub Action, siehe Deployment)
 
 ### CSS
 - **CSS Custom Properties nutzen** — alle Farben, Spacing, Radius aus `:root` Variablen
@@ -157,12 +157,22 @@ Buttons öffnen die entsprechende Section in der Sidebar.
 
 ## Deployment
 
-```bash
-# Auf dem Hetzner-Server (168.119.232.12)
-# Web-Root: /var/www/christoflorenz.de/
-git pull origin main
-# Kein Build-Schritt nötig
+Automatisch per GitHub Action — kein manuelles `git pull` auf dem Server.
+
 ```
+lokal ändern → bash qa-check.sh → Commit → Push auf main
+  → .github/workflows/deploy.yml (SSH mit Deploy-Key)
+  → Server führt /usr/local/bin/geobim-deploy aus
+    (cd /var/www/christoflorenz.de; git fetch origin main; git merge --ff-only origin/main)
+```
+
+- **Live:** geobim.app = `/var/www/christoflorenz.de/` (Hetzner, 168.119.232.12), kein Build-Schritt
+- **Manuell auslösen:** GitHub → Actions → Deploy → Run workflow
+- **Deploy-Key** darf per `command=` in `authorized_keys` nur `geobim-deploy` starten
+- **Secrets:** `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY`, `DEPLOY_KNOWN_HOSTS` (optional `DEPLOY_PORT`)
+- **Einrichtung/Fehlersuche:** `DEPLOYMENT.md`
+- Schlägt der Fast-Forward fehl, liegt auf dem Server etwas, das nicht im Repo ist:
+  dort nur diagnostizieren, die Korrektur läuft über das Repo
 
 ### Secrets
 - `config.js` → `.gitignore` (enthält Ion Token, Firebase Config)
@@ -182,3 +192,5 @@ git pull origin main
 8. **Immer** Design Tokens für Spacing/Radius/Shadows
 9. **Immer** Keyboard-Handler mit BUTTON-Tag-Filter
 10. **Immer** `CHANGELOG.md` bei jedem Commit aktualisieren
+11. **Nie** Dateien direkt auf dem Server ändern — jede Änderung läuft lokal → Commit → Push → Deploy
+12. **Server-Sessions** nur zum Lesen, Diagnostizieren und Administrieren — kein Code, kein Commit, kein Deploy am Repo vorbei
