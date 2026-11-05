@@ -1,0 +1,374 @@
+/**
+ * geoBIM.app
+ * © 2026 Christof Lorenz
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* ===============================
+   IFC / point cloud upload widget
+   Markup: ui-assets-section.js (.local-models-upload)
+   Progress + status: pointcloud-upload.js
+   =============================== */
+
+.local-models-upload,
+.local-models-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* The panel layout (panels-assets.js) moves the box out of .local-models */
+.local-models-upload [hidden] {
+  display: none !important;
+}
+
+/* ---- Drop zone ---- */
+
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-lg) var(--space-md);
+  border: 1.5px dashed var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.upload-dropzone:hover {
+  border-color: rgba(var(--brand-teal-rgb), 0.6);
+  background: rgba(var(--brand-teal-rgb), 0.05);
+}
+
+.upload-dropzone:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.upload-dropzone-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-xs);
+  border-radius: 50%;
+  background: rgba(var(--brand-teal-rgb), 0.12);
+  color: var(--brand-teal);
+}
+
+.upload-dropzone-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.upload-dropzone-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upload-dropzone-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.upload-dropzone-link {
+  color: var(--brand-teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.upload-dropzone-formats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.upload-chip {
+  padding: 1px var(--space-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.upload-chip-ifc {
+  border-color: rgba(var(--brand-teal-rgb), 0.4);
+  color: var(--brand-teal);
+}
+
+/* Files dragged over the box */
+.local-models-upload.is-dragover .upload-dropzone,
+.local-models-upload.is-dragover .upload-file-card {
+  border-color: var(--brand-teal);
+  border-style: dashed;
+  background: rgba(var(--brand-teal-rgb), 0.1);
+}
+
+.local-models-upload.is-dragover .upload-dropzone {
+  transform: scale(1.01);
+}
+
+/* ---- Selected file ---- */
+
+.upload-file-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--input-bg);
+}
+
+.upload-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: rgba(var(--brand-teal-rgb), 0.12);
+  color: var(--brand-teal);
+}
+
+.upload-file-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.upload-file-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.upload-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.upload-file-info {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-file-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.upload-file-clear:hover:not(:disabled) {
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.upload-file-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.upload-file-clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- Fields ---- */
+
+.upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.upload-field-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.local-models-form .zoffset-input-box,
+.local-models-form .modern-select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.local-models-form .zoffset-input-box {
+  text-align: left;
+}
+
+.upload-georef-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.upload-height-datum {
+  grid-column: 1 / -1;
+}
+
+.local-models-georef {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-xs);
+}
+
+.local-models-georef .modern-hint {
+  margin-top: 0;
+}
+
+.local-models-georef summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.local-models-georef summary svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brand-teal);
+}
+
+.upload-optional {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.local-models-georef[open] summary {
+  margin-bottom: var(--space-xs);
+}
+
+.local-models-georef summary:focus-visible,
+.upload-file-clear:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.upload-submit {
+  justify-content: center;
+}
+
+.local-models-upload .modern-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.local-models-form.is-busy .upload-field,
+.local-models-form.is-busy .local-models-georef {
+  opacity: 0.6;
+}
+
+/* ---- Status (queued / converting / done / error) ---- */
+
+.local-models-status {
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.local-models-status[data-state="busy"] {
+  border-left-color: var(--brand-teal);
+}
+
+.local-models-status[data-state="success"] {
+  border-left-color: var(--success);
+  color: var(--text-primary);
+}
+
+.local-models-status[data-state="error"] {
+  border-left-color: var(--error);
+  color: var(--error);
+}
+
+/* ---- Upload progress (pointcloud-upload.js createUploadProgress) ---- */
+
+.pc-upload-progress {
+  margin-top: var(--space-xs);
+}
+
+.pc-upload-progress-track {
+  height: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.pc-upload-progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--brand-teal);
+  transition: width 0.3s ease;
+}
+
+.pc-upload-progress-text {
+  margin-top: var(--space-xs);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Mobile / motion ---- */
+
+@media (max-width: 768px) {
+  .local-models-upload .modern-btn,
+  .local-models-georef summary,
+  .upload-file-clear {
+    min-height: 44px;
+  }
+
+  .upload-file-clear {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-dropzone,
+  .pc-upload-progress-fill {
+    transition: none;
+  }
+
+  .local-models-upload.is-dragover .upload-dropzone {
+    transform: none;
+  }
+}

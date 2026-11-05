@@ -458,6 +458,35 @@ body {
   z-index: 1;
 }
 
+/* Lucide icons in buttons, labels and hints (ui-assets-section.js) */
+.modern-btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.modern-btn-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.modern-label-with-icon,
+.modern-hint-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.modern-label-with-icon svg,
+.modern-hint-with-icon svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.modern-label-with-icon svg {
+  color: var(--brand-teal);
+}
+
 .modern-btn span {
   position: relative;
   z-index: 1;
@@ -2181,50 +2210,8 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
 }
 
 
-/* Point cloud upload progress (pointcloud-upload.js createUploadProgress) */
-.pc-upload-progress {
-  margin-top: var(--space-xs);
-}
-.pc-upload-progress-track {
-  height: 6px;
-  border-radius: var(--radius-sm);
-  background: var(--input-bg);
-  border: 1px solid var(--border-subtle);
-  overflow: hidden;
-}
-.pc-upload-progress-fill {
-  width: 0;
-  height: 100%;
-  background: var(--brand-teal);
-  transition: width 0.3s ease;
-}
-.pc-upload-progress-text {
-  margin-top: var(--space-xs);
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-@media (prefers-reduced-motion: reduce) {
-  .pc-upload-progress-fill { transition: none; }
-}
-
-/* IFC / point cloud upload: optional EPSG + ±0.00 height (ui-assets-section.js) */
-.upload-georef-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-xs);
-  margin-top: 6px;
-}
-
-.upload-height-datum {
-  grid-column: 1 / -1;
-}
-
-.upload-height-datum[hidden] {
-  display: none;
-}
-
-/* Local Models (ui-assets-section.js): load row + upload form */
+/* Local Models (ui-assets-section.js): load row. The upload widget
+   (.local-models-upload) is styled in upload-styles.css */
 .local-models [hidden] {
   display: none !important;
 }
@@ -2247,25 +2234,6 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   padding: 0;
 }
 
-.local-models-upload,
-.local-models-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.local-models-file-btn {
-  width: 100%;
-  justify-content: flex-start;
-  min-width: 0;
-}
-
-.local-models-file-btn span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .local-models .modern-btn i[data-lucide],
 .local-models .modern-btn svg {
   width: 16px;
@@ -2273,36 +2241,13 @@ body.tool-spawn #cesiumContainer { cursor: crosshair; }
   flex-shrink: 0;
 }
 
-.local-models-form .zoffset-input-box {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.local-models-georef summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-secondary);
-  padding: var(--space-xs) 0;
-}
-
-.local-models-georef[open] summary {
-  margin-bottom: var(--space-xs);
-}
-
-.local-models-georef summary:focus-visible,
-.local-models-icon-btn:focus-visible,
-.local-models-file-btn:focus-visible {
+.local-models-icon-btn:focus-visible {
   outline: 2px solid var(--brand-teal);
   outline-offset: 2px;
 }
 
-.local-models-status {
-  word-break: break-word;
-}
-
 @media (max-width: 768px) {
-  .local-models .modern-btn,
-  .local-models-georef summary {
+  .local-models .modern-btn {
     min-height: 44px;
   }
 }

@@ -53,11 +53,13 @@
     return m < 90 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
   }
 
-  // Status line under the upload form (hidden while empty)
-  function setUploadStatus(text) {
+  // Status line under the upload form (hidden while empty); state
+  // 'info' | 'busy' | 'success' | 'error' only picks the styling
+  function setUploadStatus(text, state) {
     const statusEl = document.getElementById('pointcloudUploadStatus');
     if (!statusEl) return;
     statusEl.textContent = text || '';
+    statusEl.dataset.state = state || 'info';
     statusEl.hidden = !text;
   }
 
@@ -149,7 +151,7 @@
 
     const { jobId, slug } = resp.body;
     this.updateStatus(`Converting ${what} — this can take a while for large files...`, 'loading');
-    setUploadStatus(`${slug}: queued`);
+    setUploadStatus(`${slug}: queued`, 'busy');
     this._pollPointCloudJob(jobId, slug, what);
     return jobId;
   };
@@ -186,12 +188,12 @@
       }
 
       if (status.status === 'queued') {
-        setUploadStatus(`${slug}: queued (waiting for another conversion to finish)`);
+        setUploadStatus(`${slug}: queued (waiting for another conversion to finish)`, 'busy');
       } else if (status.status === 'converting') {
-        setUploadStatus(`${slug}: ` + (status.progress ? `converting — ${status.progress}` : 'converting…') + (status.warning ? ` (${status.warning})` : ''));
+        setUploadStatus(`${slug}: ` + (status.progress ? `converting — ${status.progress}` : 'converting…') + (status.warning ? ` (${status.warning})` : ''), 'busy');
       } else if (status.status === 'done') {
         stop();
-        setUploadStatus(status.warning ? `${slug}: done (${status.warning})` : '');
+        setUploadStatus(status.warning ? `${slug}: done (${status.warning})` : `${slug}: ready`, 'success');
         BimViewer.updateStatus(`${what[0].toUpperCase() + what.slice(1)} ready: ${slug}`, 'success');
         console.log(`✅ Conversion done: ${slug}`);
         // Refresh the local model catalog so the new tileset shows up, then load it.
@@ -207,7 +209,7 @@
       } else if (status.status === 'error') {
         stop();
         // Keep the error visible in the form, not only in the transient status bar
-        setUploadStatus(`${slug}: conversion failed — ${status.message || 'unknown error'}`);
+        setUploadStatus(`${slug}: conversion failed — ${status.message || 'unknown error'}`, 'error');
         BimViewer.updateStatus(`Conversion failed: ${status.message || 'unknown error'}`, 'error');
         console.error(`❌ Conversion failed (${jobId}):`, status.message);
       }

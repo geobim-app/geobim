@@ -690,12 +690,19 @@ window.GEOBIM_GIS_FILES = (function() {
       var icon = document.createElement('i');
       icon.setAttribute('data-lucide', 'map-pinned');
       var text = document.createElement('span');
-      text.textContent = 'Drop GIS files to add them to the map';
+      text.className = 'gis-drop-hint-text';
       inner.appendChild(icon);
       inner.appendChild(text);
       dropHint.appendChild(inner);
       document.body.appendChild(dropHint);
       if (window.lucide) lucide.createIcons();
+    }
+    if (show && dropHint) {
+      // Owners can also drop IFC / point clouds (ui-assets-section.js)
+      var withUpload = window.BimViewer && typeof BimViewer.uploadDropAvailable === 'function' && BimViewer.uploadDropAvailable();
+      dropHint.querySelector('.gis-drop-hint-text').textContent = withUpload
+        ? 'Drop GIS files, IFC models or point clouds'
+        : 'Drop GIS files to add them to the map';
     }
     if (dropHint) dropHint.classList.toggle('visible', !!show);
   }
@@ -720,7 +727,9 @@ window.GEOBIM_GIS_FILES = (function() {
       if (!hasFiles(e)) return;
       dragDepth = 0;
       showDropHint(false);
-      // Leave drops on file inputs and other drop zones alone
+      // Leave drops on file inputs, other drop zones and drops another
+      // handler already took (IFC / point cloud upload) alone
+      if (e.defaultPrevented) return;
       if (e.target && e.target.closest && e.target.closest('input[type="file"], [data-own-drop]')) return;
       e.preventDefault();
       var files = Array.prototype.slice.call(e.dataTransfer.files || []);
