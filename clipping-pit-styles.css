@@ -1,0 +1,65 @@
+/* geoBIM.app — excavation pit for clipping polygons (clipping-pit.js) */
+
+.clip-pit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.clip-pit-panel { margin-top: var(--space-xs); }
+
+.clip-pit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 32px;
+}
+
+.clip-pit-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.clip-pit-label svg { width: 14px; height: 14px; }
+
+.clip-pit-toggle { min-width: 56px; }
+.clip-pit-toggle.active { border-color: var(--brand-teal); color: var(--brand-teal); }
+
+.clip-pit-depth input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.clip-pit-depth input[type="range"]:disabled { opacity: 0.4; }
+
+.clip-pit-value {
+  min-width: 44px;
+  text-align: right;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clip-pit-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.clip-pit-toggle:focus-visible,
+.clip-pit-depth input[type="range"]:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .clip-pit-toggle { min-height: 44px; min-width: 64px; }
+  .clip-pit-row { min-height: 44px; }
+}

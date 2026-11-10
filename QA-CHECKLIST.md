@@ -159,3 +159,9 @@ Run `bash qa-check.sh` for automated checks, then complete this manual checklist
 - [ ] Customer comment appears in the owner's dialog (Comments) and survives > 24 h
 - [ ] Revoked / expired link: error card, `model/<folder>/tileset.json` returns 404
 - [ ] `/model/.shares/<token>.json` returns 404; a beta link does not work on live
+
+### 20. Clipping: Excavation Pit
+- [ ] Polygon or rectangle over terrain: pit with walls and floor, no view through the globe
+- [ ] Pit depth slider moves the floor; Excavation pit Off hides the pit
+- [ ] Clipping off, Inverse or Split View: pit hidden; back on: pit visible
+- [ ] Remove last / Clear all / remove in list: pit gone
