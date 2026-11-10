@@ -112,6 +112,7 @@ if (!is_array($cam) || !finite_num($cam['x'] ?? null) || !finite_num($cam['y'] ?
 
 // --- Environment: what works without Cesium ion ---
 $OPEN_BASEMAPS = ['topplus', 'topplus-grey', 'basemapde-color', 'basemapde-grey',
+    'bayern-dop20', 'bayern-dok', 'bayern-dtk25', 'bayern-parcels', 'bayern-relief',
     'esri-imagery', 'esri-streets', 'esri-topo', 'esri-light-gray', 'esri-dark-gray', 'none'];
 $OPEN_TERRAIN = ['mapterhorn', 'arcgis-elevation'];
 $webBasemap = (string)($scene['webBasemap'] ?? '');
