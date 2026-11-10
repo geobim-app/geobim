@@ -67,9 +67,20 @@ $slug = $baseSlug . '_tiled';
 
 $modelDir = __DIR__ . '/../model';
 // Avoid clobbering an existing asset folder — same convention as models.php's
-// id generation, just with a numeric suffix appended on collision.
+// id generation, just with a numeric suffix appended on collision. Slugs of
+// jobs still queued or converting count as taken too: their folder doesn't
+// exist yet, and the converter refuses to replace one that does.
+function geobim_slug_pending($modelDir, $slug) {
+    foreach (glob($modelDir . '/_staging/*/job.json') ?: [] as $jobFile) {
+        $job = json_decode(@file_get_contents($jobFile) ?: '', true);
+        if (!is_array($job) || ($job['slug'] ?? null) !== $slug) continue;
+        $st = json_decode(@file_get_contents(dirname($jobFile) . '/status.json') ?: '', true);
+        if (in_array($st['status'] ?? 'queued', ['queued', 'converting'], true)) return true;
+    }
+    return false;
+}
 $i = 2;
-while (is_dir($modelDir . '/' . $slug)) {
+while (is_dir($modelDir . '/' . $slug) || geobim_slug_pending($modelDir, $slug)) {
     $slug = $baseSlug . '_tiled_' . $i;
     $i++;
 }

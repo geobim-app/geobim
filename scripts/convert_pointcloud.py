@@ -367,9 +367,7 @@ def convert_ifc(job, job_dir, input_path, out_dir, final_dir, slug):
             report = json.load(f)
     except Exception:
         pass
-    if os.path.isdir(final_dir):
-        shutil.rmtree(final_dir)
-    shutil.move(out_dir, final_dir)
+    move_to_final(out_dir, final_dir)
     # Keep the source IFC (not web-reachable: model/_staging is denied via
     # .htaccess) so a model can be re-tiled after tiler fixes without asking
     # for a new upload — the geoBIM Cloud concept keeps sources anyway.
@@ -383,6 +381,20 @@ def convert_ifc(job, job_dir, input_path, out_dir, final_dir, slug):
     if notes:
         done["warning"] = "; ".join(notes)
     write_status(job_dir, "done", **done)
+
+
+def ensure_final_free(final_dir):
+    """Never replace an existing model. api/pointcloud-upload.php picks a free
+    slug, but two jobs can still race for one (both uploaded before either
+    finished); the later one fails instead of deleting the earlier result."""
+    if os.path.exists(final_dir):
+        raise RuntimeError(
+            f"model/{os.path.basename(final_dir)} already exists - not replaced; upload again under another name")
+
+
+def move_to_final(out_dir, final_dir):
+    ensure_final_free(final_dir)
+    shutil.move(out_dir, final_dir)
 
 
 def model_dir_for_job(job_dir):
@@ -420,6 +432,8 @@ def main():
     lock_fp = open(LOCK_PATH, "w")
     fcntl.flock(lock_fp, fcntl.LOCK_EX)  # blocks here until any prior job finishes
     try:
+        # Fail before spending minutes on a conversion that can't be placed
+        ensure_final_free(final_dir)
         write_status(job_dir, "converting")
 
         if input_path.lower().endswith(".ifc"):
@@ -547,9 +561,7 @@ def main():
                 # otherwise-good conversion; it just needs manual gizmo placement.
                 write_status(job_dir, "converting", warning=f"Position patch failed: {e}")
 
-        if os.path.isdir(final_dir):
-            shutil.rmtree(final_dir)
-        shutil.move(out_dir, final_dir)
+        move_to_final(out_dir, final_dir)
 
         # Raw upload no longer needed once tiled — the staging dir itself
         # (job.json/status.json/log) stays for status polling and debugging.
