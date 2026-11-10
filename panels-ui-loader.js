@@ -37,7 +37,6 @@
   function isClassicOnlyMode(params) {
     var path = window.location.pathname.replace(/\/+$/, '');
     var mode = params.get('mode');
-    if (params.has('share')) return true;   // share links (share-view.js) use the classic UI for now
     return Object.keys(CLASSIC_ONLY_MODES).some(function(m) {
       return mode === m || path === CLASSIC_ONLY_MODES[m];
     });
@@ -46,6 +45,9 @@
   function chooseUI() {
     var params = new URLSearchParams(window.location.search);
     var fromUrl = params.get('ui');
+    // Share links (share-view.js): always the panel UI, on every host, and
+    // without touching the visitor's remembered choice
+    if (params.has('share')) return 'panels';
     if (fromUrl === 'panels' || fromUrl === 'classic') store(STORAGE_KEY, fromUrl);
     if (isClassicOnlyMode(params)) return 'classic';
     if (fromUrl === 'panels' || fromUrl === 'classic') return fromUrl;

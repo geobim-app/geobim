@@ -2,14 +2,26 @@
 
 body.share-view .share-hidden { display: none !important; }
 
-/* Customers measure and comment, nothing else: the bottom toolbar keeps only
-   Measure, the floating Loaded Assets panel is not offered */
-body.share-view #bottomToolbar > :not([data-section="drawing"]),
-body.share-view #floatingAssetsPanel { display: none !important; }
+/* Customers measure and comment, nothing else. Share links always use the
+   panel UI (panels-ui-loader.js): the rail keeps Measure, Clip and Comments,
+   the phone tab bar Measure and "More" (with Clip and Comments). No bottom
+   toolbar, no Walk / Transform actions, no Loaded Assets panel. */
+body.share-view #bottomToolbar,
+body.share-view #floatingAssetsPanel,
+body.share-view #pnlLoadedWidget,
+body.share-view [data-node="m:saved"],
+body.share-view .panels-rail-action,
+body.share-view .panels-rail-sep,
+body.share-view .panels-rail-btn[data-section]:not([data-section="drawing"]):not([data-section="clip"]):not([data-section="comments"]),
+body.share-view .panels-tabs .panels-tab:not([data-section="drawing"]):not([data-section="more"]),
+body.share-view .panels-more .panels-tab:not([data-section="clip"]):not([data-section="comments"]) {
+  display: none !important;
+}
 
 /* Comments: customers can't edit or delete (Firestore rules: owner only) */
 body.share-view button[onclick*="editComment"],
-body.share-view button[onclick*="deleteComment"] { display: none !important; }
+body.share-view button[onclick*="deleteComment"],
+body.share-view #deleteAllCommentsBtn { display: none !important; }
 
 .share-banner {
   position: fixed;
