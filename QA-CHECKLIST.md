@@ -165,3 +165,9 @@ Run `bash qa-check.sh` for automated checks, then complete this manual checklist
 - [ ] Pit depth slider moves the floor; Excavation pit Off hides the pit
 - [ ] Clipping off, Inverse or Split View: pit hidden; back on: pit visible
 - [ ] Remove last / Clear all / remove in list: pit gone
+
+### 21. Demo Scenes
+- [ ] Guest (no sign-in): Scenes panel shows "Demo scenes" with 7 entries
+- [ ] Each scene loads its models without "not found"; credits line and Data attribution show the sources
+- [ ] Merendree: Split View, as built left, as designed right; Siegtalbrücke: 4D bar open; Hollow box: alignment section active
+- [ ] Loading another scene closes split, 4D and section

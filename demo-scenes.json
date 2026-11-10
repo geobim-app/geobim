@@ -1,0 +1,300 @@
+{
+  "_comment": "Demo scenes of geoBIM Desktop (Unreal Demo/DemoScenes.json) for the web: model folders in model/ (also in guest-models.json), open terrain and base map, extras in \"web\" (demo-scenes.js).",
+  "scenes": [
+    {
+      "version": 1,
+      "id": 1000,
+      "name": "Demo: Wind Turbine with Live Wind",
+      "modified": "2026.10.08-13.56.13",
+      "cameraLongitudeLatitudeHeight": {
+        "x": 11.490612871256582,
+        "y": 49.21495052995908,
+        "z": 928.0933413583808
+      },
+      "cameraYaw": -90.00000000000007,
+      "cameraPitch": -30.000000000000043,
+      "assets": [
+        {
+          "ionAssetId": -2301093281,
+          "name": "Demo: Wind Turbine 7.2 MW - Tower",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/WindTurbine_Tower/tileset.json"
+        },
+        {
+          "ionAssetId": -1060044999,
+          "name": "Demo: Wind Turbine 7.2 MW - Rotor",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/WindTurbine_Rotor/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 15.935555555555556,
+      "month": 10,
+      "day": 8,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "Model: \"Animated Wind Turbine\" by Glowbox 3D (Sketchfab), CC BY 4.0, scaled to 199 m hub height / 172 m rotor. Live wind: Deutscher Wetterdienst via Bright Sky."
+        ]
+      }
+    },
+    {
+      "version": 1,
+      "id": 1001,
+      "name": "Demo: Merendree Bridge - As Built vs As Designed",
+      "modified": "2026.10.08-13.57.25",
+      "cameraLongitudeLatitudeHeight": {
+        "x": 3.5695030223124395,
+        "y": 51.07150171746479,
+        "z": 187.82619917115738
+      },
+      "cameraYaw": -90.00000000000016,
+      "cameraPitch": -30.000000000000043,
+      "assets": [
+        {
+          "ionAssetId": -1249227218,
+          "name": "Demo: Merendree Bridge - As Built (Reality Mesh)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Merendree_AsBuilt/tileset.json"
+        },
+        {
+          "ionAssetId": -3114318373,
+          "name": "Demo: Merendree Bridge - As Designed (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Merendree_AsDesigned/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 15,
+      "month": 6,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "Reality mesh: \"3D Bridge Model of Merendreebrug\" by erkki.bartczak, Geomatics Research Group, KU Leuven (Sketchfab), CC BY 4.0 - georeferenced and cleaned.",
+          "IFC 4.3 model by geoBIM, rebuilt on the reality mesh by erkki.bartczak, KU Leuven (CC BY 4.0)."
+        ],
+        "split": {
+          "left": [
+            "Merendree_AsBuilt"
+          ],
+          "right": [
+            "Merendree_AsDesigned"
+          ]
+        }
+      }
+    },
+    {
+      "version": 1,
+      "id": 1002,
+      "name": "Demo: Deichbrücke Swing Bridge",
+      "modified": "2026.10.08-13.58.40",
+      "cameraLongitudeLatitudeHeight": {
+        "x": 8.114867783201193,
+        "y": 53.51445905032047,
+        "z": 79.8237030805597
+      },
+      "cameraYaw": -90,
+      "cameraPitch": -29.999999999999986,
+      "assets": [
+        {
+          "ionAssetId": -3948894337,
+          "name": "Demo: Deichbrücke Swing Bridge (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Deichbruecke_SwingBridge/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 17,
+      "month": 6,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "IFC 4.3 model by geoBIM, built from historical plans."
+        ]
+      }
+    },
+    {
+      "version": 1,
+      "id": 1003,
+      "name": "Demo: Hollow Box Girder + local DTM",
+      "modified": "2026.10.06-12.02.31",
+      "cameraLongitudeLatitudeHeight": {
+        "x": 11.011332479654415,
+        "y": 50.34701979196899,
+        "z": 566.9973490012001
+      },
+      "cameraYaw": -8.36624874394795,
+      "cameraPitch": -17.608004765759624,
+      "assets": [
+        {
+          "ionAssetId": -1,
+          "name": "Demo: Railway Viaduct - Hollow Box Girder (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/HollowBox_Viaduct/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 16.91844367980957,
+      "month": 9,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "IFC 4.3 model by geoBIM: parametric hollow box girder railway viaduct with alignment, after Talbruecke Poepelholz (illustrative, not as built). Terrain: DGM1 (c) Bayerische Vermessungsverwaltung - www.geodaten.bayern.de, CC BY 4.0."
+        ],
+        "alignmentSection": "HollowBox_Viaduct"
+      }
+    },
+    {
+      "version": 1,
+      "id": 1004,
+      "name": "Demo: Medical-Dental Clinic (5 disciplines)",
+      "modified": "2026.10.06-12.02.31",
+      "cameraLongitudeLatitudeHeight": {
+        "x": -74.04494456825282,
+        "y": 40.70349128402698,
+        "z": 44.7
+      },
+      "cameraYaw": -30.0,
+      "cameraPitch": -22.091365409362936,
+      "assets": [
+        {
+          "ionAssetId": -10,
+          "name": "Demo: Medical-Dental Clinic - Architecture (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Clinic_Architectural/tileset.json"
+        },
+        {
+          "ionAssetId": -11,
+          "name": "Demo: Medical-Dental Clinic - Structure (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Clinic_Structural/tileset.json"
+        },
+        {
+          "ionAssetId": -12,
+          "name": "Demo: Medical-Dental Clinic - Electrical (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Clinic_Electrical/tileset.json"
+        },
+        {
+          "ionAssetId": -13,
+          "name": "Demo: Medical-Dental Clinic - HVAC (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Clinic_HVAC/tileset.json"
+        },
+        {
+          "ionAssetId": -14,
+          "name": "Demo: Medical-Dental Clinic - Plumbing (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Clinic_Plumbing/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 15.0,
+      "month": 6,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "Model: BSI (2020) \"Medical-Dental Test Files\", buildingSMART International, CC BY 4.0 (github.com/buildingsmart-community/Community-Sample-Test-Files). Changes by geoBIM: migrated from IFC 2x3 to IFC 4.3, materials restyled (matt), luminaires / outlets / switches reclassified with lighting data, HVAC and plumbing coloured, placed at Liberty State Park, Jersey City (fictitious site), converted to 3D Tiles."
+        ]
+      }
+    },
+    {
+      "version": 1,
+      "id": 1005,
+      "name": "Demo: iTwin Station",
+      "modified": "2026.10.20-12.00.00",
+      "cameraLongitudeLatitudeHeight": {
+        "x": -75.139963851,
+        "y": 39.945883859,
+        "z": 82.837
+      },
+      "cameraYaw": -126.49,
+      "cameraPitch": -27.138,
+      "assets": [
+        {
+          "ionAssetId": -5652801346,
+          "name": "iTwin Demo - Station",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "",
+          "iTwinIModelId": "669dde67-eb69-4e0b-bcf2-f722eee94746"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 14.0,
+      "month": 6,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {}
+    },
+    {
+      "version": 1,
+      "id": 1006,
+      "name": "Demo: Siegtalbrücke 4D Construction Schedule",
+      "modified": "2026.10.29-10.30.00",
+      "cameraLongitudeLatitudeHeight": {
+        "x": 7.97868,
+        "y": 50.84283,
+        "z": 650.0
+      },
+      "cameraYaw": -36.9,
+      "cameraPitch": -15.0,
+      "assets": [
+        {
+          "ionAssetId": -1,
+          "name": "Demo: Siegtalbrücke - 4D Replacement (IFC 4.3)",
+          "type": "3DTILES",
+          "bVisible": true,
+          "localPath": "model/Siegtalbruecke_4D/tileset.json"
+        }
+      ],
+      "basemap": "WorldTerrain",
+      "imageryAssetId": 2,
+      "terrainAssetId": 1,
+      "solarTime": 15.0,
+      "month": 6,
+      "day": 21,
+      "terrain": "mapterhorn",
+      "webBasemap": "esri-imagery",
+      "web": {
+        "credits": [
+          "IFC 4.3 model by geoBIM with 4D construction schedule (demolition, incremental launching, traffic switch), built from public planning information (illustrative, not as built)."
+        ],
+        "schedule": "Siegtalbruecke_4D"
+      }
+    }
+  ]
+}

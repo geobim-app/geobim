@@ -151,6 +151,17 @@
 
 ---
 
+## 11b. Demo Scenes
+
+| Feature | Description | Files |
+|---|---|---|
+| Demo Scenes | The 7 demo scenes of geoBIM Desktop (Unreal `Demo/DemoScenes.json`) in the Scenes panel for everyone, guests included: wind turbine, Merendree as built vs as designed, Deichbrücke swing bridge, hollow box girder, medical-dental clinic (5 disciplines), iTwin station, Siegtalbrücke 4D. Read-only (never saved), open terrain and Esri imagery. | `demo-scenes.js`, `demo-scenes.json` |
+| Demo Extras | Merendree opens in Split View (as built left, as designed right), Siegtalbrücke with the construction schedule (4D) bar, the hollow box girder with the alignment section. Switching scenes closes them. | `demo-scenes.js` |
+| Demo Credits | Model credits (CC BY 4.0, from the Desktop `CREDITS.txt`) under the list and in "Data attribution". | `demo-scenes.js` |
+| Demo Models | Folders in `model/` with the Desktop demo names, listed in `guest-models.json` (server data, not in git). | `model/` |
+
+---
+
 ## 11a. Share a Scene with a Link
 
 | Feature | Description | Files |
