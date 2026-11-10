@@ -6,7 +6,8 @@ Thumbs.db
 .vscode/
 *.log
 logo/
-.claude/
+.claude/*
+!.claude/settings.json
 backup/
 1076/
 docs/
