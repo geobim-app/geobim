@@ -21,8 +21,8 @@
         </button>
       </div>
       <div class="modern-hint">
-        <strong>Left:</strong> Terrain / basemap only<br>
-        <strong>Right:</strong> All loaded assets + terrain<br>
+        Assets show on the right by default. Once split view is on, pick
+        L / Both / R per asset and OGC layer, and a basemap for the left side.<br>
         Drag the slider to adjust split position.
       </div>
     `;

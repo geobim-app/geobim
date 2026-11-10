@@ -1,0 +1,90 @@
+/* geoBIM.app — Split View: side per asset / OGC layer, left basemap (split-compare.js) */
+
+.split-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.split-compare[hidden] { display: none; }
+
+.split-compare-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.split-compare-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.split-compare-label svg { width: 14px; height: 14px; }
+
+.split-compare-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.split-compare-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 32px;
+}
+
+.split-compare-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.split-seg {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+}
+
+.split-seg-btn {
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.split-seg-btn:hover:not(:disabled) { color: var(--text-primary); background: rgba(255, 255, 255, 0.12); }
+.split-seg-btn.active { background: rgba(var(--brand-teal-rgb), 0.2); color: var(--text-primary); }
+.split-seg-btn:disabled { opacity: 0.4; cursor: default; }
+
+.split-seg-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-seg-btn { transition: none; }
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .split-seg-btn { min-width: 44px; min-height: 44px; }
+}
