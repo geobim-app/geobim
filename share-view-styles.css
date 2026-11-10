@@ -6,16 +6,25 @@ body.share-view .share-hidden { display: none !important; }
    nothing else. Share links always use the panel UI (panels-ui-loader.js): the
    rail keeps Layers (base maps only, see below), Measure, Comments and Sun &
    time, the phone tab bar the same plus "More" (with Comments). No bottom
-   toolbar, no Walk / Transform actions, no Loaded Assets panel. */
+   toolbar, no Walk / Transform actions; the Loaded widget is reduced (below). */
 body.share-view #bottomToolbar,
 body.share-view #floatingAssetsPanel,
-body.share-view #pnlLoadedWidget,
 body.share-view [data-node="m:saved"],
 body.share-view .panels-rail-action,
 body.share-view .panels-rail-sep,
 body.share-view .panels-rail-btn[data-section]:not([data-section="layers"]):not([data-section="drawing"]):not([data-section="comments"]):not([data-section="lighting"]),
 body.share-view .panels-tabs .panels-tab:not([data-section="layers"]):not([data-section="drawing"]):not([data-section="lighting"]):not([data-section="more"]),
 body.share-view .panels-more .panels-tab:not([data-section="comments"]) {
+  display: none !important;
+}
+
+/* Loaded widget (panels-assets.js), reduced: per model fly to, show/hide and
+   the section tool (alignment-section.js: IfcAlignment axis, line, plan).
+   No remove, sequencing, section planes, details or "Clamp all to terrain". */
+body.share-view #pnlLoadedWidget .assets-panel-actions,
+body.share-view #pnlLoadedWidget .modern-asset-details,
+body.share-view #pnlLoadedWidget .modern-asset-chevron,
+body.share-view #pnlLoadedWidget .modern-asset-controls > :not([onclick*="zoomToAsset"]):not(.asset-btn-visibility):not(.axis-card-btn) {
   display: none !important;
 }
 
