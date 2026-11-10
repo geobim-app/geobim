@@ -155,7 +155,7 @@ Run `bash qa-check.sh` for automated checks, then complete this manual checklist
 ### 19. Share Links (Scenes)
 - [ ] Owner: share button on each scene, dialog creates a link, warnings list left-out ion/iTwin assets
 - [ ] Private window: `/s/<token>` opens without login, banner shows scene name, models and camera as saved
-- [ ] Customer: panel UI also on geobim.app; rail shows only Measure, Comments and Sun & time (phone: Measure, Sun & time + More); no bottom toolbar, no Loaded list, no "Delete All"; G/X/H do nothing; file drop does nothing
+- [ ] Customer: panel UI also on geobim.app; rail shows only Layers (base maps only), Measure, Comments and Sun & time (phone: same + More); Home returns to the shared view; no bottom toolbar, no Loaded list, no "Delete All"; G/X/H do nothing; file drop does nothing
 - [ ] Customer comment appears in the owner's dialog (Comments) and survives > 24 h
 - [ ] Revoked / expired link: error card, `model/<folder>/tileset.json` returns 404
 - [ ] `/model/.shares/<token>.json` returns 404; a beta link does not work on live

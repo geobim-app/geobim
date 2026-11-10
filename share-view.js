@@ -51,10 +51,10 @@
     })
     .catch(function(err) { return { status: 0, body: { error: err.message } }; });
 
-  // Sidebar sections (data-section) a customer gets: measuring, comments and
-  // sun & shadows. Everything else is hidden (see share-view-styles.css for
-  // the panel UI's rail and tabs).
-  var KEEP_SECTIONS = ['drawing', 'comments', 'lighting'];
+  // Sidebar sections (data-section) a customer gets: base maps, measuring,
+  // comments and sun & shadows. Everything else is hidden (see
+  // share-view-styles.css for the panel UI's rail, tabs and Layers panel).
+  var KEEP_SECTIONS = ['layers', 'drawing', 'comments', 'lighting'];
   var AUTHOR_KEY = 'geobim.share.author';
 
   function esc(s) {
@@ -225,7 +225,29 @@
     BimViewer.glbModels = [];
     try { await BimViewer.fetchGLBModels(); } catch (e) {}
     var problems = await BimViewer.restoreSceneObject(res.body.snapshot) || [];
+    homeToScene(res.body.snapshot);
     showBanner(res.body, problems);
+  }
+
+  // The Home button flies back to the shared scene's view, not to the globe
+  function homeToScene(scene) {
+    var c = scene && scene.cameraLongitudeLatitudeHeight;
+    var home = BimViewer.viewer.homeButton;
+    if (!c || !home || !home.viewModel) return;
+    var view = {
+      destination: Cesium.Cartesian3.fromDegrees(Number(c.x), Number(c.y), Number(c.z)),
+      orientation: {
+        heading: Cesium.Math.toRadians((Number(scene.cameraYaw) || 0) + 90),   // Desktop yaw → heading (scenes.js)
+        pitch: Cesium.Math.toRadians(Number(scene.cameraPitch) || 0),
+        roll: 0
+      },
+      duration: 1.5
+    };
+    home.viewModel.command.beforeExecute.addEventListener(function(e) {
+      e.cancel = true;
+      BimViewer.viewer.camera.flyTo(view);
+    });
+    home.viewModel.tooltip = 'Back to the shared view';
   }
 
   function start() {
