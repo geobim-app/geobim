@@ -52,9 +52,9 @@
     .catch(function(err) { return { status: 0, body: { error: err.message } }; });
 
   // Sidebar sections (data-section) a customer gets: base maps, measuring,
-  // comments and sun & shadows. Everything else is hidden (see
+  // comments, sun & shadows and hiding elements. Everything else is hidden (see
   // share-view-styles.css for the panel UI's rail, tabs and Layers panel).
-  var KEEP_SECTIONS = ['layers', 'drawing', 'comments', 'lighting'];
+  var KEEP_SECTIONS = ['layers', 'drawing', 'comments', 'lighting', 'visibility'];
   var AUTHOR_KEY = 'geobim.share.author';
 
   function esc(s) {
@@ -124,12 +124,12 @@
     });
 
     // Shortcuts of tools a customer does not get: walk (G, V, T), transform
-    // (X), hide elements (H), saved views (1-9). Typing in fields is untouched.
+    // (X), saved views (1-9). Typing in fields is untouched.
     window.addEventListener('keydown', function(e) {
       var tag = e.target && e.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || (e.target && e.target.isContentEditable)) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (/^[gvtxh1-9]$/i.test(e.key)) e.stopImmediatePropagation();
+      if (/^[gvtx1-9]$/i.test(e.key)) e.stopImmediatePropagation();
     }, true);
 
     var tries = 0;
