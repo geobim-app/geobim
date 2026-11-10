@@ -2,18 +2,19 @@
 
 body.share-view .share-hidden { display: none !important; }
 
-/* Customers measure and comment, nothing else. Share links always use the
-   panel UI (panels-ui-loader.js): the rail keeps Measure and Comments, the phone
-   tab bar Measure and "More" (with Comments). No bottom
-   toolbar, no Walk / Transform actions, no Loaded Assets panel. */
+/* Customers measure, comment and look at sun & shadows, nothing else. Share
+   links always use the panel UI (panels-ui-loader.js): the rail keeps Measure,
+   Comments and Sun & time, the phone tab bar Measure, Sun & time and "More"
+   (with Comments). No bottom toolbar, no Walk / Transform actions, no Loaded
+   Assets panel. */
 body.share-view #bottomToolbar,
 body.share-view #floatingAssetsPanel,
 body.share-view #pnlLoadedWidget,
 body.share-view [data-node="m:saved"],
 body.share-view .panels-rail-action,
 body.share-view .panels-rail-sep,
-body.share-view .panels-rail-btn[data-section]:not([data-section="drawing"]):not([data-section="comments"]),
-body.share-view .panels-tabs .panels-tab:not([data-section="drawing"]):not([data-section="more"]),
+body.share-view .panels-rail-btn[data-section]:not([data-section="drawing"]):not([data-section="comments"]):not([data-section="lighting"]),
+body.share-view .panels-tabs .panels-tab:not([data-section="drawing"]):not([data-section="lighting"]):not([data-section="more"]),
 body.share-view .panels-more .panels-tab:not([data-section="comments"]) {
   display: none !important;
 }

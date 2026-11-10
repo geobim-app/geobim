@@ -51,10 +51,10 @@
     })
     .catch(function(err) { return { status: 0, body: { error: err.message } }; });
 
-  // Sidebar sections (data-section) a customer gets: measuring and comments.
-  // Everything else is hidden (the bottom toolbar keeps only Measure, see
-  // share-view-styles.css).
-  var KEEP_SECTIONS = ['drawing', 'comments'];
+  // Sidebar sections (data-section) a customer gets: measuring, comments and
+  // sun & shadows. Everything else is hidden (see share-view-styles.css for
+  // the panel UI's rail and tabs).
+  var KEEP_SECTIONS = ['drawing', 'comments', 'lighting'];
   var AUTHOR_KEY = 'geobim.share.author';
 
   function esc(s) {

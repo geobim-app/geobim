@@ -34,7 +34,9 @@ window.BimArcGIS = (function() {
   var BASEMAPS = [
     { id: 'esri-imagery', name: 'Esri World Imagery', service: 'World_Imagery' },
     { id: 'esri-streets', name: 'Esri Streets', service: 'World_Street_Map' },
-    { id: 'esri-topo', name: 'Esri Topographic', service: 'World_Topo_Map' }
+    { id: 'esri-topo', name: 'Esri Topographic', service: 'World_Topo_Map' },
+    { id: 'esri-light-gray', name: 'Esri Light Gray Canvas', service: 'Canvas/World_Light_Gray_Base' },
+    { id: 'esri-dark-gray', name: 'Esri Dark Gray Canvas', service: 'Canvas/World_Dark_Gray_Base' }
   ];
   var PRESETS = [
     { group: 'ArcGIS', label: 'Esri World Hillshade (MapServer)', url: SERVICES + 'Elevation/World_Hillshade/MapServer' }
