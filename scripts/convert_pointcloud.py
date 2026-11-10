@@ -44,6 +44,10 @@ import fcntl
 import math
 import time
 
+# Only for the queue lock: one conversion at a time on the whole VPS, shared by
+# live (geobim.app) and staging (beta.geobim.app). The output folder is NOT
+# derived from this - it comes from the job dir (see model_dir_for_job), so a
+# job started on beta lands in beta's model/ and never touches live.
 MODEL_DIR = "/var/www/christoflorenz.de/model"
 STAGING_DIR = os.path.join(MODEL_DIR, "_staging")
 LOCK_PATH = os.path.join(STAGING_DIR, ".convert.lock")
@@ -381,12 +385,22 @@ def convert_ifc(job, job_dir, input_path, out_dir, final_dir, slug):
     write_status(job_dir, "done", **done)
 
 
+def model_dir_for_job(job_dir):
+    """model/ of the site that started the job: api/pointcloud-upload.php puts
+    jobs in <site>/model/_staging/<jobId>, and that site's api/models.php only
+    lists <site>/model/."""
+    staging = os.path.dirname(job_dir)
+    if os.path.basename(staging) != "_staging":
+        raise SystemExit(f"job dir not under <model>/_staging/: {job_dir}")
+    return os.path.dirname(staging)
+
+
 def main():
     if len(sys.argv) != 2:
         print("usage: convert_pointcloud.py <job_dir>", file=sys.stderr)
         sys.exit(1)
 
-    job_dir = sys.argv[1]
+    job_dir = os.path.abspath(sys.argv[1])
     job_path = os.path.join(job_dir, "job.json")
     with open(job_path) as f:
         job = json.load(f)
@@ -394,7 +408,11 @@ def main():
     input_path = os.path.join(job_dir, job["input"])
     slug = job["slug"]
     out_dir = os.path.join(job_dir, "out")
-    final_dir = os.path.join(MODEL_DIR, slug)
+    try:
+        final_dir = os.path.join(model_dir_for_job(job_dir), slug)
+    except SystemExit as e:
+        write_status(job_dir, "error", message=str(e))
+        raise
 
     write_status(job_dir, "queued")
 
