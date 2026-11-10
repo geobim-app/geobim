@@ -110,10 +110,23 @@
   // Load
   // ------------------------------------------------------------------
 
+  // The viewer is (re)built after the splash / sign-in: wait for it
+  function viewerReady(timeoutMs) {
+    var start = Date.now();
+    return new Promise(function(resolve) {
+      (function poll() {
+        var ok = BimViewer.viewer && window.LayerManager && LayerManager.viewer === BimViewer.viewer;
+        if (ok || Date.now() - start > timeoutMs) return resolve(!!ok);
+        setTimeout(poll, 250);
+      })();
+    });
+  }
+
   async function loadDemo(id) {
     var scene = scenes.find(function(s) { return s.id === id; });
     if (!scene || busy || !BimViewer.restoreSceneObject) return;
     busy = true;
+    if (!(await viewerReady(20000))) { busy = false; return; }
     activeId = id;
     render();
     closeExtras();
