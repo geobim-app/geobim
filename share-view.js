@@ -51,9 +51,10 @@
     })
     .catch(function(err) { return { status: 0, body: { error: err.message } }; });
 
-  // Sidebar sections (data-section) a customer does not get: they add data
-  // from outside the scene or save into this browser
-  var HIDDEN_SECTIONS = ['layers', 'splat', 'inspection', 'views', 'scenes', 'settings'];
+  // Sidebar sections (data-section) a customer gets: measuring and comments.
+  // Everything else is hidden (the bottom toolbar keeps only Measure, see
+  // share-view-styles.css).
+  var KEEP_SECTIONS = ['drawing', 'comments'];
   var AUTHOR_KEY = 'geobim.share.author';
 
   function esc(s) {
@@ -75,14 +76,7 @@
     toolbar.querySelectorAll('.modern-section').forEach(function(section) {
       var header = section.querySelector('.modern-section-header[data-section]');
       var id = header ? header.getAttribute('data-section') : null;
-      if (id && HIDDEN_SECTIONS.indexOf(id) !== -1) section.classList.add('share-hidden');
-    });
-    var ion = document.getElementById('ionAssetSelector');
-    var ionGroup = ion && ion.closest('.modern-group');
-    if (ionGroup) ionGroup.classList.add('share-hidden');
-    ['glbSection', 'gizmoTransformBtn'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.classList.add('share-hidden');
+      if (id && KEEP_SECTIONS.indexOf(id) === -1) section.classList.add('share-hidden');
     });
     return true;
   }
@@ -128,6 +122,15 @@
         }
       }, true);
     });
+
+    // Shortcuts of tools a customer does not get: walk (G, V, T), transform
+    // (X), hide elements (H), saved views (1-9). Typing in fields is untouched.
+    window.addEventListener('keydown', function(e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || (e.target && e.target.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/^[gvtxh1-9]$/i.test(e.key)) e.stopImmediatePropagation();
+    }, true);
 
     var tries = 0;
     (function waitHide() {
