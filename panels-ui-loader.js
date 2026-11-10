@@ -1,14 +1,15 @@
 /**
  * geobim.app — Panel UI switch
  *
- * Decides between the classic sidebar UI (default) and the parallel panel UI
- * (icon rail + floating panels, panels-ui.js / panels-ui.css). Classic loads
+ * Decides between the panel UI (default: icon rail + floating panels,
+ * panels-ui.js / panels-ui.css) and the classic sidebar UI. Classic loads
  * nothing extra; only this small loader is always present.
  *
  * Order of precedence:
  *   1. ?ui=panels | ?ui=classic   (remembered in localStorage for this browser)
  *   2. remembered choice
- *   3. default by host: beta.geobim.app and localhost → panels, everything else → classic
+ *   3. default: panels, on every host (geobim.app too since 2026-11-10)
+ * Share links (?share=) always get panels.
  * Demo modes with their own trimmed UI (WEA, Bridge Inspector, StageTwin)
  * always stay classic for now.
  *
@@ -20,7 +21,6 @@
 
   var VERSION = '0.15.8'; // cache-bust for panels-ui.js / panels-ui.css
   var STORAGE_KEY = 'geobim_ui';
-  var BETA_HOSTS = ['beta.geobim.app', 'localhost']; // localhost: dev/serve.ps1
   var CLASSIC_ONLY_MODES = { wea: '/wea-shadow', bridge: '/bridge-inspector', stagetwin: '/stage-twin' };
 
   function store(key, value) {
@@ -53,7 +53,7 @@
     if (fromUrl === 'panels' || fromUrl === 'classic') return fromUrl;
     var remembered = recall(STORAGE_KEY);
     if (remembered === 'panels' || remembered === 'classic') return remembered;
-    return BETA_HOSTS.indexOf(window.location.hostname) !== -1 ? 'panels' : 'classic';
+    return 'panels';
   }
 
   function addStylesheet(href) {
@@ -63,8 +63,8 @@
     document.head.appendChild(css);
   }
 
-  // Beta only: a small "New interface" button in the classic view, so testers
-  // get back to the panels without typing ?ui=panels
+  // A small "New interface" button in the classic view, so whoever chose
+  // classic gets back to the panels without typing ?ui=panels
   function addSwitchBack() {
     addStylesheet('panels-ui-switch.css');
     function add() {
@@ -72,7 +72,7 @@
       btn.type = 'button';
       btn.id = 'panelsSwitchBtn';
       btn.className = 'panels-switch-btn';
-      btn.title = 'Switch to the new panel interface (beta)';
+      btn.title = 'Switch to the new panel interface';
       btn.innerHTML = '<i data-lucide="panels-top-left"></i><span>New interface</span>';
       btn.addEventListener('click', function() {
         var url = new URL(window.location.href);
@@ -90,8 +90,7 @@
   window.GEOBIM_UI = ui;
   console.log('UI layout: ' + ui);
   if (ui !== 'panels') {
-    var isBeta = BETA_HOSTS.indexOf(window.location.hostname) !== -1;
-    if (isBeta && !isClassicOnlyMode(new URLSearchParams(window.location.search))) addSwitchBack();
+    if (!isClassicOnlyMode(new URLSearchParams(window.location.search))) addSwitchBack();
     return;
   }
 
