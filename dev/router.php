@@ -26,9 +26,16 @@ if (isset($modes[$route])) {
     exit;
 }
 
-// model/ (model/.htaccess): files in the repo (Cesium_Man.glb, wind/, sib/) as they
-// are, the rest through api/model-file.php — with GEOBIM_DEV_MODEL_DIR from that folder
-if (preg_match('#^/model/(.+)$#', $path, $m) && !is_file(__DIR__ . '/../model/' . $m[1])) {
+// Share links (.htaccess: /s/<token> → /?share=<token>)
+if (preg_match('#^/s/([A-Za-z0-9_-]{22})/?$#', $path, $m)) {
+    header('Location: /?share=' . $m[1], true, 302);
+    exit;
+}
+
+// model/ (model/.htaccess): Cesium_Man.glb, wind/ and sib/ as they are, the
+// rest through api/model-file.php — with GEOBIM_DEV_MODEL_DIR from that folder
+if (preg_match('#^/model/(.+)$#', $path, $m)
+    && !(preg_match('#^(Cesium_Man\.glb|wind/.+|sib/.+)$#', $m[1]) && is_file(__DIR__ . '/../model/' . $m[1]))) {
     $_GET['path'] = rawurldecode($m[1]);
     require __DIR__ . '/../api/model-file.php';
     exit;

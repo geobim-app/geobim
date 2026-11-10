@@ -5,12 +5,16 @@ header('Cache-Control: no-cache');
 require __DIR__ . '/_owner_auth.php';
 require __DIR__ . '/_dev.php';
 require __DIR__ . '/_guest_models.php';
+require __DIR__ . '/_shares.php';
 // Local development: a folder of tilesets instead of model/ (see _dev.php)
 $devDir = geobim_dev_model_dir();
 $modelDir = $devDir ?: __DIR__ . '/../model';
 // Server models are the owner's; everyone else gets only the entries of
-// model/guest-models.json (model-file.php serves no others, 404).
-$guestList = (!$devDir && !geobim_is_owner()) ? geobim_guest_models($modelDir) : null;
+// model/guest-models.json and of share links opened in this browser
+// (model-file.php serves no others, 404).
+$guestList = (!$devDir && !geobim_is_owner())
+    ? array_values(array_unique(array_merge(geobim_guest_models($modelDir), geobim_share_models())))
+    : null;
 if ($guestList !== null && !$guestList) {
     echo '[]';
     exit;

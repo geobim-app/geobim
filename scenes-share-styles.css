@@ -1,0 +1,209 @@
+/* geoBIM.app — share a scene with a link (scenes-share.js) */
+
+.scene-share-dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: var(--space-xl);
+  overflow-y: auto;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  color: var(--text-primary);
+}
+
+.scene-share-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.scene-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.scene-share-head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+}
+
+.scene-share-head h2 span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-share-head h2 svg { flex: none; width: 18px; height: 18px; color: var(--brand-teal); }
+
+.scene-share-hint {
+  margin: var(--space-sm) 0 var(--space-lg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.scene-share-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.scene-share-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.scene-share-form .modern-btn,
+.scene-share-item-actions .modern-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.scene-share-form .modern-btn svg,
+.scene-share-item-actions .modern-btn svg { width: 16px; height: 16px; }
+
+.scene-share-result { margin-top: var(--space-lg); }
+
+.scene-share-url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+.scene-share-warnings {
+  margin: var(--space-sm) 0 0;
+  padding-left: var(--space-lg);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.scene-share-subhead {
+  margin: var(--space-xl) 0 var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scene-share-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.scene-share-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.scene-share-result .scene-share-item { gap: var(--space-sm); }
+
+.scene-share-item-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.scene-share-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.scene-share-item-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.scene-share-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.scene-share-badge {
+  flex: none;
+  padding: 1px var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.scene-share-badge.is-active { background: rgba(var(--brand-teal-rgb), 0.2); color: var(--brand-teal); }
+.scene-share-badge.is-expired { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+.scene-share-badge.is-revoked { background: rgba(248, 113, 113, 0.15); color: var(--error); }
+
+.scene-share-comments-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: auto;
+  padding: 0 var(--space-xs);
+}
+
+.scene-share-comments-btn [data-count] { font-size: 11px; }
+
+.scene-share-comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  font-size: 12px;
+}
+
+.scene-share-comments[hidden] { display: none; }
+
+.scene-share-comment {
+  padding: var(--space-sm);
+  border-left: 2px solid var(--brand-teal);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+}
+
+.scene-share-comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.scene-share-comment-text {
+  margin: var(--space-xs) 0;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.scene-share-error {
+  color: var(--error);
+  font-size: 12px;
+}
+
+.scene-share-dialog .modern-icon-btn:focus-visible,
+.scene-share-dialog .modern-btn:focus-visible,
+.scene-share-dialog .modern-input:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 1px;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .scene-share-dialog .modern-icon-btn,
+  .scene-share-dialog .modern-btn { min-width: 44px; min-height: 44px; }
+}

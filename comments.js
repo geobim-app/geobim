@@ -132,9 +132,11 @@
 
   // Bridge Inspector demo gets its own collection so its annotations don't leak
   // into the main viewer (and vice versa).
-  const FIRESTORE_COLLECTION = window._bridgeInspectorMode
+  // A share link (share-view.js) keeps its customers' comments under
+  // share_comments/<token>/comments, without the demo TTL.
+  const FIRESTORE_COLLECTION = window._shareCommentsPath || (window._bridgeInspectorMode
     ? 'bridge_demo_comments'
-    : 'demo_comments';
+    : 'demo_comments');
 
   // =====================================
   // FIRESTORE INITIALIZATION (v6.0 DEMO)
@@ -188,6 +190,7 @@
 
   BimViewer.deleteExpiredComments = async function() {
     if (!this.comments.collection || !this.comments.db) return;
+    if (window._shareCommentsPath) return;   // share links keep their comments
     try {
       const cutoff = new Date(Date.now() - COMMENT_TTL_HOURS * 60 * 60 * 1000).toISOString();
       const expired = await this.comments.collection

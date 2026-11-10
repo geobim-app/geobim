@@ -1,0 +1,98 @@
+/* geoBIM.app — share link view (share-view.js) */
+
+body.share-view .share-hidden { display: none !important; }
+
+/* Comments: customers can't edit or delete (Firestore rules: owner only) */
+body.share-view button[onclick*="editComment"],
+body.share-view button[onclick*="deleteComment"] { display: none !important; }
+
+.share-banner {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-panels);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: min(560px, calc(100vw - 32px));
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.share-banner > svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-teal);
+}
+
+.share-banner-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+  min-width: 0;
+}
+
+.share-banner-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-banner-label { color: var(--text-secondary); }
+.share-banner-meta { color: var(--text-muted); font-size: 12px; }
+.share-banner-warn { color: var(--warning); font-size: 12px; cursor: help; }
+
+.share-error {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlays);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.share-error-card {
+  max-width: 420px;
+  padding: var(--space-2xl);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.share-error-card svg {
+  width: 32px;
+  height: 32px;
+  color: var(--brand-teal);
+}
+
+.share-error-card h1 {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: 18px;
+}
+
+.share-error-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .share-banner { top: 56px; font-size: 12px; }
+}

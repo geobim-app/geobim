@@ -144,6 +144,20 @@
 | Split Mode | Divide viewport into left/right halves for before/after comparison. | `core.js`, `ui.js` |
 | Google Tiles Split | Left copy of Google 3D Tiles created automatically for side-by-side view. | `ui.js` |
 | Slider Control | Draggable horizontal separator to adjust split position. | `ui.js` |
+| Side per Asset | L / Both / R per loaded asset and per WMS/WMTS layer (e.g. as-built left, design right); WFS and entities stay on both sides. | `split-compare.js` |
+| Left Basemap | A different basemap for the left side (e.g. aerial left, topographic right). | `split-compare.js` |
+
+---
+
+## 11a. Share a Scene with a Link
+
+| Feature | Description | Files |
+|---|---|---|
+| Share Link | Owner creates an unguessable link (`/s/<token>`, 128 bit) for a saved scene; the server freezes and cleans the scene (only self-hosted models of this site, open terrain and basemaps, no Cesium ion). Optional expiry date, revocable. | `scenes-share.js`, `api/share-*.php`, `api/_shares.php` |
+| Customer View | No account, no login: the scene loads with its models, the customer can navigate, measure, toggle, compare and comment. Layers, views, scenes, settings, upload and import are hidden; file drops are blocked. | `share-view.js` |
+| Model Access | Opening a link sets the HttpOnly cookie `geobim_share`; `model-file.php` and `models.php` then allow exactly the link's models, until it is revoked or expires. | `api/_shares.php`, `api/model-file.php`, `api/models.php` |
+| Customer Comments | Stored per link in Firestore `share_comments/<token>/comments`; the owner reads and deletes them in the share dialog. Rules: see `DEPLOYMENT.md`. | `share-view.js`, `scenes-share.js`, `comments.js` |
+| Per Site | Links live in `model/.shares/` of each site: a beta link does not work on geobim.app and vice versa. | `api/_shares.php` |
 
 ---
 

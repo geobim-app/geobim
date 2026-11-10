@@ -37,6 +37,7 @@
   function isClassicOnlyMode(params) {
     var path = window.location.pathname.replace(/\/+$/, '');
     var mode = params.get('mode');
+    if (params.has('share')) return true;   // share links (share-view.js) use the classic UI for now
     return Object.keys(CLASSIC_ONLY_MODES).some(function(m) {
       return mode === m || path === CLASSIC_ONLY_MODES[m];
     });

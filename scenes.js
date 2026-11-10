@@ -394,7 +394,10 @@
   };
 
   async function ensureLocalModels() {
-    if (!BimViewer.isLabUser || !BimViewer.isLabUser() || typeof BimViewer.fetchGLBModels !== 'function') return [];
+    // Server models: the owner's, or those of an opened share link (share-view.js;
+    // api/models.php lists only the link's models then)
+    var allowed = window._shareMode || (BimViewer.isLabUser && BimViewer.isLabUser());
+    if (!allowed || typeof BimViewer.fetchGLBModels !== 'function') return [];
     if (!BimViewer.glbModels || !BimViewer.glbModels.length) {
       try { await BimViewer.fetchGLBModels(); } catch (e) {}
     }
@@ -576,6 +579,14 @@
 
   BimViewer.loadScene = async function(id) {
     var scene = this.getScene(id);
+    if (!scene) return null;
+    return this.restoreSceneObject(scene);
+  };
+
+  // Restore a scene object that need not be in scenes.list (e.g. the frozen
+  // snapshot of a share link, share-view.js — kept out of the list so the
+  // store never saves it). activeId is only set for scenes of the list.
+  BimViewer.restoreSceneObject = async function(scene) {
     if (!scene || this.scenes.loading) return null;
     this.scenes.loading = true;
     changed();
@@ -588,7 +599,7 @@
       await restoreEnvironment(scene, problems);
       // Camera last: loaders of self-hosted models fly to the model themselves
       if (!restoreCamera(scene)) problems.push('The scene has no valid camera position');
-      this.scenes.activeId = scene.id;
+      if (this.scenes.list.indexOf(scene) !== -1) this.scenes.activeId = scene.id;
     } catch (err) {
       console.error('Loading scene failed:', err);
       problems.push('Error: ' + err.message);

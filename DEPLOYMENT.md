@@ -257,3 +257,41 @@ und Schritt 3, 4 und 6 wiederholen.
 
 Zeile in `authorized_keys` löschen = Deploy dieser Umgebung sofort gesperrt.
 Neuer Schlüssel: Schritt 3, 4 und das passende Secret in Schritt 6 wiederholen.
+
+## Share-Links für Szenen: Firestore-Regeln (einmalig)
+
+Die Kommentare der Kunden zu einem Share-Link (`share-view.js`) liegen in
+Firestore unter `share_comments/<token>/comments`. Den Status des Links
+(`revoked`, `expiresAt`) spiegelt der Browser des Owners beim Erstellen und
+Widerrufen nach `share_comments/<token>` (`scenes-share.js`). Die Regeln
+stehen nicht im Repo: in der Firebase-Konsole (Projekt `publictwin-ad6c7`,
+Firestore → Regeln) **ergänzen**, nicht ersetzen. Eine Anmeldung brauchen
+Kunden nicht (anonyme Anmeldung ist im Projekt aus, wie bei den
+Demo-Kommentaren): wer den 22-stelligen Token kennt, darf lesen und anlegen,
+solange der Link gilt.
+
+```
+// innerhalb von: match /databases/{database}/documents { ... }
+function isGeobimOwner() {
+  return request.auth != null && request.auth.token.email == 'christof2304@gmail.com';
+}
+function shareOpen(token) {
+  let p = /databases/$(database)/documents/share_comments/$(token);
+  return exists(p) && get(p).data.revoked == false
+    && (get(p).data.expiresAt == null || request.time < get(p).data.expiresAt);
+}
+match /share_comments/{token} {
+  allow read, write: if isGeobimOwner();
+  match /comments/{commentId} {
+    allow read: if isGeobimOwner() || shareOpen(token);
+    allow create: if shareOpen(token)
+      && request.resource.data.size() <= 30
+      && request.resource.data.title is string && request.resource.data.title.size() <= 300
+      && request.resource.data.text is string && request.resource.data.text.size() <= 5000;
+    allow update, delete: if isGeobimOwner();
+  }
+}
+```
+
+Die Links selbst liegen pro Site in `model/.shares/<token>.json` (nicht im
+Repo, nie ausgeliefert). Ein Link von beta gilt nur auf beta.
