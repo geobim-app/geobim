@@ -143,6 +143,13 @@
           return true;
         }
       }
+      // geobim-pointcloud (geobim-tiler) writes 3D Tiles 1.1 glb point tiles
+      // (points/*.glb, preview.glb): no ".pnts" in any URI, so it marks the
+      // tileset itself with extras.geobim.pointStyle.
+      const tsExtras = tileset.extras;
+      if (tsExtras && tsExtras.geobim && tsExtras.geobim.pointStyle) {
+        return true;
+      }
     } catch (e) {
       // Ignore errors
     }
