@@ -397,5 +397,12 @@
     setTimeout(wait, 500);
   })();
 
-  window.BimSceneShare = { open: open };
+  window.BimSceneShare = {
+    open: open,
+    // Links of a scene on this site (share-comments-host.js); owner only
+    listLinks: function(sceneId) {
+      if (!isOwner()) return Promise.resolve([]);
+      return api('api/share-list.php?sceneId=' + encodeURIComponent(sceneId));
+    }
+  };
 })();
