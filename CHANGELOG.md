@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Viewer-Adresse viewer.geobim.app** (`CLAUDE.md`, `DEPLOYMENT.md`, `.github/workflows/deploy.yml`): `main` wird unter viewer.geobim.app ausgeliefert; geobim.app wird die Firmen-Website und leitet alle Viewer-Pfade (`/?scene=…`, `/s/<token>`, `/model/…`, `/api/…`) per 308 mit Pfad und Parametern weiter. Nur Doku und Deploy-URL, kein Code geändert.
+
 ### Added
 
 - **Kundenkommentare der Share-Links direkt im eigenen Viewer** (neu `share-comments-host.js`; `scenes-share.js` `BimSceneShare.listLinks`, `scenes-share-styles.css`, `index.html`): Lädt der Owner eine gespeicherte Szene, erscheinen die Kommentare der Kunden aus allen Share-Links dieser Szene (`share_comments/<token>/comments`) live wie eigene Kommentare: Marker in 3D (Label mit „Customer: <Name>“), Einträge in der Kommentarliste mit Badge „Customer“, Hinfliegen, Bearbeiten und Löschen (direkt im Share-Dokument). Neue Kundenkommentare melden sich in der Statuszeile. Eine andere Szene, eine Demo-Szene oder „leere Szene“ blendet sie wieder aus; „Delete all“ löscht nur die eigenen. Bisher waren sie nur als Text im Share-Dialog zu sehen.

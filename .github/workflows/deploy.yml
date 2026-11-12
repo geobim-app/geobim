@@ -1,6 +1,6 @@
-# Deploy geobim.app via SSH:
+# Deploy the geoBIM viewer via SSH:
 #   push to staging → beta.geobim.app  (forced command /usr/local/bin/geobim-deploy-staging)
-#   push to main    → geobim.app       (forced command /usr/local/bin/geobim-deploy)
+#   push to main    → viewer.geobim.app (forced command /usr/local/bin/geobim-deploy)
 # Each environment has its own deploy key, restricted in authorized_keys with
 # command="...", so a connection can only run that one deploy script.
 # Setup: DEPLOYMENT.md
@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 5
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
-      url: ${{ github.ref_name == 'main' && 'https://geobim.app' || 'https://beta.geobim.app' }}
+      url: ${{ github.ref_name == 'main' && 'https://viewer.geobim.app' || 'https://beta.geobim.app' }}
     steps:
       - name: Set up SSH key and known_hosts
         env:

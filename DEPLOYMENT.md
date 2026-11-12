@@ -1,17 +1,21 @@
-# Deployment geobim.app
+# Deployment viewer.geobim.app
 
 ## Ablauf
 
 ```
 lokal ändern → bash qa-check.sh → Commit
   → git push origin HEAD:staging   → beta.geobim.app  (prüfen)
-  → git push origin HEAD:main      → geobim.app       (live)
+  → git push origin HEAD:main      → viewer.geobim.app (live)
 ```
 
 | Branch | Ziel | Server-Skript | Checkout |
 |--------|------|---------------|----------|
 | `staging` | beta.geobim.app | `/usr/local/bin/geobim-deploy-staging` | `/var/www/geobim-beta` |
-| `main` | geobim.app | `/usr/local/bin/geobim-deploy` | `/var/www/christoflorenz.de` |
+| `main` | viewer.geobim.app | `/usr/local/bin/geobim-deploy` | `/var/www/christoflorenz.de` |
+
+> geobim.app ist seit der Umstellung die Firmen-Website (Repo `geobim-app/geobim-site`).
+> Alle Viewer-Pfade dort (`/?scene=…`, `/s/<token>`, `/model/…`, `/api/…` …) leiten per 308
+> mit Pfad und Parametern an viewer.geobim.app weiter (Regel: `/etc/apache2/geobim-site-routing.conf`).
 
 Bei jedem Push auf einen der beiden Branches verbindet sich die GitHub Action
 `.github/workflows/deploy.yml` per SSH mit dem Server. Jede Umgebung hat einen

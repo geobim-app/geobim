@@ -9,7 +9,7 @@ Ingenieurbüros, Auftraggeber und die Öffentlichkeit.
 | Aspekt | Details |
 |--------|---------|
 | **Server** | Hetzner VPS (168.119.232.12), Apache, Let's Encrypt |
-| **Domain** | geobim.app (DNS via INWX) |
+| **Domain** | viewer.geobim.app (DNS via INWX); geobim.app ist die Firmen-Website (Repo `geobim-app/geobim-site`) und leitet alle Viewer-Pfade per 308 hierher |
 | **Auth/Backend** | Firebase (Authentication + Firestore + Storage) |
 | **3D Tiles** | Cesium Ion |
 | **CesiumJS** | v1.147 (neueste, CDN) |
@@ -162,13 +162,13 @@ Automatisch per GitHub Action — kein manuelles `git pull` auf dem Server.
 ```
 lokal ändern → bash qa-check.sh → Commit
   → git push --force-with-lease origin HEAD:staging → beta.geobim.app (prüfen)
-  → git push origin HEAD:main                       → geobim.app (live)
+  → git push origin HEAD:main                       → viewer.geobim.app (live)
 ```
 
 | Branch | Ziel | Server-Skript (forced command) |
 |--------|------|--------------------------------|
 | `staging` | beta.geobim.app = `/var/www/geobim-beta` | `/usr/local/bin/geobim-deploy-staging` (`checkout --detach origin/staging`) |
-| `main` | geobim.app = `/var/www/christoflorenz.de` | `/usr/local/bin/geobim-deploy` (`merge --ff-only origin/main`) |
+| `main` | viewer.geobim.app = `/var/www/christoflorenz.de` | `/usr/local/bin/geobim-deploy` (`merge --ff-only origin/main`) |
 
 - `.github/workflows/deploy.yml`, Hetzner 168.119.232.12, kein Build-Schritt
 - **`main`** nur vorwärts, nie force-pushen; **`staging`** darf neu gesetzt werden
