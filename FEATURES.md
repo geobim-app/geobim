@@ -103,6 +103,20 @@
 
 ---
 
+## 7a. Site Analysis (Terrain)
+
+| Feature | Description | Files |
+|---|---|---|
+| Site area | Draw a polygon (right-click or tap adds points, double right-click or Enter finishes, Backspace undoes, Esc cancels) or a 2-corner rectangle, or take a clipping polygon. Several sites at once, each with area, perimeter, zoom and remove. Up to 25 km². | `site-analysis.js`, `ui-site-section.js` |
+| Height source | **Mapterhorn DGM** (default): source tiles read directly at native resolution, orthometric, bare earth (≈ 1 m DGM in most of Germany, 30 m Copernicus elsewhere), independent of the terrain shown, no ion token. **Active terrain / Google 3D Tiles**: `sampleTerrainMostDetailed` / `sampleHeightMostDetailed` (loaded assets excluded), minus the geoid (GCG2016 / EGM2008) at the site centre. Shows the real data resolution and warns when the grid is finer. | `site-analysis.js`, `mapterhorn-terrain.js` (`sampleOrtho`, `dataZoomAt`) |
+| Height grid | 0.5–10 m cells, at most 250 000 per site (coarsened automatically with a note), sampled in blocks with progress and Cancel. Statistics: min / median / max height, mean slope, share steeper than 15°. | `site-analysis.js` |
+| Contours | Marching squares on the grid, interval auto or 0.25–100 m, every 5th line bold and labelled, cut at the site boundary, ground polylines on terrain and 3D Tiles. Export GeoJSON (height as Z). | `site-analysis.js` |
+| Slope / Aspect | Horn method; slope in 8 classes (0–2 … > 45°), aspect in 8 directions + flat (< 2°) with an aspect rose. Canvas rasters on ground rectangles with opacity and legend. Export PNG with legend. | `site-analysis.js`, `site-analysis-styles.css` |
+| Cut & fill | Balanced grade level (cut = fill, bisection) or a fixed level; cut red, fill blue by depth; volumes, swell factor, connected regions with area and volume (click flies there). Export CSV (`;`, decimal comma) and PNG. | `site-analysis.js` |
+| Elevation profile | Line with any number of points, sampled every 1 m (max. 5 000 points); floating panel with SVG chart, length, Δh, min / max, up / down, max grade over 10 m, vertical exaggeration (fit, 1–10×); hovering shows the point in 3D. Export CSV and SVG. | `site-analysis.js` |
+
+---
+
 ## 8. Annotations & Comments
 
 | Feature | Description | Files |
@@ -430,6 +444,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | `hideFeatures.js` | Click-to-hide individual elements with undo |
 | `comments.js` | Point and area annotations with Firestore CRUD |
 | `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
+| `site-analysis.js` | Site analysis: contours, slope, aspect, cut & fill, elevation profile, exports |
 | `clipping.js` | Polygon and rectangle clipping masks |
 | `pointcloud.js` | Point cloud detection, EDL, color modes, rendering presets |
 | `z-offset.js` | Per-asset vertical offset system |

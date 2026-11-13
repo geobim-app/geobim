@@ -124,6 +124,13 @@
                 </div>
               </div>
               <div class="about-feature-item">
+                <span class="about-feature-icon">⛰️</span>
+                <div>
+                  <strong>Site Analysis</strong>
+                  <span>Contours, slope, aspect, cut &amp; fill and elevation profiles</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
                 <span class="about-feature-icon">💬</span>
                 <div>
                   <strong>3D Annotations</strong>
