@@ -299,3 +299,10 @@ match /share_comments/{token} {
 
 Die Links selbst liegen pro Site in `model/.shares/<token>.json` (nicht im
 Repo, nie ausgeliefert). Ein Link von beta gilt nur auf beta.
+
+## Rhino-Plugin-Tokens
+
+Plugin-Tokens (Account → Rhino plugin, `api/plugin-tokens.php`) liegen pro Site als SHA-256 in
+`model/.tokens/plugin-tokens.json` (nicht im Repo, nie ausgeliefert, eigener deny-all-`.htaccess`).
+Der Ordner entsteht beim ersten Token; `model/` muss für PHP schreibbar sein (wie für `model/.shares`).
+Ein Token von beta gilt nur auf beta. Alle Tokens einer Site sperren: Datei löschen.

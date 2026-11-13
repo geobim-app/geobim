@@ -26,6 +26,7 @@ geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be
 - **IFC & Revit Filtering** — Show/hide by entity class or category (40+ IFC classes, 43 Revit categories with German names) with color-coded visualization; unlisted types stay visible via "Other"
 - **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
 - **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes, plus sections along an IfcAlignment axis by station with a live 2D cross section
+- **Rhino Plugin** — Upload Rhino models straight from Rhino 8 (IFC 4 via the geobim-tiler, georeferenced from map coordinates or the EarthAnchorPoint); repo `geobim-rhino`
 - **Construction Sequencing** — 4D BIM stage animation via IFC properties
 - **StageTwin** — Shareable 4D construction-stage view at [geobim.app/stage-twin](https://geobim.app/stage-twin)
 - **Annotations** — Point and area comments with Firestore persistence

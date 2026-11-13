@@ -7,10 +7,15 @@
 // models.php exactly like any other GLB/tileset asset.
 //
 // Owner only, checked server-side (2026-09-27): the owner session cookie set
-// by api/owner-session.php after Firebase sign-in, or an ID token.
+// by api/owner-session.php after Firebase sign-in, an ID token, or a Rhino
+// plugin token (api/_plugin_tokens.php).
+//
+// Optional "replace=<slug>" (IFC only, used by the Rhino plugin): the new
+// result replaces model/<slug>/ instead of getting a new folder, so the
+// viewer link stays the same while the model is being worked on.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
-geobim_require_owner();   // owner session cookie (api/owner-session.php) or ID token
+geobim_require_owner(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
 
 // Deliberately modest while usage is low-volume/single-user — flock()-serialized
 // conversion in convert_pointcloud.py already prevents concurrent jobs from
@@ -79,10 +84,24 @@ function geobim_slug_pending($modelDir, $slug) {
     }
     return false;
 }
-$i = 2;
-while (is_dir($modelDir . '/' . $slug) || geobim_slug_pending($modelDir, $slug)) {
-    $slug = $baseSlug . '_tiled_' . $i;
-    $i++;
+$replace = isset($_POST['replace']) ? trim($_POST['replace']) : '';
+if ($replace !== '') {
+    if (!preg_match('/^[a-z0-9_]+$/', $replace) || !is_file($modelDir . '/' . $replace . '/tileset.json')) {
+        fail('Model to replace not found: ' . $replace, 404);
+    }
+    if ($ext !== 'ifc') {
+        fail('Only IFC models can be replaced');
+    }
+    if (geobim_slug_pending($modelDir, $replace)) {
+        fail('This model is still being converted — try again when it is done', 409);
+    }
+    $slug = $replace;
+} else {
+    $i = 2;
+    while (is_dir($modelDir . '/' . $slug) || geobim_slug_pending($modelDir, $slug)) {
+        $slug = $baseSlug . '_tiled_' . $i;
+        $i++;
+    }
 }
 
 // Optional real-world placement — parsed leniently, all-or-nothing (need at
@@ -141,6 +160,9 @@ $job = [
     'slug' => $slug,
     'name' => $name,
 ];
+if ($replace !== '') {
+    $job['replace'] = true;
+}
 if ($epsg !== '') {
     $job['epsg'] = (int)explode('+', $epsg)[0];
     $job['epsg_full'] = $epsg;
@@ -166,4 +188,4 @@ $dir = escapeshellarg($jobDir);
 $python = '/opt/py3dtiles/venv/bin/python3';
 exec("$python $worker $dir > /dev/null 2>&1 &");
 
-echo json_encode(['jobId' => $jobId, 'slug' => $slug]);
+echo json_encode(['jobId' => $jobId, 'slug' => $slug, 'replace' => $replace !== '']);

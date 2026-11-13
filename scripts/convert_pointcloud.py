@@ -367,7 +367,10 @@ def convert_ifc(job, job_dir, input_path, out_dir, final_dir, slug):
             report = json.load(f)
     except Exception:
         pass
-    move_to_final(out_dir, final_dir)
+    if job.get("replace"):
+        replace_final(out_dir, final_dir)
+    else:
+        move_to_final(out_dir, final_dir)
     # Keep the source IFC (not web-reachable: model/_staging is denied via
     # .htaccess) so a model can be re-tiled after tiler fixes without asking
     # for a new upload — the geoBIM Cloud concept keeps sources anyway.
@@ -395,6 +398,50 @@ def ensure_final_free(final_dir):
 def move_to_final(out_dir, final_dir):
     ensure_final_free(final_dir)
     shutil.move(out_dir, final_dir)
+
+
+def replace_final(out_dir, final_dir):
+    """Re-upload from the Rhino plugin (job "replace", IFC only): the new tiles
+    replace model/<slug>/ so the viewer link stays the same. A position saved
+    in geobim.app (api/placement-save.php) is kept when the new model has no
+    georeferencing of its own (tiler placement "none" / "upload position ...");
+    the model is then anchored at the centre of its new footprint, as before."""
+    old_ts = os.path.join(final_dir, "tileset.json")
+    try:
+        with open(old_ts, encoding="utf-8") as f:
+            old = json.load(f)
+        old_extras = (old.get("asset") or {}).get("extras") or {}
+        saved = (old_extras.get("placement") or {}).get("source") == "saved in geobim.app"
+    except Exception:
+        old, old_extras, saved = None, {}, False
+    if saved:
+        new_ts = os.path.join(out_dir, "tileset.json")
+        with open(new_ts, encoding="utf-8") as f:
+            new = json.load(f)
+        extras = new.setdefault("asset", {}).setdefault("extras", {})
+        src = (extras.get("placement") or {}).get("source") or "none"
+        if (src == "none" or src.startswith("upload position")) and (old.get("root") or {}).get("transform"):
+            new.setdefault("root", {})["transform"] = old["root"]["transform"]
+            extras["placement"] = old_extras["placement"]
+            if "placementOriginal" in old_extras:
+                extras["placementOriginal"] = old_extras["placementOriginal"]
+            tmp = new_ts + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(new, f)
+            os.replace(tmp, new_ts)
+    previous = None
+    if os.path.exists(final_dir):
+        # dot name: models.php never lists it while the folders are swapped
+        previous = os.path.join(os.path.dirname(final_dir), f".{os.path.basename(final_dir)}.old-{int(time.time())}")
+        os.rename(final_dir, previous)
+    try:
+        shutil.move(out_dir, final_dir)
+    except Exception:
+        if previous and not os.path.exists(final_dir):
+            os.rename(previous, final_dir)
+        raise
+    if previous:
+        shutil.rmtree(previous, ignore_errors=True)
 
 
 def model_dir_for_job(job_dir):
@@ -433,7 +480,9 @@ def main():
     fcntl.flock(lock_fp, fcntl.LOCK_EX)  # blocks here until any prior job finishes
     try:
         # Fail before spending minutes on a conversion that can't be placed
-        ensure_final_free(final_dir)
+        # (a replace job overwrites its model on purpose, IFC only)
+        if not (job.get("replace") and input_path.lower().endswith(".ifc")):
+            ensure_final_free(final_dir)
         write_status(job_dir, "converting")
 
         if input_path.lower().endswith(".ifc"):

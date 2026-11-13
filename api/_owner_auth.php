@@ -110,7 +110,9 @@ function geobim_is_owner() {
 
 // Ends the request with 401/403 unless the caller is the owner (session
 // cookie, or a Firebase ID token in the Authorization header).
-function geobim_require_owner() {
+// $opts['plugin'] = true also accepts a Rhino plugin token ("gbp_…",
+// api/_plugin_tokens.php); endpoints without it refuse those tokens.
+function geobim_require_owner($opts = []) {
     $email = geobim_owner_from_cookie();
     if ($email) return ['email' => $email, 'via' => 'cookie'];
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
@@ -118,6 +120,21 @@ function geobim_require_owner() {
         http_response_code(401);
         echo json_encode(['error' => 'Sign-in required']);
         exit;
+    }
+    if (strncmp($m[1], 'gbp_', 4) === 0) {
+        if (empty($opts['plugin'])) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Plugin tokens are not accepted here']);
+            exit;
+        }
+        require_once __DIR__ . '/_plugin_tokens.php';
+        $rec = geobim_plugin_token_check($m[1]);
+        if (!$rec) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid or revoked plugin token']);
+            exit;
+        }
+        return ['email' => GEOBIM_OWNER_EMAILS[0], 'via' => 'plugin-token', 'token' => $rec['id'], 'label' => $rec['label'] ?? ''];
     }
     $payload = geobim_verify_firebase_token($m[1]);
     if (!$payload) {

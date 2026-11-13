@@ -4,7 +4,7 @@
 // model/_staging/<jobId>/status.json as written by scripts/convert_pointcloud.py.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
-geobim_require_owner();   // owner session cookie (api/owner-session.php) or ID token
+geobim_require_owner(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
 
 $jobId = $_GET['job'] ?? '';
 // Job ids are generated server-side (slug + hex suffix) — still validate the
