@@ -112,6 +112,7 @@
       var parts = text ? [text] : [];
       var n = Array.isArray(st.sites) ? st.sites.length : 0;
       if (n) parts.push(count(n, 'site', 'sites'));
+      if (n && st.sites.some(function(s) { return s && s.grading; })) parts.push('grading');
       if (st.profile) parts.push('profile');
       return parts.join(' · ');
     };

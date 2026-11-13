@@ -30,6 +30,8 @@
   --sa-cut: #d7301f;
   --sa-fill: #2b8cbe;
   --sa-grade: #f0f0f0;
+  /* Grading: planum in the GLB export */
+  --sa-planum: #b9b2a3;
   /* Contours */
   --sa-contour: #ffffff;
   --sa-contour-major: #ffd54f;
@@ -406,6 +408,41 @@
   outline-offset: -2px;
 }
 
+/* ---- Grading ---- */
+
+.sa-grading { margin-top: var(--space-sm); }
+
+.sa-ratio {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.sa-input-tiny {
+  width: 56px;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 12px;
+}
+
+.sa-cf-sum small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.sa-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-xs) 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sa-check input { accent-color: var(--brand-teal); }
+
 /* ---- Drawing bar ---- */
 
 .sa-draw-bar {
@@ -552,6 +589,34 @@
   stroke-width: 2;
 }
 
+.sa-chart-line-existing {
+  stroke: var(--text-muted);
+  stroke-dasharray: 5 4;
+  stroke-width: 1.5;
+}
+
+.sa-chart-line-graded {
+  fill: none;
+  stroke: var(--brand-teal);
+  stroke-width: 2.5;
+}
+
+.sa-profile-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.sa-key {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  margin-left: var(--space-xs);
+  border-top: 2px solid var(--brand-teal);
+}
+
+.sa-key-existing { border-top: 2px dashed var(--text-muted); }
+
 .sa-chart-cursor {
   stroke: var(--text-secondary);
   stroke-dasharray: 3 3;
@@ -587,6 +652,7 @@
 @media (pointer: coarse), (max-width: 768px) {
   .sa-layer-toggle,
   .sa-icon-btn,
+  .sa-check,
   .sa-btn-row .modern-btn,
   .sa-draw-bar .modern-btn,
   .sa-profile-header .modern-icon-btn {

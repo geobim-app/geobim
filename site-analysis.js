@@ -253,6 +253,12 @@
     return EARTH_CIRC * Math.cos(latDeg * Math.PI / 180) / (Math.pow(2, zoom) * 512);
   }
 
+  // The terrain provider without this module's grading (see GRADING)
+  function baseTerrainProvider() {
+    var p = viewer().terrainProvider;
+    return p && p._saBase ? p._saBase : p;
+  }
+
   function useGoogle() {
     var v = viewer();
     return !!(BimViewer.googleTiles && BimViewer.googleTiles.enabled) && v.scene.sampleHeightSupported;
@@ -291,7 +297,7 @@
 
     var v = viewer(), scene = v.scene;
     var google = useGoogle();
-    var provider = v.terrainProvider;
+    var provider = baseTerrainProvider();   // never the graded terrain of this module
     if (provider instanceof Cesium.EllipsoidTerrainProvider) provider = null;
     if (!google && !provider) throw new Error('No terrain loaded — choose "Mapterhorn DGM" or switch on a terrain in Layers');
     var N = await undulation(midLon, midLat);
@@ -435,8 +441,11 @@
 
   function removeSite(site) {
     Object.keys(site.layers).forEach(function(n) { removeLayer(site, n); });
+    if (site.grading) { clearGradingEntities(site); site.grading = null; }
     site.entities.forEach(function(e) { ds().entities.remove(e); });
     SA.sites.splice(SA.sites.indexOf(site), 1);
+    updateTerrain();
+    refreshProfileGrading();
     status(site.name + ' removed', '');
     renderSites();
     requestRender();
@@ -468,10 +477,12 @@
   // HEIGHT GRID
   // ===============================
 
-  function planGrid(site, cell) {
+  // pad: extra metres around the polygon (grading band)
+  function planGrid(site, cell, pad) {
+    pad = pad || 0;
     var xs = site.local.map(function(p) { return p[0]; }), ys = site.local.map(function(p) { return p[1]; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
-    var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+    var minX = Math.min.apply(null, xs) - pad, maxX = Math.max.apply(null, xs) + pad;
+    var minY = Math.min.apply(null, ys) - pad, maxY = Math.max.apply(null, ys) + pad;
     var w = maxX - minX, h = maxY - minY;
     var c = cell, coarsened = false;
     while (Math.ceil(w / c + 1) * Math.ceil(h / c + 1) > MAX_SAMPLES) {
@@ -983,6 +994,542 @@
   }
 
   // ===============================
+  // GRADING (planum with slopes, applied to the terrain)
+  // One formula for volumes, display, terrain and export — planum level t,
+  // slope ratios 1:nC (cut) and 1:nF (fill), d = distance to the polygon
+  // (0 inside), existing height T:
+  //   R = min(max(T, t − d/nF), t + d/nC)
+  // Outside the slopes R = T. The grading grid covers the polygon plus a band
+  // wide enough for the slopes; T always comes from the unchanged terrain.
+  // ===============================
+
+  var GRADING_MAX_BAND = 300;          // m
+  var SLOPE_DEFAULT = { cut: 1.5, fill: 2 };
+
+  function segDist(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    var u = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+    u = u < 0 ? 0 : (u > 1 ? 1 : u);
+    return Math.hypot(px - ax - u * dx, py - ay - u * dy);
+  }
+
+  // Distance to the polygon in its local metres, 0 inside
+  function polyDist(x, y, pts) {
+    if (inRing(x, y, pts)) return 0;
+    var m = Infinity;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var dd = segDist(x, y, pts[j][0], pts[j][1], pts[i][0], pts[i][1]);
+      if (dd < m) m = dd;
+    }
+    return m;
+  }
+
+  function gradeHeight(T, d, t, nC, nF) {
+    return Math.min(Math.max(T, t - d / nF), t + d / nC);
+  }
+
+  // gg: { T, D, cell, W } — volumes split into planum (d = 0) and slopes
+  function gradingVolumes(gg, t, nC, nF) {
+    var a = gg.cell * gg.cell, r = { cut: 0, fill: 0, cutPlanum: 0, fillPlanum: 0, affected: 0, maxWidth: 0, bandHit: false };
+    var edge = gg.W - 1.5 * gg.cell;
+    for (var k = 0; k < gg.T.length; k++) {
+      var d = gg.D[k], T = gg.T[k];
+      if (!(d <= gg.W) || !isFinite(T)) continue;
+      var diff = T - gradeHeight(T, d, t, nC, nF);
+      if (diff > 0) { r.cut += diff * a; if (d === 0) r.cutPlanum += diff * a; }
+      else if (diff < 0) { r.fill -= diff * a; if (d === 0) r.fillPlanum -= diff * a; }
+      if (Math.abs(diff) > CUT_EPS || d === 0) {
+        r.affected++;
+        if (d > r.maxWidth && Math.abs(diff) > CUT_EPS) r.maxWidth = d;
+        if (d >= edge && Math.abs(diff) > CUT_EPS) r.bandHit = true;
+      }
+    }
+    r.affectedM2 = r.affected * a;
+    r.net = r.cut - r.fill;
+    return r;
+  }
+
+  // Planum level where cut = fill, slopes included (cut falls, fill rises with t)
+  function gradingBalanced(gg, nC, nF) {
+    var lo = Infinity, hi = -Infinity;
+    for (var k = 0; k < gg.T.length; k++) {
+      if (gg.D[k] !== 0 || !isFinite(gg.T[k])) continue;
+      if (gg.T[k] < lo) lo = gg.T[k];
+      if (gg.T[k] > hi) hi = gg.T[k];
+    }
+    for (var it = 0; it < 50; it++) {
+      var mid = (lo + hi) / 2, v = gradingVolumes(gg, mid, nC, nF);
+      if (v.cut > v.fill) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function newGrading() {
+    return { levelMode: 'balanced', level: null, slopeCut: SLOPE_DEFAULT.cut, slopeFill: SLOPE_DEFAULT.fill,
+             applied: true, depth: false, grid: null, result: null, entities: [] };
+  }
+
+  // Band width for the slopes: the full height range of the site times the
+  // flatter ratio, plus two cells
+  function gradingBand(site, gr) {
+    var st = site.grid.stats;
+    return Math.min(GRADING_MAX_BAND, (st.max - st.min + 2) * Math.max(gr.slopeCut, gr.slopeFill) + 2 * site.grid.cell);
+  }
+
+  // Samples the existing terrain over polygon + band (only cells within the band)
+  async function sampleGradingGrid(site, W, job) {
+    var plan = planGrid(site, site.grid.cell, W);
+    if (!plan) throw new Error('The grading area is too large');
+    var n = plan.nx * plan.ny, D = new Float32Array(n), idx = [], lons = [], lats = [];
+    for (var k = 0; k < n; k++) {
+      var i = k % plan.nx, j = (k - i) / plan.nx;
+      var x = cellX(plan, i), y = cellY(plan, j);
+      var d = polyDist(x, y, site.local);
+      D[k] = d <= W ? d : Infinity;
+      if (d > W) continue;
+      var deg = site.frame.toDeg(x, y);
+      idx.push(k); lons.push(deg[0]); lats.push(deg[1]);
+    }
+    var res = await sampleHeights(lons, lats, job, site.name + ' grading', site.grid.sourceKey);
+    var T = new Float32Array(n).fill(NaN), need = new Uint8Array(n);
+    for (k = 0; k < idx.length; k++) { T[idx[k]] = res.heights[k]; need[idx[k]] = 1; }
+    if (!fillGaps(T, need, plan.nx, plan.ny)) throw new Error('No height data for the grading area');
+    var west = site.frame.lon0 + plan.x0 / site.frame.m.lon;
+    var north = site.frame.lat0 + plan.yTop / site.frame.m.lat;
+    return {
+      nx: plan.nx, ny: plan.ny, cell: plan.cell, coarsened: plan.coarsened, x0: plan.x0, yTop: plan.yTop, W: W,
+      west: west, east: west + plan.nx * plan.cell / site.frame.m.lon,
+      north: north, south: north - plan.ny * plan.cell / site.frame.m.lat,
+      T: T, D: D, sourceKey: site.grid.sourceKey
+    };
+  }
+
+  // (Re)computes the grading of a site: samples the band when needed, then
+  // level, volumes, slope edge, depth raster and terrain
+  async function computeGrading(site) {
+    if (!site.grid) return;
+    var gr = site.grading || (site.grading = newGrading());
+    var W = gradingBand(site, gr);
+    var needSample = !gr.grid || gr.grid.W < W || gr.grid.sourceKey !== site.grid.sourceKey || gr.grid.cell !== site.grid.cell;
+    if (needSample) {
+      var job = startJob();
+      if (!job) return;
+      try {
+        gr.grid = await sampleGradingGrid(site, W, job);
+        var r0 = evaluateGrading(site);
+        // Slopes still reach the band edge: widen once
+        if (r0.bandHit && W < GRADING_MAX_BAND) {
+          gr.grid = await sampleGradingGrid(site, Math.min(GRADING_MAX_BAND, W * 1.5), job);
+        }
+      } catch (err) {
+        if (err && err.message === 'cancelled') status('Cancelled', '');
+        else { console.error('Grading failed:', err); status(err.message || String(err), 'error'); }
+        gr.grid = null;
+        return;
+      } finally {
+        endJob();
+      }
+    }
+    gr.result = evaluateGrading(site);
+    gr.result.N = (await undulation(site.frame.lon0, site.frame.lat0)).n;
+    if (gr.levelMode === 'balanced') gr.level = Math.round(gr.result.t * 100) / 100;
+    drawGrading(site);
+    updateTerrain();
+    refreshProfileGrading();
+    status(site.name + ': planum at ' + num(gr.result.t, 2) + ' m — cut ' + num(gr.result.cut) + ' m³, fill ' + num(gr.result.fill) + ' m³', 'ok');
+    renderSites();
+    requestRender();
+  }
+
+  function evaluateGrading(site) {
+    var gr = site.grading, gg = gr.grid;
+    var t = gr.levelMode === 'fixed' && isFinite(gr.level) && gr.level !== null ? Number(gr.level) : gradingBalanced(gg, gr.slopeCut, gr.slopeFill);
+    var v = gradingVolumes(gg, t, gr.slopeCut, gr.slopeFill);
+    v.t = t;
+    v.cutSlopes = v.cut - v.cutPlanum;
+    v.fillSlopes = v.fill - v.fillPlanum;
+    return v;
+  }
+
+  // Slope edge (boundary of the changed area) as dashed ground lines + optional depth raster
+  function drawGrading(site) {
+    var gr = site.grading, gg = gr.grid, r = gr.result;
+    clearGradingEntities(site);
+    var n = gg.T.length, mask = new Float32Array(n);
+    for (var k = 0; k < n; k++) {
+      if (!(gg.D[k] <= gg.W)) continue;
+      var diff = gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      mask[k] = Math.abs(diff) > CUT_EPS || gg.D[k] === 0 ? 1 : 0;
+    }
+    var mg = { nx: gg.nx, ny: gg.ny, h: mask, need: new Uint8Array(n).fill(1) };
+    var color = cesiumColor('--brand-teal', '#2ECFB0');
+    traceLevel(mg, 0.5).forEach(function(line) {
+      if (line.length < 3) return;
+      var pts = line.map(function(p) {
+        return site.frame.toDeg(gg.x0 + (p[0] + 0.5) * gg.cell, gg.yTop - (p[1] + 0.5) * gg.cell);
+      });
+      gr.entities.push(ds().entities.add({
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(flatDeg(pts, false)),
+          clampToGround: true,
+          width: 2.5,
+          material: new Cesium.PolylineDashMaterialProperty({ color: color, dashLength: 10 }),
+          classificationType: Cesium.ClassificationType.BOTH
+        }
+      }));
+    });
+    if (gr.depth) {
+      var p = palette(), dmax = 0;
+      for (k = 0; k < n; k++) if (mask[k]) dmax = Math.max(dmax, Math.abs(gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill)));
+      var canvas = rasterCanvas({ nx: gg.nx, ny: gg.ny, h: gg.T, inside: mask }, function(k2) {
+        var diff = gg.T[k2] - gradeHeight(gg.T[k2], gg.D[k2], r.t, gr.slopeCut, gr.slopeFill);
+        if (Math.abs(diff) < CUT_EPS) return [p.grade[0], p.grade[1], p.grade[2], 70];
+        var c = diff > 0 ? p.cut : p.fill;
+        return [c[0], c[1], c[2], Math.round(90 + 130 * Math.min(1, Math.abs(diff) / (dmax || 1)))];
+      });
+      gr.canvas = canvas;
+      gr.entities.push(ds().entities.add({
+        rectangle: {
+          coordinates: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north),
+          material: new Cesium.ImageMaterialProperty({ image: canvas, transparent: true, color: Cesium.Color.WHITE.withAlpha(0.75) }),
+          classificationType: Cesium.ClassificationType.BOTH
+        }
+      }));
+    }
+  }
+
+  function clearGradingEntities(site) {
+    var gr = site.grading;
+    if (!gr) return;
+    gr.entities.forEach(function(e) { ds().entities.remove(e); });
+    gr.entities = [];
+  }
+
+  function removeGrading(site) {
+    if (!site.grading) return;
+    clearGradingEntities(site);
+    site.grading = null;
+    updateTerrain();
+    refreshProfileGrading();
+  }
+
+  // ---- Terrain: wrap the active heightmap provider ----
+
+  var currentWrapper = null;
+  var installing = false;
+  var terrainListener = false;
+
+  function activeGradings() {
+    return SA.sites.filter(function(s) { return s.grading && s.grading.applied && s.grading.result; });
+  }
+
+  // 'ok' | 'google' | 'quantized' | 'none'
+  function terrainSupport() {
+    var v = viewer();
+    if (!v) return 'none';
+    if (BimViewer.googleTiles && BimViewer.googleTiles.enabled) return 'google';
+    var base = baseTerrainProvider();
+    if (!base || base instanceof Cesium.EllipsoidTerrainProvider) return 'none';
+    if (base instanceof Cesium.CesiumTerrainProvider) return 'quantized';
+    return 'ok';
+  }
+
+  function gradingItem(site) {
+    var gr = site.grading, gg = gr.grid, r = gr.result;
+    return {
+      fr: site.frame, ring: site.local, t: r.t, N: r.N || 0, nC: gr.slopeCut, nF: gr.slopeFill, W: gg.W,
+      rect: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north)
+    };
+  }
+
+  // Heights of a heightmap tile with the gradings applied (ellipsoidal in and out)
+  function gradeTile(data, rect, mercator, items) {
+    var st = data._structure || {};
+    if ((st.heightScale || 1) !== 1 || (st.heightOffset || 0) !== 0 || (st.elementsPerHeight || 1) !== 1) return data;
+    var w = data._width, h = data._height, out = new Float32Array(data._buffer), changed = false;
+    var north = mercator ? Cesium.WebMercatorProjection.geodeticLatitudeToMercatorAngle(rect.north) : rect.north;
+    var south = mercator ? Cesium.WebMercatorProjection.geodeticLatitudeToMercatorAngle(rect.south) : rect.south;
+    for (var row = 0; row < h; row++) {
+      var tt = north + (south - north) * row / (h - 1);
+      var lat = Cesium.Math.toDegrees(mercator ? Cesium.WebMercatorProjection.mercatorAngleToGeodeticLatitude(tt) : tt);
+      for (var col = 0; col < w; col++) {
+        var lon = Cesium.Math.toDegrees(rect.west + (rect.east - rect.west) * col / (w - 1));
+        var i = row * w + col;
+        for (var q = 0; q < items.length; q++) {
+          var it = items[q], loc = it.fr.toLocal(lon, lat);
+          var d = polyDist(loc[0], loc[1], it.ring);
+          if (d > it.W) continue;
+          var T = out[i] - it.N;
+          var R = gradeHeight(T, d, it.t, it.nC, it.nF);
+          if (R !== T) { out[i] = R + it.N; changed = true; }
+        }
+      }
+    }
+    if (!changed) return data;
+    return new Cesium.HeightmapTerrainData({
+      buffer: out, width: w, height: h,
+      childTileMask: data._childTileMask, waterMask: data._waterMask, structure: data._structure
+    });
+  }
+
+  function wrapProvider(base, sites) {
+    var ts = base.tilingScheme, mercator = ts instanceof Cesium.WebMercatorTilingScheme;
+    var items = sites.map(gradingItem);
+    var wrapped = Object.create(base);
+    wrapped._saBase = base;
+    wrapped._saGraded = true;
+    wrapped.requestTileGeometry = function(x, y, level, request) {
+      var promise = base.requestTileGeometry(x, y, level, request);
+      if (!promise) return promise;
+      var rect = ts.tileXYToRectangle(x, y, level);
+      var hits = items.filter(function(it) { return !!Cesium.Rectangle.intersection(rect, it.rect, new Cesium.Rectangle()); });
+      if (!hits.length) return promise;
+      return promise.then(function(data) {
+        if (!(data instanceof Cesium.HeightmapTerrainData) || !data._buffer) return data;
+        return gradeTile(data, rect, mercator, hits);
+      });
+    };
+    return wrapped;
+  }
+
+  // Puts the gradings onto the terrain (new provider object → tiles reload)
+  function updateTerrain() {
+    var v = viewer();
+    if (!v) return;
+    if (!terrainListener) {
+      terrainListener = true;
+      // Someone else switched the terrain (Layers, scene, Google 3D Tiles off):
+      // wrap the new provider again, or drop a stale wrapper
+      v.scene.globe.terrainProviderChanged.addEventListener(function(p) {
+        if (installing) return;
+        if ((p && p._saGraded && p !== currentWrapper) || (activeGradings().length && !(p && p._saGraded))) {
+          setTimeout(updateTerrain, 0);
+        }
+        setTimeout(renderSites, 0);
+      });
+    }
+    var cur = v.terrainProvider, base = cur && cur._saBase ? cur._saBase : cur;
+    var sites = terrainSupport() === 'ok' ? activeGradings() : [];
+    installing = true;
+    try {
+      if (!sites.length) {
+        currentWrapper = null;
+        if (cur !== base) v.terrainProvider = base;
+      } else {
+        currentWrapper = wrapProvider(base, sites);
+        v.terrainProvider = currentWrapper;
+      }
+    } finally {
+      installing = false;
+    }
+    requestRender();
+  }
+
+  // ---- Profile: graded line next to the existing one ----
+
+  function gradedProfileHeights(p) {
+    var sites = activeGradings();
+    if (!sites.length) return null;
+    var out = p.heights.slice(), any = false;
+    for (var i = 0; i < out.length; i++) {
+      sites.forEach(function(s) {
+        var gr = s.grading, loc = s.frame.toLocal(p.lons[i], p.lats[i]);
+        var d = polyDist(loc[0], loc[1], s.local);
+        if (d > gr.grid.W) return;
+        var R = gradeHeight(out[i], d, gr.result.t, gr.slopeCut, gr.slopeFill);
+        if (Math.abs(R - out[i]) > 1e-3) { out[i] = R; any = true; }
+      });
+    }
+    return any ? out : null;
+  }
+
+  function refreshProfileGrading() {
+    if (!SA.profile) return;
+    SA.profile.graded = gradedProfileHeights(SA.profile);
+    if (profilePanel && profilePanel.classList.contains('visible')) renderProfile();
+  }
+
+  // ---- Exports: LandXML surface, GLB ----
+
+  // Grid cells of the mesh: changed area + planum, one cell around
+  function gradingMeshMask(site) {
+    var gr = site.grading, gg = gr.grid, r = gr.result, n = gg.T.length, nx = gg.nx, ny = gg.ny;
+    var core = new Uint8Array(n), mask = new Uint8Array(n);
+    for (var k = 0; k < n; k++) {
+      if (!(gg.D[k] <= gg.W) || !isFinite(gg.T[k])) continue;
+      var diff = gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      if (Math.abs(diff) > CUT_EPS || gg.D[k] === 0) core[k] = 1;
+    }
+    for (k = 0; k < n; k++) {
+      if (!core[k]) continue;
+      var i = k % nx, j = (k - i) / nx;
+      for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
+        var ii = i + di, jj = j + dj, m = jj * nx + ii;
+        if (ii >= 0 && jj >= 0 && ii < nx && jj < ny && gg.D[m] <= gg.W && isFinite(gg.T[m])) mask[m] = 1;
+      }
+    }
+    return mask;
+  }
+
+  // Vertices (one per masked cell) and triangles (two per fully masked square)
+  function gradingMesh(site) {
+    var gr = site.grading, gg = gr.grid, r = gr.result, nx = gg.nx, ny = gg.ny;
+    var mask = gradingMeshMask(site), index = new Int32Array(gg.T.length).fill(-1);
+    var verts = [];
+    for (var k = 0; k < mask.length; k++) {
+      if (!mask[k]) continue;
+      var i = k % nx, j = (k - i) / nx;
+      var T = gg.T[k], R = gradeHeight(T, gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      index[k] = verts.length;
+      verts.push({ x: cellX(gg, i), y: cellY(gg, j), T: T, R: R, planum: gg.D[k] === 0 });
+    }
+    var tris = [];
+    for (var jj = 0; jj < ny - 1; jj++) {
+      for (var ii = 0; ii < nx - 1; ii++) {
+        var a = index[jj * nx + ii], b = index[jj * nx + ii + 1], c = index[(jj + 1) * nx + ii], d = index[(jj + 1) * nx + ii + 1];
+        if (a < 0 || b < 0 || c < 0 || d < 0) continue;
+        // counter-clockwise seen from above (x east, y north; row j+1 is south)
+        tris.push(a, c, b, b, c, d);
+      }
+    }
+    return { verts: verts, tris: tris };
+  }
+
+  async function utmProjector(site) {
+    if (!window.GEOBIM_PROJ) throw new Error('Projected coordinates are not available');
+    var u = await GEOBIM_PROJ.utmFromWGS84(site.frame.lat0, site.frame.lon0);
+    if (!u || !window.proj4) throw new Error('No UTM zone for this site');
+    var def = '+proj=utm +zone=' + u.zone + (u.south ? ' +south' : '') + ' +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+    return {
+      info: u,
+      name: u.datum + ' / UTM zone ' + u.zone + (u.south ? 'S' : 'N'),
+      en: function(x, y) { var d = site.frame.toDeg(x, y); return proj4('WGS84', def, [d[0], d[1]]); }
+    };
+  }
+
+  function xmlEsc(s) { return esc(s).replace(/'/g, '&apos;'); }
+
+  async function exportLandXml(site) {
+    var gr = site.grading;
+    if (!gr || !gr.result) return;
+    status('Preparing LandXML…', '');
+    var proj = await utmProjector(site), mesh = gradingMesh(site);
+    var now = new Date(), date = now.toISOString().slice(0, 10), time = now.toISOString().slice(11, 19);
+    var en = mesh.verts.map(function(v) { return proj.en(v.x, v.y); });
+    function surface(name, desc, key) {
+      var out = ['    <Surface name="' + xmlEsc(name) + '" desc="' + xmlEsc(desc) + '">',
+                 '      <Definition surfType="TIN">', '        <Pnts>'];
+      mesh.verts.forEach(function(v, i) {
+        out.push('          <P id="' + (i + 1) + '">' + en[i][1].toFixed(3) + ' ' + en[i][0].toFixed(3) + ' ' + v[key].toFixed(3) + '</P>');
+      });
+      out.push('        </Pnts>', '        <Faces>');
+      for (var t = 0; t < mesh.tris.length; t += 3) {
+        out.push('          <F>' + (mesh.tris[t] + 1) + ' ' + (mesh.tris[t + 1] + 1) + ' ' + (mesh.tris[t + 2] + 1) + '</F>');
+      }
+      out.push('        </Faces>', '      </Definition>', '    </Surface>');
+      return out.join('\n');
+    }
+    var r = gr.result, g = site.grid;
+    var desc = 'Planum ' + r.t.toFixed(2) + ' m, slopes cut 1:' + gr.slopeCut + ' fill 1:' + gr.slopeFill +
+      ', cut ' + r.cut.toFixed(1) + ' m3, fill ' + r.fill.toFixed(1) + ' m3; heights ' + g.datum + '; source ' + g.source;
+    var xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2" date="' + date + '" time="' + time + '">',
+      '  <Units><Metric areaUnit="squareMeter" linearUnit="meter" volumeUnit="cubicMeter" temperatureUnit="celsius" pressureUnit="milliBars" angularUnit="decimal degrees" directionUnit="decimal degrees"/></Units>',
+      '  <CoordinateSystem epsgCode="' + proj.info.epsg + '" name="' + xmlEsc(proj.name) + '" horizontalDatum="' + xmlEsc(proj.info.datum) + '" desc="Heights: ' + xmlEsc(g.datum) + '"/>',
+      '  <Application name="geoBIM.app" manufacturer="geoBIM.app" desc="Site analysis — grading"/>',
+      '  <Surfaces>',
+      surface(site.name + ' graded', desc, 'R'),
+      surface(site.name + ' existing', 'Existing terrain over the same area; ' + g.source, 'T'),
+      '  </Surfaces>',
+      '</LandXML>'
+    ].join('\n');
+    download(fileBase(site) + '-grading.xml', xml, 'application/xml');
+    status('LandXML: ' + num(mesh.verts.length) + ' points, ' + num(mesh.tris.length / 3) + ' triangles, EPSG:' + proj.info.epsg, 'ok');
+  }
+
+  // Binary glTF: graded surface in local metres (origin = site centre on the
+  // planum level; X east, Y up, Z south), vertex colours planum / cut / fill
+  async function exportGlb(site) {
+    var gr = site.grading;
+    if (!gr || !gr.result) return;
+    var mesh = gradingMesh(site), r = gr.result, nv = mesh.verts.length;
+    if (!nv || !mesh.tris.length) { status('Nothing to export', 'error'); return; }
+    var utm = null;
+    try { utm = (await utmProjector(site)).info; } catch (e) { /* origin in WGS84 only */ }
+    var p = palette(), planum = rgb(cssVar('--sa-planum', '#b9b2a3'));
+    var pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), nor = new Float32Array(nv * 3);
+    var min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    mesh.verts.forEach(function(v, i) {
+      var xyz = [v.x, v.R - r.t, -v.y];
+      for (var a = 0; a < 3; a++) { pos[i * 3 + a] = xyz[a]; min[a] = Math.min(min[a], xyz[a]); max[a] = Math.max(max[a], xyz[a]); }
+      var diff = v.T - v.R, c = v.planum ? planum : (diff > CUT_EPS ? p.cut : (diff < -CUT_EPS ? p.fill : p.grade));
+      for (a = 0; a < 3; a++) col[i * 3 + a] = Math.pow(c[a] / 255, 2.2);   // linear colour space
+    });
+    // The map winding (counter-clockwise from above) stays counter-clockwise
+    // seen from +Y with Z = −north, so the triangles face up as they are
+    var idx = new Uint32Array(mesh.tris);
+    for (var t = 0; t < idx.length; t += 3) {
+      var ia = idx[t] * 3, ib = idx[t + 1] * 3, ic = idx[t + 2] * 3;
+      var ux = pos[ib] - pos[ia], uy = pos[ib + 1] - pos[ia + 1], uz = pos[ib + 2] - pos[ia + 2];
+      var vx = pos[ic] - pos[ia], vy = pos[ic + 1] - pos[ia + 1], vz = pos[ic + 2] - pos[ia + 2];
+      var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;   // u × v
+      [ia, ib, ic].forEach(function(o) { nor[o] += nx; nor[o + 1] += ny; nor[o + 2] += nz; });
+    }
+    for (var i = 0; i < nv; i++) {
+      var l = Math.hypot(nor[i * 3], nor[i * 3 + 1], nor[i * 3 + 2]) || 1;
+      nor[i * 3] /= l; nor[i * 3 + 1] /= l; nor[i * 3 + 2] /= l;
+    }
+
+    var views = [pos, nor, col, idx], offsets = [], total = 0;
+    views.forEach(function(a) { offsets.push(total); total += a.byteLength; total = (total + 3) & ~3; });
+    var bin = new Uint8Array(total);
+    views.forEach(function(a, n) { bin.set(new Uint8Array(a.buffer, a.byteOffset, a.byteLength), offsets[n]); });
+    var gltf = {
+      asset: {
+        version: '2.0', generator: 'geoBIM.app site analysis',
+        extras: { geobim: {
+          site: site.name, upAxis: 'Y', axes: 'X east, Y up, Z south (local metres)',
+          origin: { longitude: site.frame.lon0, latitude: site.frame.lat0, height: Number(r.t.toFixed(3)), heightDatum: site.grid.datum },
+          utm: utm ? { epsg: utm.epsg, easting: Number(utm.easting.toFixed(3)), northing: Number(utm.northing.toFixed(3)) } : null,
+          planumLevel: Number(r.t.toFixed(3)), slopeCut: gr.slopeCut, slopeFill: gr.slopeFill,
+          cutM3: Number(r.cut.toFixed(1)), fillM3: Number(r.fill.toFixed(1))
+        } }
+      },
+      scene: 0,
+      scenes: [{ nodes: [0] }],
+      nodes: [{ mesh: 0, name: site.name + ' graded' }],
+      meshes: [{ name: site.name + ' graded', primitives: [{ attributes: { POSITION: 0, NORMAL: 1, COLOR_0: 2 }, indices: 3, material: 0 }] }],
+      materials: [{ name: 'Graded terrain', doubleSided: true, pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 } }],
+      buffers: [{ byteLength: total }],
+      bufferViews: [
+        { buffer: 0, byteOffset: offsets[0], byteLength: pos.byteLength, target: 34962 },
+        { buffer: 0, byteOffset: offsets[1], byteLength: nor.byteLength, target: 34962 },
+        { buffer: 0, byteOffset: offsets[2], byteLength: col.byteLength, target: 34962 },
+        { buffer: 0, byteOffset: offsets[3], byteLength: idx.byteLength, target: 34963 }
+      ],
+      accessors: [
+        { bufferView: 0, componentType: 5126, count: nv, type: 'VEC3', min: min, max: max },
+        { bufferView: 1, componentType: 5126, count: nv, type: 'VEC3' },
+        { bufferView: 2, componentType: 5126, count: nv, type: 'VEC3' },
+        { bufferView: 3, componentType: 5125, count: idx.length, type: 'SCALAR' }
+      ]
+    };
+    var json = new TextEncoder().encode(JSON.stringify(gltf));
+    var jsonLen = (json.length + 3) & ~3;
+    var glb = new ArrayBuffer(12 + 8 + jsonLen + 8 + total), dv = new DataView(glb), u8 = new Uint8Array(glb);
+    dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, glb.byteLength, true);
+    dv.setUint32(12, jsonLen, true); dv.setUint32(16, 0x4E4F534A, true);
+    u8.set(json, 20);
+    for (var s = json.length; s < jsonLen; s++) u8[20 + s] = 0x20;
+    dv.setUint32(20 + jsonLen, total, true); dv.setUint32(24 + jsonLen, 0x004E4942, true);
+    u8.set(bin, 28 + jsonLen);
+    download(fileBase(site) + '-grading_' + site.frame.lon0.toFixed(6) + '_' + site.frame.lat0.toFixed(6) + '_' + r.t.toFixed(2) + 'm.glb',
+             new Blob([glb], { type: 'model/gltf-binary' }), 'model/gltf-binary');
+    status('GLB: ' + num(nv) + ' vertices, ' + num(idx.length / 3) + ' triangles', 'ok');
+  }
+
+  // ===============================
   // LAYER SWITCHING
   // ===============================
 
@@ -1351,6 +1898,7 @@
       });
       SA.profile.entities.push(SA.profile.marker);
       SA.profile.stats = profileStats(SA.profile);
+      SA.profile.graded = gradedProfileHeights(SA.profile);
       openProfilePanel();
       status('Profile: ' + num(length, 1) + ' m', 'ok');
     } catch (err) {
@@ -1463,13 +2011,18 @@
     var padL = 52, padR = 12, padT = 10, padB = 26;
     var pw = W - padL - padR, ph = H - padT - padB;
     var sx = pw / p.length;
-    var span = Math.max(0.5, p.stats.max - p.stats.min);
+    var lo = p.stats.min, hi = p.stats.max;
+    if (p.graded) {
+      lo = Math.min(lo, Math.min.apply(null, p.graded));
+      hi = Math.max(hi, Math.max.apply(null, p.graded));
+    }
+    var span = Math.max(0.5, hi - lo);
     var yRange = span * 1.1, ex;
     if (p.exaggeration !== 'auto') {
       var wanted = Number(p.exaggeration);
       yRange = Math.max(yRange, ph / (sx * wanted));
     }
-    var mid = (p.stats.max + p.stats.min) / 2;
+    var mid = (hi + lo) / 2;
     var y0 = mid - yRange / 2, sy = ph / yRange;
     ex = sy / sx;
     function X(s) { return padL + s * sx; }
@@ -1497,7 +2050,14 @@
     }
     area += 'L' + X(p.length) + ',' + (padT + ph) + 'Z';
     svgEl('path', { d: area, class: 'sa-chart-area' }, svg);
-    svgEl('path', { d: d, class: 'sa-chart-line' }, svg);
+    svgEl('path', { d: d, class: 'sa-chart-line' + (p.graded ? ' sa-chart-line-existing' : '') }, svg);
+    if (p.graded) {
+      var dg = '';
+      for (var gi = 0; gi < p.graded.length; gi++) {
+        dg += (gi ? 'L' : 'M') + X(p.stations[gi]).toFixed(1) + ',' + Y(p.graded[gi]).toFixed(1);
+      }
+      svgEl('path', { d: dg, class: 'sa-chart-line-graded' }, svg);
+    }
     var ext = svgEl('text', { x: W - padR, y: padT + 12, class: 'sa-chart-label sa-chart-label-x sa-chart-note' }, svg);
     ext.textContent = 'vertical ' + num(ex, ex < 10 ? 1 : 0) + '×';
     return { svg: svg, X: X, Y: Y, padL: padL, padT: padT, pw: pw, ph: ph, sx: sx };
@@ -1513,6 +2073,7 @@
       '<span><b>' + num(st.min, 2) + ' / ' + num(st.max, 2) + ' m</b> min / max</span>' +
       '<span><b>+' + num(st.up, 1) + ' / −' + num(st.down, 1) + ' m</b> up / down</span>' +
       '<span><b>' + num(st.maxGrade, 1) + ' %</b> max grade (' + GRADE_WINDOW_M + ' m)</span>' +
+      (p.graded ? '<span class="sa-profile-legend"><span class="sa-key sa-key-existing"></span>existing <span class="sa-key sa-key-graded"></span>graded</span>' : '') +
       '<span class="sa-profile-source">' + esc(p.source) + ' · ' + esc(p.datum) + '</span>';
     var holder = byId('saProfileChart');
     holder.innerHTML = '';
@@ -1534,7 +2095,8 @@
       cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx);
       dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
       cursor.classList.remove('hidden'); dot.classList.remove('hidden');
-      byId('saProfileReadout').textContent = 'Station ' + num(p.stations[i], 1) + ' m · height ' + num(p.heights[i], 2) + ' m';
+      byId('saProfileReadout').textContent = 'Station ' + num(p.stations[i], 1) + ' m · height ' + num(p.heights[i], 2) + ' m' +
+        (p.graded && Math.abs(p.graded[i] - p.heights[i]) > 1e-3 ? ' · graded ' + num(p.graded[i], 2) + ' m (' + (p.graded[i] > p.heights[i] ? 'fill ' : 'cut ') + num(Math.abs(p.graded[i] - p.heights[i]), 2) + ' m)' : '');
       p.marker.position = Cesium.Cartesian3.fromDegrees(p.lons[i], p.lats[i]);
       p.marker.show = true;
       requestRender();
@@ -1551,9 +2113,10 @@
   function exportProfileCsv() {
     var p = SA.profile;
     if (!p) return;
-    var rows = [['Station (m)', 'Height (m)', 'Longitude', 'Latitude']];
+    var rows = [['Station (m)', 'Height (m)'].concat(p.graded ? ['Graded (m)'] : [], ['Longitude', 'Latitude'])];
     for (var i = 0; i < p.heights.length; i++) {
-      rows.push([csvNum(p.stations[i], 2), csvNum(p.heights[i], 3), csvNum(p.lons[i], 7), csvNum(p.lats[i], 7)]);
+      rows.push([csvNum(p.stations[i], 2), csvNum(p.heights[i], 3)].concat(p.graded ? [csvNum(p.graded[i], 3)] : [],
+                [csvNum(p.lons[i], 7), csvNum(p.lats[i], 7)]));
     }
     var head = '# ' + p.source + '; ' + p.datum + '\r\n';
     download('elevation-profile.csv', '﻿' + head + rows.map(function(r) { return r.join(';'); }).join('\r\n'), 'text/csv;charset=utf-8');
@@ -1569,7 +2132,9 @@
       '.sa-chart-label{font:12px sans-serif;fill:#333}' +
       '.sa-chart-label-y{text-anchor:end}.sa-chart-label-x{text-anchor:middle}.sa-chart-note{text-anchor:end}' +
       '.sa-chart-area{fill:rgba(46,207,176,0.18);stroke:none}' +
-      '.sa-chart-line{fill:none;stroke:#1a8f7a;stroke-width:2}';
+      '.sa-chart-line{fill:none;stroke:#1a8f7a;stroke-width:2}' +
+      '.sa-chart-line-existing{stroke:#7a7a7a;stroke-dasharray:5 4}' +
+      '.sa-chart-line-graded{fill:none;stroke:#1a8f7a;stroke-width:2.5}';
     chart.svg.insertBefore(style, chart.svg.firstChild);
     var bg =svgEl('rect', { x: 0, y: 0, width: 1000, height: 360, fill: '#ffffff' }, null);
     chart.svg.insertBefore(bg, style.nextSibling);
@@ -1678,6 +2243,65 @@
     return html + '</div>';
   }
 
+  var SUPPORT_TEXT = {
+    google: 'Google 3D Tiles are shown: the graded terrain is under them. Switch them off in Layers to see it.',
+    quantized: 'This terrain (Cesium World Terrain) cannot be changed in the browser — switch to Mapterhorn or ArcGIS terrain.',
+    none: 'No terrain loaded — switch to Mapterhorn terrain to see the grading.'
+  };
+
+  function gradingBlock(site) {
+    var gr = site.grading, sid = site.id, busy = !!SA.job, r = gr && gr.result;
+    var on = !!(gr && gr.applied && r);
+    var html = '<div class="sa-layer">' +
+      '<button type="button" class="sa-layer-toggle' + (on ? ' sa-on' : '') + '" data-sa="grading" data-site="' + sid + '" aria-pressed="' + on + '"' +
+        ' title="' + (r ? (on ? 'Remove the planum from the terrain' : 'Apply the planum to the terrain') : 'Model a level planum with slopes') + '"' + (busy ? ' disabled' : '') + '>' +
+        '<i data-lucide="' + (r ? (on ? 'eye' : 'eye-off') : 'shovel') + '"></i><span>Grading (planum + slopes)</span></button>' +
+      (r ? iconBtn('grading-landxml', site, null, 'file-code', 'Export LandXML surface') +
+           iconBtn('grading-glb', site, null, 'box', 'Export GLB model') +
+           iconBtn('grading-remove', site, null, 'x', 'Remove grading') : '') +
+      '</div>';
+    if (!gr) return html;
+    html += '<div class="sa-grading">' +
+      '<div class="sa-field-row">' +
+        '<label class="modern-label-small" for="saGrMode' + sid + '">Planum</label>' +
+        '<select id="saGrMode' + sid + '" class="modern-select sa-select-small" data-sa-input="gr-mode" data-site="' + sid + '">' +
+          '<option value="balanced"' + (gr.levelMode === 'balanced' ? ' selected' : '') + '>Balanced incl. slopes</option>' +
+          '<option value="fixed"' + (gr.levelMode === 'fixed' ? ' selected' : '') + '>Fixed level</option>' +
+        '</select>' +
+        '<input type="number" step="0.01" class="modern-input sa-input-small" aria-label="Planum level (m)" title="Planum level (m)" value="' +
+          (isFinite(gr.level) && gr.level !== null ? Number(gr.level).toFixed(2) : '') + '" data-sa-input="gr-level" data-site="' + sid + '"' +
+          (gr.levelMode === 'balanced' ? ' disabled' : '') + '>' +
+      '</div>' +
+      '<div class="sa-field-row">' +
+        '<span class="modern-label-small">Slopes</span>' +
+        '<label class="sa-ratio">cut 1:<input type="number" step="0.1" min="0.3" max="10" class="modern-input sa-input-tiny" value="' + gr.slopeCut +
+          '" data-sa-input="gr-cut" data-site="' + sid + '" aria-label="Cut slope 1:n"></label>' +
+        '<label class="sa-ratio">fill 1:<input type="number" step="0.1" min="0.3" max="10" class="modern-input sa-input-tiny" value="' + gr.slopeFill +
+          '" data-sa-input="gr-fill" data-site="' + sid + '" aria-label="Fill slope 1:n"></label>' +
+      '</div>';
+    if (r) {
+      html += '<div class="sa-cf-sum">' +
+        '<span>Planum <b>' + num(r.t, 2) + ' m</b></span>' +
+        '<span class="sa-cf-cut"><span class="sa-sw sa-sw-cut"></span>Cut <b>' + num(r.cut) + ' m³</b> <small>planum ' + num(r.cutPlanum) + ' · slopes ' + num(r.cutSlopes) + '</small></span>' +
+        '<span class="sa-cf-fill"><span class="sa-sw sa-sw-fill"></span>Fill <b>' + num(r.fill) + ' m³</b> <small>planum ' + num(r.fillPlanum) + ' · slopes ' + num(r.fillSlopes) + '</small></span>' +
+        '<span>Net <b>' + num(r.net) + ' m³</b></span>' +
+        '<span>Changed area <b>' + num(r.affectedM2 / 10000, 2) + ' ha</b></span>' +
+        '<span>Slopes up to <b>' + num(r.maxWidth, 1) + ' m</b> wide</span>' +
+        '</div>' +
+        '<label class="sa-check"><input type="checkbox" data-sa-input="gr-depth" data-site="' + sid + '"' + (gr.depth ? ' checked' : '') + '> Depth raster (cut / fill)</label>';
+      if (gr.grid.coarsened) html += '<div class="sa-warn"><i data-lucide="info"></i>Grading grid coarsened to ' + num(gr.grid.cell, 1) + ' m (max. ' + num(MAX_SAMPLES) + ' cells)</div>';
+      if (r.bandHit) html += '<div class="sa-warn"><i data-lucide="info"></i>Slopes reach beyond ' + num(gr.grid.W) + ' m from the site — volumes are cut off there</div>';
+      var support = terrainSupport();
+      if (gr.applied && support !== 'ok') {
+        html += '<div class="sa-warn"><i data-lucide="info"></i>' + SUPPORT_TEXT[support] + '</div>';
+        if (support !== 'google' && window.LayerManager && LayerManager.switchTerrain) {
+          html += '<button type="button" class="modern-btn modern-btn-small sa-full" data-sa="grading-mapterhorn"><i data-lucide="mountain"></i><span>Switch to Mapterhorn terrain</span></button>';
+        }
+      }
+    }
+    return html + '</div>';
+  }
+
   function siteCard(site) {
     var g = site.grid, sid = site.id, busy = !!SA.job;
     var html = '<div class="sa-site" data-site="' + sid + '">' +
@@ -1726,6 +2350,8 @@
       else if (name === 'slope') html += legend(site, name);
       else html += cutFillBlock(site);
     });
+
+    html += gradingBlock(site);
 
     html += '<button type="button" class="modern-btn modern-btn-small sa-full" data-sa="site-analyze" data-site="' + sid + '"' + (busy ? ' disabled' : '') +
       ' title="Sample again with the current source and resolution"><i data-lucide="refresh-cw"></i><span>Re-sample</span></button>';
@@ -1776,7 +2402,30 @@
       case 'draw-finish': finishDraw(); break;
       case 'draw-cancel': stopDraw(); break;
       case 'cancel': if (SA.job) SA.job.cancelled = true; break;
-      case 'site-analyze': if (site) analyzeSite(site); break;
+      case 'site-analyze':
+        // A new grid invalidates the grading band: sample it again afterwards
+        if (site) analyzeSite(site).then(function() {
+          if (site.grading && site.grid) { site.grading.grid = null; computeGrading(site); }
+        });
+        break;
+      case 'grading':
+        if (!site || !site.grid) break;
+        if (!site.grading || !site.grading.result) { computeGrading(site); break; }
+        site.grading.applied = !site.grading.applied;
+        updateTerrain();
+        refreshProfileGrading();
+        renderSites();
+        break;
+      case 'grading-remove': if (site) { removeGrading(site); renderSites(); requestRender(); } break;
+      case 'grading-landxml':
+        if (site) exportLandXml(site).catch(function(err) { status(err.message || String(err), 'error'); });
+        break;
+      case 'grading-glb':
+        if (site) exportGlb(site).catch(function(err) { status(err.message || String(err), 'error'); });
+        break;
+      case 'grading-mapterhorn':
+        if (window.LayerManager && LayerManager.switchTerrain) LayerManager.switchTerrain('mapterhorn');
+        break;
       case 'site-zoom': if (site) zoomToSite(site); break;
       case 'site-remove': if (site) removeSite(site); break;
       case 'layer': if (site) toggleLayer(site, name); break;
@@ -1836,6 +2485,23 @@
       } else if (kind === 'cf-swell') {
         var f = Number(t.value);
         site.cut.swell = isFinite(f) && f >= 1 ? f : 1;
+      } else if (kind.indexOf('gr-') === 0 && site.grading) {
+        var gr = site.grading;
+        if (kind === 'gr-mode') gr.levelMode = t.value === 'fixed' ? 'fixed' : 'balanced';
+        else if (kind === 'gr-level') { var lv = Number(t.value); if (t.value === '' || !isFinite(lv)) return; gr.level = lv; }
+        else if (kind === 'gr-cut' || kind === 'gr-fill') {
+          var n = Number(t.value);
+          if (!isFinite(n) || n < 0.3 || n > 10) { status('Slope ratio 1:n with n between 0.3 and 10', 'error'); return; }
+          if (kind === 'gr-cut') gr.slopeCut = n; else gr.slopeFill = n;
+        } else if (kind === 'gr-depth') {
+          gr.depth = t.checked;
+          if (gr.result) drawGrading(site);
+          renderSites();
+          requestRender();
+          return;
+        }
+        computeGrading(site);   // samples again only when the band has to grow
+        return;
       }
       status('', '');
     } catch (err) {
@@ -1928,6 +2594,19 @@
           out.summary.fillM3 = round(r.fill, 1);
         }
       }
+      var gr = site.grading;
+      if (gr) {
+        out.grading = {
+          levelMode: gr.levelMode, level: isFinite(gr.level) && gr.level !== null ? round(gr.level, 2) : null,
+          slopeCut: gr.slopeCut, slopeFill: gr.slopeFill, applied: !!gr.applied, depth: !!gr.depth
+        };
+        if (gr.result && out.summary) {
+          out.summary.planumLevel = round(gr.result.t, 2);
+          out.summary.gradingCutM3 = round(gr.result.cut, 1);
+          out.summary.gradingFillM3 = round(gr.result.fill, 1);
+          out.summary.gradingAreaM2 = round(gr.result.affectedM2, 1);
+        }
+      }
       return out;
     });
     var p = SA.profile;
@@ -2007,6 +2686,18 @@
           problems.push('Site analysis: ' + name + ' of "' + site.name + '": ' + (err.message || err));
         }
       });
+      var sg = s.grading;
+      if (sg && typeof sg === 'object') {
+        var gr = site.grading = newGrading();
+        gr.levelMode = sg.levelMode === 'fixed' ? 'fixed' : 'balanced';
+        gr.level = isFinite(sg.level) && sg.level !== null ? Number(sg.level) : null;
+        if (isFinite(sg.slopeCut) && sg.slopeCut >= 0.3 && sg.slopeCut <= 10) gr.slopeCut = Number(sg.slopeCut);
+        if (isFinite(sg.slopeFill) && sg.slopeFill >= 0.3 && sg.slopeFill <= 10) gr.slopeFill = Number(sg.slopeFill);
+        gr.applied = sg.applied !== false;
+        gr.depth = !!sg.depth;
+        await computeGrading(site);
+        if (!gr.result) problems.push('Site analysis: the grading of "' + site.name + '" could not be computed');
+      }
     }
 
     var p = state.profile;
@@ -2044,7 +2735,14 @@
   SA.render = renderSites;
   // Pure grid functions, exposed for checks with synthetic grids
   SA._internals = { derivatives: derivatives, gridStats: gridStats, traceLevel: traceLevel, volumesAt: volumesAt,
-                    balancedTarget: balancedTarget, fillGaps: fillGaps, simplify: simplify };
+                    balancedTarget: balancedTarget, fillGaps: fillGaps, simplify: simplify,
+                    polyDist: polyDist, gradeHeight: gradeHeight, gradingVolumes: gradingVolumes, gradingBalanced: gradingBalanced };
+  SA.computeGrading = function(site) {
+    site = site && typeof site === 'object' ? site : findSite(site);
+    return site ? computeGrading(site) : Promise.resolve();
+  };
+  SA.exportLandXml = exportLandXml;
+  SA.exportGlb = exportGlb;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
