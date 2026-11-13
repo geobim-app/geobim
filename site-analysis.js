@@ -23,7 +23,7 @@
 // One height grid per site (cell centres, rows north → south, local
 // east/north metres) feeds every analysis. Rasters are canvas images on
 // ground rectangles, contours ground polylines — both drape on terrain and
-// 3D Tiles. Session only, nothing is stored.
+// 3D Tiles. Saved with scenes by site-analysis-scenes.js (see STATE below).
 // Section markup: ui-site-section.js; styles and palettes:
 // site-analysis-styles.css.
 // ===============================
@@ -269,11 +269,11 @@
 
   // Orthometric heights for points (degrees). Resolves
   // { heights: Float64Array, source, datum, zoom, pixelM }
-  async function sampleHeights(lons, lats, job, label) {
+  async function sampleHeights(lons, lats, job, label, sourceKey) {
     var count = lons.length;
     var midLon = lons[Math.floor(count / 2)], midLat = lats[Math.floor(count / 2)];
 
-    if (SA.settings.source === 'mapterhorn') {
+    if ((sourceKey || SA.settings.source) === 'mapterhorn') {
       if (!window.GEOBIM_MAPTERHORN || !GEOBIM_MAPTERHORN.sampleOrtho) throw new Error('Mapterhorn terrain is not available');
       progress(0, label + ': loading terrain tiles');
       var r = await GEOBIM_MAPTERHORN.sampleOrtho(lons, lats, {
@@ -360,7 +360,9 @@
   // SITES
   // ===============================
 
-  function addSite(ringDeg, origin) {
+  // opts: { name, quiet } (scene restore)
+  function addSite(ringDeg, origin, opts) {
+    opts = opts || {};
     if (!viewer()) return null;
     if (ringDeg.length < 3) { status('A site needs at least 3 points', 'error'); return null; }
     var fr = frame(ringDeg);
@@ -372,7 +374,7 @@
     seq++;
     var site = {
       id: seq,
-      name: 'Site ' + seq,
+      name: opts.name ? String(opts.name).slice(0, 60) : 'Site ' + seq,
       origin: origin,
       ring: ringDeg,
       frame: fr,
@@ -406,11 +408,12 @@
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, Math.max(30000, Math.sqrt(area) * 40))
       }
     }));
     SA.sites.push(site);
-    status(site.name + ' added — ' + num(area / 10000, 2) + ' ha. Click "Analyze terrain".', 'ok');
+    if (!opts.quiet) status(site.name + ' added — ' + num(area / 10000, 2) + ' ha. Click "Analyze terrain".', 'ok');
     renderSites();
     requestRender();
     return site;
@@ -486,8 +489,11 @@
   function cellX(g, i) { return g.x0 + (i + 0.5) * g.cell; }
   function cellY(g, j) { return g.yTop - (j + 0.5) * g.cell; }
 
-  async function analyzeSite(site) {
-    var plan = planGrid(site, SA.settings.cell);
+  // opts: { source, cell } override the section settings (scene restore)
+  async function analyzeSite(site, opts) {
+    opts = opts || {};
+    var sourceKey = opts.source || SA.settings.source;
+    var plan = planGrid(site, Number(opts.cell) || SA.settings.cell);
     if (!plan) { status('The area is too large for the grid (max. ' + num(MAX_SAMPLES) + ' cells)', 'error'); return; }
     var job = startJob();
     if (!job) return;
@@ -520,7 +526,7 @@
       }
       if (!idx.length) throw new Error('The grid has no cells inside the area');
 
-      var res = await sampleHeights(lons, lats, job, site.name);
+      var res = await sampleHeights(lons, lats, job, site.name, sourceKey);
       var h = new Float32Array(n).fill(NaN);
       for (k = 0; k < idx.length; k++) h[idx[k]] = res.heights[k];
       if (!fillGaps(h, need, nx, ny)) throw new Error('No height data for this area');
@@ -535,7 +541,7 @@
         north: north, south: north - ny * plan.cell / site.frame.m.lat,
         inside: inside, need: need, h: h,
         source: res.source, datum: res.datum, zoom: res.zoom, pixelM: res.pixelM,
-        sourceKey: SA.settings.source,
+        sourceKey: sourceKey,
         N: N.n
       };
       derivatives(g);
@@ -1276,7 +1282,10 @@
   // ELEVATION PROFILE
   // ===============================
 
-  async function runProfile(ptsDeg) {
+  // opts: { source, exaggeration } (scene restore)
+  async function runProfile(ptsDeg, opts) {
+    opts = opts || {};
+    var sourceKey = opts.source || SA.settings.source;
     var fr = frame(ptsDeg);
     var local = ptsDeg.map(function(p) { return fr.toLocal(p[0], p[1]); });
     var length = lineLength(local, false);
@@ -1301,7 +1310,7 @@
     var job = startJob();
     if (!job) return;
     try {
-      var res = await sampleHeights(lons, lats, job, 'Profile');
+      var res = await sampleHeights(lons, lats, job, 'Profile', sourceKey);
       var hs = Array.from(res.heights);
       var valid = hs.filter(isFinite);
       if (!valid.length) throw new Error('No height data along the line');
@@ -1316,7 +1325,8 @@
       var N = await undulation(fr.lon0, fr.lat0);
       SA.profile = {
         ptsDeg: ptsDeg, stations: stations, lons: lons, lats: lats, heights: hs, length: length,
-        source: res.source, datum: res.datum, N: N.n, exaggeration: 'auto', entities: []
+        source: res.source, datum: res.datum, N: N.n, sourceKey: sourceKey,
+        exaggeration: opts.exaggeration || 'auto', entities: []
       };
       SA.profile.entities.push(ds().entities.add({
         polyline: {
@@ -1872,7 +1882,153 @@
     })();
   }
 
+  // ===============================
+  // STATE (scenes: site-analysis-scenes.js)
+  // Sites, settings, layers and profile line as plain JSON. The height grids
+  // are not stored (up to 250 000 values per site, Firestore documents end at
+  // 1 MB): a restore samples again and recomputes, the stored "summary" only
+  // documents the results at save time.
+  // ===============================
+
+  var STATE_VERSION = 1;
+  var LAYER_NAMES = ['contours', 'slope', 'aspect', 'cutfill'];
+
+  function round(n, d) { var f = Math.pow(10, d); return Math.round(n * f) / f; }
+
+  function exportState() {
+    if (!SA.sites.length && !SA.profile) return null;
+    var sites = SA.sites.map(function(site) {
+      var g = site.grid, layers = {};
+      LAYER_NAMES.forEach(function(name) {
+        var l = site.layers[name];
+        if (!l) return;
+        layers[name] = { show: l.show !== false };
+        if (typeof l.opacity === 'number') layers[name].opacity = round(l.opacity, 2);
+      });
+      var out = {
+        name: site.name,
+        origin: site.origin,
+        ring: site.ring.map(function(p) { return [round(p[0], 8), round(p[1], 8)]; }),
+        analysis: g ? { source: g.sourceKey, cell: g.requested } : null,
+        contourInterval: site.contourInterval,
+        cut: { mode: site.cut.mode, target: isFinite(site.cut.target) ? round(site.cut.target, 2) : null, swell: site.cut.swell },
+        layers: layers
+      };
+      if (g) {
+        out.summary = {
+          source: g.source, datum: g.datum, cell: g.cell,
+          areaM2: round(g.stats.cells * g.cell * g.cell, 1),
+          heightMin: round(g.stats.min, 2), heightMedian: round(g.stats.median, 2), heightMax: round(g.stats.max, 2),
+          meanSlopeDeg: round(g.stats.meanSlope, 2)
+        };
+        var r = site.layers.cutfill && site.cut.result;
+        if (r) {
+          out.summary.gradeLevel = round(r.target, 2);
+          out.summary.cutM3 = round(r.cut, 1);
+          out.summary.fillM3 = round(r.fill, 1);
+        }
+      }
+      return out;
+    });
+    var p = SA.profile;
+    return {
+      version: STATE_VERSION,
+      sites: sites,
+      profile: p ? {
+        points: p.ptsDeg.map(function(q) { return [round(q[0], 8), round(q[1], 8)]; }),
+        source: p.sourceKey,
+        exaggeration: p.exaggeration,
+        lengthM: round(p.length, 2)
+      } : null
+    };
+  }
+
+  async function waitIdle() {
+    if (SA.job) SA.job.cancelled = true;
+    for (var i = 0; SA.job && i < 100; i++) await new Promise(function(r) { setTimeout(r, 100); });
+  }
+
+  // Removes every site and the profile (scene load replaces, never mixes)
+  function clearAll() {
+    stopDraw();
+    SA.sites.slice().forEach(removeSite);
+    if (profilePanel) profilePanel.classList.remove('visible');
+    clearProfile();
+    status('', '');
+    renderSites();
+  }
+
+  function validRing(r) {
+    return Array.isArray(r) && r.length >= 3 && r.every(function(p) {
+      return Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90;
+    });
+  }
+
+  function validSource(s) { return s === 'mapterhorn' || s === 'active' ? s : 'mapterhorn'; }
+
+  // Rebuilds sites, grids, layers and the profile. Resolves a list of problems.
+  async function importState(state) {
+    await waitIdle();
+    clearAll();
+    var problems = [];
+    if (!state || typeof state !== 'object') return problems;
+    var list = Array.isArray(state.sites) ? state.sites : [];
+    var restored = [];
+    list.forEach(function(s) {
+      if (!s || !validRing(s.ring)) { problems.push('Site analysis: a site without a valid outline was skipped'); return; }
+      var site = addSite(s.ring.map(function(p) { return [Number(p[0]), Number(p[1])]; }), s.origin || 'scene', { name: s.name, quiet: true });
+      if (!site) { problems.push('Site analysis: "' + (s.name || 'site') + '" could not be added'); return; }
+      if (s.contourInterval === 'auto' || CONTOUR_STEPS.indexOf(Number(s.contourInterval)) !== -1) site.contourInterval = s.contourInterval;
+      restored.push({ site: site, data: s });
+    });
+
+    for (var i = 0; i < restored.length; i++) {
+      var site = restored[i].site, s = restored[i].data;
+      if (!s.analysis) continue;
+      await analyzeSite(site, { source: validSource(s.analysis.source), cell: s.analysis.cell });
+      if (!site.grid) { problems.push('Site analysis: heights for "' + site.name + '" could not be loaded'); continue; }
+      var cut = s.cut || {};
+      site.cut.mode = cut.mode === 'fixed' ? 'fixed' : 'balanced';
+      site.cut.target = isFinite(cut.target) && cut.target !== null ? Number(cut.target) : null;
+      site.cut.swell = isFinite(cut.swell) && cut.swell >= 1 ? Number(cut.swell) : 1;
+      var layers = s.layers || {};
+      LAYER_NAMES.forEach(function(name) {
+        var l = layers[name];
+        if (!l) return;
+        try {
+          if (name === 'contours') showContours(site);
+          else if (name === 'cutfill') showCutFill(site);
+          else showRaster(site, name);
+          if (isFinite(l.opacity) && site.layers[name].entities.length && site.layers[name].entities[0].rectangle) {
+            setOpacity(site, name, Math.max(0.1, Math.min(1, Number(l.opacity))));
+          }
+          if (l.show === false) setLayerShown(site, name, false);
+        } catch (err) {
+          problems.push('Site analysis: ' + name + ' of "' + site.name + '": ' + (err.message || err));
+        }
+      });
+    }
+
+    var p = state.profile;
+    if (p && Array.isArray(p.points) && p.points.length >= 2 && p.points.every(function(q) { return Array.isArray(q) && isFinite(q[0]) && isFinite(q[1]); })) {
+      var ex = ['auto', '1', '2', '5', '10'].indexOf(String(p.exaggeration)) !== -1 ? String(p.exaggeration) : 'auto';
+      await runProfile(p.points.map(function(q) { return [Number(q[0]), Number(q[1])]; }), { source: validSource(p.source), exaggeration: ex });
+      if (!SA.profile) problems.push('Site analysis: the elevation profile could not be loaded');
+    }
+    renderSites();
+    requestRender();
+    if (restored.length || SA.profile) {
+      status(problems.length ? problems.length + ' item(s) of the site analysis could not be restored' : 'Site analysis restored from the scene',
+             problems.length ? 'error' : 'ok');
+    }
+    return problems;
+  }
+
   // Public API (console, tests, other modules)
+  SA.exportState = exportState;
+  SA.importState = importState;
+  SA.clearAll = clearAll;
+  SA.waitIdle = waitIdle;
   SA.addSite = addSite;
   SA.analyze = function(site) {
     site = site && typeof site === 'object' ? site : findSite(site);

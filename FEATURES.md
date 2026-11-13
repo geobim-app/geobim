@@ -114,6 +114,7 @@
 | Slope / Aspect | Horn method; slope in 8 classes (0–2 … > 45°), aspect in 8 directions + flat (< 2°) with an aspect rose. Canvas rasters on ground rectangles with opacity and legend. Export PNG with legend. | `site-analysis.js`, `site-analysis-styles.css` |
 | Cut & fill | Balanced grade level (cut = fill, bisection) or a fixed level; cut red, fill blue by depth; volumes, swell factor, connected regions with area and volume (click flies there). Export CSV (`;`, decimal comma) and PNG. | `site-analysis.js` |
 | Elevation profile | Line with any number of points, sampled every 1 m (max. 5 000 points); floating panel with SVG chart, length, Δh, min / max, up / down, max grade over 10 m, vertical exaggeration (fit, 1–10×); hovering shows the point in 3D. Export CSV and SVG. | `site-analysis.js` |
+| Scenes | Sites, settings, layers (visibility, opacity), cut & fill settings and the profile are saved with a scene (field `siteAnalysis`, plus a summary of the results); grids are sampled again and layers recomputed when the scene is loaded. Loading a scene without the field, or "New empty scene", removes the sites. Not in share links. | `site-analysis-scenes.js`, `site-analysis.js` |
 
 ---
 

@@ -81,7 +81,7 @@
 
       <div class="modern-hint">
         <strong>Mapterhorn DGM</strong> reads open terrain models directly (bare earth, about 1 m in most of Germany,
-        30 m elsewhere), whatever terrain is shown. Heights are orthometric. Results stay in this session.
+        30 m elsewhere), whatever terrain is shown. Heights are orthometric. Sites and layers are saved with a scene (Scenes) and recomputed when it is loaded.
       </div>
     `;
   }
