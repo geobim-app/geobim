@@ -279,9 +279,96 @@ window.GEOBIM_MAPTERHORN = (function() {
 
   hook();
 
+  // ---- Direct sampling (site-analysis.js) ----
+  // Orthometric heights straight from the source tiles at their native
+  // resolution, without Cesium tiles or the geoid: one zoom for the whole
+  // request (the deepest with data at the first point), tiles missing at that
+  // zoom fall back to their parent. Bilinear between pixel centres, clamped at
+  // the tile edge (as buildTile does).
+
+  function mercPixel(lonDeg, latDeg, z) {
+    var n = Math.pow(2, z) * SRC_SIZE;
+    var s = Math.sin(latDeg * Math.PI / 180);
+    return [(lonDeg + 180) / 360 * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n];
+  }
+
+  // Deepest source zoom with data at a point (Promise<number>)
+  function dataZoomAt(lonDeg, latDeg) {
+    function tryZoom(z) {
+      var p = mercPixel(lonDeg, latDeg, z);
+      var tx = Math.floor(p[0] / SRC_SIZE), ty = Math.floor(p[1] / SRC_SIZE);
+      if (z > 0 && missing.has(key(z, tx, ty))) return tryZoom(z - 1);
+      return loadSource(z, tx, ty).then(function(h) { return h || z === 0 ? z : tryZoom(z - 1); });
+    }
+    return tryZoom(SRC_MAX_Z);
+  }
+
+  // lons, lats: degrees. opts: { onProgress(done, total), isCancelled() }.
+  // Resolves { heights: Float64Array (NaN without data), zoom, minZoom }.
+  function sampleOrtho(lons, lats, opts) {
+    opts = opts || {};
+    var count = lons.length;
+    var out = new Float64Array(count).fill(NaN);
+    if (!count) return Promise.resolve({ heights: out, zoom: null, minZoom: null });
+    return dataZoomAt(lons[0], lats[0]).then(function(z) {
+      var px = new Float64Array(count), py = new Float64Array(count);
+      var groups = new Map();
+      for (var i = 0; i < count; i++) {
+        var p = mercPixel(lons[i], lats[i], z);
+        px[i] = p[0]; py[i] = p[1];
+        var k = key(z, Math.floor(p[0] / SRC_SIZE), Math.floor(p[1] / SRC_SIZE));
+        var g = groups.get(k);
+        if (!g) groups.set(k, g = []);
+        g.push(i);
+      }
+      var keys = Array.from(groups.keys());
+      var next = 0, done = 0, minZoom = z;
+
+      function resolve(zz, tx, ty) {
+        if (zz > 0 && missing.has(key(zz, tx, ty))) return resolve(zz - 1, tx >> 1, ty >> 1);
+        return loadSource(zz, tx, ty).then(function(h) {
+          if (h || zz === 0) return { z: zz, tx: tx, ty: ty, h: h };
+          return resolve(zz - 1, tx >> 1, ty >> 1);
+        });
+      }
+
+      function worker() {
+        if (opts.isCancelled && opts.isCancelled()) return Promise.reject(new Error('cancelled'));
+        if (next >= keys.length) return Promise.resolve();
+        var k = keys[next++], parts = k.split('/');
+        return resolve(z, +parts[1], +parts[2]).then(function(src) {
+          minZoom = Math.min(minZoom, src.z);
+          var scale = Math.pow(2, z - src.z), ox = src.tx * SRC_SIZE, oy = src.ty * SRC_SIZE;
+          var h = src.h, S = SRC_SIZE, last = S - 1;
+          groups.get(k).forEach(function(i) {
+            if (!h) return;
+            var x = px[i] / scale - ox - 0.5, y = py[i] / scale - oy - 0.5;
+            x = x < 0 ? 0 : (x > last ? last : x);
+            y = y < 0 ? 0 : (y > last ? last : y);
+            var x0 = Math.floor(x), y0 = Math.floor(y);
+            var x1 = Math.min(x0 + 1, last), y1 = Math.min(y0 + 1, last);
+            var wx = x - x0, wy = y - y0;
+            out[i] = (h[y0 * S + x0] * (1 - wx) + h[y0 * S + x1] * wx) * (1 - wy) +
+                     (h[y1 * S + x0] * (1 - wx) + h[y1 * S + x1] * wx) * wy;
+          });
+          done++;
+          if (opts.onProgress) opts.onProgress(done, keys.length);
+        }).then(worker);
+      }
+
+      var workers = [];
+      for (var w = 0; w < 4; w++) workers.push(worker());
+      return Promise.all(workers).then(function() {
+        return { heights: out, zoom: z, minZoom: minZoom };
+      });
+    });
+  }
+
   return {
     TERRAIN_ID: TERRAIN_ID,
     createProvider: createProvider,
+    sampleOrtho: sampleOrtho,
+    dataZoomAt: dataZoomAt,
     geoidHeight: function(lat, lon) { return GCG.data && EGM.data ? geoidHeight(lat, lon) : null; },
     // GCG2016 undulation in Germany, null outside or before loadGCG() finished
     gcg2016: function(lat, lon) { return GCG.data ? gcg2016(lat, lon) : null; },
