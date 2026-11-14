@@ -17,7 +17,8 @@
 // GLB (binary glTF 2.0) needs no conversion: it is stored as model/<slug>.glb
 // right away, and lon/lat/height/heading — if sent — become its saved placement
 // in model/placements.json (the entry api/placement-save.php writes; height =
-// ellipsoidal WGS84 height in metres, as the viewer uses it). The response and
+// ellipsoidal WGS84 height in metres, as the viewer uses it — or send
+// height_datum=orthometric for a height above sea level). The response and
 // api/pointcloud-status.php look like a finished job, so the upload UI and the
 // Rhino plugin need no special case.
 header('Content-Type: application/json');
@@ -167,8 +168,16 @@ if ($refHeight !== null) {
 // Optional IFC height datum: 'ellipsoid' = heights in the file are already
 // ellipsoidal (GPS), the tiler then skips the geoid lift; default 'auto'
 $heightDatum = isset($_POST['height_datum']) ? trim($_POST['height_datum']) : 'auto';
-if (!in_array($heightDatum, ['auto', 'ellipsoid'], true)) {
-    fail('Height datum must be auto or ellipsoid');
+// GLB: 'orthometric' = height above sea level (e.g. Rhino's EarthAnchorPoint),
+// converted here to the ellipsoidal height the viewer uses; default ellipsoidal
+if (!in_array($heightDatum, $isGlb ? ['auto', 'ellipsoid', 'orthometric'] : ['auto', 'ellipsoid'], true)) {
+    fail($isGlb ? 'Height datum must be ellipsoid or orthometric' : 'Height datum must be auto or ellipsoid');
+}
+if ($isGlb && $heightDatum === 'orthometric' && $lon !== null) {
+    require_once __DIR__ . '/_geoid.php';
+    if (is_finite($lat) && is_finite($lon) && abs($lat) <= 90) {
+        $height += geobim_geoid_height($lat, $lon);
+    }
 }
 
 // GLB: no conversion. model/<slug>.glb is replaced atomically (a temporary
