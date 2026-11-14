@@ -1,190 +1,179 @@
 # geoBIM.app
 
-**BIM x GIS = Geospatial Intelligence**
+**BIM x GIS = Geospatial Intelligence** · *Apps für den Ingenieurbau. openBIM. openSource.*
 
-[Live Demo](https://geobim.app/demo)
+[Open the viewer](https://viewer.geobim.app) · [Demo](https://viewer.geobim.app/demo) · [Features](FEATURES.md) · [Changelog](CHANGELOG.md)
 
 ![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)
 ![CesiumJS 1.147](https://img.shields.io/badge/CesiumJS-1.147-teal.svg)
+![No build step](https://img.shields.io/badge/build-none-lightgrey.svg)
+
+![Merendree bridge in split view: reality mesh as built (left) and IFC 4.3 model as designed (right)](.github/images/viewer-split-as-built-as-designed.jpg)
 
 ---
 
 ## What is geoBIM.app?
 
-geoBIM.app is a web-native application for streaming massive 3D BIM and geospatial data directly in the browser, powered by CesiumJS and OGC 3D Tiles. It places your BIM models in their real geographic context — embedded in terrain, imagery, and existing urban structures rather than viewed in isolation.
+geoBIM.app is a web viewer for BIM and infrastructure models in their real surroundings. It streams
+IFC models, reality meshes, point clouds and GIS data as OGC 3D Tiles with CesiumJS and places them on
+terrain, imagery and city models — in the browser, without installation, for engineers, clients,
+authorities and the public.
 
-geoBIM.app streams all formats supported by CesiumJS. IFC and Revit files can be converted to 3D Tiles via the Cesium Ion design tiler; IFC files can also be uploaded and tiled on the geoBIM server with its own tiler (georeferencing, all property sets, no Cesium Ion needed). It targets architects, engineers, contractors, authorities, operators, and project managers — all stakeholders involved in the lifecycle of a built asset.
+- **Open formats** — IFC 2x3 / 4 / 4.3 (incl. IfcAlignment), 3D Tiles 1.1, glTF, I3S, LAS/LAZ/E57,
+  Gaussian splats, GeoJSON, Shapefile, KML, GPX, WMS/WMTS/WFS.
+- **Own IFC tiler** — IFC files are converted on the geoBIM.app server with all property sets and
+  their georeferencing (`IfcMapConversion`, `IfcSite`), no Cesium ion needed.
+- **Works without an account** — guests get open terrain (Mapterhorn), open base maps and the demo
+  scenes; Cesium ion is optional.
+
+Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.app](https://github.com/geobim-app/ifc-geobim)
+(IFC viewer for infrastructure, based on ifc-lite), the **geobim-tiler** (server-side IFC → 3D Tiles),
+**geoBIM Desktop** (Unreal Engine 5 + Cesium for Unreal, same scene format) and the company website
+[geobim.app](https://geobim.app). The tiler and the desktop app are not public.
 
 ---
 
 ## Features
 
-- **Asset Management** — Load and manage 3D Tiles from Cesium Ion; save the position of self-hosted models (owner)
-- **IFC Upload** — Own IFC → 3D Tiles tiler (3D Tiles 1.1, all property sets, EPSG and ±0.00 height, IfcAlignment axes), plus LAS/LAZ/E57 point cloud upload up to 3 GB (owner)
-- **Layer Management** — Switch basemaps, terrain providers, Google 3D Tiles, OSM Buildings; 59 verified WMS/WMTS/WFS presets
-- **ArcGIS** — Esri base maps, ArcGIS MapServer layers, ArcGIS World Elevation terrain and I3S scene layers (Building Scene Layers with discipline, category and level filters)
-- **IFC & Revit Filtering** — Show/hide by entity class or category (40+ IFC classes, 43 Revit categories with German names) with color-coded visualization; unlisted types stay visible via "Other"
-- **Measurements** — Distance, area, height, vertical distance, and coordinate tools with Firestore persistence
-- **Clipping** — Polygon, rectangle, and per-asset axis-aligned section planes, plus sections along an IfcAlignment axis by station with a live 2D cross section
+**Models & data**
+- Self-hosted 3D Tiles and GLB models, Cesium ion assets (own account via OAuth), Bentley iTwin iModels, ArcGIS I3S scene layers
+- IFC and point cloud upload (up to 3 GB) with server-side tiling; move, rotate and save the position of any model
+- GIS files by drag & drop (GeoJSON, Shapefile, KML/KMZ, GPX, FlatGeobuf) with CRS from the file
+- Gaussian splats as native 3D Tiles (`KHR_gaussian_splatting`)
 - **Rhino Plugin** — Upload Rhino models straight from Rhino 8 (IFC 4 via the geobim-tiler, georeferenced from map coordinates or the EarthAnchorPoint); repo `geobim-rhino`
 - **Site Analysis** — Contours, slope, aspect, cut & fill (balanced grade level, regions with volumes) and elevation profiles for a drawn site, on the Mapterhorn DGM or the active terrain; grade a level planum with slopes into the terrain itself (export LandXML, GLB); export as GeoJSON, CSV, PNG and SVG
-- **Construction Sequencing** — 4D BIM stage animation via IFC properties
-- **StageTwin** — Shareable 4D construction-stage view at [geobim.app/stage-twin](https://geobim.app/stage-twin)
-- **Annotations** — Point and area comments with Firestore persistence
-- **SensorThings API** — Live bridge monitoring via FROST-Server with MQTT, sparkline charts, and damage event detection
-- **IoT Live Module** — Real-time water level monitoring via Pegelonline with threshold alerts
-- **Geoid Module** — EGM96 undulation lookup for orthometric height display in coordinate picker
-- **Walk Mode** — First-person navigation with WASD, mouse or Xbox controller, wall collision against 3D Tiles
-- **Third-Person Mode** — Animated character with Unreal Engine-style controls, Player Start on any surface
-- **WEA Shadow Analysis** — Wind turbine shadow flicker simulation with parametric turbines
-- **Lighting** — Dynamic sun/shadows, IBL (spherical harmonics), HBAO ambient occlusion, time-of-day control
-- **Point Clouds** — Eye Dome Lighting, color modes (RGB, height, classification), rendering presets
-- **3D Gaussian Splatting** — Photorealistic splat reconstructions as native Cesium 3D Tiles (`KHR_gaussian_splatting`), self-hosted or via Ion, with an interactive move/scale/rotate gizmo (gizmo applies to self-hosted splats only; Ion-loaded splats carry their georeference in the tile content — reposition those via the normal asset pipeline)
-- **Saved Views** — Capture and restore camera positions with scene state
-- **Split-Screen** — Side-by-side comparison mode
-- **Asset Placement** — Move & rotate any 3D Tiles asset (IFC/Revit/CityGML/local) or GLB model in place via an Ion-style gizmo (colored axis arrows + heading ring). Toggle **Transform mode** with the toolbar button or **X**; height stays in sync with the Z-Offset slider (live only, like the GLB gizmo)
-- **Z-Offset** — Vertical repositioning of assets (-70m to +70m), shared with the placement gizmo's height handle
-- **Performance Presets** — 4 levels from Performance to Ultra with tileset-level tuning
-- **Cesium Ion Connect** — Link your own Cesium Ion account via OAuth2, load your private assets
-- **Post-Processing Effects** — Bloom, lens flare, vignette, color grading with Cinematic preset
-- **Guest Access & Demo Mode** — The viewer opens without login as a guest; sign in from the sidebar for more. Demos at [geobim.app/demo](https://geobim.app/demo), `/wea-shadow` and `/bridge-inspector`, no time limit
 
-For a complete feature reference see [FEATURES.md](FEATURES.md).
+**Terrain & maps**
+- Terrain: Mapterhorn (open DGM, no ion), ArcGIS World Elevation, Cesium World Terrain; heights via GCG2016 / EGM2008 geoid
+- Base maps: TopPlusOpen, basemap.de, Bavarian DOP20/DTK, Esri, Bing / Google (ion); Google Photorealistic 3D Tiles, OSM Buildings, NRW LoD2
+- 59 verified WMS/WMTS/WFS presets, ArcGIS MapServer layers
+
+**Inspect & analyse**
+- IFC and Revit filters by class / category, element properties, hide and isolate elements
+- Measurements (distance, area, height, vertical, coordinates in WGS84, UTM and Gauß-Krüger)
+- Clipping polygons with excavation pit, section planes per model, sections along an IfcAlignment axis, a line or a plan — with a 2D drawing and SVG export
+- 4D: construction schedule from the IFC (`IfcTask`) and stage sequencing from properties
+- Split view (per model left / right, own base map left), sun and shadows, wind turbine shadow flicker
+
+**Collaborate**
+- Scenes: save camera, models, terrain, base map and sun — compatible with geoBIM Desktop's `SavedScenes.json`; demo scenes for everyone
+- Share a scene with a link: customers open it without an account, navigate, measure and comment; their comments appear live in your viewer
+- 3D annotations with categories and inspection data, BCF 2.1 export, saved views, screenshots
+
+**Navigate & present**
+- Panel UI with icon rail (default) or classic sidebar; works on phones
+- Walk Mode (first person: WASD, mouse, gamepad, collision), Third-Person mode with a character, VR with WebXR (Meta Quest)
+- Image-based lighting, HBAO, post-processing, Eye Dome Lighting for point clouds, performance presets
+
+**Live data**
+- OGC SensorThings API (FROST-Server, MQTT) for structural health monitoring, Pegelonline water levels
+
+**Demo Mode** — open without sign-in: [viewer](https://viewer.geobim.app/demo) with the demo scenes,
+[wind turbine shadow flicker](https://viewer.geobim.app/wea-shadow), [bridge inspection](https://viewer.geobim.app/bridge-inspector),
+[StageTwin](https://viewer.geobim.app/stage-twin) (shareable 4D construction stages).
+
+The full list with all files is in [FEATURES.md](FEATURES.md).
+
+![Siegtalbrücke: 4D construction schedule from the IFC model, incremental launching in September 2032](.github/images/viewer-4d-construction-schedule.jpg)
 
 ---
 
-## Prerequisites
+## Do I need Cesium ion?
 
-A **Cesium Ion** account is required. The [Community plan](https://cesium.com/platform/cesium-ion/pricing/) (free) includes:
+No. The viewer runs as a guest with open terrain and base maps, and self-hosted models need no ion at
+all. A [Cesium ion](https://cesium.com/platform/cesium-ion/) account (free Community plan available)
+adds Cesium World Terrain, Bing / Google imagery, Google Photorealistic 3D Tiles, OSM Buildings and your
+own ion assets — connect it from the viewer. Check Cesium's [pricing](https://cesium.com/platform/cesium-ion/pricing/)
+for commercial use.
 
-- 5 GB asset storage
-- 15 GB streaming per month
-- 1,000 Google Photorealistic 3D Tiles sessions per month
-
-The free plan covers personal projects and exploratory commercial evaluation. A paid plan is required if your organization exceeds $50K annual revenue or raised funds, works on government projects, or exceeds usage limits. See [Cesium Ion Pricing](https://cesium.com/platform/cesium-ion/pricing/) for details.
+Esri base maps without an API key are meant for development and non-commercial use; set
+`GEOBIM_CONFIG.arcgis.apiKey` in `config.js` for production.
 
 ---
 
-## Getting Started
+## Getting started (local)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/geobim-app/geobim.git
-   cd geobim
-   ```
+Requirements: PHP 8 (the viewer needs its small PHP API), Git, a Firebase project for sign-in.
 
-2. Create your configuration file:
-   ```bash
-   cp config.example.js config.js
-   ```
-   Edit `config.js` and fill in your Firebase credentials. The Cesium Ion token is entered at runtime in the app.
+```bash
+git clone https://github.com/geobim-app/geobim.git
+cd geobim
+cp config.example.js config.js     # fill in your Firebase web config
+```
 
-3. Serve locally with PHP 8 (the default Cesium Ion token comes from `api/ion-config.php`):
-   ```powershell
-   .\dev\serve.ps1
-   ```
-   Then open http://localhost:8000/. The script reads a Cesium Ion token restricted to `http://localhost:8000` from `~/.geobim/ion-dev-token.txt`; Ion login needs its own OAuth app with the redirect URI `http://localhost:8000/` (see `config.example.js`). Without PHP (`npx serve .`) the viewer does not start.
+```powershell
+.\dev\serve.ps1                    # http://localhost:8000/
+```
 
-   Uploads, converters, saving placements and the owner session need the production server and cannot be tested locally. "Server models" come read-only from a local folder of tilesets (`-ModelDir`, default `Documents\BIM_Zentral\3dtiles`, where geoBIM Desktop writes them; see `api/_dev.php`); the section shows after signing in with the owner account. The Bentley (iTwin) sign-in works on localhost: `http://localhost:8000/itwin-callback.html` is a registered redirect URI, and `serve.ps1` enables cURL/OpenSSL for the token relay.
+- **Cesium ion (optional):** a token restricted to `http://localhost:8000` in `~/.geobim/ion-dev-token.txt`;
+  `api/ion-config.php` hands it to the viewer. Without it the viewer runs like a guest.
+- **Server models:** read-only from a folder of tilesets (`-ModelDir`, see `api/_dev.php`); they show
+  after signing in with the owner account.
+- **Not available locally:** uploads and their conversion, the owner session cookie. Test those on a server.
+- **Checks before every commit** (Git Bash, UTF-8 locale): `LC_ALL=C.UTF-8 bash qa-check.sh` — must report 0 errors.
 
-4. Before committing, run the checks (on Windows in Git Bash, with a UTF-8 locale for `grep -P`):
-   ```bash
-   LC_ALL=C.UTF-8 bash qa-check.sh
-   ```
+## Self-hosting and forks
+
+geoBIM.app is static files plus a PHP API under `api/`, served by Apache — no build step. For your own
+installation:
+
+- **Owner account:** set your email in `GEOBIM_OWNER_EMAILS` (`api/_owner_auth.php`) and in
+  `labUsers` (`core.js`); the owner uploads, places, shares and deletes models.
+- **Session secret:** `/etc/geobim/session-secret` (random string) signs the owner session cookie.
+- **Models:** `model/` (not in git) holds self-hosted tilesets and GLBs; it must be writable by PHP
+  (uploads, saved positions, share links).
+- **IFC and point cloud conversion:** the upload hands files to a worker (`scripts/convert_pointcloud.py`)
+  that uses py3dtiles for point clouds and the geobim-tiler for IFC. The tiler is not public, so a fork
+  converts point clouds but not IFC; use Cesium ion's tiler for IFC instead.
+- **Share links:** need the Firestore rules from [DEPLOYMENT.md](DEPLOYMENT.md).
+- **Deployment** of geoBIM.app itself (GitHub Action → `staging` / `main`): [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
 ## Architecture
 
-### Technology Stack
-
 | Layer | Technology |
 |---|---|
-| 3D Rendering | CesiumJS 1.147 |
-| Code Style | Vanilla JavaScript, IIFE modules |
-| BIM Conversion | Cesium Ion (IFC / Revit → 3D Tiles) |
-| Backend / Auth | Firebase (Firestore, Email/Password Auth) |
-| Hosting | Static (no build step) |
+| 3D rendering | CesiumJS 1.147 (CDN), 3D Tiles 1.1, PBR neutral tone mapping, HBAO |
+| Front end | Vanilla JavaScript modules (IIFE) extending one global `BimViewer` object, no framework, no bundler |
+| Back end | PHP 8 API (`api/`): model list and files, uploads, saved positions, share links, ion token |
+| Conversion | geobim-tiler (IFC → 3D Tiles with properties and georeferencing), py3dtiles (point clouds), Cesium ion (optional) |
+| Auth & data | Firebase Authentication (email / password), Firestore (comments, measurements, scenes) |
+| Hosting | Apache on a single VPS, deployed by a GitHub Action |
 
-### Modules
-
-| Module | Description |
-|---|---|
-| `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
-| `features.js` | IFC/Revit filtering, element selection, property display, saved views |
-| `hideFeatures.js` | Click-to-hide individual BIM elements |
-| `comments.js` | Point and area annotations with Firestore persistence |
-| `measurement.js` | Distance, area, height, vertical distance, coordinate tools |
-| `clipping.js` | Polygon and rectangle clipping masks |
-| `pointcloud.js` | Point cloud detection, Eye Dome Lighting, color modes |
-| `z-offset.js` | Per-asset vertical offset system |
-| `layerManager.js` | Basemap switching and terrain provider management |
-| `arcgis.js` | Esri base maps, ArcGIS MapServer layers, World Elevation terrain, I3S scene layers |
-| `lighting.js` | Dynamic sun/shadows, atmosphere, time-based positioning |
-| `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
-| `ui.js` | Collapsible sidebar toolbar with 12 sections |
-| `ui-helpers-modern.js` | List rendering helpers for UI components |
-| `measurement-store.js` | Measurement persistence in Firestore |
-| `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
-| `alignment-section.js` | Section plane along an IfcAlignment axis, by station |
-| `section-profile.js` | Live 2D cross-section at the alignment station |
-| `placement-save.js` | Lon/Lat/Height fields and owner-only "Save position" for self-hosted models |
-| `pointcloud-upload.js` | Point cloud and IFC upload with progress and conversion status |
-| `stage-twin.js` | StageTwin — shareable 4D construction-stage view |
-| `account-ui.js` | Sidebar account badge (Guest · Sign in / Sign out) |
-| `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
-| `sensorthings.js` | OGC SensorThings API module — live bridge monitoring with MQTT and damage detection |
-| `iot.js` | Pegelonline IoT live module — water level and temperature markers |
-| `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
-| `auth.js` | Demo mode authentication and Ion token management |
-| `config.js` | Firebase credentials (gitignored) |
+Each feature is its own module (`feature-name.js` + `feature-name-styles.css`), loaded in a fixed
+order from `index.html`. The module reference is at the end of [FEATURES.md](FEATURES.md); project
+conventions for contributors are in [CLAUDE.md](CLAUDE.md).
 
 ---
 
-## Data Sources & References
+## Data and credits
 
-The bridge monitoring module (`sensorthings.js`) simulates a structural health monitoring (SHM) scenario based on real sensor typologies used in civil engineering practice.
-
-### Sensor Types
-
-| Sensor | Observed Property | Threshold |
-|---|---|---|
-| Accelerometer (MEMS) | Vertical Acceleration (g) | \|a\| > 0.08 g |
-| Inclinometer (biaxial) | Inclination Angle (deg) | \|angle\| > 0.25 deg |
-| Thermocouple (Type K) | Temperature (°C) | — |
-| Strain Gauge (foil) | Strain (microstrain) | < -65 µε |
-
-### OGC SensorThings API
-
-Live sensor data is served via [FROST-Server](https://github.com/FraunhoferIOSB/FROST-Server) (Fraunhofer IOSB), an open-source implementation of the [OGC SensorThings API Part 1: Sensing (v1.1)](https://docs.ogc.org/is/18-088/18-088.html). Data is consumed via REST and MQTT over WebSocket.
-
-### Academic Reference
-
-The SHM scenario draws on sensor configurations described in:
-
-> Retze, U. *Beispielhafte Untersuchung zum Einsatz von Monitoringmethoden an einer Brücke.* Dissertation, Universität der Bundeswehr München, Institut für Konstruktiven Ingenieurbau. [athene-forschung](https://athene-forschung.unibw.de/doc/85913/85913.pdf)
-
-### 3D Model
-
-The bridge Reality Mesh was generated from UAV photogrammetry by the Geomatics Research Group at KU Leuven:
-
-- Sketchfab model: [skfb.ly/oVzUQ](https://skfb.ly/oVzUQ)
-- Project: [UAS-Assisted Bridge Inspections](https://iiw.kuleuven.be/onderzoek/geomatics/uas-assisted-bridge-inspections)
-
-### INSPIRE & API4INSPIRE
-
-The SensorThings API is one of the download services recommended by the [INSPIRE Maintenance and Implementation Group](https://inspire.ec.europa.eu/) for environmental monitoring data (INSPIRE theme EF — Environmental Monitoring Facilities). The [API4INSPIRE](https://datacoveeu.github.io/API4INSPIRE/) project provides guidance on deploying STA as an INSPIRE-compliant download service.
+- **Demo scenes:** wind turbine "Animated Wind Turbine" by Glowbox 3D (CC BY 4.0) with live wind from
+  Deutscher Wetterdienst via Bright Sky; Merendree reality mesh by erkki.bartczak, Geomatics Research
+  Group, KU Leuven (CC BY 4.0); Medical-Dental test files by buildingSMART International (CC BY 4.0);
+  terrain DGM1 © Bayerische Vermessungsverwaltung (CC BY 4.0); further IFC 4.3 models by geoBIM.
+  Full credits appear in the viewer under *Data attribution*.
+- **Terrain and maps:** Mapterhorn and its sources, BKG (TopPlusOpen, basemap.de, GCG2016), Bayerische
+  Vermessungsverwaltung, Esri, Cesium ion.
+- **Bridge monitoring demo** (`sensorthings.js`): a structural health monitoring scenario on
+  [FROST-Server](https://github.com/FraunhoferIOSB/FROST-Server) (OGC SensorThings API 1.1), sensor
+  typologies after U. Retze, *Beispielhafte Untersuchung zum Einsatz von Monitoringmethoden an einer
+  Brücke*, Universität der Bundeswehr München
+  ([PDF](https://athene-forschung.unibw.de/doc/85913/85913.pdf)); bridge mesh by the Geomatics Research
+  Group, KU Leuven ([UAS-assisted bridge inspections](https://iiw.kuleuven.be/onderzoek/geomatics/uas-assisted-bridge-inspections)).
 
 ---
 
 ## License
 
-Licensed under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). You may use, modify and redistribute geoBIM.app, including commercially. Modified MPL-licensed files must stay under the MPL; your own modules in separate files may use any license. The name and logo "geoBIM.app" are not covered by the license. Project implementations, hosting and support: [info@geobim.app](mailto:info@geobim.app).
+Licensed under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). You may use, modify and
+redistribute geoBIM.app, including commercially. Modified MPL-licensed files must stay under the MPL;
+your own modules in separate files may use any license. The name and logo "geoBIM.app" are not covered
+by the license.
 
----
+## Contact
 
-## Consulting
-
-geoBIM.app is developed and maintained by [Christof Lorenz](https://www.linkedin.com/in/christoflorenz).
-
-For T&M consulting on geospatial BIM integration, digital twins, or CesiumJS-based applications, reach out via [geobim.app](https://geobim.app), LinkedIn, or email at info@geobim.app.
+geoBIM.app is developed by [Christof Lorenz](https://www.linkedin.com/in/christoflorenz). Project
+implementations, hosting, support and consulting on geospatial BIM, digital twins and CesiumJS:
+[geobim.app](https://geobim.app) · [info@geobim.app](mailto:info@geobim.app).

@@ -556,7 +556,7 @@
   // ---------------------------------------------------------------------------
   var TOUR_WELCOME = {
     target: '#cesiumContainer',
-    title: 'Welcome to geobim.app',
+    title: 'Welcome to geoBIM.app Viewer',
     text: 'This is your 3D BIM viewer. Left-click + drag to rotate, scroll to zoom, middle-click to pan.',
     position: 'center'
   };

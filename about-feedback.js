@@ -49,9 +49,9 @@
           <!-- ABOUT TAB -->
           <div class="about-tab-content active" data-tab="about">
             <div class="about-logo-row">
-              <img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="about-logo">
+              <img src="logo/logo_teal_transparent.svg" alt="geoBIM.app" class="about-logo">
               <div>
-                <div class="about-app-name">geobim.app</div>
+                <div class="about-app-name">geoBIM.app Viewer</div>
                 <div class="about-version">Version ${APP_VERSION}</div>
               </div>
             </div>

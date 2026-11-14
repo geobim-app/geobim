@@ -20,7 +20,7 @@
   overlay.innerHTML =
     '<div class="ag-card">' +
       '<button id="agClose" class="ag-close" type="button" title="Continue as guest" aria-label="Close">&#10005;</button>' +
-      '<img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="ag-logo">' +
+      '<img src="logo/logo_teal_transparent.svg" alt="geoBIM.app" class="ag-logo">' +
       '<div class="ag-title">Sign In</div>' +
       '<input id="agEmail" class="ag-input" type="email" placeholder="Email" autocomplete="email" />' +
       '<input id="agPassword" class="ag-input" type="password" placeholder="Password" autocomplete="current-password" />' +

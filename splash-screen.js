@@ -38,7 +38,7 @@
 
       // ── Left: logo ──
       '<div class="splash-left">' +
-        '<img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="splash-logo-img">' +
+        '<img src="logo/logo_teal_transparent.svg" alt="geoBIM.app" class="splash-logo-img">' +
       '</div>' +
 
       // ── Right: tabbed content ──
@@ -55,7 +55,7 @@
         // ── About tab ──
         '<div class="splash-tab-content active" data-tab="about">' +
           '<div class="splash-about-header">' +
-            '<div class="splash-app-name">geobim.app</div>' +
+            '<div class="splash-app-name">geoBIM.app Viewer</div>' +
             '<div class="splash-version">Version ' + APP_VERSION + '</div>' +
           '</div>' +
           '<p class="splash-tagline">BIM x GIS = Geospatial Intelligence</p>' +

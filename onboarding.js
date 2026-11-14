@@ -1,5 +1,5 @@
 // ============================================================
-// Onboarding Tour for geobim.app
+// Onboarding Tour for geoBIM.app Viewer
 //
 // Copyright (c) 2026 geobim.app
 // Lightweight guided tour — no external dependencies.
@@ -43,7 +43,7 @@
   var defaultSteps = [
     {
       target: '#cesiumContainer',
-      title: 'Welcome to geobim.app',
+      title: 'Welcome to geoBIM.app Viewer',
       text: 'This is your 3D BIM viewer. Left-click + drag to rotate, scroll to zoom, middle-click to pan.',
       position: 'center'
     },
@@ -125,7 +125,7 @@
     {
       target: null,
       title: 'You\'re ready',
-      text: 'Explore the bridges as long as you like. Sign in to inspect your own models on the full geobim.app platform.',
+      text: 'Explore the bridges as long as you like. Sign in to inspect your own models on the full geoBIM.app Viewer.',
       position: 'center'
     }
   ];
@@ -182,7 +182,7 @@
     {
       target: null,
       title: 'You\'re ready',
-      text: 'Explore as long as you like. Sign in to run wind shadow analyses on your own sites within the full geobim.app platform.',
+      text: 'Explore as long as you like. Sign in to run wind shadow analyses on your own sites within the full geoBIM.app Viewer.',
       position: 'center'
     }
   ];
@@ -240,7 +240,7 @@
     {
       target: null,
       title: '準備完了',
-      text: 'サインインすると、完全な geobim.app プラットフォーム上で、ご自身のサイトについて無制限に風影解析を実行できます。',
+      text: 'サインインすると、完全な geoBIM.app Viewer 上で、ご自身のサイトについて無制限に風影解析を実行できます。',
       position: 'center'
     }
   ];

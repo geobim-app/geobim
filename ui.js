@@ -270,7 +270,7 @@ const BimViewerUI = {
 
     header.innerHTML = `
       <div class="modern-header-content">
-        <img src="logo/logo_teal_transparent.svg" alt="geobim.app" class="modern-header-logo">
+        <img src="logo/logo_teal_transparent.svg" alt="geoBIM.app" class="modern-header-logo">
       </div>
       <div id="userBadge">
         <span id="userEmail"></span>

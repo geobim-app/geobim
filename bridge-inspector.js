@@ -456,11 +456,11 @@
 
     overlay.innerHTML =
       '<div class="expired-card">' +
-        '<img src="logo/logo_teal_transparent.svg" class="expired-logo" alt="geobim.app">' +
+        '<img src="logo/logo_teal_transparent.svg" class="expired-logo" alt="geoBIM.app">' +
         '<div class="expired-title">Bridge Inspector session expired</div>' +
         '<div class="expired-text">' +
           'Your 30-minute Bridge Inspector demo session has ended.<br>' +
-          'Sign in to access the full geobim.app platform.' +
+          'Sign in to access the full geoBIM.app Viewer.' +
         '</div>' +
         '<a href="/" class="expired-btn">Sign In</a>' +
         '<a href="/bridge-inspector" class="expired-restart" ' +

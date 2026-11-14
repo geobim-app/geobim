@@ -21,7 +21,7 @@
       <div class="modern-group">
         <button class="modern-btn modern-btn-primary" onclick="BimViewer.showAboutDialog()">
           <span class="modern-btn-icon">ℹ️</span>
-          <span>About geobim.app</span>
+          <span>About geoBIM.app Viewer</span>
         </button>
         <button class="modern-btn modern-btn-secondary" onclick="BimViewer.showAboutDialog(); setTimeout(() => { const t = document.querySelector('.about-tab[data-tab=\\'shortcuts\\']'); if(t) t.click(); }, 100);">
           <span class="modern-btn-icon">⌨️</span>
