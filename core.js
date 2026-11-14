@@ -1474,6 +1474,24 @@ const BimViewer = {
     return this._glbConcreteShader;
   },
 
+  // True when the glTF carries a real material (texture, metal, or a colour other than
+  // the neutral grey/white exporters write by default) — such GLBs (e.g. from the Rhino
+  // plugin) keep their own PBR material instead of the procedural concrete shader.
+  _glbHasOwnMaterials(gltf) {
+    if (!Array.isArray(gltf.materials)) return false;
+    return gltf.materials.some(m => {
+      const pbr = m.pbrMetallicRoughness || {};
+      if (pbr.baseColorTexture || pbr.metallicRoughnessTexture || m.normalTexture || m.emissiveTexture) return true;
+      if (typeof pbr.metallicFactor === 'number' && pbr.metallicFactor > 0.05) return true;
+      const c = pbr.baseColorFactor;
+      if (Array.isArray(c) && c.length >= 3) {
+        const neutral = Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) < 0.02 && (c[0] > 0.75 || Math.abs(c[0] - 0.5) < 0.02);
+        if (!neutral || (c[3] !== undefined && c[3] < 0.999)) return true;
+      }
+      return false;
+    });
+  },
+
   // Detect whether a GLB is a point cloud (mesh primitive mode 0 = POINTS) by
   // partially fetching its binary JSON chunk via HTTP Range — avoids downloading
   // the full (often huge) point cloud twice just to inspect it. When it is one,
@@ -1529,7 +1547,7 @@ const BimViewer = {
         });
       });
 
-      if (!isPointCloud) return notFound;
+      if (!isPointCloud) return { isPointCloud: false, boundingSphere: null, ownMaterials: this._glbHasOwnMaterials(gltf) };
 
       if (!isFinite(min[0])) {
         // Point primitives present but no accessor min/max published (spec allows
@@ -1649,6 +1667,7 @@ const BimViewer = {
       assetData.model.customShader = this._getConcreteShader();
       assetData.pbrEnabled = true;
     }
+    if (typeof this.applyIBLToModel === 'function') this.applyIBLToModel(assetData);
 
     const btn = document.getElementById(`glb_pbr_${assetId}`);
     if (btn) {
@@ -1877,9 +1896,11 @@ const BimViewer = {
       // true so the Model-side point-cloud handling further down still applies as a
       // safety net (skip the concrete PBR shader, keep original vertex RGB).
       let isPointCloudGLB = false;
+      let ownMaterials = false;
       if (!modelDef.isWEA) {
         const inspection = await this._inspectGLBForPointCloud(url);
         isPointCloudGLB = inspection.isPointCloud;
+        ownMaterials = !!inspection.ownMaterials;
         if (isPointCloudGLB) {
           try {
             return await this._loadGLBPointCloudAsTileset(assetId, modelDef, position, inspection.boundingSphere);
@@ -1984,7 +2005,8 @@ const BimViewer = {
         position: { ...position },
         heading: initialHeading,
         scale: initialScale,
-        pbrEnabled: !isPointCloudGLB,
+        pbrEnabled: !isPointCloudGLB && !ownMaterials,
+        ownMaterials: ownMaterials,
         modelDef: modelDef,
         isWEA: !!modelDef.isWEA,
         isPointCloud: isPointCloudGLB
@@ -1993,7 +2015,9 @@ const BimViewer = {
       // Apply PBR concrete shader for non-WEA, non-point-cloud models (turbines have own
       // PBR textures; point clouds carry per-vertex RGB via COLOR_0 that the procedural
       // concrete material would otherwise overwrite, rendering them monochrome).
-      if (!modelDef.isWEA && !isPointCloudGLB) {
+      if (ownMaterials) {
+        console.log(`🎨 GLB ${modelDef.name} has its own materials — keeping them (no concrete shader)`);
+      } else if (!modelDef.isWEA && !isPointCloudGLB) {
         model.customShader = this._getConcreteShader();
       } else if (isPointCloudGLB) {
         console.log(`🎨 GLB point cloud detected for ${modelDef.name} — keeping original vertex colors`);
@@ -2003,6 +2027,7 @@ const BimViewer = {
       }
 
       this.loadedAssets.set(assetId, assetData);
+      if (typeof this.applyIBLToModel === 'function') this.applyIBLToModel(assetData);
 
       // Fly to model (WEA models fly after terrain clamping)
       if (!modelDef.isWEA) {
