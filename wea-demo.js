@@ -237,7 +237,7 @@
         '<div class="expired-title">Demo session expired</div>' +
         '<div class="expired-text">' +
           'Your 30-minute WEA demo session has ended.<br>' +
-          'Sign in to access the full geobim.app platform.' +
+          'Sign in to access the full geoBIM.app Viewer.' +
         '</div>' +
         '<a href="/" class="expired-btn">Sign In</a>' +
         '<a href="/wea-shadow" class="expired-restart" ' +
