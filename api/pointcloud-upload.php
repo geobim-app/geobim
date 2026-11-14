@@ -10,12 +10,19 @@
 // by api/owner-session.php after Firebase sign-in, an ID token, or a Rhino
 // plugin token (api/_plugin_tokens.php).
 //
-// Optional "replace=<slug>" (IFC only, used by the Rhino plugin): the new
-// result replaces model/<slug>/ instead of getting a new folder, so the
-// viewer link stays the same while the model is being worked on.
+// Optional "replace=<slug>" (IFC and GLB, used by the Rhino plugin): the new
+// result replaces model/<slug>/ (or model/<slug>.glb) instead of getting a new
+// one, so the viewer link stays the same while the model is being worked on.
+//
+// GLB (binary glTF 2.0) needs no conversion: it is stored as model/<slug>.glb
+// right away, and lon/lat/height/heading — if sent — become its saved placement
+// in model/placements.json (the entry api/placement-save.php writes; height =
+// ellipsoidal WGS84 height in metres, as the viewer uses it). The response and
+// api/pointcloud-status.php look like a finished job, so the upload UI and the
+// Rhino plugin need no special case.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
-geobim_require_owner(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
+$user = geobim_require_owner(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
 
 // Deliberately modest while usage is low-volume/single-user — flock()-serialized
 // conversion in convert_pointcloud.py already prevents concurrent jobs from
@@ -56,8 +63,17 @@ if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
 
 $origName = $_FILES['file']['name'];
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc'], true)) {
-    fail('Only .las/.laz/.e57/.ply/.ifc files are supported');
+if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc', 'glb'], true)) {
+    fail('Only .las/.laz/.e57/.ply/.ifc/.glb files are supported');
+}
+$isGlb = $ext === 'glb';
+if ($isGlb) {
+    // Binary glTF 2.0: magic "glTF", version 2, declared length = file size
+    $head = @file_get_contents($_FILES['file']['tmp_name'], false, null, 0, 12);
+    $hdr = ($head !== false && strlen($head) === 12) ? unpack('a4magic/Vversion/Vlength', $head) : null;
+    if (!$hdr || $hdr['magic'] !== 'glTF' || $hdr['version'] !== 2 || $hdr['length'] !== (int)$_FILES['file']['size']) {
+        fail('Not a valid binary glTF 2.0 file (.glb)');
+    }
 }
 
 $name = trim($_POST['name'] ?? pathinfo($origName, PATHINFO_FILENAME));
@@ -68,9 +84,14 @@ $baseSlug = trim(preg_replace('/[^a-z0-9]+/', '_', strtolower($name)), '_');
 if ($baseSlug === '') {
     fail('Name must contain at least one letter or digit');
 }
-$slug = $baseSlug . '_tiled';
+// GLB: the file name is the model id in api/models.php, so no "_tiled" suffix
+$slug = $isGlb ? $baseSlug : $baseSlug . '_tiled';
 
 $modelDir = __DIR__ . '/../model';
+// A model id is taken by a tileset folder or a GLB file of that name
+function geobim_slug_taken($modelDir, $slug) {
+    return is_dir($modelDir . '/' . $slug) || is_file($modelDir . '/' . $slug . '.glb');
+}
 // Avoid clobbering an existing asset folder — same convention as models.php's
 // id generation, just with a numeric suffix appended on collision. Slugs of
 // jobs still queued or converting count as taken too: their folder doesn't
@@ -86,20 +107,27 @@ function geobim_slug_pending($modelDir, $slug) {
 }
 $replace = isset($_POST['replace']) ? trim($_POST['replace']) : '';
 if ($replace !== '') {
-    if (!preg_match('/^[a-z0-9_]+$/', $replace) || !is_file($modelDir . '/' . $replace . '/tileset.json')) {
-        fail('Model to replace not found: ' . $replace, 404);
-    }
-    if ($ext !== 'ifc') {
-        fail('Only IFC models can be replaced');
-    }
-    if (geobim_slug_pending($modelDir, $replace)) {
-        fail('This model is still being converted — try again when it is done', 409);
+    if ($isGlb) {
+        // a GLB replaces a GLB only — the viewer loads the two kinds differently
+        if (!preg_match('/^[a-z0-9_]+$/', $replace) || !is_file($modelDir . '/' . $replace . '.glb')) {
+            fail('Model to replace not found: ' . $replace, 404);
+        }
+    } else {
+        if (!preg_match('/^[a-z0-9_]+$/', $replace) || !is_file($modelDir . '/' . $replace . '/tileset.json')) {
+            fail('Model to replace not found: ' . $replace, 404);
+        }
+        if ($ext !== 'ifc') {
+            fail('Only IFC and GLB models can be replaced');
+        }
+        if (geobim_slug_pending($modelDir, $replace)) {
+            fail('This model is still being converted — try again when it is done', 409);
+        }
     }
     $slug = $replace;
 } else {
     $i = 2;
-    while (is_dir($modelDir . '/' . $slug) || geobim_slug_pending($modelDir, $slug)) {
-        $slug = $baseSlug . '_tiled_' . $i;
+    while (geobim_slug_taken($modelDir, $slug) || geobim_slug_pending($modelDir, $slug)) {
+        $slug = $baseSlug . ($isGlb ? '_' : '_tiled_') . $i;
         $i++;
     }
 }
@@ -141,6 +169,71 @@ if ($refHeight !== null) {
 $heightDatum = isset($_POST['height_datum']) ? trim($_POST['height_datum']) : 'auto';
 if (!in_array($heightDatum, ['auto', 'ellipsoid'], true)) {
     fail('Height datum must be auto or ellipsoid');
+}
+
+// GLB: no conversion. model/<slug>.glb is replaced atomically (a temporary
+// dot name that models.php never lists, then rename), the placement goes into
+// model/placements.json under the same lock api/placement-save.php uses, and a
+// job folder with status "done" keeps api/pointcloud-status.php working.
+function geobim_store_glb($modelDir, $slug, $replace, $lon, $lat, $height, $heading, $user) {
+    $placement = null;
+    if ($lon !== null) {
+        foreach (['lon' => [$lon, -180, 180], 'lat' => [$lat, -90, 90], 'height' => [$height, -1000, 10000], 'heading' => [$heading, -720, 720]] as $k => [$v, $lo, $hi]) {
+            if (!is_finite($v) || $v < $lo || $v > $hi) fail("$k out of range");
+        }
+        $placement = ['lon' => $lon, 'lat' => $lat, 'height' => $height, 'heading' => $heading, 'scale' => 1.0,
+                      'source' => 'upload', 'savedAt' => gmdate('c'), 'savedBy' => $user['email'] ?? ''];
+    }
+
+    $file = $slug . '.glb';
+    $tmp = $modelDir . '/.upload-' . bin2hex(random_bytes(6));
+    if (!move_uploaded_file($_FILES['file']['tmp_name'], $tmp)) {
+        fail('Could not store uploaded file', 500);
+    }
+    @chmod($tmp, 0664);
+    if (!rename($tmp, $modelDir . '/' . $file)) {
+        @unlink($tmp);
+        fail('Could not store uploaded file', 500);
+    }
+
+    $kept = false;
+    $store = $modelDir . '/placements.json';
+    $fh = fopen($store, 'c+');
+    if ($fh && flock($fh, LOCK_EX)) {
+        $all = json_decode(stream_get_contents($fh) ?: '{}', true) ?: [];
+        if ($placement !== null) {
+            $all[$file] = $placement;
+        } elseif ($replace === '') {
+            unset($all[$file]);          // a new model must not inherit a stale entry
+        } else {
+            $kept = isset($all[$file]);  // replace without position: keep the saved one
+        }
+        ftruncate($fh, 0);
+        rewind($fh);
+        fwrite($fh, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        fflush($fh);
+        flock($fh, LOCK_UN);
+        fclose($fh);
+    } elseif ($placement !== null) {
+        fail('Stored the model, but could not save its position (placements.json locked)', 500);
+    }
+
+    $jobId = $slug . '_' . bin2hex(random_bytes(4));
+    $jobDir = $modelDir . '/_staging/' . $jobId;
+    $status = ['status' => 'done', 'updated' => time(), 'kind' => 'glb'];
+    $status['placement'] = $placement !== null
+        ? sprintf('%.6f, %.6f, %.2f m, heading %.1f°', $lat, $lon, $height, $heading)
+        : ($kept ? 'saved position kept' : 'none — place it in geoBIM.app and save its position');
+    if (@mkdir($jobDir, 0775, true)) {
+        file_put_contents($jobDir . '/job.json', json_encode(['input' => $file, 'slug' => $slug, 'name' => $slug, 'kind' => 'glb']));
+        file_put_contents($jobDir . '/status.json', json_encode($status));
+    }
+    echo json_encode(['jobId' => $jobId, 'slug' => $slug, 'replace' => $replace !== '', 'status' => 'done']);
+}
+
+if ($isGlb) {
+    geobim_store_glb($modelDir, $slug, $replace, $lon, $lat, $height, $heading, $user);
+    exit;
 }
 
 $jobId = $slug . '_' . bin2hex(random_bytes(4));
