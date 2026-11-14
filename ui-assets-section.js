@@ -44,13 +44,14 @@
         </div>
 
         <div class="modern-group local-models-upload" data-own-drop>
-          <input type="file" id="pointcloudFileInput" accept=".ifc,.las,.laz,.e57,.ply" hidden>
+          <input type="file" id="pointcloudFileInput" accept=".ifc,.glb,.las,.laz,.e57,.ply" hidden>
           <button type="button" id="pointcloudDropZone" class="upload-dropzone" aria-describedby="pointcloudDropFormats">
             <span class="upload-dropzone-icon"><i data-lucide="cloud-upload"></i></span>
-            <span class="upload-dropzone-title">Drop IFC or point cloud here</span>
-            <span class="upload-dropzone-sub">or <span class="upload-dropzone-link">browse files</span> · converted to 3D Tiles</span>
-            <span id="pointcloudDropFormats" class="upload-dropzone-formats" aria-label="Supported formats: IFC, LAS, LAZ, E57, PLY">
+            <span class="upload-dropzone-title">Drop IFC, GLB or point cloud here</span>
+            <span class="upload-dropzone-sub">or <span class="upload-dropzone-link">browse files</span> · IFC and point clouds become 3D Tiles</span>
+            <span id="pointcloudDropFormats" class="upload-dropzone-formats" aria-label="Supported formats: IFC, GLB, LAS, LAZ, E57, PLY">
               <span class="upload-chip upload-chip-ifc">IFC</span>
+              <span class="upload-chip">GLB</span>
               <span class="upload-chip">LAS</span>
               <span class="upload-chip">LAZ</span>
               <span class="upload-chip">E57</span>
@@ -269,9 +270,10 @@
     const dropZone = document.getElementById('pointcloudDropZone');
     const fileInfo = document.getElementById('pointcloudFileInfo');
     const fileIcon = document.getElementById('pointcloudFileIcon');
-    const UPLOAD_EXT = /\.(ifc|las|laz|e57|ply)$/i;
+    const UPLOAD_EXT = /\.(ifc|glb|las|laz|e57|ply)$/i;
     const KIND_INFO = {
       ifc:  { icon: 'building-2', label: 'IFC model' },
+      glb:  { icon: 'box',        label: 'glTF model (GLB) — uploaded as is' },
       las:  { icon: 'scan-line',  label: 'Point cloud (LAS/LAZ)' },
       scan: { icon: 'scan-line',  label: 'Point cloud (E57/PLY)' }
     };
@@ -279,10 +281,10 @@
     // put into fileInput.files on every browser, so it's kept here)
     let selectedFile = null;
 
-    // 'ifc' | 'las' (LAS/LAZ, may carry a CRS) | 'scan' (E57/PLY, local scans)
+    // 'ifc' | 'glb' (no conversion, keeps its materials) | 'las' (LAS/LAZ, may carry a CRS) | 'scan' (E57/PLY, local scans)
     const fileKind = name => {
       const ext = (name.split('.').pop() || '').toLowerCase();
-      return ext === 'ifc' ? 'ifc' : (ext === 'las' || ext === 'laz') ? 'las' : 'scan';
+      return ext === 'ifc' ? 'ifc' : ext === 'glb' ? 'glb' : (ext === 'las' || ext === 'laz') ? 'las' : 'scan';
     };
     const formatSize = bytes => {
       const mb = bytes / 1024 ** 2;
@@ -313,7 +315,7 @@
     const selectFile = file => {
       if (!file) { resetUploadForm(); return; }
       if (!UPLOAD_EXT.test(file.name)) {
-        showStatus(`${file.name}: not supported — use IFC, LAS, LAZ, E57 or PLY`, 'error');
+        showStatus(`${file.name}: not supported — use IFC, GLB, LAS, LAZ, E57 or PLY`, 'error');
         return;
       }
       selectedFile = file;
@@ -327,8 +329,9 @@
       }
       // Name from the filename; a new file replaces the previous file's name
       if (nameInput) nameInput.value = file.name.replace(UPLOAD_EXT, '');
-      // EPSG applies to IFC and LAS/LAZ, ±0.00 and height datum to IFC only
-      showField(epsgInput, kind !== 'scan');
+      // EPSG applies to IFC and LAS/LAZ, ±0.00 and height datum to IFC only;
+      // a GLB has no CRS: Lon/Lat (or the view centre) place it
+      showField(epsgInput, kind === 'ifc' || kind === 'las');
       showField(refHeightInput, kind === 'ifc');
       showField(heightDatumSelect, kind === 'ifc');
       if (form) form.hidden = false;
@@ -454,7 +457,7 @@
           height: height,
           heading: 0,
           positionSource: positionSource,
-          epsg: kind !== 'scan' ? (epsgInput?.value || '').trim() || undefined : undefined,
+          epsg: kind === 'ifc' || kind === 'las' ? (epsgInput?.value || '').trim() || undefined : undefined,
           refHeight: kind === 'ifc' ? (refHeightInput?.value || '').trim().replace(',', '.') || undefined : undefined,
           heightDatum: kind === 'ifc' && heightDatumSelect?.value === 'ellipsoid' ? 'ellipsoid' : undefined
         });
