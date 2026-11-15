@@ -10,6 +10,8 @@
 # ============================================================
 
 set -e
+# grep -P (Sektion 11) braucht ein UTF-8-Locale; Git Bash unter Windows hat oft keins
+export LC_ALL=C.UTF-8
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ERRORS=0
 WARNINGS=0
