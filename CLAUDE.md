@@ -1,201 +1,62 @@
-# geobim.app — Projektkontext für Claude Code
+# geoBIM.app Viewer — Projektkontext für Claude Code
 
-## Projektübersicht
-
-**geobim.app** ist ein CesiumJS-basierter BIM/GIS-Viewer, der IFC-Modelle als
-3D Tiles über Cesium Ion lädt und im Browser visualisiert. Zielgruppe sind
-Ingenieurbüros, Auftraggeber und die Öffentlichkeit.
+CesiumJS-basierter BIM/GIS-Viewer: IFC-Modelle als 3D Tiles (Cesium Ion bzw.
+eigener Tiler), dazu Punktwolken, GLB, Gelände- und GIS-Werkzeuge im Browser.
+Zielgruppe: Ingenieurbüros, Auftraggeber, Öffentlichkeit.
 
 | Aspekt | Details |
 |--------|---------|
-| **Server** | Hetzner VPS (168.119.232.12), Apache, Let's Encrypt |
-| **Domain** | viewer.geobim.app (DNS via INWX); geobim.app ist die Firmen-Website (Repo `geobim-app/geobim-site`) und leitet alle Viewer-Pfade per 308 hierher |
-| **Auth/Backend** | Firebase (Authentication + Firestore + Storage) |
-| **3D Tiles** | Cesium Ion |
-| **CesiumJS** | v1.147 (neueste, CDN) |
-| **Frontend** | Vanilla JS — kein Framework, kein Bundler |
-| **GitHub** | https://github.com/geobim-app/geobim |
+| **Live / Beta** | viewer.geobim.app (`main`) / beta.geobim.app (`staging`); geobim.app ist die Firmen-Website (Repo `geobim-app/geobim-site`) und leitet Viewer-Pfade per 308 hierher |
+| **Server** | Hetzner VPS 168.119.232.12, Apache, Let's Encrypt, PHP-API unter `api/` |
+| **Backend** | Firebase (Auth, Firestore, Storage) |
+| **CesiumJS** | v1.147 per CDN |
+| **Frontend** | Vanilla JS + HTML + CSS — kein Framework, kein Bundler, kein Build |
 
----
+## Wo was steht
 
-## Modulare Architektur
+Diese Dateien bei Bedarf lesen (nicht vorab):
 
-Alle Module erweitern das globale `BimViewer`-Objekt. Ladereihenfolge in
-`index.html` ist kritisch.
+- **Module und ihre Aufgaben:** `FEATURES.md`, Abschnitt „Module Reference“ — vor der Arbeit an einem unbekannten Modul lesen.
+- **Ladereihenfolge:** die `<script>`-Tags in `index.html` sind maßgeblich und die Reihenfolge ist kritisch.
+- **Deployment, Server-Skripte, Secrets, Fehlersuche:** `DEPLOYMENT.md` — lesen, bevor du etwas an Deploy oder Server machst.
+- **Release-Prüfung:** `QA-CHECKLIST.md` — nur vor einem Release.
+- **Änderungshistorie und Format der Einträge:** `CHANGELOG.md` (Keep a Changelog, Abschnitt `[Unreleased]`).
 
-```
-index.html
-├── config.js              → Cesium Ion Token, Firebase Config (.gitignore!)
-├── core.js                → Viewer-Init, Asset-Mgmt, Performance-Presets, BimViewer-Objekt
-├── features.js            → IFC-Filtering, Element-Picking (pickAsync), InfoBox, Clipping
-├── hideFeatures.js        → Elemente per Click verstecken (H / Shift+H)
-├── comments.js            → 3D-Kommentare, Firestore, Annotations, BCF Export
-├── inspection.js          → Brückeninspektions-Erweiterung für Comments
-├── measurement.js         → Distanz/Fläche/Höhe (Cesium Ion Measurement SDK)
-├── measurement-store.js   → Persistenz für Messungen (Firestore)
-├── clipping.js            → Polygon/Rectangle Clipping
-├── clipping-planes.js     → Per-Asset Section Planes (X/Y/Z)
-├── z-offset.js            → Vertikaler Höhenversatz pro Asset
-├── layerManager.js        → Basemaps, WMS/WMTS/WFS, NRW LoD2
-├── lighting.js            → Dynamische Beleuchtung, Schatten, Tageszeiten
-├── ibl.js                 → Image-Based Lighting, Spherical Harmonics
-├── pbr-materials.js       → PBR CustomShader (Triplanar Mapping, prozedural)
-├── pointcloud.js          → Eye Dome Lighting, Punkt-Einstellungen
-├── glb-gizmo.js           → GLB-Modelle positionieren/rotieren per Drag
-├── wea-shadow.js          → Windenergieanlagen-Schattensimulation
-├── firstperson.js         → First-Person Navigation (WASD, Gamepad, Wall Collision)
-├── thirdperson.js         → Third-Person mit Cesium_Man Character
-├── sib.js                 → SIB Brückengenerator
-├── sensorthings.js        → FROST SensorThings API Live-Daten
-├── iot.js                 → IoT Sensor Widget
-├── ui.js                  → Sidebar + Bottom Toolbar (Lucide Icons)
-├── ui-helpers-modern.js   → Floating Panels (Assets, Comments, Hidden)
-├── about-feedback.js      → About-Dialog, Feedback, Guided Tour
-├── onboarding.js          → 6-Schritt Onboarding Tour
-└── bcf-export.js          → BCF 2.1 Export für Kommentare
-```
+## Architektur
 
-### Zentrales BimViewer-Objekt
+- Alle Module erweitern das globale `window.BimViewer` (`viewer`, `loadedAssets: Map` assetId → `{id, name, tileset, isGLB, …}`).
+- **Neue Features als eigenes Modul** (`feature-name.js`, Styles in `feature-name-styles.css`), in `index.html` einbinden. Bestehende Module nicht umstrukturieren ohne ausdrückliche Anweisung; neue Module hängen sich an deren Funktionen.
+- Nach Änderungen an eingebundenen Dateien den `?v=`-Parameter in `index.html` hochzählen.
 
-```javascript
-window.BimViewer = {
-  viewer,                // Cesium.Viewer
-  loadedAssets: Map(),   // assetId → {id, name, tileset, isGLB, ...}
-  // Alle Module erweitern dieses Objekt
-};
-```
+## Konventionen
 
----
+Mit (H) markierte Regeln setzt der Hook `geobim-guard` durch (lokale Mod in `~/.claude/mods`).
 
-## Coding-Konventionen
+- **Farben:** Brand `var(--brand-teal)` = `#2ECFB0`, nie `#6EECD8` (H). Alle Farben, Abstände, Radien, Schatten aus `:root`-Tokens (`--space-xs…2xl`, `--radius-sm…2xl`, `--shadow-sm…xl`, `--input-bg`, `--input-bg-solid`).
+- **Kein Inline-Style in HTML** (H) — CSS-Klassen in `*-styles.css`.
+- **Glassmorphism:** Panel-Opacity 0.82, `backdrop-filter: blur(12px)`.
+- **Icons:** Lucide per CDN (`<i data-lucide="…"></i>`), keine Emojis (H). Nach dynamischem HTML `if (window.lucide) lucide.createIcons()`.
+- **Picking:** `await scene.pickAsync()` statt `scene.pick()` (H); aufrufende Funktion `async`. Ausnahme: Hover in `onMouseMove` bleibt synchron.
+- **Keyboard-Handler:** Tag-Filter immer mit `BUTTON` (H): `if (e.target.tagName === 'INPUT' || … || e.target.tagName === 'BUTTON') return;`. Shortcuts, die im Walk-Modus blockiert sein sollen, mit `BimFirstPerson.isActive()`-Guard.
+- **IFC-Properties:** über `feature.getPropertyIds()` / `feature.getProperty(name)`, keyword-basiert, case-insensitiv, quellen-agnostisch — kein IFC-Parsing.
+- **Cesium:** Tone Mapping `Cesium.Tonemapper.PBR_NEUTRAL`, AO = HBAO, `configureDynamicEnvMaps()` auf jedes Tileset. Ion-Token aus `config.js`, nie hardcoden.
+- **Secrets:** `config.js` ist gitignored (Ion-Token, Firebase-Config).
 
-### Allgemein
-- **Kein Framework:** Vanilla JS + HTML + CSS (kein React/Vue/Bundler)
-- **Module Pattern:** Jedes Modul erweitert `BimViewer` — NICHT bestehende Module ändern
-- **Neue Features:** Separates Modul (`feature-name.js`), in `index.html` einbinden
-- **Kein Build-Prozess:** Push auf `staging`/`main` = Deployment (GitHub Action, siehe Deployment)
+## QA
 
-### CSS
-- **CSS Custom Properties nutzen** — alle Farben, Spacing, Radius aus `:root` Variablen
-- **Design Tokens:** `--space-xs` bis `--space-2xl`, `--radius-sm` bis `--radius-2xl`,
-  `--shadow-sm` bis `--shadow-xl`, `--input-bg`, `--input-bg-solid`
-- **Brand-Farbe:** `var(--brand-teal)` = `#2ECFB0` — NIEMALS `#6EECD8` verwenden
-- **Keine Inline-Styles** in HTML — CSS-Klassen in `*-styles.css` Dateien
-- **Glassmorphism:** Panel-Opacity 0.82, `backdrop-filter: blur(12px)`
+- **Vor jedem Commit:** `bash qa-check.sh` → 0 Errors (H), und `CHANGELOG.md` gehört in jeden Commit (H).
+- **Nach UI-Änderungen:** Lucide-Icons rendern, Touch-Targets ≥ 44 px, `prefers-reduced-motion` intakt, Focus-visible für neue Buttons.
+- **Vor einem Release:** `QA-CHECKLIST.md` durchgehen; Version in `splash-screen.js`, `about-feedback.js` und `CHANGELOG.md` identisch (qa-check Sektion 11); README.md, FEATURES.md, Features- und Shortcuts-Tab in Splash und About nachziehen.
 
-### Icons
-- **Lucide Icons** via CDN (`<i data-lucide="icon-name"></i>`)
-- **Keine Emojis** als UI-Icons (Rendering variiert zwischen Plattformen)
-- Nach dynamischem HTML: `if (window.lucide) lucide.createIcons()` aufrufen
+## Deployment und Server
 
-### JavaScript
-- **`scene.pickAsync()`** statt `scene.pick()` — non-blocking GPU readback
-- Aufrufende Funktionen müssen `async` sein, Ergebnis mit `await`
-- Ausnahme: `onMouseMove`-Hover bleibt synchron (Performance)
-- **Keyboard-Handler:** Immer `BUTTON` im Tag-Filter:
-  `if (e.target.tagName === 'INPUT' || ... || e.target.tagName === 'BUTTON') return;`
-- Neue Shortcuts: `BimFirstPerson.isActive()`-Guard wenn der Key im Walk-Modus blockiert sein soll
-- **IFC-Properties:** Immer keyword-basiert, case-insensitiv, sourcen-agnostisch
-
-### Cesium
-- **Version:** 1.147 (neueste), CDN
-- **Tone Mapping:** PBR Neutral (`Cesium.Tonemapper.PBR_NEUTRAL`)
-- **AO:** HBAO (Horizon-Based, seit v1.124)
-- **Environment Maps:** `configureDynamicEnvMaps()` wird auf jedes Tileset angewandt
-- **Ion Access Token:** Aus `config.js` lesen, NICHT hardcoden
-- **Tileset API:** `feature.getPropertyIds()` / `feature.getProperty(name)` — kein IFC-Parsing
-
----
-
-## QA-Pflicht
-
-### Vor jedem Commit:
-```bash
-bash qa-check.sh
-```
-Muss **0 Errors** zeigen. Warnings prüfen, bekannte akzeptieren.
-
-### Vor jedem Release:
-1. `QA-CHECKLIST.md` durchgehen (18 Sektionen, ~80 Punkte)
-2. **Versionsnummern synchronisieren:** `splash-screen.js`, `about-feedback.js`, `CHANGELOG.md` — müssen identisch sein
-3. **MD-Dateien aktualisieren:** README.md, FEATURES.md, CHANGELOG.md — neue Features dokumentieren
-4. **Splash Screen:** Features-Tab und Shortcuts-Tab mit neuen Features/Shortcuts aktualisieren
-5. **About Dialog:** Features-Tab, Shortcuts-Tab und Version aktualisieren
-6. `bash qa-check.sh` → Sektion 11 (Version Consistency) muss 0 Errors zeigen
-
-### Nach UI-Änderungen:
-- Prüfen ob Lucide Icons rendern (`lucide.createIcons()`)
-- Touch-Targets ≥ 44px auf Mobile
-- `prefers-reduced-motion` nicht brechen
-- Focus-visible States für neue Buttons
-
----
-
-## UI-Architektur
-
-### Sidebar (links, 340px)
-Daten-/Browse-Tools: Assets, Layers, Point Cloud, Annotations, Inspection,
-IFC Filter, Revit Filter, Split View, Saved Views, Settings.
-
-### Bottom Toolbar (unten, zentriert)
-Action-Tools: Measure, Visibility, Lighting, Walk Mode, Help.
-Buttons öffnen die entsprechende Section in der Sidebar.
-
-### Floating Panels
-- InfoBox (rechts oben), Comments (rechts unten), Assets (links unten)
-- WEA Shadow (rechts oben), Sequencing Timeline (unten mitte)
-- Alle draggable, alle mit `visible`-Klasse für CSS-Transitions
-
-### Walk Mode
-- **G** → First-Person (WASD, Mouse Look, Gamepad, Wall Collision)
-- **V** → Third-Person (Cesium_Man GLB, Orbit Camera, `trackedEntity`)
-- **T** → Player Start setzen
-- `firstperson.js` berechnet Velocity, `thirdperson.js` bewegt Character
-- Collision via `scene.pickFromRay()`, throttled 10x/sec
-
----
-
-## Deployment
-
-Automatisch per GitHub Action — kein manuelles `git pull` auf dem Server.
+Push = Deployment per GitHub Action, kein Build. Details in `DEPLOYMENT.md`.
 
 ```
-lokal ändern → bash qa-check.sh → Commit
+lokal → bash qa-check.sh → Commit
   → git push --force-with-lease origin HEAD:staging → beta.geobim.app (prüfen)
   → git push origin HEAD:main                       → viewer.geobim.app (live)
 ```
 
-| Branch | Ziel | Server-Skript (forced command) |
-|--------|------|--------------------------------|
-| `staging` | beta.geobim.app = `/var/www/geobim-beta` | `/usr/local/bin/geobim-deploy-staging` (`checkout --detach origin/staging`) |
-| `main` | viewer.geobim.app = `/var/www/christoflorenz.de` | `/usr/local/bin/geobim-deploy` (`merge --ff-only origin/main`) |
-
-- `.github/workflows/deploy.yml`, Hetzner 168.119.232.12, kein Build-Schritt
-- **`main`** nur vorwärts, nie force-pushen; **`staging`** darf neu gesetzt werden
-- **Manuell auslösen:** GitHub → Actions → Deploy → Run workflow
-- Je Umgebung ein eigener Deploy-Key, per `command=` in `authorized_keys` auf ihr Skript beschränkt
-- **Secrets:** `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_KEY` (live), `DEPLOY_STAGING_KEY` (optional `DEPLOY_PORT`)
-- **Einrichtung/Fehlersuche:** `DEPLOYMENT.md`
-- Schlägt ein Deploy fehl, liegt auf dem Server etwas, das nicht im Repo ist:
-  dort nur diagnostizieren, die Korrektur läuft über das Repo
-
-### Secrets
-- `config.js` → `.gitignore` (enthält Ion Token, Firebase Config)
-- Firebase Config kann public sein (Firestore Rules schützen)
-
----
-
-## Wichtige Regeln für Claude Code
-
-1. **Nie** bestehende Module umstrukturieren ohne explizite Anweisung
-2. **Nie** `#6EECD8` verwenden — immer `var(--brand-teal)` / `#2ECFB0`
-3. **Nie** Inline-Styles in HTML — CSS-Klassen erstellen
-4. **Nie** Emojis als UI-Icons — Lucide SVG verwenden
-5. **Nie** `scene.pick()` — immer `await scene.pickAsync()`
-6. **Nie** committen ohne `bash qa-check.sh` (0 Errors)
-7. **Immer** neue Features als separates Modul
-8. **Immer** Design Tokens für Spacing/Radius/Shadows
-9. **Immer** Keyboard-Handler mit BUTTON-Tag-Filter
-10. **Immer** `CHANGELOG.md` bei jedem Commit aktualisieren
-11. **Nie** Dateien direkt auf dem Server ändern — jede Änderung läuft lokal → Commit → Push (`staging`, dann `main`) → Deploy
-12. **Server-Sessions** nur zum Lesen, Diagnostizieren und Administrieren — kein Code, kein Commit, kein Deploy am Repo vorbei
+- `main` nur vorwärts, nie force-pushen (H); `staging` darf neu gesetzt werden.
+- **Nie Dateien auf dem Server ändern** (H) — jede Änderung läuft lokal → Commit → Push → Deploy. Server-Sessions nur zum Lesen, Diagnostizieren und Administrieren. Schlägt ein Deploy fehl, liegt auf dem Server etwas, das nicht im Repo ist: dort diagnostizieren, korrigieren übers Repo.
