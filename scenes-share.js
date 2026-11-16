@@ -288,6 +288,8 @@
       lastList.unshift(data.share);
       form.reset();
       loadList();
+      // share-comments-host.js follows the comments of the new link
+      window.dispatchEvent(new CustomEvent('geobim:share-created', { detail: { sceneId: current.id, token: data.token } }));
       BimViewer.updateStatus('Share link created', 'success');
     } catch (err) {
       result.hidden = false;

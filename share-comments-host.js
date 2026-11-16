@@ -31,6 +31,7 @@
   var shared = new Map();   // comment id -> comment (with _share = token)
   var unsubs = [];
   var gen = 0;              // bumps on every attach/detach, drops late results
+  var followed = 0;         // id of the scene whose links are followed (0 = none)
 
   function isOwner() {
     return !!(window.BimViewer && BimViewer.isLabUser && BimViewer.isLabUser());
@@ -89,6 +90,7 @@
   // ------------------------------------------------------------------
   function detach() {
     gen++;
+    followed = 0;
     unsubs.forEach(function(u) { try { u(); } catch (e) { /* already gone */ } });
     unsubs = [];
     if (!shared.size) return;
@@ -100,6 +102,7 @@
   async function attach(sceneId) {
     detach();
     if (!isOwner() || !window.BimSceneShare || typeof BimSceneShare.listLinks !== 'function') return;
+    followed = sceneId;
     var my = gen;
     var links;
     try {
@@ -173,6 +176,19 @@
         }
         return result;
       };
+    });
+
+    // Saved or updated in this session: follow that scene's links too (before,
+    // only loading a scene from the list did, so a link created right after
+    // saving showed no customer comments until the scene was loaded again)
+    ['saveNewScene', 'updateScene'].forEach(function(name) {
+      wrap(name, function(orig) {
+        return function() {
+          var result = orig.apply(this, arguments);
+          followActive();
+          return result;
+        };
+      });
     });
 
     wrap('clearCurrentScene', function(orig) {
@@ -263,6 +279,17 @@
       };
     });
   }
+
+  function followActive() {
+    var id = BimViewer.scenes && BimViewer.scenes.activeId;
+    if (id && id !== followed) attach(id);
+  }
+
+  // A new link (scenes-share.js) for the active scene: follow it at once
+  window.addEventListener('geobim:share-created', function(e) {
+    var id = e.detail && e.detail.sceneId;
+    if (id && BimViewer.scenes && id === BimViewer.scenes.activeId) attach(id);
+  });
 
   function markList() {
     var container = document.getElementById('commentsList');
