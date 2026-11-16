@@ -33,7 +33,7 @@
   var RAIL_GROUPS = [
     ['assets', 'layers', 'pointcloud', 'splat'],
     ['ifc', 'revit', 'visibility', 'comments', 'inspection'],
-    ['drawing', 'clip', 'split', 'lighting'],
+    ['drawing', 'clip', 'site', 'split', 'lighting'],
     ['views', 'scenes'],
     ['settings', 'about']
   ];

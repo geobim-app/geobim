@@ -86,6 +86,7 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F50D;</span><div><strong>IFC / Revit Filter</strong><span>Filter 40+ IFC classes and Revit categories (EN/DE), unlisted types via &quot;Other&quot;</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4CF;</span><div><strong>Measurement Tools</strong><span>Distance, area and height measurements</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2702;&#xFE0F;</span><div><strong>Clipping Planes</strong><span>Draw polygons to clip buildings and terrain</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x26F0;&#xFE0F;</span><div><strong>Site Analysis</strong><span>Contours, slope, aspect, cut &amp; fill and elevation profiles</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4AC;</span><div><strong>3D Annotations</strong><span>Place comments with categories, priorities and inspection data</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F5FA;&#xFE0F;</span><div><strong>Layer Manager</strong><span>Basemaps, terrain, imagery overlays, WMS/WMTS/WFS</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F4E1;</span><div><strong>IoT / SensorThings</strong><span>Live sensor data via OGC SensorThings API + MQTT</span></div></div>' +

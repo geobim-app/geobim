@@ -102,6 +102,7 @@ const BimViewerUI = {
     toolbar.appendChild(this.createSection('ifc', '<i data-lucide="building-2"></i>', 'IFC Filter', typeof GEOBIM_IFC_UI !== 'undefined' ? GEOBIM_IFC_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('revit', '<i data-lucide="building"></i>', 'Revit Filter', typeof GEOBIM_REVIT_UI !== 'undefined' ? GEOBIM_REVIT_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('split', '<i data-lucide="columns-2"></i>', 'Split View', typeof GEOBIM_SPLIT_UI !== 'undefined' ? GEOBIM_SPLIT_UI.getContent() : ''));
+    toolbar.appendChild(this.createSection('site', '<i data-lucide="mountain"></i>', 'Site Analysis', typeof GEOBIM_SITE_UI !== 'undefined' ? GEOBIM_SITE_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('views', '<i data-lucide="camera"></i>', 'Saved Views', typeof GEOBIM_VIEWS_UI !== 'undefined' ? GEOBIM_VIEWS_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('scenes', '<i data-lucide="clapperboard"></i>', 'Scenes', typeof GEOBIM_SCENES_UI !== 'undefined' ? GEOBIM_SCENES_UI.getContent() : ''));
     toolbar.appendChild(this.createSection('settings', '<i data-lucide="settings"></i>', 'Settings', typeof GEOBIM_SETTINGS_UI !== 'undefined' ? GEOBIM_SETTINGS_UI.getContent() : ''));
