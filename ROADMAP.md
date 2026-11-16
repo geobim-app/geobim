@@ -10,6 +10,44 @@ herausgelöst. Was schon erledigt ist, steht in `CHANGELOG.md`.
 
 ## Als Nächstes
 
+### Site Analysis (Gelände) — Stand 16.11.2026
+Gefälle im Planum und Terrassen aus verbundenen Flächen sind fertig und auf
+beta (Branch `feature/site-grading-slope`, in `staging-combined-2.0`); sie gehen
+mit Release 2.1 nach `main`, sobald sie auf beta geprüft sind.
+
+**A. Oberflächendifferenz (Haldenvolumen, Aushub, Baufortschritt) — als Nächstes**
+- Zweite Höhenquelle pro Fläche: DGM gegen ein geladenes Modell (Drohnen-
+  Punktwolke, 3D-Tiles-Mesh) oder Google 3D Tiles (nur mit Cesium ion);
+  später ein importiertes LandXML-TIN (Planungs- oder Aufmaßstand).
+- Bezugsebene ohne Urgelände: aus den Randpunkten der Fläche interpoliert
+  (Haldenfuß), wie bei Haldenvolumen üblich.
+- Ergebnis: Volumen darüber / darunter, Differenzraster, zusammenhängende
+  Bereiche mit Fläche und Volumen; Export CSV, PNG, LandXML.
+- Vorhanden: `sampleHeights` mit Quelle „active“ (Gelände und 3D Tiles),
+  Raster, Cut-&-Fill-Darstellung mit Regionen, Exporte. Neu: zweite Quelle,
+  Bezugsebene, LandXML-Import.
+- Reihenfolge: zuerst DGM gegen geladenes Modell und die Bezugsebene aus den
+  Randpunkten, danach LandXML-Import. Zielgruppe Vermessung.
+
+**B. Verknüpfung mit BIM**
+- Längsprofil entlang einer IfcAlignment-Achse: Gelände gegen Gradiente,
+  Abtrag / Auftrag je Station (Achsen lädt `alignment-section.js` schon).
+- Planum aus einem IFC-Modell: Unterkante bzw. Grundriss einer Bodenplatte
+  oder eines Fundaments als Planumshöhe und Fläche, daraus die Baugrube mit
+  Volumen (Baugrube beim Clipping gibt es schon, `clipping-pit.js`).
+
+**C. Kleinere Ergänzungen**
+- Share-Links übernehmen die Geländeanalyse (fehlt bisher).
+- Kostenschätzung: €/m³ für Abtrag, Auftrag, Abfuhr; Bodenklassen mit
+  Auflockerungsfaktor (Faktor gibt es schon).
+- Exporte: DXF für Höhenlinien und Planum, einseitiger PDF-Bericht.
+
+**D. Weitere Analysen**
+- Fließwege und Senken (D8) als erster Hinweis zur Entwässerung.
+- Sichtbarkeit von einem Punkt oder einer Windkraftanlage aus (passt zu
+  `wea-shadow.js`).
+- PV-Eignung aus Neigung, Exposition und Sonnenstand (`lighting.js`).
+
 ### 1. BIM-Modelle nach Eigenschaften einfärben
 Idee aus Cesium for Unreal Samples, Level 15/16 (Apache 2.0); Desktop plant
 dasselbe.
