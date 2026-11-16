@@ -6,9 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-11-16
+
 ### Fixed
 
-- **Kundenkommentare erscheinen auch direkt nach dem Speichern und Teilen** (`share-comments-host.js`, `scenes-share.js`, `index.html` `?v=2.0.1`): Der eigene Viewer folgte den Kommentaren eines Share-Links nur, wenn die Szene aus der Liste geladen wurde. Wer eine Szene speicherte, gleich einen Link erstellte und im selben Fenster blieb, sah die Kommentare der Kunden erst nach erneutem Laden der Szene. Jetzt folgt er auch nach „Save as new scene“ und „Update“ der aktiven Szene, und ein neuer Link meldet sich per Event `geobim:share-created`, damit seine Kommentare sofort erscheinen. Lokal geprüft mit nachgebildetem Owner (Link-Abfrage gezählt): Speichern, neuer Link und Laden fragen die Links der Szene ab, ein Link einer anderen Szene nicht. Mit echtem Owner-Login und Firestore noch nicht geprüft.
+- **Release 2.0.1** (`splash-screen.js`, `about-feedback.js`, `index.html` `?v=2.0.1`): Version 2.0.1 in Splash, About und CHANGELOG.
+- **Kundenkommentare erscheinen auch direkt nach dem Speichern und Teilen** (`share-comments-host.js`, `scenes-share.js`, `index.html` `?v=2.0.1`): Der eigene Viewer folgte den Kommentaren eines Share-Links nur, wenn die Szene aus der Liste geladen wurde. Wer eine Szene speicherte, gleich einen Link erstellte und im selben Fenster blieb, sah die Kommentare der Kunden erst nach erneutem Laden der Szene. Jetzt folgt er auch nach „Save as new scene“ und „Update“ der aktiven Szene, und ein neuer Link meldet sich per Event `geobim:share-created`, damit seine Kommentare sofort erscheinen. Lokal geprüft mit nachgebildetem Owner (Link-Abfrage gezählt): Speichern, neuer Link und Laden fragen die Links der Szene ab, ein Link einer anderen Szene nicht. Auf beta.geobim.app mit Owner-Login geprüft: Szene gespeichert, Link erstellt, Kommentar im privaten Fenster erscheint sofort im eigenen Viewer.
 
 ## [2.0.0] — 2026-11-16
 
