@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Kundenkommentare erscheinen auch direkt nach dem Speichern und Teilen** (`share-comments-host.js`, `scenes-share.js`, `index.html` `?v=2.0.1`): Der eigene Viewer folgte den Kommentaren eines Share-Links nur, wenn die Szene aus der Liste geladen wurde. Wer eine Szene speicherte, gleich einen Link erstellte und im selben Fenster blieb, sah die Kommentare der Kunden erst nach erneutem Laden der Szene. Jetzt folgt er auch nach „Save as new scene“ und „Update“ der aktiven Szene, und ein neuer Link meldet sich per Event `geobim:share-created`, damit seine Kommentare sofort erscheinen. Lokal geprüft mit nachgebildetem Owner (Link-Abfrage gezählt): Speichern, neuer Link und Laden fragen die Links der Szene ab, ein Link einer anderen Szene nicht. Mit echtem Owner-Login und Firestore noch nicht geprüft.
+
 ## [2.0.0] — 2026-11-16
 
 Großes Release nach sieben Wochen. Neue Standard-Oberfläche (Panel-UI mit Icon-Leiste, auch auf dem Handy), Lizenz MPL 2.0 statt BSL 1.1, Adresse viewer.geobim.app und Produktname „geoBIM.app Viewer“. Neu unter anderem: Szenen im Format der Desktop-App mit Demo-Szenen und Share-Links für Kunden (Kommentare live im eigenen Viewer), Geländeanalyse mit Grading, Bauablauf (4D) aus der IFC, Schnitte entlang Achse, Linie und Grundriss mit Planzeichnung, Baugrube beim Clipping, VR-Modus über WebXR, ArcGIS (Basiskarten, MapServer, World Elevation, I3S), eigene iTwin-iModels, GIS-Dateien per Drag & Drop, Mapterhorn-Gelände sowie freie und bayerische Basiskarten, Gäste ohne Cesium ion, Upload von IFC und Punktwolken per Drag & Drop.
