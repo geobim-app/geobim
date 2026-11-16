@@ -171,3 +171,10 @@ Run `bash qa-check.sh` for automated checks, then complete this manual checklist
 - [ ] Each scene loads its models without "not found"; credits line and Data attribution show the sources
 - [ ] Merendree: Split View, as built left, as designed right; Siegtalbrücke: 4D bar open; Hollow box: alignment section active
 - [ ] Loading another scene closes split, 4D and section
+
+### 22. Release Documentation
+- [ ] FEATURES.md: every Added / Changed entry of the CHANGELOG since the last release is in the feature tables (new rows or sections, changed descriptions)
+- [ ] FEATURES.md: keyboard shortcuts (16), user interface (15) and Module Reference match the code; new modules listed
+- [ ] FEATURES.md footer `*Updated <date> — v<version>*` = CHANGELOG version (`qa-check.sh` section 11 checks the footer and that every script in `index.html` is mentioned)
+- [ ] README.md feature list covers the new features
+- [ ] Splash and About: version, Features tab and Shortcuts tab updated
