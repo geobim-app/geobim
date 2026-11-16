@@ -441,7 +441,16 @@
 
   function removeSite(site) {
     Object.keys(site.layers).forEach(function(n) { removeLayer(site, n); });
-    if (site.grading) { clearGradingEntities(site); site.grading = null; }
+    if (site.grading) {
+      var gid = site.grading.group;
+      clearGradingEntities(site);
+      site.grading = null;
+      if (gid && SA.groups[gid]) {
+        var rest = groupMembers(gid);
+        if (rest.length < 2) { rest.forEach(function(s) { s.grading.group = null; if (s.grading.result) drawGrading(s); }); dropGroup(gid); }
+        else if (!SA.clearing) computeGroup(gid);
+      }
+    }
     site.entities.forEach(function(e) { ds().entities.remove(e); });
     SA.sites.splice(SA.sites.indexOf(site), 1);
     updateTerrain();
@@ -1189,7 +1198,8 @@
 
   // (Re)computes the grading of a site: samples the band when needed, then
   // level, volumes, slope edge, depth raster and terrain
-  async function computeGrading(site) {
+  // fromGroup: called by computeGroup for a terrace's own planum level only
+  async function computeGrading(site, fromGroup) {
     if (!site.grid) return;
     var gr = site.grading || (site.grading = newGrading());
     gr.bearing = resolveBearing(site, gr);
@@ -1217,6 +1227,8 @@
     gr.result = evaluateGrading(site);
     gr.result.N = (await undulation(site.frame.lon0, site.frame.lat0)).n;
     if (gr.levelMode === 'balanced') gr.level = Math.round(gr.result.t * 100) / 100;
+    if (fromGroup) return;
+    if (groupOf(site)) { await computeGroup(gr.group); return; }
     drawGrading(site);
     updateTerrain();
     refreshProfileGrading();
@@ -1242,24 +1254,23 @@
     return v;
   }
 
-  // Slope edge (boundary of the changed area) as dashed ground lines + optional depth raster
-  function drawGrading(site) {
-    var gr = site.grading, gg = gr.grid, r = gr.result;
-    clearGradingEntities(site);
-    var n = gg.T.length, mask = new Float32Array(n);
+  // Slope edge (boundary of the changed area) as dashed ground lines + optional
+  // depth raster. u: grading unit (gradingUnit), target: { entities, canvas }
+  function drawSurface(target, u, depth) {
+    var gg = u.gg, n = gg.T.length, mask = new Float32Array(n), R = new Float32Array(n), dmax = 0;
     for (var k = 0; k < n; k++) {
-      if (!(gg.D[k] <= gg.W)) continue;
-      var diff = gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
-      mask[k] = Math.abs(diff) > CUT_EPS || gg.D[k] === 0 ? 1 : 0;
+      if (!u.inBand(k)) continue;
+      R[k] = u.R(k);
+      var diff = gg.T[k] - R[k];
+      mask[k] = Math.abs(diff) > CUT_EPS || u.planum(k) ? 1 : 0;
+      if (mask[k]) dmax = Math.max(dmax, Math.abs(diff));
     }
     var mg = { nx: gg.nx, ny: gg.ny, h: mask, need: new Uint8Array(n).fill(1) };
-    var color = cesiumColor('--brand-teal', '#2ECFB0');
+    var color = cesiumColor('--brand-teal', '#2ECFB0'), toDeg = u.site.frame.toDeg;
     traceLevel(mg, 0.5).forEach(function(line) {
       if (line.length < 3) return;
-      var pts = line.map(function(p) {
-        return site.frame.toDeg(gg.x0 + (p[0] + 0.5) * gg.cell, gg.yTop - (p[1] + 0.5) * gg.cell);
-      });
-      gr.entities.push(ds().entities.add({
+      var pts = line.map(function(p) { return toDeg(gg.x0 + (p[0] + 0.5) * gg.cell, gg.yTop - (p[1] + 0.5) * gg.cell); });
+      target.entities.push(ds().entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArray(flatDeg(pts, false)),
           clampToGround: true,
@@ -1269,17 +1280,16 @@
         }
       }));
     });
-    if (gr.depth) {
-      var p = palette(), dmax = 0;
-      for (k = 0; k < n; k++) if (mask[k]) dmax = Math.max(dmax, Math.abs(gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill)));
+    if (depth) {
+      var p = palette();
       var canvas = rasterCanvas({ nx: gg.nx, ny: gg.ny, h: gg.T, inside: mask }, function(k2) {
-        var diff = gg.T[k2] - gradeCell(gg, k2, r.t, gr.slopeCut, gr.slopeFill);
+        var diff = gg.T[k2] - R[k2];
         if (Math.abs(diff) < CUT_EPS) return [p.grade[0], p.grade[1], p.grade[2], 70];
         var c = diff > 0 ? p.cut : p.fill;
         return [c[0], c[1], c[2], Math.round(90 + 130 * Math.min(1, Math.abs(diff) / (dmax || 1)))];
       });
-      gr.canvas = canvas;
-      gr.entities.push(ds().entities.add({
+      target.canvas = canvas;
+      target.entities.push(ds().entities.add({
         rectangle: {
           coordinates: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north),
           material: new Cesium.ImageMaterialProperty({ image: canvas, transparent: true, color: Cesium.Color.WHITE.withAlpha(0.75) }),
@@ -1287,6 +1297,12 @@
         }
       }));
     }
+  }
+
+  function drawGrading(site) {
+    clearGradingEntities(site);
+    if (groupOf(site)) return;              // a terrace: the group draws
+    drawSurface(site.grading, gradingUnit(site), site.grading.depth);
   }
 
   function clearGradingEntities(site) {
@@ -1298,10 +1314,304 @@
 
   function removeGrading(site) {
     if (!site.grading) return;
+    if (site.grading.group) unlinkSite(site, true);
     clearGradingEntities(site);
     site.grading = null;
     updateTerrain();
     refreshProfileGrading();
+  }
+
+  // ===============================
+  // TERRACE GROUPS
+  // Graded sites linked into one earthwork: each keeps its planum (level or
+  // gradient, its own level); the group samples one grid over all of them
+  // plus the slope band, so no volume is counted twice. Inside a site
+  // R = its planum P_i; outside, the fill cones bound the ground from below
+  // and the cut cones from above:
+  //   R = min(max(T, max_i(P_i − d_i/nF_i)), min_i(P_i + d_i/nC_i))
+  // One site gives the single-site formula. "Balance" moves all planums by
+  // one common shift s so that cut = fill for the whole group; the steps
+  // between terraces stay as their own levels define them.
+  // ===============================
+
+  SA.groups = SA.groups || {};
+  var groupSeq = 0;
+
+  function newGroup(gid) { return { id: gid, balance: true, grid: null, result: null, entities: [], canvas: null }; }
+
+  function groupMembers(gid) {
+    return SA.sites.filter(function(s) { return s.grading && s.grading.group === gid; });
+  }
+
+  // The group of a terrace, or null (a group needs two members)
+  function groupOf(site) {
+    var gid = site && site.grading && site.grading.group;
+    return gid && SA.groups[gid] && groupMembers(gid).length > 1 ? SA.groups[gid] : null;
+  }
+
+  function groupName(g) { return groupMembers(g.id).map(function(s) { return s.name; }).join(' + '); }
+
+  function clearGroupEntities(g) {
+    g.entities.forEach(function(e) { ds().entities.remove(e); });
+    g.entities = [];
+  }
+
+  function dropGroup(gid) {
+    var g = SA.groups[gid];
+    if (!g) return;
+    clearGroupEntities(g);
+    delete SA.groups[gid];
+  }
+
+  async function linkSites(a, b) {
+    if (!a.grid || !b.grid) { status('Analyze both sites first', 'error'); return; }
+    if (!a.grading) a.grading = newGrading();
+    if (!b.grading) b.grading = newGrading();
+    var gid = (a.grading.group && SA.groups[a.grading.group]) ? a.grading.group : (b.grading.group && SA.groups[b.grading.group]) ? b.grading.group : null;
+    if (!gid) { gid = 'g' + (++groupSeq); SA.groups[gid] = newGroup(gid); }
+    [a.grading.group, b.grading.group].forEach(function(old) {
+      if (!old || old === gid) return;
+      SA.sites.forEach(function(s) { if (s.grading && s.grading.group === old) s.grading.group = gid; });
+      dropGroup(old);
+    });
+    a.grading.group = gid; b.grading.group = gid;
+    a.grading.applied = b.grading.applied = true;
+    await computeGroup(gid);
+  }
+
+  // quiet: the caller redraws (grading removed right after)
+  function unlinkSite(site, quiet) {
+    var gid = site.grading && site.grading.group;
+    if (!gid) return;
+    site.grading.group = null;
+    var rest = groupMembers(gid);
+    if (rest.length < 2) {
+      rest.forEach(function(s) { s.grading.group = null; });
+      dropGroup(gid);
+      rest.forEach(function(s) { if (s.grading.result) drawGrading(s); });
+      if (!quiet && site.grading.result) drawGrading(site);
+      updateTerrain();
+      refreshProfileGrading();
+      renderSites();
+      requestRender();
+    } else {
+      if (!quiet && site.grading.result) drawGrading(site);
+      computeGroup(gid);
+    }
+  }
+
+  function groupParams(members) {
+    return members.map(function(s) { return { nC: s.grading.slopeCut, nF: s.grading.slopeFill }; });
+  }
+
+  // Graded height of group cell k; lv = planum level per terrace (shift included)
+  function groupCell(gg, k, lv, prm) {
+    var T = gg.T[k], L = -Infinity, U = Infinity;
+    for (var m = 0; m < lv.length; m++) {
+      var d = gg.D[m][k];
+      if (!(d <= gg.W)) continue;
+      var P = lv[m] + (gg.O[m] ? gg.O[m][k] : 0);
+      if (d === 0) return P;
+      L = Math.max(L, P - d / prm[m].nF);
+      U = Math.min(U, P + d / prm[m].nC);
+    }
+    if (L === -Infinity) return T;
+    return Math.min(Math.max(T, L), U);
+  }
+
+  function groupBand(members) {
+    var lo = Infinity, hi = -Infinity, ratio = 0, cell = 0;
+    members.forEach(function(s) {
+      var st = s.grid.stats, r = s.grading.result;
+      lo = Math.min(lo, st.min, r.pMin); hi = Math.max(hi, st.max, r.pMax);
+      ratio = Math.max(ratio, s.grading.slopeCut, s.grading.slopeFill);
+      cell = Math.max(cell, s.grid.cell);
+    });
+    return Math.min(GRADING_MAX_BAND, (hi - lo + 2) * ratio + 2 * cell);
+  }
+
+  // What the group grid depends on (levels and slope ratios only move R)
+  function groupKey(members) {
+    return members.map(function(s) {
+      var gr = s.grading;
+      return [s.id, Number(gr.gradient) || 0, Number(gr.bearing) || 0, s.grid.cell, s.grid.sourceKey].join(':');
+    }).join('|') + '|' + Math.round(groupBand(members));
+  }
+
+  async function sampleGroupGrid(members, job) {
+    var all = [];
+    members.forEach(function(s) { all = all.concat(s.ring); });
+    var fg = frame(all);
+    var rings = members.map(function(s) { return s.ring.map(function(p) { return fg.toLocal(p[0], p[1]); }); });
+    var cell = Math.max.apply(null, members.map(function(s) { return s.grid.cell; }));
+    var W = groupBand(members);
+    var plan = planGrid({ local: [].concat.apply([], rings) }, cell, W);
+    if (!plan) throw new Error('The terrace group is too large');
+    var n = plan.nx * plan.ny, M = members.length;
+    var offs = members.map(function(s) { return planumOffsetFn(s.grading); });
+    var D = members.map(function() { return new Float32Array(n).fill(Infinity); });
+    var O = offs.map(function(f) { return f ? new Float32Array(n) : null; });
+    var idx = [], lons = [], lats = [];
+    for (var k = 0; k < n; k++) {
+      var i = k % plan.nx, j = (k - i) / plan.nx, x = cellX(plan, i), y = cellY(plan, j), any = false;
+      for (var m = 0; m < M; m++) {
+        var near = polyNearest(x, y, rings[m]);
+        if (near[0] > W) continue;
+        D[m][k] = near[0];
+        any = true;
+        if (O[m]) {
+          var deg = fg.toDeg(near[1], near[2]), loc = members[m].frame.toLocal(deg[0], deg[1]);
+          O[m][k] = offs[m](loc[0], loc[1]);
+        }
+      }
+      if (!any) continue;
+      var dd = fg.toDeg(x, y);
+      idx.push(k); lons.push(dd[0]); lats.push(dd[1]);
+    }
+    var first = members[0].grid;
+    var res = await sampleHeights(lons, lats, job, 'terrace group', first.sourceKey);
+    var T = new Float32Array(n).fill(NaN), need = new Uint8Array(n);
+    for (k = 0; k < idx.length; k++) { T[idx[k]] = res.heights[k]; need[idx[k]] = 1; }
+    if (!fillGaps(T, need, plan.nx, plan.ny)) throw new Error('No height data for the terrace group');
+    var west = fg.lon0 + plan.x0 / fg.m.lon, north = fg.lat0 + plan.yTop / fg.m.lat;
+    return {
+      nx: plan.nx, ny: plan.ny, cell: plan.cell, coarsened: plan.coarsened, x0: plan.x0, yTop: plan.yTop, W: W,
+      frame: fg, rings: rings, west: west, east: west + plan.nx * plan.cell / fg.m.lon,
+      north: north, south: north - plan.ny * plan.cell / fg.m.lat,
+      T: T, D: D, O: O, need: need, sourceKey: first.sourceKey, datum: first.datum, source: first.source
+    };
+  }
+
+  function groupVolumes(gg, lv, prm) {
+    var a = gg.cell * gg.cell, r = { cut: 0, fill: 0, cutPlanum: 0, fillPlanum: 0, affected: 0, conflict: 0, bandHit: false };
+    var edge = gg.W - 1.5 * gg.cell, M = lv.length;
+    for (var k = 0; k < gg.T.length; k++) {
+      if (!gg.need[k] || !isFinite(gg.T[k])) continue;
+      var R = groupCell(gg, k, lv, prm), diff = gg.T[k] - R, inside = false, dmin = Infinity, L = -Infinity, U = Infinity;
+      for (var m = 0; m < M; m++) {
+        var d = gg.D[m][k];
+        if (d === 0) inside = true;
+        if (!(d <= gg.W)) continue;
+        dmin = Math.min(dmin, d);
+        var P = lv[m] + (gg.O[m] ? gg.O[m][k] : 0);
+        L = Math.max(L, P - d / prm[m].nF); U = Math.min(U, P + d / prm[m].nC);
+      }
+      if (diff > 0) { r.cut += diff * a; if (inside) r.cutPlanum += diff * a; }
+      else if (diff < 0) { r.fill -= diff * a; if (inside) r.fillPlanum -= diff * a; }
+      if (Math.abs(diff) > CUT_EPS || inside) r.affected++;
+      if (!inside && L > U + 0.05) r.conflict++;
+      if (dmin >= edge && Math.abs(diff) > CUT_EPS) r.bandHit = true;
+    }
+    r.affectedM2 = r.affected * a;
+    r.conflictM2 = r.conflict * a;
+    r.net = r.cut - r.fill;
+    return r;
+  }
+
+  function evaluateGroup(g, members) {
+    var gg = g.grid, prm = groupParams(members);
+    var base = members.map(function(s) { return s.grading.result.t; });
+    var shift = 0;
+    if (g.balance) {
+      var tlo = Infinity, thi = -Infinity;
+      for (var k = 0; k < gg.T.length; k++) if (gg.need[k]) { tlo = Math.min(tlo, gg.T[k]); thi = Math.max(thi, gg.T[k]); }
+      var lo = tlo - Math.max.apply(null, base) - 5, hi = thi - Math.min.apply(null, base) + 5;
+      for (var it = 0; it < 50; it++) {
+        var mid = (lo + hi) / 2, v = groupVolumes(gg, base.map(function(t) { return t + mid; }), prm);
+        if (v.cut > v.fill) lo = mid; else hi = mid;    // a higher shift means more fill
+      }
+      shift = (lo + hi) / 2;
+    }
+    var lv = base.map(function(t) { return t + shift; });
+    var r = groupVolumes(gg, lv, prm);
+    r.shift = shift;
+    r.levels = lv;
+    r.ids = members.map(function(s) { return s.id; });
+    r.cutSlopes = r.cut - r.cutPlanum;
+    r.fillSlopes = r.fill - r.fillPlanum;
+    r.N = members[0].grading.result.N || 0;
+    return r;
+  }
+
+  async function computeGroup(gid) {
+    var g = SA.groups[gid], members = groupMembers(gid);
+    if (!g || members.length < 2) return;
+    if (members.some(function(s) { return !s.grid; })) { status('Analyze every terrace first', 'error'); return; }
+    // every terrace needs its own planum level first
+    for (var i = 0; i < members.length; i++) {
+      if (!members[i].grading.result) {
+        await computeGrading(members[i], true);
+        if (!members[i].grading.result) return;
+      }
+    }
+    var key = groupKey(members);
+    if (!g.grid || g.grid.key !== key) {
+      var job = startJob();
+      if (!job) return;
+      try {
+        g.grid = await sampleGroupGrid(members, job);
+        g.grid.key = key;
+      } catch (err) {
+        if (err && err.message === 'cancelled') status('Cancelled', '');
+        else { console.error('Terrace group failed:', err); status(err.message || String(err), 'error'); }
+        g.grid = null;
+        return;
+      } finally {
+        endJob();
+      }
+    }
+    g.result = evaluateGroup(g, members);
+    members.forEach(clearGradingEntities);
+    clearGroupEntities(g);
+    drawSurface(g, gradingUnit(members[0]), members.some(function(s) { return s.grading.depth; }));
+    updateTerrain();
+    refreshProfileGrading();
+    status('Terraces ' + groupName(g) + ': cut ' + num(g.result.cut) + ' m³, fill ' + num(g.result.fill) + ' m³' +
+      (g.balance ? ' (common shift ' + (g.result.shift >= 0 ? '+' : '') + num(g.result.shift, 2) + ' m)' : ''), 'ok');
+    renderSites();
+    requestRender();
+  }
+
+  // One grading as the exports, drawing and terrain see it: a single site or
+  // the group the site belongs to
+  function gradingUnit(site) {
+    var g = groupOf(site);
+    if (g && g.grid && g.result) {
+      var members = groupMembers(g.id), prm = groupParams(members), gg = g.grid, r = g.result, lv = r.levels;
+      return {
+        site: { name: groupName(g), frame: gg.frame, grid: { datum: gg.datum, source: gg.source } },
+        gg: gg, t: lv[0], cut: r.cut, fill: r.fill,
+        R: function(k) { return groupCell(gg, k, lv, prm); },
+        planum: function(k) { for (var m = 0; m < gg.D.length; m++) if (gg.D[m][k] === 0) return true; return false; },
+        inBand: function(k) { return !!gg.need[k] && isFinite(gg.T[k]); },
+        desc: 'Terraces ' + members.map(function(s, m) {
+          var gr = s.grading;
+          return s.name + ' ' + lv[m].toFixed(2) + ' m' + (gr.gradient ? ' (' + gr.gradient + ' % to ' + gr.bearing + ' deg)' : '') + ' slopes 1:' + gr.slopeCut + '/1:' + gr.slopeFill;
+        }).join('; ') + ', cut ' + r.cut.toFixed(1) + ' m3, fill ' + r.fill.toFixed(1) + ' m3',
+        extras: {
+          terraces: members.map(function(s, m) {
+            var gr = s.grading;
+            return { site: s.name, planumLevel: Number(lv[m].toFixed(3)), slopeCut: gr.slopeCut, slopeFill: gr.slopeFill,
+                     gradientPercent: Number(gr.gradient) || 0, gradientBearingDeg: Number(gr.gradient) ? Number(gr.bearing) || 0 : 0 };
+          }),
+          commonShift: Number(r.shift.toFixed(3)), cutM3: Number(r.cut.toFixed(1)), fillM3: Number(r.fill.toFixed(1))
+        }
+      };
+    }
+    var gr = site.grading, gs = gr.grid, rs = gr.result;
+    return {
+      site: site, gg: gs, t: rs.t, cut: rs.cut, fill: rs.fill,
+      R: function(k) { return gradeCell(gs, k, rs.t, gr.slopeCut, gr.slopeFill); },
+      planum: function(k) { return gs.D[k] === 0; },
+      inBand: function(k) { return gs.D[k] <= gs.W && isFinite(gs.T[k]); },
+      desc: 'Planum ' + rs.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +
+        ', slopes cut 1:' + gr.slopeCut + ' fill 1:' + gr.slopeFill + ', cut ' + rs.cut.toFixed(1) + ' m3, fill ' + rs.fill.toFixed(1) + ' m3',
+      extras: {
+        planumLevel: Number(rs.t.toFixed(3)), slopeCut: gr.slopeCut, slopeFill: gr.slopeFill,
+        gradientPercent: Number(gr.gradient) || 0, gradientBearingDeg: Number(gr.gradient) ? Number(gr.bearing) || 0 : 0,
+        cutM3: Number(rs.cut.toFixed(1)), fillM3: Number(rs.fill.toFixed(1))
+      }
+    };
   }
 
   // ---- Terrain: wrap the active heightmap provider ----
@@ -1325,11 +1635,58 @@
     return 'ok';
   }
 
-  function gradingItem(site) {
-    var gr = site.grading, gg = gr.grid, r = gr.result;
+  // One item per applied grading (a site, or a terrace group once):
+  // heightAt(lon, lat, T) gives the graded orthometric height for existing T
+  function gradingItems() {
+    var items = [], done = {};
+    activeGradings().forEach(function(site) {
+      var g = groupOf(site);
+      if (g) {
+        if (done[g.id] || !g.result) return;
+        done[g.id] = true;
+        items.push(groupItem(g));
+      } else {
+        items.push(siteItem(site));
+      }
+    });
+    return items;
+  }
+
+  function siteItem(site) {
+    var gr = site.grading, gg = gr.grid, r = gr.result, off = planumOffsetFn(gr), fr = site.frame;
     return {
-      fr: site.frame, ring: site.local, t: r.t, N: r.N || 0, nC: gr.slopeCut, nF: gr.slopeFill, W: gg.W, off: planumOffsetFn(gr),
-      rect: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north)
+      N: r.N || 0,
+      rect: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north),
+      heightAt: function(lon, lat, T) {
+        var loc = fr.toLocal(lon, lat);
+        var near = off ? polyNearest(loc[0], loc[1], site.local) : null;
+        var d = near ? near[0] : polyDist(loc[0], loc[1], site.local);
+        if (d > gg.W) return T;
+        return gradeHeight(T, d, near ? r.t + off(near[1], near[2]) : r.t, gr.slopeCut, gr.slopeFill);
+      }
+    };
+  }
+
+  function groupItem(g) {
+    var members = groupMembers(g.id), gg = g.grid, fr = gg.frame, lv = g.result.levels, prm = groupParams(members);
+    var offs = members.map(function(s) { return planumOffsetFn(s.grading); });
+    return {
+      N: g.result.N,
+      rect: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north),
+      heightAt: function(lon, lat, T) {
+        var loc = fr.toLocal(lon, lat), L = -Infinity, U = Infinity;
+        for (var m = 0; m < members.length; m++) {
+          var near = polyNearest(loc[0], loc[1], gg.rings[m]);
+          if (near[0] > gg.W) continue;
+          var P = lv[m];
+          if (offs[m]) { var deg = fr.toDeg(near[1], near[2]), ml = members[m].frame.toLocal(deg[0], deg[1]); P += offs[m](ml[0], ml[1]); }
+          if (near[0] === 0) return P;
+          L = Math.max(L, P - near[0] / prm[m].nF);
+          U = Math.min(U, P + near[0] / prm[m].nC);
+        }
+        if (L === -Infinity) return T;
+        return Math.min(Math.max(T, L), U);
+      }
     };
   }
 
@@ -1347,12 +1704,7 @@
         var lon = Cesium.Math.toDegrees(rect.west + (rect.east - rect.west) * col / (w - 1));
         var i = row * w + col;
         for (var q = 0; q < items.length; q++) {
-          var it = items[q], loc = it.fr.toLocal(lon, lat);
-          var near = it.off ? polyNearest(loc[0], loc[1], it.ring) : null;
-          var d = near ? near[0] : polyDist(loc[0], loc[1], it.ring);
-          if (d > it.W) continue;
-          var T = out[i] - it.N;
-          var R = gradeHeight(T, d, near ? it.t + it.off(near[1], near[2]) : it.t, it.nC, it.nF);
+          var it = items[q], T = out[i] - it.N, R = it.heightAt(lon, lat, T);
           if (R !== T) { out[i] = R + it.N; changed = true; }
         }
       }
@@ -1364,9 +1716,9 @@
     });
   }
 
-  function wrapProvider(base, sites) {
+  function wrapProvider(base) {
     var ts = base.tilingScheme, mercator = ts instanceof Cesium.WebMercatorTilingScheme;
-    var items = sites.map(gradingItem);
+    var items = gradingItems();
     var wrapped = Object.create(base);
     wrapped._saBase = base;
     wrapped._saGraded = true;
@@ -1408,7 +1760,7 @@
         currentWrapper = null;
         if (cur !== base) v.terrainProvider = base;
       } else {
-        currentWrapper = wrapProvider(base, sites);
+        currentWrapper = wrapProvider(base);
         v.terrainProvider = currentWrapper;
       }
     } finally {
@@ -1420,16 +1772,12 @@
   // ---- Profile: graded line next to the existing one ----
 
   function gradedProfileHeights(p) {
-    var sites = activeGradings();
-    if (!sites.length) return null;
+    var items = gradingItems();
+    if (!items.length) return null;
     var out = p.heights.slice(), any = false;
     for (var i = 0; i < out.length; i++) {
-      sites.forEach(function(s) {
-        var gr = s.grading, loc = s.frame.toLocal(p.lons[i], p.lats[i]);
-        var off = planumOffsetFn(gr), near = off ? polyNearest(loc[0], loc[1], s.local) : null;
-        var d = near ? near[0] : polyDist(loc[0], loc[1], s.local);
-        if (d > gr.grid.W) return;
-        var R = gradeHeight(out[i], d, near ? gr.result.t + off(near[1], near[2]) : gr.result.t, gr.slopeCut, gr.slopeFill);
+      items.forEach(function(it) {
+        var R = it.heightAt(p.lons[i], p.lats[i], out[i]);
         if (Math.abs(R - out[i]) > 1e-3) { out[i] = R; any = true; }
       });
     }
@@ -1445,36 +1793,34 @@
   // ---- Exports: LandXML surface, GLB ----
 
   // Grid cells of the mesh: changed area + planum, one cell around
-  function gradingMeshMask(site) {
-    var gr = site.grading, gg = gr.grid, r = gr.result, n = gg.T.length, nx = gg.nx, ny = gg.ny;
+  function gradingMeshMask(u) {
+    var gg = u.gg, n = gg.T.length, nx = gg.nx, ny = gg.ny;
     var core = new Uint8Array(n), mask = new Uint8Array(n);
     for (var k = 0; k < n; k++) {
-      if (!(gg.D[k] <= gg.W) || !isFinite(gg.T[k])) continue;
-      var diff = gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
-      if (Math.abs(diff) > CUT_EPS || gg.D[k] === 0) core[k] = 1;
+      if (!u.inBand(k)) continue;
+      if (Math.abs(gg.T[k] - u.R(k)) > CUT_EPS || u.planum(k)) core[k] = 1;
     }
     for (k = 0; k < n; k++) {
       if (!core[k]) continue;
       var i = k % nx, j = (k - i) / nx;
       for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
         var ii = i + di, jj = j + dj, m = jj * nx + ii;
-        if (ii >= 0 && jj >= 0 && ii < nx && jj < ny && gg.D[m] <= gg.W && isFinite(gg.T[m])) mask[m] = 1;
+        if (ii >= 0 && jj >= 0 && ii < nx && jj < ny && u.inBand(m)) mask[m] = 1;
       }
     }
     return mask;
   }
 
   // Vertices (one per masked cell) and triangles (two per fully masked square)
-  function gradingMesh(site) {
-    var gr = site.grading, gg = gr.grid, r = gr.result, nx = gg.nx, ny = gg.ny;
-    var mask = gradingMeshMask(site), index = new Int32Array(gg.T.length).fill(-1);
+  function gradingMesh(u) {
+    var gg = u.gg, nx = gg.nx, ny = gg.ny;
+    var mask = gradingMeshMask(u), index = new Int32Array(gg.T.length).fill(-1);
     var verts = [];
     for (var k = 0; k < mask.length; k++) {
       if (!mask[k]) continue;
       var i = k % nx, j = (k - i) / nx;
-      var T = gg.T[k], R = gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
       index[k] = verts.length;
-      verts.push({ x: cellX(gg, i), y: cellY(gg, j), T: T, R: R, planum: gg.D[k] === 0 });
+      verts.push({ x: cellX(gg, i), y: cellY(gg, j), T: gg.T[k], R: u.R(k), planum: u.planum(k) });
     }
     var tris = [];
     for (var jj = 0; jj < ny - 1; jj++) {
@@ -1502,11 +1848,11 @@
 
   function xmlEsc(s) { return esc(s).replace(/'/g, '&apos;'); }
 
-  async function exportLandXml(site) {
-    var gr = site.grading;
-    if (!gr || !gr.result) return;
+  async function exportLandXml(site0) {
+    if (!site0.grading || !site0.grading.result) return;
+    var u = gradingUnit(site0), site = u.site;
     status('Preparing LandXML…', '');
-    var proj = await utmProjector(site), mesh = gradingMesh(site);
+    var proj = await utmProjector(site), mesh = gradingMesh(u);
     var now = new Date(), date = now.toISOString().slice(0, 10), time = now.toISOString().slice(11, 19);
     var en = mesh.verts.map(function(v) { return proj.en(v.x, v.y); });
     function surface(name, desc, key) {
@@ -1522,10 +1868,7 @@
       out.push('        </Faces>', '      </Definition>', '    </Surface>');
       return out.join('\n');
     }
-    var r = gr.result, g = site.grid;
-    var desc = 'Planum ' + r.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +
-      ', slopes cut 1:' + gr.slopeCut + ' fill 1:' + gr.slopeFill +
-      ', cut ' + r.cut.toFixed(1) + ' m3, fill ' + r.fill.toFixed(1) + ' m3; heights ' + g.datum + '; source ' + g.source;
+    var g = site.grid, desc = u.desc + '; heights ' + g.datum + '; source ' + g.source;
     var xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2" date="' + date + '" time="' + time + '">',
@@ -1544,10 +1887,10 @@
 
   // Binary glTF: graded surface in local metres (origin = site centre on the
   // planum level; X east, Y up, Z south), vertex colours planum / cut / fill
-  async function exportGlb(site) {
-    var gr = site.grading;
-    if (!gr || !gr.result) return;
-    var mesh = gradingMesh(site), r = gr.result, nv = mesh.verts.length;
+  async function exportGlb(site0) {
+    if (!site0.grading || !site0.grading.result) return;
+    var u = gradingUnit(site0), site = u.site;
+    var mesh = gradingMesh(u), r = { t: u.t }, nv = mesh.verts.length;
     if (!nv || !mesh.tris.length) { status('Nothing to export', 'error'); return; }
     var utm = null;
     try { utm = (await utmProjector(site)).info; } catch (e) { /* origin in WGS84 only */ }
@@ -1582,14 +1925,11 @@
     var gltf = {
       asset: {
         version: '2.0', generator: 'geoBIM.app site analysis',
-        extras: { geobim: {
+        extras: { geobim: Object.assign({
           site: site.name, upAxis: 'Y', axes: 'X east, Y up, Z south (local metres)',
           origin: { longitude: site.frame.lon0, latitude: site.frame.lat0, height: Number(r.t.toFixed(3)), heightDatum: site.grid.datum },
-          utm: utm ? { epsg: utm.epsg, easting: Number(utm.easting.toFixed(3)), northing: Number(utm.northing.toFixed(3)) } : null,
-          planumLevel: Number(r.t.toFixed(3)), slopeCut: gr.slopeCut, slopeFill: gr.slopeFill,
-          gradientPercent: Number(gr.gradient) || 0, gradientBearingDeg: Number(gr.bearing) || 0,
-          cutM3: Number(r.cut.toFixed(1)), fillM3: Number(r.fill.toFixed(1))
-        } }
+          utm: utm ? { epsg: utm.epsg, easting: Number(utm.easting.toFixed(3)), northing: Number(utm.northing.toFixed(3)) } : null
+        }, u.extras) }
       },
       scene: 0,
       scenes: [{ nodes: [0] }],
@@ -2387,7 +2727,21 @@
       (Number(gr.gradient) && gr.dir === 'terrain' && gr.terrain
         ? '<div class="sa-hint">Falls to ' + bearingName(gr.bearing) + ' (' + gr.bearing + '°) like the terrain, which falls ' + num(gr.terrain.percent, 1) + ' % there</div>'
         : '');
-    if (r) {
+    html += terraceBlock(site);
+    var grp = groupOf(site);
+    if (r && grp && grp.result) {
+      var gres = grp.result, mi = gres.ids.indexOf(site.id);
+      html += '<div class="sa-cf-sum">' +
+        '<span>This terrace <b>' + num(gres.levels[mi], 2) + ' m</b>' + (Number(gr.gradient) ? ' at its centre' : '') + '</span>' +
+        '<span class="sa-cf-cut"><span class="sa-sw sa-sw-cut"></span>Cut <b>' + num(gres.cut) + ' m³</b> <small>planums ' + num(gres.cutPlanum) + ' · slopes ' + num(gres.cutSlopes) + '</small></span>' +
+        '<span class="sa-cf-fill"><span class="sa-sw sa-sw-fill"></span>Fill <b>' + num(gres.fill) + ' m³</b> <small>planums ' + num(gres.fillPlanum) + ' · slopes ' + num(gres.fillSlopes) + '</small></span>' +
+        '<span>Net <b>' + num(gres.net) + ' m³</b></span>' +
+        '<span>Changed area <b>' + num(gres.affectedM2 / 10000, 2) + ' ha</b></span>' +
+        '</div>' +
+        '<label class="sa-check"><input type="checkbox" data-sa-input="gr-depth" data-site="' + sid + '"' + (gr.depth ? ' checked' : '') + '> Depth raster (cut / fill)</label>';
+      if (gres.conflictM2 > 0) html += '<div class="sa-warn"><i data-lucide="info"></i>Terraces too close for their slopes on ' + num(gres.conflictM2) + ' m² — the lower slope cuts into the upper one there</div>';
+      if (gres.bandHit) html += '<div class="sa-warn"><i data-lucide="info"></i>Slopes reach beyond ' + num(grp.grid.W) + ' m — volumes are cut off there</div>';
+    } else if (r) {
       html += '<div class="sa-cf-sum">' +
         (Number(gr.gradient)
           ? '<span>Planum <b>' + num(r.t, 2) + ' m</b> at the centre, <b>' + num(r.pMin, 2) + '–' + num(r.pMax, 2) + ' m</b></span>'
@@ -2410,6 +2764,30 @@
       }
     }
     return html + '</div>';
+  }
+
+  // Link the grading of this site with another one into terrace groups
+  function terraceBlock(site) {
+    var gr = site.grading, sid = site.id, grp = groupOf(site);
+    if (!gr || !gr.result) return '';
+    if (grp) {
+      return '<div class="sa-field-row sa-terraces">' +
+          '<span class="modern-label-small">Terraces</span>' +
+          '<span class="sa-terrace-names">' + esc(groupName(grp)) + '</span>' +
+          '<button type="button" class="modern-btn modern-btn-small" data-sa="grading-unlink" data-site="' + sid + '" title="Grade this site on its own again">Unlink</button>' +
+        '</div>' +
+        '<label class="sa-check"><input type="checkbox" data-sa-input="gr-gbal" data-site="' + sid + '"' + (grp.balance ? ' checked' : '') + '> Balance all terraces (common shift' +
+          (grp.result && grp.balance ? ' ' + (grp.result.shift >= 0 ? '+' : '') + num(grp.result.shift, 2) + ' m' : '') + ')</label>';
+    }
+    var others = SA.sites.filter(function(s) { return s !== site && s.grid; });
+    if (!others.length) return '';
+    return '<div class="sa-field-row sa-terraces">' +
+        '<label class="modern-label-small" for="saGrLink' + sid + '">Terraces</label>' +
+        '<select id="saGrLink' + sid + '" class="modern-select sa-select-small" data-sa-input="gr-link" data-site="' + sid + '">' +
+          '<option value="">Link with…</option>' +
+          others.map(function(s) { return '<option value="' + s.id + '">' + esc(s.name) + '</option>'; }).join('') +
+        '</select>' +
+      '</div>';
   }
 
   function siteCard(site) {
@@ -2521,12 +2899,14 @@
       case 'grading':
         if (!site || !site.grid) break;
         if (!site.grading || !site.grading.result) { computeGrading(site); break; }
-        site.grading.applied = !site.grading.applied;
+        var onNow = !site.grading.applied, grpT = groupOf(site);
+        (grpT ? groupMembers(grpT.id) : [site]).forEach(function(s) { s.grading.applied = onNow; });
         updateTerrain();
         refreshProfileGrading();
         renderSites();
         break;
       case 'grading-remove': if (site) { removeGrading(site); renderSites(); requestRender(); } break;
+      case 'grading-unlink': if (site) unlinkSite(site); break;
       case 'grading-landxml':
         if (site) exportLandXml(site).catch(function(err) { status(err.message || String(err), 'error'); });
         break;
@@ -2609,8 +2989,18 @@
           var n = Number(t.value);
           if (!isFinite(n) || n < 0.3 || n > 10) { status('Slope ratio 1:n with n between 0.3 and 10', 'error'); return; }
           if (kind === 'gr-cut') gr.slopeCut = n; else gr.slopeFill = n;
+        } else if (kind === 'gr-link') {
+          var other = t.value ? findSite(t.value) : null;
+          if (other) linkSites(site, other);
+          return;
+        } else if (kind === 'gr-gbal') {
+          var gb = groupOf(site);
+          if (gb) { gb.balance = t.checked; computeGroup(gb.id); }
+          return;
         } else if (kind === 'gr-depth') {
           gr.depth = t.checked;
+          var gd = groupOf(site);
+          if (gd) { computeGroup(gd.id); return; }
           if (gr.result) drawGrading(site);
           renderSites();
           requestRender();
@@ -2715,6 +3105,7 @@
         out.grading = {
           levelMode: gr.levelMode, level: isFinite(gr.level) && gr.level !== null ? round(gr.level, 2) : null,
           slopeCut: gr.slopeCut, slopeFill: gr.slopeFill, gradient: Number(gr.gradient) || 0, dir: gr.dir,
+          group: groupOf(site) ? gr.group : null, groupBalance: groupOf(site) ? !!groupOf(site).balance : undefined,
           applied: !!gr.applied, depth: !!gr.depth
         };
         if (gr.result && out.summary) {
@@ -2747,7 +3138,9 @@
   // Removes every site and the profile (scene load replaces, never mixes)
   function clearAll() {
     stopDraw();
-    SA.sites.slice().forEach(removeSite);
+    SA.clearing = true;
+    try { SA.sites.slice().forEach(removeSite); } finally { SA.clearing = false; }
+    Object.keys(SA.groups).forEach(dropGroup);
     if (profilePanel) profilePanel.classList.remove('visible');
     clearProfile();
     status('', '');
@@ -2812,11 +3205,29 @@
         if (isFinite(sg.slopeFill) && sg.slopeFill >= 0.3 && sg.slopeFill <= 10) gr.slopeFill = Number(sg.slopeFill);
         if (isFinite(sg.gradient) && sg.gradient >= 0 && sg.gradient <= 15) gr.gradient = Number(sg.gradient);
         if (sg.dir === 'terrain' || COMPASS[sg.dir] !== undefined) gr.dir = sg.dir;
+        if (typeof sg.group === 'string' && /^g\d+$/.test(sg.group)) {
+          gr.group = sg.group;
+          if (!SA.groups[sg.group]) SA.groups[sg.group] = newGroup(sg.group);
+          if (sg.groupBalance === false) SA.groups[sg.group].balance = false;
+          groupSeq = Math.max(groupSeq, Number(sg.group.slice(1)));
+        }
         gr.applied = sg.applied !== false;
         gr.depth = !!sg.depth;
         await computeGrading(site);
         if (!gr.result) problems.push('Site analysis: the grading of "' + site.name + '" could not be computed');
       }
+    }
+
+    // Terrace groups once all their terraces are graded
+    var gids = Object.keys(SA.groups);
+    for (var gi = 0; gi < gids.length; gi++) {
+      if (groupMembers(gids[gi]).length < 2) {
+        groupMembers(gids[gi]).forEach(function(s) { s.grading.group = null; });
+        dropGroup(gids[gi]);
+        continue;
+      }
+      await computeGroup(gids[gi]);
+      if (!SA.groups[gids[gi]] || !SA.groups[gids[gi]].result) problems.push('Site analysis: a terrace group could not be computed');
     }
 
     var p = state.profile;
