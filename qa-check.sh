@@ -277,6 +277,27 @@ else
   warn "FEATURES.md missing Walk Mode section"
 fi
 
+# FEATURES.md is updated with every release: its footer
+# "*Updated YYYY-MM-DD — vX.Y.Z*" must carry the CHANGELOG version
+FEATURES_VER=$(grep -oP '^\*Updated [0-9-]+ — v\K[0-9]+\.[0-9]+\.[0-9]+' FEATURES.md 2>/dev/null | tail -1)
+if [ "$FEATURES_VER" = "$CHANGELOG_VER" ]; then
+  pass "FEATURES.md footer matches ($FEATURES_VER)"
+else
+  fail "FEATURES.md footer is v${FEATURES_VER:-?} (expected $CHANGELOG_VER) — update FEATURES.md for this release"
+fi
+
+# Every local script loaded by index.html must be described in FEATURES.md
+# (feature tables or Module Reference)
+MISSING_DOCS=""
+for js in $(grep -oE 'src="[A-Za-z0-9_./-]+\.js' index.html 2>/dev/null | sed 's/^src="//' | sort -u); do
+  grep -qF "$(basename "$js")" FEATURES.md 2>/dev/null || MISSING_DOCS="$MISSING_DOCS $js"
+done
+if [ -z "$MISSING_DOCS" ]; then
+  pass "FEATURES.md describes every script in index.html"
+else
+  fail "Scripts in index.html missing from FEATURES.md:$MISSING_DOCS"
+fi
+
 # Check splash features list includes Walk Mode
 if grep -qi "Walk Mode\|Walk.mode\|first.person" splash-screen.js 2>/dev/null; then
   pass "Splash screen lists Walk Mode"

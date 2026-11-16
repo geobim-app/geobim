@@ -11,8 +11,11 @@
 | Guest Access | The viewer opens without login as a guest with the restricted demo Cesium Ion token (read from the server, not in the repo). Guests don't see Ion terrain/imagery by ID, geoid, bathymetry, Gaussian Splats, Inspection, STA/IoT Live or Connect to Cesium ion. | `auth.js`, `auth-gate.js`, `auth-styles.css`, `api/ion-config.php` |
 | Email/Password Login | Closable sign-in dialog opened from the sidebar ("Guest · Sign in") or the demo banners; account badge with Sign out. | `auth-gate.js`, `account-ui.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
-| Splash Screen | Branded landing page with features, shortcuts, and "Enter Viewer" button. v1.7.0 with Post-Processing + Ion OAuth2. | `splash-screen.js` |
-| Onboarding Tour | 6-step guided tour with spotlight overlay for new users. Auto-starts on first visit. | `onboarding.js` |
+| Splash Screen | Branded landing page with About, Features and Shortcuts tabs and "Enter Viewer" button; version shown here and in the About dialog. | `splash-screen.js` |
+| Onboarding Tour | Spotlight tour on the first visit, guests included (not in `/demo`, share links or StageTwin): 8 steps in the panel UI (welcome, tools, account, search, measure, clip, sun & time), 6 in the classic sidebar; own tours for Bridge Inspector and WEA shadow; restart via About → "Take a guided tour". | `onboarding.js`, `panels-ui.js` |
+| Guests without Cesium ion | Without a sign-in (guest, `/demo`) nothing comes from Cesium ion: Mapterhorn open terrain, TopPlusOpen and the open base maps, server models from `model/guest-models.json`, the iTwin demo, OpenStreetMap Nominatim search; any remaining ion request fails fast. | `guest-no-ion.js` |
+| Owner Session | `model/` (uploaded tilesets, GLBs, raw IFCs) is owner-only on the server: `api/model-file.php` checks an HttpOnly session cookie that this module sets after sign-in. | `owner-session.js` |
+| About & Feedback | About dialog with About, Features, Shortcuts and Feedback tabs (feedback stored in Firestore). | `about-feedback.js`, `ui-about-section.js` |
 | Cesium Ion Connect | OAuth2 PKCE flow to link personal Cesium Ion accounts. Browse and load private assets. Token persistence via localStorage with automatic refresh. Falls back to server-side demo token. | `ion-auth.js`, `ion-auth-styles.css`, `api/ion-config.php` |
 
 ---
@@ -23,13 +26,16 @@
 |---|---|---|
 | Cesium Ion Asset Loading | Load 3D Tiles from Ion via REST API. Guests see the live list of assets the demo token may read (`DEMO_ASSETS` as fallback). Tile content polling after flyTo. | `core.js`, `ui.js` |
 | IFC Upload (own tiler) | Upload `.ifc`; the server tiler converts to 3D Tiles 1.1 (glTF + `EXT_mesh_features` + `EXT_structural_metadata`) with all property sets (`className`, `globalId`, …), georeferenced from `IfcMapConversion` / `IfcSite` / upload position, optional EPSG code and ±0.00 height; `alignments.json` for IfcAlignment. Owner only. | `pointcloud-upload.js`, `ui-assets-section.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
-| Bentley iTwin Demo | "Load iTwin demo" in the Assets section: station iModel, surrounding-area iModel and reality mesh from the iTwin platform (CesiumJS Sandcastle sample, public share key, expires 2026-11-01) via `Cesium.ITwinData`, with five camera views (Birdseye, Station, Platform, Atrium, Roof). | `itwin-demo.js`, `itwin-demo-styles.css`, `core.js` `loadITwinModel()` |
+| Bentley iTwin Demo | "Load iTwin demo" in the Assets section: station iModel, surrounding-area iModel and reality mesh from the iTwin platform (CesiumJS Sandcastle sample, public share key, expires 2027-01-01) via `Cesium.ITwinData`, with five camera views (Birdseye, Station, Platform, Atrium, Roof). | `itwin-demo.js`, `itwin-demo-styles.css`, `core.js` `loadITwinModel()` |
 | Rhino plugin | geoBIM.app for Rhino (repo `geobim-rhino`, Rhino 8): `GeoBIMUpload` writes IFC 4 from the selected objects (one element per object, colours, `Pset_Rhino`, user text, IFC class from user text `IfcClass` or a layer named like `IfcWall`; georeferenced from map coordinates → `IfcMapConversion`, else the EarthAnchorPoint → `IfcSite` RefLatitude/RefLongitude + TrueNorth), uploads it with a plugin token, follows the conversion and opens `?model=<slug>`; the next upload of the same document replaces the model. Tokens: Account panel → Rhino plugin (create, copy once, revoke); accepted only by upload, job status and `plugin-whoami.php`. | `plugin-tokens.js`, `model-link.js`, `api/plugin-tokens.php`, `api/_plugin_tokens.php`, `api/plugin-whoami.php`, `api/pointcloud-upload.php` |
+| Your iModels (Preview) | Sign in with a Bentley account (OAuth2 + PKCE), pick an iTwin and an iModel (or enter an iModel ID) and load it as an asset; a missing mesh export is started and polled until it is complete. Element edges and 2D outlines of the export are hidden. | `itwin-models.js`, `itwin-auth.js`, `itwin-display.js` |
+| Upload by Drag & Drop | Drop an IFC or point cloud file on the viewer or the upload area; choice of height reference for IFC. Owner only. | `pointcloud-upload.js`, `ui-assets-section.js` |
 | Point Cloud Upload | LAS/LAZ/E57/PLY up to 3 GB with progress bar; georeferenced LAS/LAZ land in place (CRS from header or UTM heuristic, GCG2016 geoid). Owner only. | `pointcloud-upload.js`, `api/pointcloud-upload.php`, `scripts/convert_pointcloud.py` |
 | Asset Visibility Toggle | Show/hide individual loaded assets. | `core.js`, `ui.js` |
 | Asset Opacity Control | Adjust transparency per asset (0–1 slider). | `core.js`, `ui.js` |
 | Asset Unloading | Remove assets from viewer with full cleanup of UI and references. | `core.js`, `ui.js` |
 | Zoom to Asset | Fly camera to asset bounding sphere. | `core.js` |
+| Transform Mode | Move and rotate any 3D Tiles asset or GLB in place with an Ion-style gizmo (axis arrows + heading ring); toolbar button or **X**. | `glb-gizmo.js` |
 
 ---
 
@@ -37,9 +43,12 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| Basemap Switcher | 6 options: Bing Aerial (default), Bing Roads, OSM, Google Contour, Google Satellite w/ Labels, None. | `layerManager.js` |
+| Basemap Switcher | With Cesium ion (signed in): Bing Aerial with Labels (default), Bing Aerial, Bing Roads, Google Maps Contour, Google Maps Sat Labels; for everyone: TopPlusOpen (default for guests), the open base maps and Esri base maps below, No Basemap. Never two at once. | `layerManager.js` |
 | OGC Service Presets | 59 verified WMS/WMTS/WFS services as a grouped dropdown (international, Rhineland-Palatinate, Bavaria, Netherlands/PDOK, Norway); picking one fills the URL and runs discovery. | `layerManager.js`, `ui-layer-section.js` |
-| Terrain Providers | Cesium World Terrain (default), Cesium World Bathymetry, custom terrain via Ion Asset ID. | `layerManager.js` |
+| Terrain Providers | Cesium World Terrain (default when signed in), Cesium World Bathymetry, custom terrain via Ion Asset ID; Mapterhorn open terrain (no ion, default for guests); ArcGIS World Elevation. | `layerManager.js`, `mapterhorn-terrain.js`, `arcgis.js` |
+| Ion Terrain & Imagery Assets | Ion assets of type TERRAIN / IMAGERY appear in the Layers section instead of the asset list. | `ion-layer-assets.js` |
+| GIS Files | GeoJSON, Shapefile, KML/KMZ, GPX and FlatGeobuf by drag & drop or file picker, read in the browser: draped on the terrain or with the file's heights; CRS from the file (or picked), converted with proj4; attributes in the InfoBox. Nothing is uploaded. | `gis-files.js` |
+| GPX Camera Flight | Play a timed GPX track: a marker runs along the track, the camera follows, looks from above or stays free; the clock (and sun) follows the track's time. | `gis-track-player.js` |
 | Open Basemaps (BKG, Bavaria) | TopPlusOpen Grey (worldwide) and basemap.de color / grey (Germany only, official AdV base map), open data dl-de/by-2-0; Bavaria (geoservices.bayern.de, CC BY 4.0, Bavaria only): Orthophoto DOP20, City Map DOK, Topographic Map DTK25, Parcel Map (ALKIS), Terrain Relief. No Cesium ion — also for guests and share links. | `open-basemaps.js` |
 | ArcGIS | Esri World Imagery / Streets / Topographic / Light Gray Canvas / Dark Gray Canvas base maps; ArcGIS MapServer URLs as imagery layers in the OGC list; ArcGIS World Elevation terrain (lifted to the ellipsoid via GCG2016/EGM2008); I3S scene layers as assets (demo block „Esri ArcGIS“ in Assets: Turanga Library, San Francisco 3D, own SceneServer URL) with Building Scene Layer filters (Full model / Overview, disciplines, categories, level) and element fields in the InfoBox. Optional key `GEOBIM_CONFIG.arcgis.apiKey`. | `arcgis.js` |
 | OSM Buildings | Toggle OpenStreetMap 3D building footprints. Auto-disabled when Google 3D Tiles active. | `core.js` |
@@ -60,6 +69,8 @@
 | Other (not listed) | Extra entry in both lists: while enabled, types not in the list stay visible and only deselected types are hidden. | `features.js`, `core.js` |
 | Select/Deselect All | Bulk toggle all IFC entities or Revit categories on/off. | `features.js` |
 | Manual Property Override | Override auto-detected IFC property name per asset via dropdown. | `features.js` |
+| Storey Filter | Switch storeys on/off (geoBIM tiler `storey`, Revit level names); complete and ordered by elevation when the tileset lists its storeys in `extras.geobim.storeys`. | `model-scope.js` |
+| Isolate | One element, one IFC class / Revit category or one storey; the rest is ghosted or hidden. **I** isolates the selected element, **Shift+I** or Esc ends it. | `model-scope.js` |
 
 ---
 
@@ -82,7 +93,8 @@
 | Area | Click 3+ points, right-click or Enter to finish. Polygon area + perimeter with semi-transparent fill. | `measurement.js` |
 | Height over Terrain | Click one point. Shows height above terrain, terrain elevation, and WGS84 height. | `measurement.js` |
 | Vertical Distance | Click 2 points. Shows +/- height difference with direction indicator. | `measurement.js` |
-| Coordinate Picking | Click one point. Shows lat/lon (7 decimals), WGS84 height, terrain height. Copy-to-clipboard button. | `measurement.js` |
+| Coordinate Picking | Click one point. Shows lat/lon (7 decimals), WGS84 height, terrain height, height above sea level, plus UTM (ETRS89 in Europe) and Gauß-Krüger (DHDN, BeTA2007 grid, Germany only). Copy-to-clipboard button. | `measurement.js`, `projected-coords.js` |
+| Touch | On touchscreens a tap places clip points; Finish / Cancel bars replace right-click, Enter and Esc for clipping and measuring. | `touch-draw.js` |
 
 ---
 
@@ -93,7 +105,7 @@
 | Polygon Clipping | Draw arbitrary polygons via right-click. Cyan numbered markers, dashed lines. Min 3 points. | `clipping.js` |
 | Rectangle Clipping | 3-point rectangle mode: corner 1, corner 2 (edge), corner 3 (width). Live preview. | `clipping.js` |
 | Excavation Pit | Fills each clipping hole with a pit instead of a view through the globe: walls along the polygon edge from the terrain (Google 3D Tiles surface when on) down to a floor at lowest edge height − depth, teal cut edge. "Excavation pit" on/off and "Pit depth" 2–200 m (default 20 m) in the clip options, remembered per browser. Hidden when clipping is off, inverse or in split view. | `clipping-pit.js` |
-| Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. | `clipping-planes.js` |
+| Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. Guarded against a CesiumJS crash when a plane collection is replaced. | `clipping-planes.js`, `clipping-planes-guard.js` |
 | Alignment Section | Section plane perpendicular to an IfcAlignment axis, moved by station (slider, km+m input, ±1/±10 m steps), flip, look-along-axis camera, axis line with IfcReferent markers. Self-hosted IFC tilesets with `alignments.json` from the geobim tiler. | `alignment-section.js` |
 | Cross Section (2D) | Cut edges of all elements at the alignment station as SVG in a floating panel (right of axis / above axis, grid, element hover, zoom and pan). Follows the station slider live; sliced in the browser from the tileset's GLB tiles. | `section-profile.js` |
 | Placement save | Lon / Lat / Height fields for self-hosted IFC tilesets (synced with the gizmo), non-georeferenced tilesets load at the view centre like GLBs; owner-only "Save position" / "Reset" for tilesets (tileset.json root.transform) and GLBs (model/placements.json), verified server-side via Firebase ID token. | `placement-save.js`, `api/placement-save.php` |
@@ -132,7 +144,9 @@
 | Comment Fly-To | Click comment in list to fly camera to annotation location. | `comments.js` |
 | Edit & Delete | Edit existing comments via dialog. Delete individual or all comments. | `comments.js` |
 | Visibility Toggle | Show/hide all comments at once. | `comments.js` |
-| Comment Dialog | Modal with title, text, category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html` |
+| Comment Dialog | Modal with title, text, category, and priority selectors. Auto-positioned near click location. | `comments.js`, `index.html`, `ui-comments-section.js` |
+| BCF Export | Comments as BCF 2.1 ZIP (schema-compliant) with viewpoint and snapshot. | `bcf-export.js` |
+| Inspection | Bridge / infrastructure inspection data on comments (condition rating, damage data) and an inspection report. | `inspection.js`, `inspection-report.js` |
 
 ---
 
@@ -152,7 +166,10 @@
 | Save View | Capture camera position, orientation, Google Tiles state, and clipping state. | `features.js` |
 | Load View | Restore saved view with camera and scene state. Keys 1–9 for quick load. | `features.js` |
 | Delete View | Remove saved view by slot number. | `features.js` |
-| View List | UI list showing slot number, capture time, and altitude. | `features.js`, `ui.js` |
+| View List | UI list showing slot number, capture time, and altitude. | `features.js`, `ui.js`, `ui-views-section.js` |
+| Keys 1–9 | Load the saved view in that slot (not while walking, measuring, commenting or typing); a new view takes the lowest free slot. | `view-flights.js` |
+| Camera Flights | Orbit, fly over or a tour through the saved views, with selectable duration; Esc, Stop or any input in the view ends it. | `view-flights.js` |
+| Screenshot | PNG of the 3D view with logo and the data credits drawn in; toolbar button or **F9**. | `screenshot.js` |
 
 ---
 
@@ -168,6 +185,18 @@
 
 ---
 
+## 11a. Share a Scene with a Link
+
+| Feature | Description | Files |
+|---|---|---|
+| Share Link | Owner creates an unguessable link (`/s/<token>`, 128 bit) for a saved scene; the server freezes and cleans the scene (only self-hosted models of this site, open terrain and basemaps, no Cesium ion). Optional expiry date, revocable. | `scenes-share.js`, `api/share-*.php`, `api/_shares.php` |
+| Customer View | No account, no login: the scene loads with its models, the customer can navigate, pick a base map, measure, comment and look at sun & shadows (always the panel UI: rail with Layers (base maps only), Visibility (hide elements by click, H), Measure, Comments and Sun & time; reduced Loaded list per model: fly to, show/hide and the section tool (IfcAlignment axis, line, plan); Home flies back to the shared view; no bottom toolbar; walk, transform and saved-view shortcuts blocked); file drops are blocked. | `share-view.js` |
+| Model Access | Opening a link sets the HttpOnly cookie `geobim_share`; `model-file.php` and `models.php` then allow exactly the link's models, until it is revoked or expires. | `api/_shares.php`, `api/model-file.php`, `api/models.php` |
+| Customer Comments | Stored per link in Firestore `share_comments/<token>/comments`; the owner reads and deletes them in the share dialog, and sees them live in the viewer when loading the scene (3D markers and "Customer" entries in the comments list; fly to, edit, delete). Rules: see `DEPLOYMENT.md`. | `share-view.js`, `scenes-share.js`, `share-comments-host.js`, `comments.js` |
+| Per Site | Links live in `model/.shares/` of each site: a beta link does not work on geobim.app and vice versa. | `api/_shares.php` |
+
+---
+
 ## 11b. Demo Scenes
 
 | Feature | Description | Files |
@@ -179,15 +208,13 @@
 
 ---
 
-## 11a. Share a Scene with a Link
+## 11c. Scenes
 
 | Feature | Description | Files |
 |---|---|---|
-| Share Link | Owner creates an unguessable link (`/s/<token>`, 128 bit) for a saved scene; the server freezes and cleans the scene (only self-hosted models of this site, open terrain and basemaps, no Cesium ion). Optional expiry date, revocable. | `scenes-share.js`, `api/share-*.php`, `api/_shares.php` |
-| Customer View | No account, no login: the scene loads with its models, the customer can navigate, pick a base map, measure, comment and look at sun & shadows (always the panel UI: rail with Layers (base maps only), Visibility (hide elements by click, H), Measure, Comments and Sun & time; reduced Loaded list per model: fly to, show/hide and the section tool (IfcAlignment axis, line, plan); Home flies back to the shared view; no bottom toolbar; walk, transform and saved-view shortcuts blocked); file drops are blocked. | `share-view.js` |
-| Model Access | Opening a link sets the HttpOnly cookie `geobim_share`; `model-file.php` and `models.php` then allow exactly the link's models, until it is revoked or expires. | `api/_shares.php`, `api/model-file.php`, `api/models.php` |
-| Customer Comments | Stored per link in Firestore `share_comments/<token>/comments`; the owner reads and deletes them in the share dialog, and sees them live in the viewer when loading the scene (3D markers and "Customer" entries in the comments list; fly to, edit, delete). Rules: see `DEPLOYMENT.md`. | `share-view.js`, `scenes-share.js`, `share-comments-host.js`, `comments.js` |
-| Per Site | Links live in `model/.shares/` of each site: a beta link does not work on geobim.app and vice versa. | `api/_shares.php` |
+| Save & Load | Save the current state as a scene (camera, assets with visibility, base map / Google 3D Tiles, terrain, sun time, site analysis); load, update, rename, delete, new empty scene. Loading replaces the current state; whatever cannot be restored is listed afterwards. | `scenes.js`, `ui-scenes-section.js` |
+| Desktop Format | Same JSON as geoBIM Desktop's `SavedScenes.json`; import / export as a file. Fields the web does not restore yet (hidden elements, cuts, measurements, annotations, placements) are kept in the file. | `scenes.js` |
+| Storage | Signed in: Firestore collection `scenes` (one document per scene); guests: localStorage; on a Firestore error localStorage per account. | `scenes-store.js` |
 
 ---
 
@@ -209,6 +236,8 @@
 | FXAA | Fast approximate anti-aliasing toggle. | `core.js` |
 | MSAA | Multi-sample anti-aliasing (4x, Ultra preset only). | `core.js` |
 | HDR | High dynamic range rendering toggle. | `core.js` |
+| Atmosphere Presets | Named sky / globe atmosphere presets combined with post-processing (used by the WEA digital twin). | `atmosphere.js` |
+| Lighting Section | Sun, shadows, AO and time controls; date & time in local civil time in the panel UI. | `ui-lighting-section.js` |
 
 ---
 
@@ -236,7 +265,9 @@
 | Distance Attenuation | Scale points by camera distance. Max attenuation factor 1–10. | `pointcloud.js` |
 | Geometric Error Scale | LOD quality multiplier (0.5–3.0). | `pointcloud.js` |
 | Back Face Culling | Performance toggle for culling back-facing points. | `pointcloud.js` |
-| Presets | Quality (EDL 1.5x, size 3), Performance (no EDL, size 1.5), Detailed (EDL 2x, size 4). | `pointcloud.js` |
+| Presets | Quality (EDL 1.5x, size 3), Performance (no EDL, size 1.5), Detailed (EDL 2x, size 4). | `pointcloud.js`, `ui-pointcloud-section.js` |
+| Hide Classes | Switch ASPRS classes on/off. | `pointcloud.js` |
+| Auto Colour | Point clouds without colours (RGB = 0 from py3dtiles) show classification or intensity instead of black. | `pointcloud-autocolor.js` |
 
 ---
 
@@ -292,6 +323,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | Tileset-Level Settings | `maximumScreenSpaceError`, `maximumCacheSize`, `skipLevelOfDetail`, `cullRequestsWhileMoving`, `preloadWhenHidden`, `dynamicScreenSpaceError` applied per tileset. | `core.js` |
 | Google 3D Tiles Protection | `skipLevelOfDetail` forced false for Google tiles to prevent black crack artifacts. | `core.js` |
 | New Asset Auto-Config | Newly loaded tilesets automatically receive current performance preset settings. | `core.js` |
+| Settings Section | Performance preset, post-processing, silhouette, ambient occlusion, IBL, underground view; VR settings when a headset is available. | `ui-settings-section.js` |
 
 ---
 
@@ -299,29 +331,39 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 | Feature | Description | Files |
 |---|---|---|
-| Collapsible Sidebar | 12 sections with icons. Only Assets section open by default. Toggle via M key. | `ui.js` |
-| Per-Asset Controls | Visibility, zoom, opacity slider, z-offset slider, unload button per loaded asset. | `ui.js` |
+| Panel UI (default) | Icon rail on the left with floating panels (one section per panel, shared with the classic UI, never cloned); account panel at the top; search bar instead of the Cesium geocoder; date & time in Sun & time instead of the timeline. Default on every host; share links always use it. | `panels-ui.js`, `panels-ui.css`, `panels-ui-loader.js` |
+| Phone Layout | ≤ 720 px: bottom tab bar (Assets, Layers, Measure, Sun & time, More), panels as bottom sheets (swipe down to close); Walk and Transform under More. | `panels-ui.js` |
+| Classic Sidebar | Collapsible sidebar with sections and a bottom toolbar (Measure & Clip, Visibility, Lighting, Walk, Transform, Screenshot, Help); "Switch to classic sidebar" or `?ui=classic`, remembered per browser; "New interface" switches back. WEA shadow, Bridge Inspector and StageTwin stay classic. | `ui.js`, `ui-*-section.js`, `panels-ui-loader.js` |
+| Toggle with M | Hides / shows the rail and panels (classic: the sidebar). | `panels-ui.js`, `ui.js` |
+| Per-Asset Controls | Loaded list per model: fly to, show/hide, remove, sequencing / 4D, section tool, details with opacity and z-offset. | `ui.js`, `ui-helpers-modern.js` |
 | Status Messages | Floating notifications (success/error/warning/loading) with auto-dismiss. | `core.js` |
-| Mode Indicators | Overlay text for active modes: Drawing, Hide, Comment. | various |
-| User Badge | Logged-in user email display with logout button in header. | `ui.js` |
+| Mode Indicators | Overlay text for active modes: Drawing, Hide, Comment, Isolate, Walk. | various |
 | Empty States | Placeholder messages when no assets, comments, or hidden features exist. | `ui-helpers-modern.js` |
 
-### Toolbar Sections
+### Sections
 
-| # | Icon | Section | Content |
+Panel UI rail (Lucide icon) and classic sidebar show the same sections; the panel UI groups them on the rail.
+
+| Section | Icon | Content | Files |
 |---|---|---|---|
-| 1 | 📦 | Assets | Ion asset selector, loaded asset cards |
-| 2 | 🗺️ | Layer Manager | Basemap switcher, terrain picker, OSM/Google toggles |
-| 3 | ☁️ | Point Cloud | EDL, point size, color mode, presets |
-| 4 | 📏 | Measure & Clip | Measurement tools, clipping polygon/rectangle, controls |
-| 5 | 💬 | Comments | Comment/area toggle, visibility, recent list |
-| 6 | 👁️ | Visibility | Hide mode toggle, hidden elements list |
-| 7 | 🏗️ | IFC Filter | Entity checkboxes with select all/none |
-| 8 | 🏢 | Revit Filter | Category checkboxes with select all/none |
-| 9 | ↔️ | Split View | Enable/disable, slider control |
-| 10 | 📷 | Saved Views | View list with load/delete, keys 1–9 |
-| 11 | ☀️ | Lighting | Dynamic lighting, time, IBL, SSAO controls |
-| 12 | ⚙️ | Settings | Performance preset, camera home, globe fade, fullscreen |
+| Account & layout | `user` | Sign in / out, Cesium ion connection, switch to classic sidebar | `panels-ui.js`, `account-ui.js` |
+| Assets | `box` | Ion assets, server models, iTwin, Esri ArcGIS, upload, loaded list | `ui-assets-section.js` |
+| Layers | `layers` | Terrain, base maps, OGC services, GIS files, 3D layers | `ui-layer-section.js` |
+| Point Cloud Settings | `cloud` | EDL, point size, colour mode, classes, presets | `ui-pointcloud-section.js` |
+| Gaussian Splats | | Splat loading and placement (not for guests) | `ui-splat-section.js` |
+| Model filter | `building-2` | IFC / Revit filter, storeys, isolate | `ui-ifc-section.js`, `ui-revit-section.js`, `model-scope.js` |
+| Visibility | `eye` | Hide mode, hidden elements list | `ui-visibility-section.js` |
+| Annotations | `message-square` | Comments, area annotations, BCF export | `ui-comments-section.js` |
+| Inspection | | Inspection workflow (not for guests) | `inspection.js` |
+| Measure | `ruler` | Measurement tools | `ui-drawing-section.js` |
+| Clip | `scissors` | Clipping polygon / rectangle, excavation pit | `ui-clipping-extension.js`, `clipping-pit.js` |
+| Site Analysis | `mountain` | Terrain analysis and grading | `ui-site-section.js` |
+| Split view | `columns-2` | Split screen, side per asset, left base map | `ui-split-section.js` |
+| Sun & time | `sun` | Lighting, shadows, date & time | `ui-lighting-section.js` |
+| Saved views | `bookmark` | Views, keys 1–9, camera flights | `ui-views-section.js` |
+| Scenes | `clapperboard` | Scenes, demo scenes, share links | `ui-scenes-section.js` |
+| Settings | `settings` | Performance, rendering, VR settings | `ui-settings-section.js` |
+| About & help | `info` | About, shortcuts, feedback, tour | `ui-about-section.js` |
 
 ---
 
@@ -329,7 +371,17 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 | Key | Action | File |
 |---|---|---|
-| **M** | Toggle sidebar | `ui.js` |
+| **M** | Toggle panels / sidebar | `panels-ui.js`, `ui.js` |
+| **G** | Toggle first-person walk mode | `firstperson.js` |
+| **V** | In walk mode: switch first / third person | `thirdperson.js` |
+| **T** | Set Player Start | `thirdperson.js` |
+| **WASD**, **Shift**, **Q/E** | Walk, sprint, up / down (walk mode) | `firstperson.js` |
+| **X** | Transform mode (move / rotate assets) | `glb-gizmo.js` |
+| **I** | Isolate the selected element | `model-scope.js` |
+| **Shift+I** | End isolate | `model-scope.js` |
+| **F9** | Screenshot as PNG | `screenshot.js` |
+| **W** | Toggle WEA shadow panel (not in walk mode) | `wea-shadow.js` |
+| **B** | Toggle SIB bridge generator panel | `sib.js` |
 | **H** | Toggle hide mode | `hideFeatures.js` |
 | **Shift+H** | Show all hidden elements | `hideFeatures.js` |
 | **C** | Toggle point comment mode | `comments.js` |
@@ -340,8 +392,10 @@ the credit is rendered. Links must remain active and clickable per the license.
 | **ESC** | Cancel drawing/annotation/clipping | `clipping.js`, `comments.js` |
 | **DELETE** | Remove last clipping polygon | `clipping.js` |
 | **F** | Flip last polygon orientation | `clipping.js` |
-| **V** | Toggle clipping visualization | `clipping.js` |
-| **1–9** | Load saved view slot | `features.js` |
+| **V** | Toggle clipping visualization (not in walk mode) | `clipping.js` |
+| **1–9** | Load saved view slot | `view-flights.js` |
+| **ESC** | Also: stop a camera flight, exit walk / transform / isolate | `view-flights.js`, `firstperson.js`, `glb-gizmo.js`, `model-scope.js` |
+| **Backspace** | Remove the last point while drawing a site | `site-analysis.js` |
 | **Shift+PageUp** | Raise all visible assets +1m | `ui-z-offset-extension.js` |
 | **Shift+PageDown** | Lower all visible assets -1m | `ui-z-offset-extension.js` |
 
@@ -391,11 +445,12 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
-## 21. EGM96 Geoid Module
+## 21. Geoid Module (EGM96 / GCG2016)
 
 | Feature | Description | Files |
 |---|---|---|
-| Geoid Undulation Lookup | Converts WGS84 ellipsoidal heights to orthometric heights using EGM96 grid. | `geoid.js`, `data/egm96-1deg.json` |
+| Geoid Undulation Lookup | Converts WGS84 ellipsoidal heights to orthometric heights: GCG2016 (BKG) inside Germany, so "above sea level" is NHN (DHHN2016); EGM96 grid elsewhere. | `geoid.js`, `data/egm96-1deg.json`, `mapterhorn-terrain.js` |
+| Geoid Terrain | 3D visualisation of the EGM2008 geoid as terrain (not for guests). | `geoid_terrain.js` |
 | Coordinate Picker Integration | Shows geoid undulation and height above sea level in coordinate picker results. | `measurement.js`, `geoid.js` |
 
 ---
@@ -407,6 +462,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | Stage Animation | Animate construction stages via IFC `stage` property (pset_StageInfo). Elements without a stage remain always visible. | `sequencing.js` |
 | Timeline Controls | Play/pause, stage slider, auto-play, adjustable speed. | `sequencing.js` |
 | Property Detection | Searches multiple property name variants (stage, psetStageInfostage, pset_StageInfo_stage, Stage). | `sequencing.js` |
+| Construction Schedule (4D) | Plays the IFC schedule (`IfcWorkSchedule` / `IfcTask` / `IfcTaskTime`, `schedule.json` from the geobim tiler) along a dated timeline: hidden before construction, orange while built, red while demolished; calendar button on the asset card. | `construction-schedule.js` |
 | StageTwin | Shareable view at `/stage-twin` without login: loads Ion asset 4538820 and starts the sequencing timeline, sidebar and toolbar hidden. Planned-state only for now. | `stage-twin.js` |
 
 ---
@@ -434,6 +490,16 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
+## 25. VR Mode (WebXR)
+
+| Feature | Description | Files |
+|---|---|---|
+| VR Mode | "VR" button (bottom toolbar / rail) when the browser reports `immersive-vr` (Meta Quest browser): own XR session on Cesium's WebGL context, single-pass stereo, VR render profile; starts on the ground below the camera or above the screen centre from the globe view. Exit: hold Y, system menu or the monitor button. | `webxr.js` |
+| Movement | Left stick flies where the controller points, grip / trigger up / down, right stick snap or smooth turn and teleport arc; vignette while moving. | `webxr-locomotion.js` |
+| VR Settings | Resolution, smoothing, detail, turn mode, speed and comfort options in Settings and on the monitor while VR runs; remembered per browser. | `webxr-settings.js` |
+
+---
+
 ## Module Reference
 
 | File | Purpose |
@@ -441,7 +507,9 @@ the credit is rendered. Links must remain active and clickable per the license.
 | `config.js` | Firebase credentials (gitignored) |
 | `config.example.js` | Template for config.js |
 | `auth.js` | Demo mode authentication, Ion token management, Firestore init |
-| `auth-gate.js` | Optional email/password login overlay |
+| `auth-gate.js` | Guest start and the closable email/password sign-in dialog |
+| `owner-session.js` | Owner session cookie for `model/` |
+| `guest-no-ion.js` | Guests without Cesium ion (open terrain, open base maps, Nominatim search) |
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views, silhouette |
 | `hideFeatures.js` | Click-to-hide individual elements with undo |
@@ -455,10 +523,36 @@ the credit is rendered. Links must remain active and clickable per the license.
 | `arcgis.js` | Esri base maps, ArcGIS MapServer layers, World Elevation terrain, I3S scene layers |
 | `lighting.js` | Dynamic shadows, atmosphere, time-based sun positioning |
 | `ibl.js` | Image-based lighting via spherical harmonics and KTX2 cubemaps |
-| `ui.js` | Main toolbar with 12 collapsible sections, event handlers, asset UI |
+| `ui.js` | Classic sidebar and bottom toolbar, section registry, asset UI |
+| `panels-ui-loader.js` | Chooses panel UI (default) or classic sidebar |
+| `panels-ui.js` | Panel UI: icon rail, floating panels, phone layout, search bar, panel tour |
+| `ui-about-section.js`, `ui-comments-section.js`, `ui-drawing-section.js`, `ui-ifc-section.js`, `ui-lighting-section.js`, `ui-pointcloud-section.js`, `ui-revit-section.js`, `ui-scenes-section.js`, `ui-settings-section.js`, `ui-split-section.js`, `ui-views-section.js`, `ui-visibility-section.js` | Content of one section each (shared by classic sidebar and panel UI) |
+| `about-feedback.js` | About dialog (features, shortcuts, version) and feedback form |
+| `onboarding.js` | Onboarding tour |
+| `screenshot.js` | PNG screenshot with logo and credits (F9) |
+| `view-flights.js` | Keys 1–9 and camera flights for saved views |
+| `touch-draw.js` | Touch input for clipping and measuring |
+| `glb-gizmo.js` | Transform mode: move / rotate assets (X) |
+| `model-scope.js` | Storey filter and isolate (I) |
+| `construction-schedule.js` | 4D construction schedule from the IFC |
+| `scenes-store.js` | Scenes in Firestore / localStorage |
+| `gis-files.js` | Local GIS vector files on the map |
+| `gis-track-player.js` | GPX track as a camera flight |
+| `ion-layer-assets.js` | Ion terrain / imagery assets in the Layers section |
+| `itwin-auth.js`, `itwin-models.js`, `itwin-display.js` | Bentley sign-in, own iModels, display fixes for iModel mesh exports |
+| `bcf-export.js` | BCF 2.1 export of comments |
+| `inspection.js`, `inspection-report.js` | Inspection data on comments and the inspection report |
+| `pointcloud-autocolor.js` | Colour for point clouds without RGB |
+| `clipping-planes-guard.js` | Workaround for a CesiumJS crash when clipping plane collections are replaced |
+| `atmosphere.js` | Sky and atmosphere presets |
+| `webxr.js`, `webxr-locomotion.js`, `webxr-settings.js` | VR mode, VR movement, VR settings |
+| `bridge-inspector.js` | Bridge Inspector demo at `/bridge-inspector` |
+| `sib.js` | SIB parametric bridge generator (GLB from SIB data, key B) |
 | `sensorthings.js` | OGC SensorThings API module — live MQTT monitoring, sparklines, damage detection |
 | `iot.js` | Pegelonline IoT live module — water level, temperature markers |
-| `geoid.js` | EGM96 geoid undulation lookup for coordinate picker |
+| `geoid.js` | Geoid undulation (GCG2016 in Germany, EGM96 elsewhere) for heights above sea level |
+| `geoid_terrain.js` | EGM2008 geoid as 3D terrain visualisation |
+| `projected-coords.js` | UTM and Gauß-Krüger coordinates |
 | `measurement-store.js` | Measurement persistence in Firestore |
 | `clipping-planes.js` | Per-asset axis-aligned clipping planes (X/Y/Z) |
 | `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
@@ -466,11 +560,11 @@ the credit is rendered. Links must remain active and clickable per the license.
 | `ui-clipping-extension.js` | Clipping section UI controls |
 | `ui-z-offset-extension.js` | Z-offset UI controls, global keyboard offset |
 | `ui-lighting-standalone.js` | Lighting UI integration |
-| `index.html` | Splash screen (v3.0 tabbed), comment dialog, script loading, Plausible analytics |
+| `index.html` | Page skeleton, comment dialog, script loading (order matters), Plausible analytics |
 
 ---
 
-## 15. Walk Mode & Third-Person Navigation
+## 26. Walk Mode & Third-Person Navigation
 
 | Feature | Description | Files |
 |---|---|---|
@@ -486,7 +580,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
-## 16. WEA Shadow Analysis
+## 27. WEA Shadow Analysis
 
 | Feature | Description | Files |
 |---|---|---|
@@ -496,35 +590,33 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
-## 17. Demo Mode
+## 28. Demo Mode
 
 | Feature | Description | Files |
 |---|---|---|
 | Full-Access Demo | Guest session at `/demo` with all public tools, no login, no time limit (same rules as guest access). | `demo.js` |
 | Demo Banner | Banner with a sign-in link that opens the sign-in dialog. | `demo.js` |
 | About Auto-Open | About dialog opens automatically for new demo users. | `demo.js` |
+| Bridge Inspector | `/bridge-inspector`: bridge inspection workflow without login, trimmed sidebar (Assets, Layers, Annotations, Inspection, Saved Views), own tour. | `bridge-inspector.js` |
 
 ---
 
-## 18. Onboarding & QA
+## 29. Onboarding & QA
 
 | Feature | Description | Files |
 |---|---|---|
-| Guided Tour | 6-step spotlight tour with Next/Back/Skip, localStorage persistence. | `onboarding.js` |
-| QA Check Script | Automated 10-section pre-release quality checks. | `qa-check.sh` |
-| QA Checklist | 80-point manual browser test checklist. | `QA-CHECKLIST.md` |
+| Guided Tour | Spotlight tour with Next/Back/Skip, localStorage persistence (see section 1). | `onboarding.js`, `panels-ui.js` |
+| QA Check Script | Automated pre-release checks, including version consistency and this file: every script in `index.html` must appear here and the footer must carry the CHANGELOG version. | `qa-check.sh` |
+| QA Checklist | Manual browser test checklist, including the release documentation. | `QA-CHECKLIST.md` |
 
 ---
 
-## UI Architecture (v1.7.0)
+## Design System
 
 | Component | Purpose | Files |
 |---|---|---|
-| Sidebar (left) | Data tools: Assets, Layers, Annotations, Inspection, IFC/Revit Filter, Split View, Saved Views, Settings | `ui.js` |
-| Bottom Toolbar | Action tools: Measure, Visibility, Lighting, Walk Mode, Help | `ui.js` |
-| Floating Panels | InfoBox, Comments, Assets, WEA Shadow, Sequencing Timeline | `ui-helpers-modern.js`, `style.css` |
-| Lucide Icons | SVG icon library replacing emoji-based UI. | `index.html`, `ui.js` |
-| Design Tokens | CSS variables for spacing, radius, shadows, input surfaces. | `style.css` |
+| Lucide Icons | SVG icons, no emojis as UI icons. | `index.html`, `ui.js` |
+| Design Tokens | CSS variables for colours (`--brand-teal`), spacing, radius, shadows, input surfaces. | `style.css` |
 | Contextual Cursors | Crosshair (measure), Cell (clip), Copy (comment), Pointer (hide). | `ui.js`, `style.css` |
 
 ---
