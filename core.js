@@ -1808,7 +1808,8 @@ const BimViewer = {
         // (className, globalId, Pset_*): detect them like the Ion loading path
         // does (see ~1190), so IFC filters, sequencing and StageTwin apply.
         setTimeout(async () => {
-          if (assetData.isPointCloud || assetData.ifcPropertyName ||
+          // the asset may be gone already (scene switched within 4.5 s)
+          if (tileset.isDestroyed() || assetData.isPointCloud || assetData.ifcPropertyName ||
               typeof this.detectIFCProperties !== 'function') return;
           const detected = await this.detectIFCProperties(tileset);
           if (detected) {
