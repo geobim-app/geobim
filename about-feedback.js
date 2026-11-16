@@ -18,7 +18,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '1.12.0';
+  const APP_VERSION = '2.0.0';
 
   // =====================================
   // ABOUT DIALOG
@@ -85,7 +85,7 @@
                 <span class="about-feature-icon">🏗️</span>
                 <div>
                   <strong>IFC & Revit Models</strong>
-                  <span>Load BIM models as 3D Tiles via Cesium Ion</span>
+                  <span>Load BIM models as 3D Tiles, self-hosted or via Cesium ion</span>
                 </div>
               </div>
               <div class="about-feature-item">
@@ -249,6 +249,69 @@
                   <span>Shareable 4D construction-stage view without login (/stage-twin)</span>
                 </div>
               </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="clapperboard"></i></span>
+                <div>
+                  <strong>Scenes</strong>
+                  <span>Save camera, models, terrain, base map and sun; same scene format as the desktop app</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="share-2"></i></span>
+                <div>
+                  <strong>Share Links</strong>
+                  <span>Customers open a scene without an account, measure and comment; comments appear live in your viewer</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="monitor-play"></i></span>
+                <div>
+                  <strong>Demo Scenes</strong>
+                  <span>Seven ready-made scenes for everyone, also without sign-in</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="calendar-clock"></i></span>
+                <div>
+                  <strong>4D Construction Schedule</strong>
+                  <span>Construction schedule from the IFC (IfcTask) as an animation</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="glasses"></i></span>
+                <div>
+                  <strong>VR Mode</strong>
+                  <span>WebXR in the Meta Quest browser, with movement</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="mountain-snow"></i></span>
+                <div>
+                  <strong>Open Terrain &amp; Base Maps</strong>
+                  <span>Mapterhorn terrain, TopPlusOpen, basemap.de, Bavarian maps, Esri &mdash; no Cesium ion needed</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="globe"></i></span>
+                <div>
+                  <strong>ArcGIS &amp; iTwin</strong>
+                  <span>Esri layers, World Elevation, I3S scene layers and Bentley iTwin iModels</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="map"></i></span>
+                <div>
+                  <strong>GIS Files</strong>
+                  <span>GeoJSON, Shapefile, KML/KMZ, GPX and FlatGeobuf by drag &amp; drop</span>
+                </div>
+              </div>
+              <div class="about-feature-item">
+                <span class="about-feature-icon"><i data-lucide="panels-top-left"></i></span>
+                <div>
+                  <strong>Panel Interface</strong>
+                  <span>Icon rail with floating panels (default), works on phones; classic sidebar optional</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -273,6 +336,7 @@
               <div class="about-shortcut"><kbd>M</kbd><span>Toggle sidebar</span></div>
               <div class="about-shortcut"><kbd>H</kbd><span>Toggle hide mode (click to hide elements)</span></div>
               <div class="about-shortcut"><kbd>Shift + H</kbd><span>Restore all hidden elements</span></div>
+              <div class="about-shortcut"><kbd>I</kbd><span>Isolate selected element (Shift + I or Esc to exit)</span></div>
               <div class="about-shortcut"><kbd>C</kbd><span>Toggle comment mode</span></div>
               <div class="about-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets, Esc to exit)</span></div>
               <div class="about-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>
