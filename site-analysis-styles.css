@@ -209,6 +209,13 @@
   margin-top: 1px;
 }
 
+/* Explains a resolved setting (grading direction along the terrain) */
+.sa-hint {
+  margin: 0 0 var(--space-xs);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 /* ---- Layer rows ---- */
 
 .sa-layer {

@@ -999,6 +999,10 @@
   // slope ratios 1:nC (cut) and 1:nF (fill), d = distance to the polygon
   // (0 inside), existing height T:
   //   R = min(max(T, t − d/nF), t + d/nC)
+  // A planum with a gradient g (fraction) falling towards bearing β is the
+  // plane P(x, y) = t − g·(x·sin β + y·cos β), t its height at the site centre
+  // (frame origin). Inside the polygon R = P(x, y); outside, the slopes start
+  // at the planum height of the nearest edge point: t → P(nearest point).
   // Outside the slopes R = T. The grading grid covers the polygon plus a band
   // wide enough for the slopes; T always comes from the unchanged terrain.
   // ===============================
@@ -1024,6 +1028,80 @@
     return m;
   }
 
+  // [distance, x, y] of the nearest polygon point (the point itself inside)
+  function polyNearest(x, y, pts) {
+    if (inRing(x, y, pts)) return [0, x, y];
+    var best = [Infinity, x, y];
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var ax = pts[j][0], ay = pts[j][1], dx = pts[i][0] - ax, dy = pts[i][1] - ay, l2 = dx * dx + dy * dy;
+      var u = l2 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
+      u = u < 0 ? 0 : (u > 1 ? 1 : u);
+      var qx = ax + u * dx, qy = ay + u * dy, dd = Math.hypot(x - qx, y - qy);
+      if (dd < best[0]) best = [dd, qx, qy];
+    }
+    return best;
+  }
+
+  var COMPASS = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+  function bearingName(b) { return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Number(b) || 0) % 360 + 360) % 360 / 45) % 8]; }
+
+  // Planum offset P − t at a local point, or null for a level planum
+  function planumOffsetFn(gr) {
+    var g = (Number(gr.gradient) || 0) / 100;
+    if (!g) return null;
+    var b = (Number(gr.bearing) || 0) * Math.PI / 180, sx = g * Math.sin(b), sy = g * Math.cos(b);
+    return function(x, y) { return -(x * sx + y * sy); };
+  }
+
+  // Downhill bearing and gradient of the plane fitted to the site's heights
+  // (least squares z = a + b·x + c·y over the cells inside the polygon)
+  function terrainFit(site) {
+    var g = site.grid;
+    if (!g) return null;
+    var n = 0, sx = 0, sy = 0, sz = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0;
+    for (var k = 0; k < g.h.length; k++) {
+      if (!g.inside[k] || !isFinite(g.h[k])) continue;
+      var i = k % g.nx, j = (k - i) / g.nx, x = cellX(g, i), y = cellY(g, j), z = g.h[k];
+      n++; sx += x; sy += y; sz += z; sxx += x * x; syy += y * y; sxy += x * y; sxz += x * z; syz += y * z;
+    }
+    if (n < 3) return null;
+    var mx = sx / n, my = sy / n, mz = sz / n;
+    var cxx = sxx / n - mx * mx, cyy = syy / n - my * my, cxy = sxy / n - mx * my, cxz = sxz / n - mx * mz, cyz = syz / n - my * mz;
+    var det = cxx * cyy - cxy * cxy;
+    if (Math.abs(det) < 1e-9) return null;
+    var b = (cxz * cyy - cyz * cxy) / det, c = (cyz * cxx - cxz * cxy) / det;
+    var bearing = (Math.atan2(-b, -c) * 180 / Math.PI + 360) % 360;
+    return { bearing: Math.round(bearing), percent: Math.hypot(b, c) * 100 };
+  }
+
+  // Bearing the planum falls towards: a compass direction or along the terrain
+  function resolveBearing(site, gr) {
+    if (gr.dir === 'terrain') {
+      var f = terrainFit(site);
+      gr.terrain = f;
+      return f ? f.bearing : 0;
+    }
+    gr.terrain = null;
+    return COMPASS[gr.dir] !== undefined ? COMPASS[gr.dir] : 0;
+  }
+
+  // Per-cell planum offset of the grading grid (from the nearest polygon point)
+  function ensureOffsets(gr) {
+    var gg = gr.grid, key = (Number(gr.gradient) || 0) + '/' + (Number(gr.bearing) || 0);
+    if (gg.offKey === key) return;
+    var off = planumOffsetFn(gr);
+    gg.O = null;
+    if (off) {
+      gg.O = new Float32Array(gg.T.length);
+      for (var k = 0; k < gg.T.length; k++) if (gg.D[k] <= gg.W) gg.O[k] = off(gg.PX[k], gg.PY[k]);
+    }
+    gg.offKey = key;
+  }
+
+  function gradeCell(gg, k, t, nC, nF) {
+    return gradeHeight(gg.T[k], gg.D[k], gg.O ? t + gg.O[k] : t, nC, nF);
+  }
+
   function gradeHeight(T, d, t, nC, nF) {
     return Math.min(Math.max(T, t - d / nF), t + d / nC);
   }
@@ -1035,7 +1113,7 @@
     for (var k = 0; k < gg.T.length; k++) {
       var d = gg.D[k], T = gg.T[k];
       if (!(d <= gg.W) || !isFinite(T)) continue;
-      var diff = T - gradeHeight(T, d, t, nC, nF);
+      var diff = T - gradeCell(gg, k, t, nC, nF);
       if (diff > 0) { r.cut += diff * a; if (d === 0) r.cutPlanum += diff * a; }
       else if (diff < 0) { r.fill -= diff * a; if (d === 0) r.fillPlanum -= diff * a; }
       if (Math.abs(diff) > CUT_EPS || d === 0) {
@@ -1054,8 +1132,9 @@
     var lo = Infinity, hi = -Infinity;
     for (var k = 0; k < gg.T.length; k++) {
       if (gg.D[k] !== 0 || !isFinite(gg.T[k])) continue;
-      if (gg.T[k] < lo) lo = gg.T[k];
-      if (gg.T[k] > hi) hi = gg.T[k];
+      var tk = gg.O ? gg.T[k] - gg.O[k] : gg.T[k];   // t that puts the planum on this cell
+      if (tk < lo) lo = tk;
+      if (tk > hi) hi = tk;
     }
     for (var it = 0; it < 50; it++) {
       var mid = (lo + hi) / 2, v = gradingVolumes(gg, mid, nC, nF);
@@ -1066,26 +1145,30 @@
 
   function newGrading() {
     return { levelMode: 'balanced', level: null, slopeCut: SLOPE_DEFAULT.cut, slopeFill: SLOPE_DEFAULT.fill,
+             gradient: 0, dir: 'terrain', bearing: 0, terrain: null,
              applied: true, depth: false, grid: null, result: null, entities: [] };
   }
 
   // Band width for the slopes: the full height range of the site times the
   // flatter ratio, plus two cells
   function gradingBand(site, gr) {
-    var st = site.grid.stats;
-    return Math.min(GRADING_MAX_BAND, (st.max - st.min + 2) * Math.max(gr.slopeCut, gr.slopeFill) + 2 * site.grid.cell);
+    var st = site.grid.stats, span = 0;
+    site.local.forEach(function(p) { span = Math.max(span, Math.hypot(p[0], p[1])); });
+    var rise = (Number(gr.gradient) || 0) / 100 * 2 * span;   // planum height range across the site
+    return Math.min(GRADING_MAX_BAND, (st.max - st.min + rise + 2) * Math.max(gr.slopeCut, gr.slopeFill) + 2 * site.grid.cell);
   }
 
   // Samples the existing terrain over polygon + band (only cells within the band)
   async function sampleGradingGrid(site, W, job) {
     var plan = planGrid(site, site.grid.cell, W);
     if (!plan) throw new Error('The grading area is too large');
-    var n = plan.nx * plan.ny, D = new Float32Array(n), idx = [], lons = [], lats = [];
+    var n = plan.nx * plan.ny, D = new Float32Array(n), PX = new Float32Array(n), PY = new Float32Array(n), idx = [], lons = [], lats = [];
     for (var k = 0; k < n; k++) {
       var i = k % plan.nx, j = (k - i) / plan.nx;
       var x = cellX(plan, i), y = cellY(plan, j);
-      var d = polyDist(x, y, site.local);
+      var near = polyNearest(x, y, site.local), d = near[0];
       D[k] = d <= W ? d : Infinity;
+      PX[k] = near[1]; PY[k] = near[2];
       if (d > W) continue;
       var deg = site.frame.toDeg(x, y);
       idx.push(k); lons.push(deg[0]); lats.push(deg[1]);
@@ -1100,7 +1183,7 @@
       nx: plan.nx, ny: plan.ny, cell: plan.cell, coarsened: plan.coarsened, x0: plan.x0, yTop: plan.yTop, W: W,
       west: west, east: west + plan.nx * plan.cell / site.frame.m.lon,
       north: north, south: north - plan.ny * plan.cell / site.frame.m.lat,
-      T: T, D: D, sourceKey: site.grid.sourceKey
+      T: T, D: D, PX: PX, PY: PY, sourceKey: site.grid.sourceKey
     };
   }
 
@@ -1109,6 +1192,7 @@
   async function computeGrading(site) {
     if (!site.grid) return;
     var gr = site.grading || (site.grading = newGrading());
+    gr.bearing = resolveBearing(site, gr);
     var W = gradingBand(site, gr);
     var needSample = !gr.grid || gr.grid.W < W || gr.grid.sourceKey !== site.grid.sourceKey || gr.grid.cell !== site.grid.cell;
     if (needSample) {
@@ -1136,16 +1220,23 @@
     drawGrading(site);
     updateTerrain();
     refreshProfileGrading();
-    status(site.name + ': planum at ' + num(gr.result.t, 2) + ' m — cut ' + num(gr.result.cut) + ' m³, fill ' + num(gr.result.fill) + ' m³', 'ok');
+    status(site.name + ': planum at ' + num(gr.result.t, 2) + ' m' + (gr.gradient ? ' (centre, ' + num(gr.gradient, 1) + ' % to ' + bearingName(gr.bearing) + ')' : '') +
+      ' — cut ' + num(gr.result.cut) + ' m³, fill ' + num(gr.result.fill) + ' m³', 'ok');
     renderSites();
     requestRender();
   }
 
   function evaluateGrading(site) {
     var gr = site.grading, gg = gr.grid;
+    ensureOffsets(gr);
     var t = gr.levelMode === 'fixed' && isFinite(gr.level) && gr.level !== null ? Number(gr.level) : gradingBalanced(gg, gr.slopeCut, gr.slopeFill);
     var v = gradingVolumes(gg, t, gr.slopeCut, gr.slopeFill);
     v.t = t;
+    v.pMin = t; v.pMax = t;
+    if (gg.O) for (var k = 0; k < gg.T.length; k++) {
+      if (gg.D[k] !== 0) continue;
+      v.pMin = Math.min(v.pMin, t + gg.O[k]); v.pMax = Math.max(v.pMax, t + gg.O[k]);
+    }
     v.cutSlopes = v.cut - v.cutPlanum;
     v.fillSlopes = v.fill - v.fillPlanum;
     return v;
@@ -1158,7 +1249,7 @@
     var n = gg.T.length, mask = new Float32Array(n);
     for (var k = 0; k < n; k++) {
       if (!(gg.D[k] <= gg.W)) continue;
-      var diff = gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      var diff = gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
       mask[k] = Math.abs(diff) > CUT_EPS || gg.D[k] === 0 ? 1 : 0;
     }
     var mg = { nx: gg.nx, ny: gg.ny, h: mask, need: new Uint8Array(n).fill(1) };
@@ -1180,9 +1271,9 @@
     });
     if (gr.depth) {
       var p = palette(), dmax = 0;
-      for (k = 0; k < n; k++) if (mask[k]) dmax = Math.max(dmax, Math.abs(gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill)));
+      for (k = 0; k < n; k++) if (mask[k]) dmax = Math.max(dmax, Math.abs(gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill)));
       var canvas = rasterCanvas({ nx: gg.nx, ny: gg.ny, h: gg.T, inside: mask }, function(k2) {
-        var diff = gg.T[k2] - gradeHeight(gg.T[k2], gg.D[k2], r.t, gr.slopeCut, gr.slopeFill);
+        var diff = gg.T[k2] - gradeCell(gg, k2, r.t, gr.slopeCut, gr.slopeFill);
         if (Math.abs(diff) < CUT_EPS) return [p.grade[0], p.grade[1], p.grade[2], 70];
         var c = diff > 0 ? p.cut : p.fill;
         return [c[0], c[1], c[2], Math.round(90 + 130 * Math.min(1, Math.abs(diff) / (dmax || 1)))];
@@ -1237,7 +1328,7 @@
   function gradingItem(site) {
     var gr = site.grading, gg = gr.grid, r = gr.result;
     return {
-      fr: site.frame, ring: site.local, t: r.t, N: r.N || 0, nC: gr.slopeCut, nF: gr.slopeFill, W: gg.W,
+      fr: site.frame, ring: site.local, t: r.t, N: r.N || 0, nC: gr.slopeCut, nF: gr.slopeFill, W: gg.W, off: planumOffsetFn(gr),
       rect: Cesium.Rectangle.fromDegrees(gg.west, gg.south, gg.east, gg.north)
     };
   }
@@ -1257,10 +1348,11 @@
         var i = row * w + col;
         for (var q = 0; q < items.length; q++) {
           var it = items[q], loc = it.fr.toLocal(lon, lat);
-          var d = polyDist(loc[0], loc[1], it.ring);
+          var near = it.off ? polyNearest(loc[0], loc[1], it.ring) : null;
+          var d = near ? near[0] : polyDist(loc[0], loc[1], it.ring);
           if (d > it.W) continue;
           var T = out[i] - it.N;
-          var R = gradeHeight(T, d, it.t, it.nC, it.nF);
+          var R = gradeHeight(T, d, near ? it.t + it.off(near[1], near[2]) : it.t, it.nC, it.nF);
           if (R !== T) { out[i] = R + it.N; changed = true; }
         }
       }
@@ -1334,9 +1426,10 @@
     for (var i = 0; i < out.length; i++) {
       sites.forEach(function(s) {
         var gr = s.grading, loc = s.frame.toLocal(p.lons[i], p.lats[i]);
-        var d = polyDist(loc[0], loc[1], s.local);
+        var off = planumOffsetFn(gr), near = off ? polyNearest(loc[0], loc[1], s.local) : null;
+        var d = near ? near[0] : polyDist(loc[0], loc[1], s.local);
         if (d > gr.grid.W) return;
-        var R = gradeHeight(out[i], d, gr.result.t, gr.slopeCut, gr.slopeFill);
+        var R = gradeHeight(out[i], d, near ? gr.result.t + off(near[1], near[2]) : gr.result.t, gr.slopeCut, gr.slopeFill);
         if (Math.abs(R - out[i]) > 1e-3) { out[i] = R; any = true; }
       });
     }
@@ -1357,7 +1450,7 @@
     var core = new Uint8Array(n), mask = new Uint8Array(n);
     for (var k = 0; k < n; k++) {
       if (!(gg.D[k] <= gg.W) || !isFinite(gg.T[k])) continue;
-      var diff = gg.T[k] - gradeHeight(gg.T[k], gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      var diff = gg.T[k] - gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
       if (Math.abs(diff) > CUT_EPS || gg.D[k] === 0) core[k] = 1;
     }
     for (k = 0; k < n; k++) {
@@ -1379,7 +1472,7 @@
     for (var k = 0; k < mask.length; k++) {
       if (!mask[k]) continue;
       var i = k % nx, j = (k - i) / nx;
-      var T = gg.T[k], R = gradeHeight(T, gg.D[k], r.t, gr.slopeCut, gr.slopeFill);
+      var T = gg.T[k], R = gradeCell(gg, k, r.t, gr.slopeCut, gr.slopeFill);
       index[k] = verts.length;
       verts.push({ x: cellX(gg, i), y: cellY(gg, j), T: T, R: R, planum: gg.D[k] === 0 });
     }
@@ -1430,7 +1523,8 @@
       return out.join('\n');
     }
     var r = gr.result, g = site.grid;
-    var desc = 'Planum ' + r.t.toFixed(2) + ' m, slopes cut 1:' + gr.slopeCut + ' fill 1:' + gr.slopeFill +
+    var desc = 'Planum ' + r.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +
+      ', slopes cut 1:' + gr.slopeCut + ' fill 1:' + gr.slopeFill +
       ', cut ' + r.cut.toFixed(1) + ' m3, fill ' + r.fill.toFixed(1) + ' m3; heights ' + g.datum + '; source ' + g.source;
     var xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -1493,6 +1587,7 @@
           origin: { longitude: site.frame.lon0, latitude: site.frame.lat0, height: Number(r.t.toFixed(3)), heightDatum: site.grid.datum },
           utm: utm ? { epsg: utm.epsg, easting: Number(utm.easting.toFixed(3)), northing: Number(utm.northing.toFixed(3)) } : null,
           planumLevel: Number(r.t.toFixed(3)), slopeCut: gr.slopeCut, slopeFill: gr.slopeFill,
+          gradientPercent: Number(gr.gradient) || 0, gradientBearingDeg: Number(gr.bearing) || 0,
           cutM3: Number(r.cut.toFixed(1)), fillM3: Number(r.fill.toFixed(1))
         } }
       },
@@ -2278,10 +2373,25 @@
           '" data-sa-input="gr-cut" data-site="' + sid + '" aria-label="Cut slope 1:n"></label>' +
         '<label class="sa-ratio">fill 1:<input type="number" step="0.1" min="0.3" max="10" class="modern-input sa-input-tiny" value="' + gr.slopeFill +
           '" data-sa-input="gr-fill" data-site="' + sid + '" aria-label="Fill slope 1:n"></label>' +
-      '</div>';
+      '</div>' +
+      '<div class="sa-field-row">' +
+        '<label class="modern-label-small" for="saGrGrad' + sid + '">Gradient</label>' +
+        '<label class="sa-ratio"><input id="saGrGrad' + sid + '" type="number" step="0.1" min="0" max="15" class="modern-input sa-input-tiny" value="' + (Number(gr.gradient) || 0) +
+          '" data-sa-input="gr-grad" data-site="' + sid + '" aria-label="Planum gradient in percent"> %</label>' +
+        '<select class="modern-select sa-select-small" data-sa-input="gr-dir" data-site="' + sid + '" aria-label="Direction the planum falls towards"' + (Number(gr.gradient) ? '' : ' disabled') + '>' +
+          ['terrain'].concat(Object.keys(COMPASS)).map(function(k) {
+            return '<option value="' + k + '"' + (gr.dir === k ? ' selected' : '') + '>' + (k === 'terrain' ? 'along terrain' : 'falls to ' + k) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      (Number(gr.gradient) && gr.dir === 'terrain' && gr.terrain
+        ? '<div class="sa-hint">Falls to ' + bearingName(gr.bearing) + ' (' + gr.bearing + '°) like the terrain, which falls ' + num(gr.terrain.percent, 1) + ' % there</div>'
+        : '');
     if (r) {
       html += '<div class="sa-cf-sum">' +
-        '<span>Planum <b>' + num(r.t, 2) + ' m</b></span>' +
+        (Number(gr.gradient)
+          ? '<span>Planum <b>' + num(r.t, 2) + ' m</b> at the centre, <b>' + num(r.pMin, 2) + '–' + num(r.pMax, 2) + ' m</b></span>'
+          : '<span>Planum <b>' + num(r.t, 2) + ' m</b></span>') +
         '<span class="sa-cf-cut"><span class="sa-sw sa-sw-cut"></span>Cut <b>' + num(r.cut) + ' m³</b> <small>planum ' + num(r.cutPlanum) + ' · slopes ' + num(r.cutSlopes) + '</small></span>' +
         '<span class="sa-cf-fill"><span class="sa-sw sa-sw-fill"></span>Fill <b>' + num(r.fill) + ' m³</b> <small>planum ' + num(r.fillPlanum) + ' · slopes ' + num(r.fillSlopes) + '</small></span>' +
         '<span>Net <b>' + num(r.net) + ' m³</b></span>' +
@@ -2489,7 +2599,13 @@
         var gr = site.grading;
         if (kind === 'gr-mode') gr.levelMode = t.value === 'fixed' ? 'fixed' : 'balanced';
         else if (kind === 'gr-level') { var lv = Number(t.value); if (t.value === '' || !isFinite(lv)) return; gr.level = lv; }
-        else if (kind === 'gr-cut' || kind === 'gr-fill') {
+        else if (kind === 'gr-grad') {
+          var gp = Number(t.value);
+          if (t.value === '' || !isFinite(gp) || gp < 0 || gp > 15) { status('Gradient between 0 and 15 %', 'error'); return; }
+          gr.gradient = gp;
+        } else if (kind === 'gr-dir') {
+          gr.dir = t.value === 'terrain' || COMPASS[t.value] !== undefined ? t.value : 'terrain';
+        } else if (kind === 'gr-cut' || kind === 'gr-fill') {
           var n = Number(t.value);
           if (!isFinite(n) || n < 0.3 || n > 10) { status('Slope ratio 1:n with n between 0.3 and 10', 'error'); return; }
           if (kind === 'gr-cut') gr.slopeCut = n; else gr.slopeFill = n;
@@ -2598,7 +2714,8 @@
       if (gr) {
         out.grading = {
           levelMode: gr.levelMode, level: isFinite(gr.level) && gr.level !== null ? round(gr.level, 2) : null,
-          slopeCut: gr.slopeCut, slopeFill: gr.slopeFill, applied: !!gr.applied, depth: !!gr.depth
+          slopeCut: gr.slopeCut, slopeFill: gr.slopeFill, gradient: Number(gr.gradient) || 0, dir: gr.dir,
+          applied: !!gr.applied, depth: !!gr.depth
         };
         if (gr.result && out.summary) {
           out.summary.planumLevel = round(gr.result.t, 2);
@@ -2693,6 +2810,8 @@
         gr.level = isFinite(sg.level) && sg.level !== null ? Number(sg.level) : null;
         if (isFinite(sg.slopeCut) && sg.slopeCut >= 0.3 && sg.slopeCut <= 10) gr.slopeCut = Number(sg.slopeCut);
         if (isFinite(sg.slopeFill) && sg.slopeFill >= 0.3 && sg.slopeFill <= 10) gr.slopeFill = Number(sg.slopeFill);
+        if (isFinite(sg.gradient) && sg.gradient >= 0 && sg.gradient <= 15) gr.gradient = Number(sg.gradient);
+        if (sg.dir === 'terrain' || COMPASS[sg.dir] !== undefined) gr.dir = sg.dir;
         gr.applied = sg.applied !== false;
         gr.depth = !!sg.depth;
         await computeGrading(site);
