@@ -17,7 +17,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '1.12.0';
+  var APP_VERSION = '2.0.0';
 
   // Skip if already shown this session — auth gate will show directly
   // (storage may be blocked: then the splash simply shows on every load)
@@ -80,7 +80,7 @@
         // ── Features tab ──
         '<div class="splash-tab-content" data-tab="features">' +
           '<div class="splash-feature-list">' +
-            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3D7;&#xFE0F;</span><div><strong>IFC &amp; Revit Models</strong><span>Load BIM models as 3D Tiles via Cesium Ion</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F3D7;&#xFE0F;</span><div><strong>IFC &amp; Revit Models</strong><span>Load BIM models as 3D Tiles, self-hosted or via Cesium ion</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2601;&#xFE0F;</span><div><strong>Point Clouds</strong><span>LAS/LAZ point clouds with EDL and color modes</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x2728;</span><div><strong>3D Gaussian Splatting</strong><span>Photorealistic splat captures as native 3D Tiles, with move/scale/rotate gizmo</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon">&#x1F50D;</span><div><strong>IFC / Revit Filter</strong><span>Filter 40+ IFC classes and Revit categories (EN/DE), unlisted types via &quot;Other&quot;</span></div></div>' +
@@ -104,6 +104,15 @@
             '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="file-up"></i></span><div><strong>IFC to 3D Tiles Upload</strong><span>Own IFC tiler with georeferencing (EPSG, &plusmn;0.00 height) and all property sets, no Cesium Ion needed (owner)</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="layers"></i></span><div><strong>OGC Service Presets</strong><span>59 verified WMS/WMTS/WFS services (Germany, Netherlands, Norway, international) in one click</span></div></div>' +
             '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="calendar-range"></i></span><div><strong>StageTwin</strong><span>Shareable 4D construction-stage view without login (/stage-twin)</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="clapperboard"></i></span><div><strong>Scenes</strong><span>Save camera, models, terrain, base map and sun; same scene format as the desktop app</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="share-2"></i></span><div><strong>Share Links</strong><span>Customers open a scene without an account, measure and comment; comments appear live in your viewer</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="monitor-play"></i></span><div><strong>Demo Scenes</strong><span>Seven ready-made scenes for everyone, also without sign-in</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="calendar-clock"></i></span><div><strong>4D Construction Schedule</strong><span>Construction schedule from the IFC (IfcTask) as an animation</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="glasses"></i></span><div><strong>VR Mode</strong><span>WebXR in the Meta Quest browser, with movement</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="mountain-snow"></i></span><div><strong>Open Terrain &amp; Base Maps</strong><span>Mapterhorn terrain, TopPlusOpen, basemap.de, Bavarian maps, Esri &mdash; no Cesium ion needed</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="globe"></i></span><div><strong>ArcGIS &amp; iTwin</strong><span>Esri layers, World Elevation, I3S scene layers and Bentley iTwin iModels</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="map"></i></span><div><strong>GIS Files</strong><span>GeoJSON, Shapefile, KML/KMZ, GPX and FlatGeobuf by drag &amp; drop</span></div></div>' +
+            '<div class="splash-feature-item"><span class="splash-feature-icon"><i data-lucide="panels-top-left"></i></span><div><strong>Panel Interface</strong><span>Icon rail with floating panels (default), works on phones; classic sidebar optional</span></div></div>' +
           '</div>' +
         '</div>' +
 
@@ -127,6 +136,7 @@
             '<div class="splash-shortcut"><kbd>M</kbd><span>Toggle sidebar</span></div>' +
             '<div class="splash-shortcut"><kbd>H</kbd><span>Toggle hide mode (click to hide elements)</span></div>' +
             '<div class="splash-shortcut"><kbd>Shift + H</kbd><span>Restore all hidden elements</span></div>' +
+            '<div class="splash-shortcut"><kbd>I</kbd><span>Isolate selected element (Shift + I or Esc to exit)</span></div>' +
             '<div class="splash-shortcut"><kbd>C</kbd><span>Toggle comment mode</span></div>' +
             '<div class="splash-shortcut"><kbd>X</kbd><span>Transform mode (move/rotate assets, Esc to exit)</span></div>' +
             '<div class="splash-shortcut"><kbd>ESC</kbd><span>Exit current mode / close dialog</span></div>' +

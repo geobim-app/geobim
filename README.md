@@ -41,7 +41,6 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 - GIS files by drag & drop (GeoJSON, Shapefile, KML/KMZ, GPX, FlatGeobuf) with CRS from the file
 - Gaussian splats as native 3D Tiles (`KHR_gaussian_splatting`)
 - **Rhino Plugin** — Upload Rhino models straight from Rhino 8 (IFC 4 via the geobim-tiler, georeferenced from map coordinates or the EarthAnchorPoint); repo `geobim-rhino`
-- **Site Analysis** — Contours, slope, aspect, cut & fill (balanced grade level, regions with volumes) and elevation profiles for a drawn site, on the Mapterhorn DGM or the active terrain; grade a level planum with slopes into the terrain itself (export LandXML, GLB); export as GeoJSON, CSV, PNG and SVG
 
 **Terrain & maps**
 - Terrain: Mapterhorn (open DGM, no ion), ArcGIS World Elevation, Cesium World Terrain; heights via GCG2016 / EGM2008 geoid
@@ -52,6 +51,7 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 - IFC and Revit filters by class / category, element properties, hide and isolate elements
 - Measurements (distance, area, height, vertical, coordinates in WGS84, UTM and Gauß-Krüger)
 - Clipping polygons with excavation pit, section planes per model, sections along an IfcAlignment axis, a line or a plan — with a 2D drawing and SVG export
+- Site analysis for a drawn site: contours, slope, aspect, cut & fill with volumes, elevation profiles; grade a level planum with slopes into the terrain (LandXML, GLB, GeoJSON, CSV, PNG, SVG export)
 - 4D: construction schedule from the IFC (`IfcTask`) and stage sequencing from properties
 - Split view (per model left / right, own base map left), sun and shadows, wind turbine shadow flicker
 

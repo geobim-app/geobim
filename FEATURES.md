@@ -529,4 +529,4 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 ---
 
-*Updated 2026-09-28 — v1.12.0*
+*Updated 2026-11-16 — v2.0.0*

@@ -447,7 +447,8 @@
   function checkFirstVisit() {
     // /demo opens the About dialog with its "Take a guided tour" button instead
     // (demo.js); StageTwin has no sidebar or toolbar to show
-    if (IS_STAGETWIN || window._demoMode || localStorage.getItem(STORAGE_KEY)) return;
+    // Guests on / also carry _demoMode (auth-gate.js startAsGuest) but get the tour
+    if (IS_STAGETWIN || (window._demoMode && !window._guestMode) || localStorage.getItem(STORAGE_KEY)) return;
     // Wait for app to be fully loaded — and in bridge mode also wait for the
     // asset-loading pill to disappear, otherwise the tour overlaps it visually.
     var check = setInterval(function() {
