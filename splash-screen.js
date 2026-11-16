@@ -17,7 +17,7 @@
 (function() {
 
   var STORAGE_KEY = 'geoBIM_splashShown';
-  var APP_VERSION = '2.0.0';
+  var APP_VERSION = '2.0.1';
 
   // Skip if already shown this session — auth gate will show directly
   // (storage may be blocked: then the splash simply shows on every load)

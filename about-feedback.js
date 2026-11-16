@@ -18,7 +18,7 @@
   console.log('Loading About & Feedback Module v1.0...');
 
   const FEEDBACK_COLLECTION = 'feedback';
-  const APP_VERSION = '2.0.0';
+  const APP_VERSION = '2.0.1';
 
   // =====================================
   // ABOUT DIALOG
