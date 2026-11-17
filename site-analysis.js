@@ -1254,20 +1254,32 @@
     return v;
   }
 
+  // How far the existing ground lies beyond the slope cones at cell k:
+  // max(T − cut cone, fill cone − T), cones from the planum P at distance d.
+  // > 0 where the grading changes the ground, < 0 where it stays; it runs on
+  // linearly through the edge, so its zero line is where the slope surface
+  // meets the terrain (as a CAD intersection does), not a cell boundary.
+  function slopeExcess(T, d, P, nC, nF) {
+    return Math.max(T - (P + d / nC), (P - d / nF) - T);
+  }
+
   // Slope edge (boundary of the changed area) as dashed ground lines + optional
   // depth raster. u: grading unit (gradingUnit), target: { entities, canvas }
   function drawSurface(target, u, depth) {
     var gg = u.gg, n = gg.T.length, mask = new Float32Array(n), R = new Float32Array(n), dmax = 0;
+    var edge = new Float32Array(n).fill(-1000);  // outside the band: unchanged
     for (var k = 0; k < n; k++) {
       if (!u.inBand(k)) continue;
       R[k] = u.R(k);
       var diff = gg.T[k] - R[k];
       mask[k] = Math.abs(diff) > CUT_EPS || u.planum(k) ? 1 : 0;
       if (mask[k]) dmax = Math.max(dmax, Math.abs(diff));
+      // On the planum the edge is never inside (at least CUT_EPS above the level)
+      edge[k] = (u.planum(k) ? Math.max(Math.abs(diff), 2 * CUT_EPS) : u.excess(k)) - CUT_EPS;
     }
-    var mg = { nx: gg.nx, ny: gg.ny, h: mask, need: new Uint8Array(n).fill(1) };
+    var mg = { nx: gg.nx, ny: gg.ny, h: edge, need: new Uint8Array(n).fill(1) };
     var color = cesiumColor('--brand-teal', '#2ECFB0'), toDeg = u.site.frame.toDeg;
-    traceLevel(mg, 0.5).forEach(function(line) {
+    traceLevel(mg, 0).forEach(function(line) {
       if (line.length < 3) return;
       var pts = line.map(function(p) { return toDeg(gg.x0 + (p[0] + 0.5) * gg.cell, gg.yTop - (p[1] + 0.5) * gg.cell); });
       target.entities.push(ds().entities.add({
@@ -1417,6 +1429,20 @@
     }
     if (L === -Infinity) return T;
     return Math.min(Math.max(T, L), U);
+  }
+
+  // slopeExcess for a group cell: the highest fill cone and the lowest cut cone
+  function groupExcess(gg, k, lv, prm) {
+    var T = gg.T[k], L = -Infinity, U = Infinity;
+    for (var m = 0; m < lv.length; m++) {
+      var d = gg.D[m][k];
+      if (!(d <= gg.W)) continue;
+      var P = lv[m] + (gg.O[m] ? gg.O[m][k] : 0);
+      L = Math.max(L, P - d / prm[m].nF);
+      U = Math.min(U, P + d / prm[m].nC);
+    }
+    if (L === -Infinity) return -1000;
+    return Math.max(T - U, L - T);
   }
 
   function groupBand(members) {
@@ -1582,6 +1608,7 @@
         site: { name: groupName(g), frame: gg.frame, grid: { datum: gg.datum, source: gg.source } },
         gg: gg, t: lv[0], cut: r.cut, fill: r.fill,
         R: function(k) { return groupCell(gg, k, lv, prm); },
+        excess: function(k) { return groupExcess(gg, k, lv, prm); },
         planum: function(k) { for (var m = 0; m < gg.D.length; m++) if (gg.D[m][k] === 0) return true; return false; },
         inBand: function(k) { return !!gg.need[k] && isFinite(gg.T[k]); },
         desc: 'Terraces ' + members.map(function(s, m) {
@@ -1602,6 +1629,7 @@
     return {
       site: site, gg: gs, t: rs.t, cut: rs.cut, fill: rs.fill,
       R: function(k) { return gradeCell(gs, k, rs.t, gr.slopeCut, gr.slopeFill); },
+      excess: function(k) { return slopeExcess(gs.T[k], gs.D[k], gs.O ? rs.t + gs.O[k] : rs.t, gr.slopeCut, gr.slopeFill); },
       planum: function(k) { return gs.D[k] === 0; },
       inBand: function(k) { return gs.D[k] <= gs.W && isFinite(gs.T[k]); },
       desc: 'Planum ' + rs.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +
