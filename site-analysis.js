@@ -682,6 +682,34 @@
     return big;
   }
 
+  // Depth raster with the edge between cells: per output pixel the depth dz
+  // and the slope excess (see drawSurface) are interpolated bilinearly from
+  // the cell centres; pixels with excess < 0 stay clear, so the coloured area
+  // ends on the same line as the dashed slope edge instead of in cell steps.
+  function depthCanvas(nx, ny, dz, edge, colorOf) {
+    var s = Math.max(1, Math.min(8, Math.floor(RASTER_MAX_PX / Math.max(nx, ny))));
+    var w = nx * s, h = ny * s;
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var ctx = cv.getContext('2d'), img = ctx.createImageData(w, h), px = img.data;
+    for (var y = 0; y < h; y++) {
+      var fy = Math.min(ny - 1, Math.max(0, (y + 0.5) / s - 0.5)), j0 = Math.min(ny - 2, Math.floor(fy)), ty = fy - j0;
+      if (ny < 2) { j0 = 0; ty = 0; }
+      for (var x = 0; x < w; x++) {
+        var fx = Math.min(nx - 1, Math.max(0, (x + 0.5) / s - 0.5)), i0 = Math.min(nx - 2, Math.floor(fx)), tx = fx - i0;
+        if (nx < 2) { i0 = 0; tx = 0; }
+        var a = j0 * nx + i0, b = a + (nx > 1 ? 1 : 0), c = a + (ny > 1 ? nx : 0), d = c + (nx > 1 ? 1 : 0);
+        var w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+        var e = edge[a] * w00 + edge[b] * w10 + edge[c] * w01 + edge[d] * w11;
+        if (!(e >= 0)) continue;
+        var col = colorOf(dz[a] * w00 + dz[b] * w10 + dz[c] * w01 + dz[d] * w11), o = (y * w + x) * 4;
+        px[o] = col[0]; px[o + 1] = col[1]; px[o + 2] = col[2]; px[o + 3] = col[3];
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv;
+  }
+
   function rasterColorFn(site, name) {
     var g = site.grid, p = palette();
     if (name === 'slope') {
@@ -1293,9 +1321,9 @@
       }));
     });
     if (depth) {
-      var p = palette();
-      var canvas = rasterCanvas({ nx: gg.nx, ny: gg.ny, h: gg.T, inside: mask }, function(k2) {
-        var diff = gg.T[k2] - R[k2];
+      var p = palette(), dz = new Float32Array(n);
+      for (var k1 = 0; k1 < n; k1++) if (u.inBand(k1)) dz[k1] = gg.T[k1] - R[k1];
+      var canvas = depthCanvas(gg.nx, gg.ny, dz, edge, function(diff) {
         if (Math.abs(diff) < CUT_EPS) return [p.grade[0], p.grade[1], p.grade[2], 70];
         var c = diff > 0 ? p.cut : p.fill;
         return [c[0], c[1], c[2], Math.round(90 + 130 * Math.min(1, Math.abs(diff) / (dmax || 1)))];
