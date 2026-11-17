@@ -1895,8 +1895,12 @@
     return mask;
   }
 
-  // Vertices (one per masked cell) and triangles (two per fully masked square)
-  function gradingMesh(u) {
+  // Vertices and triangles of the graded surface. With site-earthworks.js the
+  // cells are split at the planum outline and the slope edge (straight and
+  // smooth edges, byClass: own vertices per planum / cut / fill / unchanged);
+  // without it one vertex per masked cell and two triangles per square.
+  function gradingMesh(u, byClass) {
+    if (BimViewer.siteEarthworks && BimViewer.siteEarthworks.surfaceMesh) return BimViewer.siteEarthworks.surfaceMesh(u, byClass);
     var gg = u.gg, nx = gg.nx, ny = gg.ny;
     var mask = gradingMeshMask(u), index = new Int32Array(gg.T.length).fill(-1);
     var verts = [];
@@ -1974,7 +1978,7 @@
   async function exportGlb(site0) {
     if (!site0.grading || !site0.grading.result) return;
     var u = gradingUnit(site0), site = u.site;
-    var mesh = gradingMesh(u), r = { t: u.t }, nv = mesh.verts.length;
+    var mesh = gradingMesh(u, true), r = { t: u.t }, nv = mesh.verts.length;
     if (!nv || !mesh.tris.length) { status('Nothing to export', 'error'); return; }
     var utm = null;
     try { utm = (await utmProjector(site)).info; } catch (e) { /* origin in WGS84 only */ }
@@ -1984,7 +1988,8 @@
     mesh.verts.forEach(function(v, i) {
       var xyz = [v.x, v.R - r.t, -v.y];
       for (var a = 0; a < 3; a++) { pos[i * 3 + a] = xyz[a]; min[a] = Math.min(min[a], xyz[a]); max[a] = Math.max(max[a], xyz[a]); }
-      var diff = v.T - v.R, c = v.planum ? planum : (diff > CUT_EPS ? p.cut : (diff < -CUT_EPS ? p.fill : p.grade));
+      var diff = v.T - v.R, c = v.planum ? planum : v.cls ? { cut: p.cut, fill: p.fill, keep: p.grade }[v.cls] :
+        (diff > CUT_EPS ? p.cut : (diff < -CUT_EPS ? p.fill : p.grade));
       for (a = 0; a < 3; a++) col[i * 3 + a] = Math.pow(c[a] / 255, 2.2);   // linear colour space
     });
     // The map winding (counter-clockwise from above) stays counter-clockwise

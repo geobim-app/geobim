@@ -90,8 +90,8 @@
     var io = split(tri, function(v) { return -v.s; }), out = [];
     if (io[0].length >= 3) {
       var pl = split(io[0], function(v) { return v.T - v.P; });
-      if (pl[0].length >= 3) out.push({ kind: 'cut', poly: pl[0], R: hP });
-      if (pl[1].length >= 3) out.push({ kind: 'fill', poly: pl[1], R: hP });
+      if (pl[0].length >= 3) out.push({ kind: 'cut', poly: pl[0], R: hP, planum: true });
+      if (pl[1].length >= 3) out.push({ kind: 'fill', poly: pl[1], R: hP, planum: true });
     }
     if (io[1].length >= 3) outside(io[1], out);
     return out;
@@ -567,12 +567,57 @@
     return res;
   }
 
+  // The graded surface as a TIN for LandXML and GLB (site-analysis.js
+  // gradingMesh): the mesh cells split as in pieces, so planum edge and slope
+  // edge run on the outline and on the intersection with the terrain.
+  // Vertices { x, y, T, R, planum, cls: 'planum' | 'cut' | 'fill' | 'keep' };
+  // byClass: separate vertices per class (crisp vertex colours), otherwise
+  // one vertex per position (a connected TIN). Triangles counter-clockwise
+  // seen from above.
+  function surfaceMesh(u, byClass) {
+    var G = g(), gg = u.gg, nx = gg.nx, ny = gg.ny;
+    var group = !!(u.extras && u.extras.terraces);
+    var mask = G.meshMask(u), vert = vertexSource(G, u, group);
+    var verts = [], tris = [], keys = {};
+    function id(v, pc, z) {
+      var cls = pc.planum ? 'planum' : pc.kind;
+      var key = (byClass ? cls : '') + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
+      var k = keys[key];
+      if (k !== undefined) return k;
+      keys[key] = verts.length;
+      verts.push({ x: v.x, y: v.y, T: v.T, R: z, planum: cls === 'planum', cls: cls });
+      return verts.length - 1;
+    }
+    function add(tri) {
+      pieces(tri).forEach(function(pc) {
+        var poly = pc.poly;
+        if (area2(poly) < 0) poly = poly.slice().reverse();
+        if (Math.abs(area2(poly)) < 1e-10) return;
+        var ids = poly.map(function(v) { return id(v, pc, pc.R(v)); });
+        for (var i = 1; i < ids.length - 1; i++) {
+          if (ids[0] === ids[i] || ids[i] === ids[i + 1] || ids[0] === ids[i + 1]) continue;
+          tris.push(ids[0], ids[i], ids[i + 1]);
+        }
+      });
+    }
+    for (var j = 0; j < ny - 1; j++) {
+      for (var i = 0; i < nx - 1; i++) {
+        var a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+        if (!mask[a] || !mask[b] || !mask[c] || !mask[d]) continue;
+        add([vert(a), vert(c), vert(b)]);
+        add([vert(b), vert(c), vert(d)]);
+      }
+    }
+    return { verts: verts, tris: tris };
+  }
+
   BimViewer.siteEarthworks = {
     buildBodies: buildBodies,
     buildIfc: buildIfc,
-    exportIfc: exportIfc
+    exportIfc: exportIfc,
+    surfaceMesh: surfaceMesh
   };
 
-  console.log('Site earthworks module loaded v1.1');
+  console.log('Site earthworks module loaded v1.2');
 
 })();
