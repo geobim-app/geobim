@@ -2749,6 +2749,7 @@
         '<i data-lucide="' + (r ? (on ? 'eye' : 'eye-off') : 'shovel') + '"></i><span>Grading (planum + slopes)</span></button>' +
       (r ? iconBtn('grading-landxml', site, null, 'file-code', 'Export LandXML surface') +
            iconBtn('grading-glb', site, null, 'box', 'Export GLB model') +
+           (BimViewer.siteEarthworks ? iconBtn('grading-ifc', site, null, 'boxes', 'Export cut and fill bodies (IFC 4.3)') : '') +
            iconBtn('grading-remove', site, null, 'x', 'Remove grading') : '') +
       '</div>';
     if (!gr) return html;
@@ -2968,6 +2969,11 @@
         break;
       case 'grading-glb':
         if (site) exportGlb(site).catch(function(err) { status(err.message || String(err), 'error'); });
+        break;
+      case 'grading-ifc':
+        if (site && BimViewer.siteEarthworks) {
+          BimViewer.siteEarthworks.exportIfc(site).catch(function(err) { console.error('Earthworks export failed:', err); status(err.message || String(err), 'error'); });
+        }
         break;
       case 'grading-mapterhorn':
         if (window.LayerManager && LayerManager.switchTerrain) LayerManager.switchTerrain('mapterhorn');
@@ -3329,6 +3335,9 @@
   };
   SA.exportLandXml = exportLandXml;
   SA.exportGlb = exportGlb;
+  // Grading internals for site-earthworks.js (closed cut/fill bodies, IFC)
+  SA._grading = { unit: gradingUnit, meshMask: gradingMeshMask, utm: utmProjector, cellX: cellX, cellY: cellY,
+                  palette: palette, download: download, fileBase: fileBase, status: status, num: num };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

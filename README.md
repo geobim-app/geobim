@@ -50,7 +50,7 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 - IFC and Revit filters by class / category, element properties, hide and isolate elements
 - Measurements (distance, area, height, vertical, coordinates in WGS84, UTM and Gauß-Krüger)
 - Clipping polygons with excavation pit, section planes per model, sections along an IfcAlignment axis, a line or a plan — with a 2D drawing and SVG export
-- Site analysis for a drawn site: contours, slope, aspect, cut & fill with volumes, elevation profiles; grade a planum, level or with a gradient, or linked terraces, with slopes into the terrain (LandXML, GLB, GeoJSON, CSV, PNG, SVG export)
+- Site analysis for a drawn site: contours, slope, aspect, cut & fill with volumes, elevation profiles; grade a planum, level or with a gradient, or linked terraces, with slopes into the terrain (LandXML, GLB, GeoJSON, CSV, PNG, SVG export); cut and fill as closed bodies in IFC 4.3
 - 4D: construction schedule from the IFC (`IfcTask`) and stage sequencing from properties
 - Split view (per model left / right, own base map left), sun and shadows, wind turbine shadow flicker
 
