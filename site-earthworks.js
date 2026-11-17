@@ -10,7 +10,11 @@
 // ===============================
 // SITE EARTHWORKS v1.0
 // Closed cut and fill bodies of a grading (site-analysis.js) and their
-// export as IFC 4.3 (IfcEarthworksCut / IfcEarthworksFill).
+// export as IFC 4.3 (IfcEarthworksCut / IfcEarthworksFill), together with
+// the graded landform as one closed body (IfcGeographicElement TERRAIN):
+// planums and slopes on top, cut out of the terrain along the slope edge
+// (zero line of the slope excess, as drawn by site-analysis.js), flat base
+// a full metre at least 1 m below the lowest point.
 //
 // Geometry: the grading grid (cell centres) as two triangles per square.
 // Each triangle is clipped at f = T − R = 0 (existing T against graded R):
@@ -44,6 +48,7 @@
   function lerp(a, b, t) {
     var v = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, T: a.T + (b.T - a.T) * t, R: a.R + (b.R - a.R) * t, d: null };
     if (a.d) { v.d = a.d.map(function(da, m) { return da + (b.d[m] - da) * t; }); }
+    if (a.e !== undefined) v.e = a.e + (b.e - a.e) * t;
     v.f = v.T - v.R;
     return v;
   }
@@ -89,6 +94,7 @@
   // Vertex id for the top or bottom surface of a body; a point where top and
   // bottom coincide gets one id for both
   function vid(body, v, top) {
+    if (body.kind === 'terrain') return terrainVid(body, v, top);
     var hTop = body.kind === 'cut' ? v.T : v.R, hBot = body.kind === 'cut' ? v.R : v.T;
     var shared = Math.abs(v.f) < ZERO;
     var key = (shared ? 's' : (top ? 't' : 'b')) + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
@@ -97,6 +103,17 @@
     id = body.verts.length;
     var z = shared ? (v.T + v.R) / 2 : (top ? hTop : hBot);
     body.verts.push([v.x, v.y, z]);
+    body.keys[key] = id;
+    return id;
+  }
+
+  // Terrain body: graded surface on top, flat base below, never shared
+  function terrainVid(body, v, top) {
+    var key = (top ? 't' : 'b') + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
+    var id = body.keys[key];
+    if (id !== undefined) return id;
+    id = body.verts.length;
+    body.verts.push([v.x, v.y, top ? v.R : body.base]);
     body.keys[key] = id;
     return id;
   }
@@ -192,6 +209,9 @@
       var i = k % nx, j = (k - i) / nx, R = u.R(k);
       var v = { x: G.cellX(gg, i), y: G.cellY(gg, j), T: gg.T[k], R: R, f: gg.T[k] - R, d: null };
       if (group) v.d = gg.D.map(function(D) { var d = D[k]; return d <= gg.W ? d : 1e9; });
+      // Slope excess as for the dashed slope edge (site-analysis.js drawSurface):
+      // ≥ 0 on the planums and slopes, < 0 on untouched ground
+      v.e = u.inBand(k) ? (u.planum(k) ? Math.max(Math.abs(v.f), 2 * G.CUT_EPS) : u.excess(k)) - G.CUT_EPS : -1000;
       return (cache[k] = v);
     }
     var bodies = { cut: [], fill: [] };
@@ -199,6 +219,12 @@
     var owners = [];
     for (m = 0; m < M; m++) owners.push(ownerValue(m));
     function zeroLine(p) { var h = (p.T + p.R) / 2; p.T = p.R = h; p.f = 0; }
+    // Base of the terrain body: a full metre at least 1 m below the lowest graded point
+    var zLow = Infinity;
+    for (var k0 = 0; k0 < gg.T.length; k0++) if (mask[k0]) zLow = Math.min(zLow, u.R(k0), gg.T[k0]);
+    var terrain = newBody('terrain', 0);
+    terrain.base = Math.floor(zLow - 1);
+    function edgeValue(v) { return v.e; }
     var kinds = [['cut', 1], ['fill', -1]];
 
     for (var j = 0; j < ny - 1; j++) {
@@ -207,6 +233,8 @@
         if (!mask[a] || !mask[b] || !mask[c] || !mask[d]) continue;
         var tris = [[vert(a), vert(c), vert(b)], [vert(b), vert(c), vert(d)]];
         for (var t = 0; t < 2; t++) {
+          var land = clip(tris[t], edgeValue);
+          if (land.length >= 3) addPolygon(terrain, land);
           for (var q = 0; q < 2; q++) {
             var s = kinds[q][1];
             var part = clip(tris[t], function(v) { return s * v.f; }, zeroLine);
@@ -232,7 +260,13 @@
         out.push(body);
       });
     });
-    return { unit: u, bodies: out, group: group, names: names };
+    if (terrain.tris.length) {
+      closeBody(terrain);
+      measure(terrain);
+      terrain.name = (group ? 'Terrassen ' + names.join(', ') : u.site.name) + ' – Geländekörper';
+      terrain.maxDepth = terrain.zMax - terrain.base;
+    } else terrain = null;
+    return { unit: u, bodies: out, terrain: terrain, group: group, names: names };
   }
 
   // ---- IFC (STEP physical file) ----
@@ -323,16 +357,12 @@
       var shading = w.add('IFCSURFACESTYLESHADING', [colour, '0.25']);
       styles[kind] = w.add('IFCSURFACESTYLE', [str(kind === 'cut' ? 'Abtrag' : 'Auftrag'), '.BOTH.', list([shading])]);
     });
+    var pc = G.rgb(G.cssVar('--sa-planum', '#b9b2a3'));
+    styles.terrain = w.add('IFCSURFACESTYLE', [str('Geplantes Gelände'), '.BOTH.', list([
+      w.add('IFCSURFACESTYLESHADING', [w.add('IFCCOLOURRGB', ['$', real(pc[0] / 255, 4), real(pc[1] / 255, 4), real(pc[2] / 255, 4)]), '0.0'])])]);
 
-    // A cut is a subtraction (IfcFeatureElementSubtraction): it voids the
-    // existing ground, here one stratum without own geometry
-    var ground = null, elements = [];
-    if (result.bodies.some(function(b) { return b.kind === 'cut'; })) {
-      ground = w.add('IFCGEOTECHNICALSTRATUM', [str(guid()), '$', str('Gewachsener Boden (Bestand)'),
-        str('Bestandsgelände ' + site.grid.source + ', vom Abtrag ausgehöhlt'), '$', sitePlacement, '$', '$', '.SOLID.']);
-      elements.push(ground);
-    }
-    result.bodies.forEach(function(b) {
+    // Closed triangulated body in project coordinates (UTM minus E0 / N0)
+    function shapeOf(b) {
       var coords = b.verts.map(function(v) {
         var en = proj.en(v[0], v[1]);
         return '(' + real(en[0] - E0, 4) + ',' + real(en[1] - N0, 4) + ',' + real(v[2], 4) + ')';
@@ -343,7 +373,39 @@
       var fs = w.add('IFCTRIANGULATEDFACESET', [pts, '$', b.open ? '.F.' : '.T.', '(' + idx.join(',') + ')', '$']);
       w.add('IFCSTYLEDITEM', [fs, list([styles[b.kind]]), '$']);
       var rep = w.add('IFCSHAPEREPRESENTATION', [bodyCtx, "'Body'", "'Tessellation'", list([fs])]);
-      var shape = w.add('IFCPRODUCTDEFINITIONSHAPE', ['$', '$', list([rep])]);
+      return w.add('IFCPRODUCTDEFINITIONSHAPE', ['$', '$', list([rep])]);
+    }
+
+    function geometryQto(el, b) {
+      var geo = w.add('IFCELEMENTQUANTITY', [str(guid()), '$', "'Qto_BodyGeometryValidation'", '$', '$', list([
+        w.add('IFCQUANTITYAREA', ["'GrossSurfaceArea'", '$', '$', real(b.area, 3), '$']),
+        w.add('IFCQUANTITYVOLUME', ["'GrossVolume'", '$', '$', real(b.volume, 3), '$']),
+        w.add('IFCQUANTITYCOUNT', ["'SurfaceGenusBeforeFeatures'", '$', '$', '0', '$'])])]);
+      w.add('IFCRELDEFINESBYPROPERTIES', [str(guid()), '$', '$', '$', list([el]), geo]);
+    }
+
+    // A cut is a subtraction (IfcFeatureElementSubtraction): it voids the
+    // existing ground, here one stratum without own geometry
+    var ground = null, elements = [];
+    if (result.bodies.some(function(b) { return b.kind === 'cut'; })) {
+      ground = w.add('IFCGEOTECHNICALSTRATUM', [str(guid()), '$', str('Gewachsener Boden (Bestand)'),
+        str('Bestandsgelände ' + site.grid.source + ', vom Abtrag ausgehöhlt'), '$', sitePlacement, '$', '$', '.SOLID.']);
+      elements.push(ground);
+    }
+
+    // The graded landform: planums and slopes on top, cut out of the terrain
+    // along the slope edge, closed on a flat base
+    var tb = result.terrain;
+    if (tb) {
+      var terrainEl = w.add('IFCGEOGRAPHICELEMENT', [str(guid()), '$', str(tb.name),
+        str('Geplantes Gelände: ' + u.desc + '; seitlich an der Böschungskante (Schnitt mit dem Bestandsgelände) begrenzt, Unterseite eben auf ' +
+            tb.base.toFixed(1) + ' m; Höhen ' + site.grid.datum),
+        '$', w.add('IFCLOCALPLACEMENT', [sitePlacement, origin]), shapeOf(tb), '$', '.TERRAIN.']);
+      elements.push(terrainEl);
+      geometryQto(terrainEl, tb);
+    }
+    result.bodies.forEach(function(b) {
+      var shape = shapeOf(b);
       var place = w.add('IFCLOCALPLACEMENT', [sitePlacement, origin]);
       var cut = b.kind === 'cut';
       var desc = (cut ? 'Abtrag' : 'Auftrag') + ' aus Grading, Böschungen bis zum Schnitt mit dem Gelände; Höhen ' + site.grid.datum;
@@ -358,11 +420,7 @@
           w.add('IFCQUANTITYVOLUME', [str(cut ? 'UndisturbedVolume' : 'CompactedVolume'), '$', '$', vol, '$']),
           w.add('IFCQUANTITYLENGTH', ["'Depth'", '$', '$', real(b.maxDepth, 3), '$'])])]);
       w.add('IFCRELDEFINESBYPROPERTIES', [str(guid()), '$', '$', '$', list([el]), base]);
-      var geo = w.add('IFCELEMENTQUANTITY', [str(guid()), '$', "'Qto_BodyGeometryValidation'", '$', '$', list([
-        w.add('IFCQUANTITYAREA', ["'GrossSurfaceArea'", '$', '$', real(b.area, 3), '$']),
-        w.add('IFCQUANTITYVOLUME', ["'GrossVolume'", '$', '$', vol, '$']),
-        w.add('IFCQUANTITYCOUNT', ["'SurfaceGenusBeforeFeatures'", '$', '$', '0', '$'])])]);
-      w.add('IFCRELDEFINESBYPROPERTIES', [str(guid()), '$', '$', '$', list([el]), geo]);
+      geometryQto(el, b);
     });
     w.add('IFCRELCONTAINEDINSPATIALSTRUCTURE', [str(guid()), '$', '$', '$', list(elements), ifcSite]);
 
@@ -388,8 +446,10 @@
     var text = await buildIfc(res);
     var u = res.unit, cut = 0, fill = 0, open = 0;
     res.bodies.forEach(function(b) { if (b.kind === 'cut') cut += b.volume; else fill += b.volume; open += b.open; });
+    if (res.terrain) open += res.terrain.open;
     G.download(G.fileBase(u.site) + '-earthworks.ifc', text, 'application/x-step');
-    G.status('IFC 4.3: ' + res.bodies.length + ' bodies, cut ' + G.num(cut) + ' m³, fill ' + G.num(fill) + ' m³ (grid ' + G.num(u.cut) + ' / ' + G.num(u.fill) + ' m³)' +
+    G.status('IFC 4.3: ' + (res.terrain ? 'graded landform ' + G.num(res.terrain.volume) + ' m³ above ' + res.terrain.base + ' m, ' : '') +
+      res.bodies.length + ' cut/fill bodies, cut ' + G.num(cut) + ' m³, fill ' + G.num(fill) + ' m³ (grid ' + G.num(u.cut) + ' / ' + G.num(u.fill) + ' m³)' +
       (open ? ', ' + open + ' open edges' : ''), open ? 'error' : 'ok');
     return res;
   }

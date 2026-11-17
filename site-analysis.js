@@ -2749,7 +2749,7 @@
         '<i data-lucide="' + (r ? (on ? 'eye' : 'eye-off') : 'shovel') + '"></i><span>Grading (planum + slopes)</span></button>' +
       (r ? iconBtn('grading-landxml', site, null, 'file-code', 'Export LandXML surface') +
            iconBtn('grading-glb', site, null, 'box', 'Export GLB model') +
-           (BimViewer.siteEarthworks ? iconBtn('grading-ifc', site, null, 'boxes', 'Export cut and fill bodies (IFC 4.3)') : '') +
+           (BimViewer.siteEarthworks ? iconBtn('grading-ifc', site, null, 'boxes', 'Export landform and cut/fill bodies (IFC 4.3)') : '') +
            iconBtn('grading-remove', site, null, 'x', 'Remove grading') : '') +
       '</div>';
     if (!gr) return html;
@@ -3337,7 +3337,8 @@
   SA.exportGlb = exportGlb;
   // Grading internals for site-earthworks.js (closed cut/fill bodies, IFC)
   SA._grading = { unit: gradingUnit, meshMask: gradingMeshMask, utm: utmProjector, cellX: cellX, cellY: cellY,
-                  palette: palette, download: download, fileBase: fileBase, status: status, num: num };
+                  palette: palette, download: download, fileBase: fileBase, status: status, num: num,
+                  cssVar: cssVar, rgb: rgb, CUT_EPS: CUT_EPS };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
