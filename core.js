@@ -1686,6 +1686,17 @@ const BimViewer = {
     return this.labUsers.has(BimAuth.currentUser.email);
   },
 
+  // Role the server gave this sign-in (owner-session.js): 'owner', 'member'
+  // (own model area model/users/<area>/, see api/_members.php) or null
+  serverRole: null,
+
+  // Server models of one's own: upload, list, position, delete, share.
+  // Members are listed on the server only, so they show up once the session
+  // is settled (event 'geobim-session').
+  hasModelArea() {
+    return this.isLabUser() || this.serverRole === 'member';
+  },
+
   // Metadata overrides for known models (defaultPosition, custom names, etc.)
   // Models are auto-discovered from the server via api/models.php
   glbModelOverrides: {

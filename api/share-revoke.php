@@ -1,11 +1,13 @@
 <?php
-// geoBIM.app — revoke a share link. Owner only; calling it again is harmless.
+// geoBIM.app — revoke a share link. Owner: any, member (_members.php): the
+// ones they created; calling it again is harmless.
 // POST {token} → {token, revokedAt}
 // The record stays (for the link list); share-get.php answers 410 from now on
 // and model-file.php no longer serves its models.
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_members.php';
 require __DIR__ . '/_shares.php';
 
 function fail($message, $code = 400) {
@@ -15,7 +17,7 @@ function fail($message, $code = 400) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST only', 405);
-geobim_require_owner();
+$user = geobim_require_user();
 
 $req = json_decode(file_get_contents('php://input'), true);
 $token = is_array($req) ? ($req['token'] ?? '') : '';
@@ -25,7 +27,8 @@ $path = geobim_share_path($token);
 $fh = is_file($path) ? @fopen($path, 'r+') : false;
 if (!$fh || !flock($fh, LOCK_EX)) fail('Not found', 404);
 $rec = json_decode(stream_get_contents($fh) ?: 'null', true);
-if (!is_array($rec) || ($rec['token'] ?? '') !== $token) {
+if (!is_array($rec) || ($rec['token'] ?? '') !== $token
+    || ($user['role'] !== 'owner' && strtolower($rec['createdBy'] ?? '') !== $user['email'])) {
     flock($fh, LOCK_UN); fclose($fh);
     fail('Not found', 404);
 }
