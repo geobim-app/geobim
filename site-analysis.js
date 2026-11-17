@@ -1473,6 +1473,21 @@
     return Math.max(T - U, L - T);
   }
 
+  // Lowest cut cone and highest fill cone of group cell k, [U, L], both the
+  // planum level on a planum: R = min(max(T, L), U) (site-earthworks.js)
+  function groupCones(gg, k, lv, prm) {
+    var T = gg.T[k], L = -Infinity, U = Infinity;
+    for (var m = 0; m < lv.length; m++) {
+      var d = gg.D[m][k];
+      if (!(d <= gg.W)) continue;
+      var P = lv[m] + (gg.O[m] ? gg.O[m][k] : 0);
+      if (d === 0) return [P, P];
+      L = Math.max(L, P - d / prm[m].nF);
+      U = Math.min(U, P + d / prm[m].nC);
+    }
+    return [U === Infinity ? T + 1000 : U, L === -Infinity ? T - 1000 : L];
+  }
+
   function groupBand(members) {
     var lo = Infinity, hi = -Infinity, ratio = 0, cell = 0;
     members.forEach(function(s) {
@@ -1637,6 +1652,7 @@
         gg: gg, t: lv[0], cut: r.cut, fill: r.fill,
         R: function(k) { return groupCell(gg, k, lv, prm); },
         excess: function(k) { return groupExcess(gg, k, lv, prm); },
+        cones: function(k) { return groupCones(gg, k, lv, prm); },
         planum: function(k) { for (var m = 0; m < gg.D.length; m++) if (gg.D[m][k] === 0) return true; return false; },
         inBand: function(k) { return !!gg.need[k] && isFinite(gg.T[k]); },
         desc: 'Terraces ' + members.map(function(s, m) {
@@ -1658,6 +1674,7 @@
       site: site, gg: gs, t: rs.t, cut: rs.cut, fill: rs.fill,
       R: function(k) { return gradeCell(gs, k, rs.t, gr.slopeCut, gr.slopeFill); },
       excess: function(k) { return slopeExcess(gs.T[k], gs.D[k], gs.O ? rs.t + gs.O[k] : rs.t, gr.slopeCut, gr.slopeFill); },
+      cones: function(k) { var P = gs.O ? rs.t + gs.O[k] : rs.t, d = gs.D[k]; return [P + d / gr.slopeCut, P - d / gr.slopeFill]; },
       planum: function(k) { return gs.D[k] === 0; },
       inBand: function(k) { return gs.D[k] <= gs.W && isFinite(gs.T[k]); },
       desc: 'Planum ' + rs.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +

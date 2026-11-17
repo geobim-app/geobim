@@ -8,18 +8,18 @@
  */
 
 // ===============================
-// SITE EARTHWORKS v1.0
+// SITE EARTHWORKS v1.1
 // Closed cut and fill bodies of a grading (site-analysis.js) and their
 // export as IFC 4.3 (IfcEarthworksCut / IfcEarthworksFill), together with
 // the final ground of the project area as one closed body
 // (IfcGeographicElement TERRAIN, see buildTerrain).
 //
 // Geometry: the grading grid (cell centres) as two triangles per square.
-// Each triangle is clipped at f = T − R = 0 (existing T against graded R):
-// the cut part (T ≥ R) gets T on top and R below, the fill part (R ≥ T) R on
-// top and T below. On the clip line T = R, so top and bottom share their
-// vertices there and the body closes without a wall — the line is the same
-// intersection the dashed slope edge shows. Terrace groups split each part
+// Each triangle is clipped against the unclamped slope cones (see pieces):
+// the cut part (T ≥ cut cone) gets T on top and the cone below, the fill part
+// the fill cone on top and T below. On the clip line both coincide, so top
+// and bottom share their vertices there and the body closes without a wall —
+// the line is the same smooth intersection the dashed slope edge shows. Terrace groups split each part
 // again at the line of equal distance to two terraces, so every terrace gets
 // its own bodies; walls close them where they meet. Volumes are checked
 // against the grid volumes of the grading.
@@ -35,7 +35,7 @@
 
 (function() {
 
-  var ZERO = 1e-7;              // |T − R| below this: top and bottom coincide
+  var ZERO = 1e-6;              // |top − bottom| below this: one shared vertex
   var KEY_DIGITS = 4;           // vertex welding (0.1 mm)
 
   function sa() { return window.BimViewer && BimViewer.siteAnalysis; }
@@ -43,27 +43,61 @@
 
   // ---- Geometry ----
 
+  // Grid vertex: position, existing ground T, lowest cut cone C and highest
+  // fill cone F (both the planum level on a planum), distances d to the
+  // terraces (group) and the terrain-body value e. Graded R = min(max(T, F), C).
   function lerp(a, b, t) {
-    var v = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, T: a.T + (b.T - a.T) * t, R: a.R + (b.R - a.R) * t, d: null };
+    var v = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, T: a.T + (b.T - a.T) * t,
+              C: a.C + (b.C - a.C) * t, F: a.F + (b.F - a.F) * t, d: null };
     if (a.d) { v.d = a.d.map(function(da, m) { return da + (b.d[m] - da) * t; }); }
     if (a.e !== undefined) v.e = a.e + (b.e - a.e) * t;
-    v.f = v.T - v.R;
     return v;
   }
 
   // Sutherland–Hodgman against value(v) ≥ 0 (convex polygon in, convex out)
-  function clip(poly, value, onLine) {
+  function clip(poly, value) {
     var out = [], n = poly.length;
     for (var i = 0; i < n; i++) {
       var a = poly[i], b = poly[(i + 1) % n], va = value(a), vb = value(b);
       if (va >= 0) out.push(a);
-      if ((va >= 0) !== (vb >= 0) && va !== vb) {
-        var p = lerp(a, b, va / (va - vb));
-        if (onLine) onLine(p);
-        out.push(p);
-      }
+      if ((va >= 0) !== (vb >= 0) && va !== vb) out.push(lerp(a, b, va / (va - vb)));
     }
     return out;
+  }
+
+  function hT(v) { return v.T; }
+  function hC(v) { return v.C; }
+  function hF(v) { return v.F; }
+
+  // A grid triangle split where the grading changes: cut (T ≥ C, graded C),
+  // fill (T ≤ F ≤ C, graded F; or F > C and T ≤ C, graded C) and unchanged
+  // (graded T). T − C and F − T are linear in the triangle, so the slope edge
+  // runs straight through it as the intersection of slope and terrain, not
+  // from grid point to grid point (R is clamped to T at the grid points, so a
+  // clip at T = R would follow the cells: the sawtooth edge).
+  function pieces(tri) {
+    var out = [];
+    var cr = split(tri, function(v) { return v.T - v.C; });
+    if (cr[0].length >= 3) out.push({ kind: 'cut', poly: cr[0], R: hC });
+    if (cr[1].length < 3) return out;
+    var lc = split(cr[1], function(v) { return v.C - v.F; });
+    if (lc[0].length >= 3) {
+      var fk = split(lc[0], function(v) { return v.F - v.T; });
+      if (fk[0].length >= 3) out.push({ kind: 'fill', poly: fk[0], R: hF });
+      if (fk[1].length >= 3) out.push({ kind: 'keep', poly: fk[1], R: hT });
+    }
+    if (lc[1].length >= 3) out.push({ kind: 'fill', poly: lc[1], R: hC });
+    return out;
+  }
+
+  // poly into [value ≥ 0, value ≤ 0]; a polygon lying on the line (value 0
+  // at every corner, e.g. a planum where C = F) goes to one side only
+  function split(poly, value) {
+    var pos = false, neg = false;
+    poly.forEach(function(v) { var x = value(v); if (x > 0) pos = true; else if (x < 0) neg = true; });
+    if (!neg) return [poly, []];
+    if (!pos) return [[], poly];
+    return [clip(poly, value), clip(poly, function(v) { return -value(v); })];
   }
 
   function area2(poly) {
@@ -89,29 +123,14 @@
     return { kind: kind, owner: owner, verts: [], keys: {}, pairs: {}, tris: [], volume: 0, area: 0, maxDepth: 0, open: 0 };
   }
 
-  // Vertex id for the top or bottom surface of a body; a point where top and
-  // bottom coincide gets one id for both
-  function vid(body, v, top) {
-    if (body.kind === 'terrain') return terrainVid(body, v, top);
-    var hTop = body.kind === 'cut' ? v.T : v.R, hBot = body.kind === 'cut' ? v.R : v.T;
-    var shared = Math.abs(v.f) < ZERO;
-    var key = (shared ? 's' : (top ? 't' : 'b')) + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
+  // Vertex id on the top or bottom surface; where both coincide (the slope
+  // edge) one id serves both, so the body closes there without a wall
+  function vid(body, v, side, shared, z) {
+    var key = (shared ? 's' : side) + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
     var id = body.keys[key];
     if (id !== undefined) return id;
     id = body.verts.length;
-    var z = shared ? (v.T + v.R) / 2 : (top ? hTop : hBot);
     body.verts.push([v.x, v.y, z]);
-    body.keys[key] = id;
-    return id;
-  }
-
-  // Terrain body: graded surface on top, flat base below, never shared
-  function terrainVid(body, v, top) {
-    var key = (top ? 't' : 'b') + v.x.toFixed(KEY_DIGITS) + ',' + v.y.toFixed(KEY_DIGITS);
-    var id = body.keys[key];
-    if (id !== undefined) return id;
-    id = body.verts.length;
-    body.verts.push([v.x, v.y, top ? v.R : body.base]);
     body.keys[key] = id;
     return id;
   }
@@ -121,17 +140,22 @@
     body.tris.push(a, b, c);
   }
 
-  function addPolygon(body, poly) {
+  // Convex polygon as top (height top(v)) and bottom (bot(v)) faces
+  function addPolygon(body, poly, top, bot) {
     if (poly.length < 3) return;
     if (area2(poly) < 0) poly = poly.slice().reverse();
     if (Math.abs(area2(poly)) < 1e-10) return;
-    var top = poly.map(function(v) { return vid(body, v, true); });
-    var bot = poly.map(function(v) { return vid(body, v, false); });
+    var tp = [], bt = [];
+    poly.forEach(function(v) {
+      var zt = top(v), zb = bot(v), shared = Math.abs(zt - zb) < ZERO;
+      tp.push(vid(body, v, 't', shared, shared ? (zt + zb) / 2 : zt));
+      bt.push(vid(body, v, 'b', shared, shared ? (zt + zb) / 2 : zb));
+    });
     for (var i = 1; i < poly.length - 1; i++) {
-      pushTri(body, top[0], top[i], top[i + 1]);       // counter-clockwise from above: faces up
-      pushTri(body, bot[0], bot[i + 1], bot[i]);       // reversed: faces down
+      pushTri(body, tp[0], tp[i], tp[i + 1]);       // counter-clockwise from above: faces up
+      pushTri(body, bt[0], bt[i + 1], bt[i]);       // reversed: faces down
     }
-    for (i = 0; i < poly.length; i++) body.pairs[top[i]] = bot[i];
+    for (i = 0; i < poly.length; i++) body.pairs[tp[i]] = bt[i];
   }
 
   // Walls where a top edge has no partner (band edge, border between two
@@ -194,6 +218,19 @@
     body.zMin = zMin; body.zMax = zMax;
   }
 
+  // Grid vertex k of a grading unit (cached)
+  function vertexSource(G, u, group, extra) {
+    var gg = u.gg, nx = gg.nx, cache = new Array(gg.T.length);
+    return function(k) {
+      if (cache[k]) return cache[k];
+      var i = k % nx, j = (k - i) / nx, cf = u.cones(k);
+      var v = { x: G.cellX(gg, i), y: G.cellY(gg, j), T: gg.T[k], C: cf[0], F: cf[1], d: null };
+      if (group) v.d = gg.D.map(function(D) { var d = D[k]; return d <= gg.W ? d : 1e9; });
+      if (extra) extra(v, k);
+      return (cache[k] = v);
+    };
+  }
+
   // Cut and fill bodies of a grading unit (site-analysis.js gradingUnit)
   function buildBodies(site) {
     var G = g(), u = G.unit(site), gg = u.gg, nx = gg.nx, ny = gg.ny;
@@ -201,47 +238,36 @@
     var M = group ? u.extras.terraces.length : 1;
     var names = group ? u.extras.terraces.map(function(t) { return t.site; }) : [u.site.name];
     var mask = G.meshMask(u);
-    var cache = new Array(gg.T.length);
-    function vert(k) {
-      if (cache[k]) return cache[k];
-      var i = k % nx, j = (k - i) / nx, R = u.R(k);
-      var v = { x: G.cellX(gg, i), y: G.cellY(gg, j), T: gg.T[k], R: R, f: gg.T[k] - R, d: null };
-      if (group) v.d = gg.D.map(function(D) { var d = D[k]; return d <= gg.W ? d : 1e9; });
-      return (cache[k] = v);
-    }
+    var vert = vertexSource(G, u, group);
     var bodies = { cut: [], fill: [] };
     for (var m = 0; m < M; m++) { bodies.cut.push(newBody('cut', m)); bodies.fill.push(newBody('fill', m)); }
     var owners = [];
     for (m = 0; m < M; m++) owners.push(ownerValue(m));
-    function zeroLine(p) { var h = (p.T + p.R) / 2; p.T = p.R = h; p.f = 0; }
-    var kinds = [['cut', 1], ['fill', -1]];
 
+    function addPiece(pc) {
+      if (pc.kind === 'keep') return;
+      var top = pc.kind === 'cut' ? hT : pc.R, bot = pc.kind === 'cut' ? pc.R : hT;
+      for (var mm = 0; mm < M; mm++) {
+        var own = M > 1 ? clip(pc.poly, owners[mm]) : pc.poly;
+        if (own.length >= 3) addPolygon(bodies[pc.kind][mm], own, top, bot);
+      }
+    }
     for (var j = 0; j < ny - 1; j++) {
       for (var i = 0; i < nx - 1; i++) {
         var a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
         if (!mask[a] || !mask[b] || !mask[c] || !mask[d]) continue;
-        var tris = [[vert(a), vert(c), vert(b)], [vert(b), vert(c), vert(d)]];
-        for (var t = 0; t < 2; t++) {
-          for (var q = 0; q < 2; q++) {
-            var s = kinds[q][1];
-            var part = clip(tris[t], function(v) { return s * v.f; }, zeroLine);
-            if (part.length < 3 || part.every(function(v) { return Math.abs(v.f) < ZERO; })) continue;
-            for (var mm = 0; mm < M; mm++) {
-              var own = M > 1 ? clip(part, owners[mm]) : part;
-              if (own.length >= 3) addPolygon(bodies[kinds[q][0]][mm], own);
-            }
-          }
-        }
+        pieces([vert(a), vert(c), vert(b)]).forEach(addPiece);
+        pieces([vert(b), vert(c), vert(d)]).forEach(addPiece);
       }
     }
     var out = [];
-    kinds.forEach(function(kd) {
-      bodies[kd[0]].forEach(function(body) {
+    ['cut', 'fill'].forEach(function(kind) {
+      bodies[kind].forEach(function(body) {
         if (!body.tris.length) return;
         closeBody(body);
         measure(body);
         if (body.volume < 0.05) return;            // below 0.05 m³: not a body worth exporting
-        body.name = names[body.owner] + ' – ' + (kd[0] === 'cut' ? 'Abtrag' : 'Auftrag');
+        body.name = names[body.owner] + ' – ' + (kind === 'cut' ? 'Abtrag' : 'Auftrag');
         body.site = names[body.owner];
         body.maxDepth = body.zMax - body.zMin;
         out.push(body);
@@ -252,8 +278,9 @@
   }
 
   // The graded landform of the whole project area as one closed body: the
-  // final ground R on top (planums, slopes and the untouched ground between
-  // and around them), sides on a smooth offset of the planum outlines — the
+  // final ground on top (planums, slopes and the untouched ground between
+  // and around them, split as in pieces so the slope edges match the cut and
+  // fill bodies), sides on a smooth offset of the planum outlines — the
   // widest slope plus TERRAIN_MARGIN —, flat base a full metre at least 1 m
   // below the lowest point.
   var TERRAIN_MARGIN = 2;     // m beyond the widest slope
@@ -276,22 +303,20 @@
     var body = newBody('terrain', 0);
     body.base = Math.floor(zLow - 1);
     body.margin = W;
-    var cache = new Array(n);
-    function vert(k) {
-      if (cache[k]) return cache[k];
-      var i = k % nx, j = (k - i) / nx;
-      return (cache[k] = { x: G.cellX(gg, i), y: G.cellY(gg, j), T: gg.T[k], R: R[k], f: gg.T[k] - R[k], e: W - minD[k], d: null });
-    }
+    var vert = vertexSource(G, u, false, function(v, k) { v.e = W - minD[k]; });
     function inside(v) { return v.e; }
+    function base() { return body.base; }
+    function addLand(tri) {
+      var land = clip(tri, inside);
+      if (land.length >= 3) pieces(land).forEach(function(pc) { addPolygon(body, pc.poly, pc.R, base); });
+    }
     for (var j = 0; j < ny - 1; j++) {
       for (var i = 0; i < nx - 1; i++) {
         var a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
         if (!ok[a] || !ok[b] || !ok[c] || !ok[d]) continue;
         if (W - minD[a] < 0 && W - minD[b] < 0 && W - minD[c] < 0 && W - minD[d] < 0) continue;
-        [[vert(a), vert(c), vert(b)], [vert(b), vert(c), vert(d)]].forEach(function(tri) {
-          var land = clip(tri, inside);
-          if (land.length >= 3) addPolygon(body, land);
-        });
+        addLand([vert(a), vert(c), vert(b)]);
+        addLand([vert(b), vert(c), vert(d)]);
       }
     }
     if (!body.tris.length) return null;
@@ -494,6 +519,6 @@
     exportIfc: exportIfc
   };
 
-  console.log('Site earthworks module loaded v1.0');
+  console.log('Site earthworks module loaded v1.1');
 
 })();
