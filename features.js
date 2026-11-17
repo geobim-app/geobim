@@ -1020,7 +1020,17 @@
       }
       return 'n/a';
     };
-    
+
+    // Property names and values come from model files, which members can upload,
+    // so they are untrusted: escape them before they go into innerHTML.
+    const esc = (v) => String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    // The raw value sits HTML-escaped in data-copy; the handler itself is static.
+    const copyBtn = (v) => '<button class="bim-copy-btn" data-copy="' + esc(v) + '"' +
+      ' onclick="navigator.clipboard.writeText(this.dataset.copy);this.textContent=\'\\u2713\';' +
+      'setTimeout(()=>this.textContent=\'\\u29C9\',800)" title="Copy">\u29C9</button>';
+
     const isOSMBuilding = properties.building !== undefined || 
                           properties['building:levels'] !== undefined ||
                           properties['addr:street'] !== undefined;
@@ -1176,7 +1186,7 @@
         
         html += `<tr class="bim-property-row ${categoryId}_props" ${!setConfig.expanded ? 'style="display:none;"' : ''}>`;
         html += `<td class="bim-property-name">${displayName}</td>`;
-        html += `<td class="${valueClass}"><span class="bim-value-text">${value}</span>${value !== 'n/a' ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
+        html += `<td class="${valueClass}"><span class="bim-value-text">${esc(value)}</span>${value !== 'n/a' ? copyBtn(value) : ''}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
@@ -1196,14 +1206,15 @@
       
       otherProps.forEach(prop => {
         const value = properties[prop];
-        const displayValue = value === undefined ? '<i style="color:#888;">undefined</i>' : 
-                            value === null ? '<i style="color:#888;">null</i>' : 
-                            value === '' ? '<i style="color:#888;">empty</i>' : 
-                            value;
-        
+        const isEmpty = value === undefined || value === null || value === '';
+        const displayValue = value === undefined ? '<i style="color:#888;">undefined</i>' :
+                            value === null ? '<i style="color:#888;">null</i>' :
+                            value === '' ? '<i style="color:#888;">empty</i>' :
+                            esc(value);
+
         html += `<tr class="bim-property-row ${categoryId}_props">`;
-        html += `<td class="bim-property-name">${prop}</td>`;
-        html += `<td class="bim-property-value"><span class="bim-value-text">${displayValue}</span>${displayValue && !String(displayValue).includes('<i ') ? '<button class="bim-copy-btn" onclick="navigator.clipboard.writeText(\'' + String(displayValue).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '').replace(/</g, '').replace(/>/g, '') + '\');this.textContent=\'✓\';setTimeout(()=>this.textContent=\'⧉\',800)" title="Copy">⧉</button>' : ''}</td>`;
+        html += `<td class="bim-property-name">${esc(prop)}</td>`;
+        html += `<td class="bim-property-value"><span class="bim-value-text">${displayValue}</span>${isEmpty ? '' : copyBtn(value)}</td>`;
         html += '</tr>';
         
         totalPropertyCount++;
