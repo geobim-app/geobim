@@ -43,14 +43,21 @@
 
   // ---- Geometry ----
 
-  // Grid vertex: position, existing ground T, lowest cut cone C and highest
-  // fill cone F (both the planum level on a planum), distances d to the
-  // terraces (group) and the terrain-body value e. Graded R = min(max(T, F), C).
+  // Grid vertex: position, existing ground T, signed distance s to the
+  // nearest planum outline (< 0 inside) and that planum's level P, lowest cut
+  // cone C and highest fill cone F (inside a planum continued linearly below
+  // and above P, so both meet P on the outline), distances d to the terraces
+  // (group) and the terrain-body value e. Outside the planums graded
+  // R = min(max(T, F), C), inside R = P.
   function lerp(a, b, t) {
     var v = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, T: a.T + (b.T - a.T) * t,
+              s: a.s + (b.s - a.s) * t, P: a.P + (b.P - a.P) * t,
               C: a.C + (b.C - a.C) * t, F: a.F + (b.F - a.F) * t, d: null };
     if (a.d) { v.d = a.d.map(function(da, m) { return da + (b.d[m] - da) * t; }); }
     if (a.e !== undefined) v.e = a.e + (b.e - a.e) * t;
+    // On the planum outline both cones are the planum (the linear inside
+    // continuation and the outside cone differ there by rounding only)
+    if (Math.abs(v.s) < 1e-7) { v.s = 0; v.C = v.F = v.P; }
     return v;
   }
 
@@ -68,15 +75,29 @@
   function hT(v) { return v.T; }
   function hC(v) { return v.C; }
   function hF(v) { return v.F; }
+  function hP(v) { return v.P; }
 
-  // A grid triangle split where the grading changes: cut (T ≥ C, graded C),
-  // fill (T ≤ F ≤ C, graded F; or F > C and T ≤ C, graded C) and unchanged
-  // (graded T). T − C and F − T are linear in the triangle, so the slope edge
-  // runs straight through it as the intersection of slope and terrain, not
-  // from grid point to grid point (R is clamped to T at the grid points, so a
-  // clip at T = R would follow the cells: the sawtooth edge).
+  // A grid triangle split where the grading changes: first at the planum
+  // outline (s = 0; inside cut where T ≥ P, fill where T ≤ P, graded P), then
+  // outside into cut (T ≥ C, graded C), fill (T ≤ F ≤ C, graded F; or F > C
+  // and T ≤ C, graded C) and unchanged (graded T). s, T − C and F − T are
+  // linear in the triangle, so the planum edge and the slope edge run
+  // straight through it (the outline itself, the intersection of slope and
+  // terrain), not from grid point to grid point — R is clamped to T and the
+  // planum ends at the last grid point inside, so clips at T = R or d = 0
+  // would follow the cells: the sawtooth edge.
   function pieces(tri) {
-    var out = [];
+    var io = split(tri, function(v) { return -v.s; }), out = [];
+    if (io[0].length >= 3) {
+      var pl = split(io[0], function(v) { return v.T - v.P; });
+      if (pl[0].length >= 3) out.push({ kind: 'cut', poly: pl[0], R: hP });
+      if (pl[1].length >= 3) out.push({ kind: 'fill', poly: pl[1], R: hP });
+    }
+    if (io[1].length >= 3) outside(io[1], out);
+    return out;
+  }
+
+  function outside(tri, out) {
     var cr = split(tri, function(v) { return v.T - v.C; });
     if (cr[0].length >= 3) out.push({ kind: 'cut', poly: cr[0], R: hC });
     if (cr[1].length < 3) return out;
@@ -218,13 +239,46 @@
     body.zMin = zMin; body.zMax = zMax;
   }
 
+  function inRing(x, y, pts) {
+    var inside = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  // Signed distance to the outline of a ring, < 0 inside
+  function signedDist(x, y, pts) {
+    var m = Infinity;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var ax = pts[j][0], ay = pts[j][1], dx = pts[i][0] - ax, dy = pts[i][1] - ay, l2 = dx * dx + dy * dy;
+      var t = l2 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
+      t = t < 0 ? 0 : (t > 1 ? 1 : t);
+      m = Math.min(m, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+    }
+    return inRing(x, y, pts) ? -m : m;
+  }
+
+  // The planum (site-analysis.js unit.planums) with the smallest signed distance
+  function nearestPlanum(planums, x, y) {
+    var best = { s: Infinity, planum: planums[0] };
+    planums.forEach(function(p) {
+      var s = signedDist(x, y, p.ring);
+      if (s < best.s) best = { s: s, planum: p };
+    });
+    return best;
+  }
+
   // Grid vertex k of a grading unit (cached)
   function vertexSource(G, u, group, extra) {
     var gg = u.gg, nx = gg.nx, cache = new Array(gg.T.length);
     return function(k) {
       if (cache[k]) return cache[k];
-      var i = k % nx, j = (k - i) / nx, cf = u.cones(k);
-      var v = { x: G.cellX(gg, i), y: G.cellY(gg, j), T: gg.T[k], C: cf[0], F: cf[1], d: null };
+      var i = k % nx, j = (k - i) / nx, cf = u.cones(k), x = G.cellX(gg, i), y = G.cellY(gg, j);
+      var near = nearestPlanum(u.planums, x, y), pl = near.planum, P = pl.level(x, y);
+      var v = { x: x, y: y, T: gg.T[k], s: near.s, P: P, C: cf[0], F: cf[1], d: null };
+      if (near.s < 0) { v.C = P + near.s / pl.nC; v.F = P - near.s / pl.nF; }
       if (group) v.d = gg.D.map(function(D) { var d = D[k]; return d <= gg.W ? d : 1e9; });
       if (extra) extra(v, k);
       return (cache[k] = v);

@@ -1653,6 +1653,14 @@
         R: function(k) { return groupCell(gg, k, lv, prm); },
         excess: function(k) { return groupExcess(gg, k, lv, prm); },
         cones: function(k) { return groupCones(gg, k, lv, prm); },
+        planums: members.map(function(s, m) {
+          var off = planumOffsetFn(s.grading);
+          return { ring: gg.rings[m], nC: prm[m].nC, nF: prm[m].nF, level: function(x, y) {
+            if (!off) return lv[m];
+            var deg = gg.frame.toDeg(x, y), loc = s.frame.toLocal(deg[0], deg[1]);
+            return lv[m] + off(loc[0], loc[1]);
+          } };
+        }),
         planum: function(k) { for (var m = 0; m < gg.D.length; m++) if (gg.D[m][k] === 0) return true; return false; },
         inBand: function(k) { return !!gg.need[k] && isFinite(gg.T[k]); },
         desc: 'Terraces ' + members.map(function(s, m) {
@@ -1675,6 +1683,9 @@
       R: function(k) { return gradeCell(gs, k, rs.t, gr.slopeCut, gr.slopeFill); },
       excess: function(k) { return slopeExcess(gs.T[k], gs.D[k], gs.O ? rs.t + gs.O[k] : rs.t, gr.slopeCut, gr.slopeFill); },
       cones: function(k) { var P = gs.O ? rs.t + gs.O[k] : rs.t, d = gs.D[k]; return [P + d / gr.slopeCut, P - d / gr.slopeFill]; },
+      planums: [{ ring: site.local, nC: gr.slopeCut, nF: gr.slopeFill, level: (function(off) {
+        return function(x, y) { return off ? rs.t + off(x, y) : rs.t; };
+      })(planumOffsetFn(gr)) }],
       planum: function(k) { return gs.D[k] === 0; },
       inBand: function(k) { return gs.D[k] <= gs.W && isFinite(gs.T[k]); },
       desc: 'Planum ' + rs.t.toFixed(2) + ' m' + (gr.gradient ? ' at the site centre, gradient ' + gr.gradient + ' % towards ' + gr.bearing + ' deg' : '') +
