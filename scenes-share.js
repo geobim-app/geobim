@@ -35,8 +35,10 @@
     });
   }
 
+  // Owner, or a member sharing scenes with models of their own area
+  // (api/_members.php; the server checks which models they may share)
   function isOwner() {
-    return !!(window.BimViewer && BimViewer.isLabUser && BimViewer.isLabUser());
+    return !!(window.BimViewer && BimViewer.hasModelArea && BimViewer.hasModelArea());
   }
 
   function icons(node) {

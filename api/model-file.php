@@ -1,9 +1,11 @@
 <?php
-// geoBIM.app — serves model/ files to the owner only (model/.htaccess routes
-// everything here except the few files public features need). Tilesets load
+// geoBIM.app — serves model/ files to the owner, a member's model/users/<area>/
+// to that member (_members.php) and listed models to guests (model/.htaccess
+// routes everything here except the few files public features need). Tilesets load
 // many small files, so this stays lean: cookie check, path check, readfile
 // with caching headers.
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_members.php';
 require __DIR__ . '/_dev.php';
 require __DIR__ . '/_guest_models.php';
 require __DIR__ . '/_shares.php';
@@ -16,9 +18,17 @@ if ($rel === '' || strpos($rel, "\0") !== false || preg_match('#(^|/)(\.|_stagin
     http_response_code(404);
     exit;
 }
-// Everyone but the owner: only the entries of model/guest-models.json and
-// those of share links opened in this browser (cookie, see _shares.php)
-if (!$devDir && !geobim_is_owner() && !geobim_guest_may_read($modelDir, $rel) && !geobim_share_may_read($rel)) {
+// Everyone but the owner: a member their own area, everyone the entries of
+// model/guest-models.json and those of share links opened in this browser
+// (cookie, see _shares.php)
+function geobim_member_may_read($rel) {
+    $u = geobim_session_user();
+    if (!$u || $u['role'] !== 'member') return false;
+    $prefix = GEOBIM_USERS_DIR . '/' . $u['area'] . '/';
+    return strncmp($rel, $prefix, strlen($prefix)) === 0;
+}
+if (!$devDir && !geobim_is_owner() && !geobim_member_may_read($rel)
+    && !geobim_guest_may_read($modelDir, $rel) && !geobim_share_may_read($rel)) {
     http_response_code(404);   // don't reveal what exists
     exit;
 }

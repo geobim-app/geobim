@@ -29,18 +29,25 @@
 
   var FALLBACK_SOURCES = /^(upload position|none)/;
 
+  // Owner, or a member for the models of their own area (api/_members.php)
   function isOwner() {
-    return typeof BimViewer.isLabUser === 'function' && BimViewer.isLabUser();
+    return typeof BimViewer.hasModelArea === 'function' && BimViewer.hasModelArea();
   }
 
+  // Paths are model/<name>… or, in a member's area, model/users/<area>/<name>…
   function tilesetFolder(modelDef) {
-    var m = modelDef && modelDef.file && modelDef.file.match(/^model\/([^/]+)\/tileset\.json/);
+    var m = modelDef && modelDef.file && modelDef.file.match(/^model\/(?:users\/[a-z0-9_]+\/)?([^/]+)\/tileset\.json/);
     return m ? m[1] : null;
   }
 
   function glbFile(modelDef) {
-    var m = modelDef && modelDef.file && modelDef.file.match(/^model\/([^/?]+\.(glb|gltf))$/i);
+    var m = modelDef && modelDef.file && modelDef.file.match(/^model\/(?:users\/[a-z0-9_]+\/)?([^/?]+\.(glb|gltf))$/i);
     return m ? m[1] : null;
+  }
+
+  // Member area of a server model (api/models.php), undefined for model/ itself
+  function areaOf(modelDef) {
+    return (modelDef && modelDef.area) || undefined;
   }
 
   function isSelfHostedTileset(ad) {
@@ -211,6 +218,7 @@
         await post({
           kind: 'tileset',
           folder: tilesetFolder(ad.modelDef),
+          area: areaOf(ad.modelDef),
           transform: Cesium.Matrix4.toArray(enu),
           placement: { lon: p.position.lon, lat: p.position.lat, height: p.position.height, heading: p.heading || 0 }
         });
@@ -218,6 +226,7 @@
         await post({
           kind: 'glb',
           file: glbFile(ad.modelDef),
+          area: areaOf(ad.modelDef),
           placement: { lon: ad.position.lon, lat: ad.position.lat, height: ad.position.height,
                        heading: ad.heading || 0, scale: ad.scale || 1 }
         });
@@ -237,9 +246,9 @@
     try {
       var modelId = ad.modelDef && ad.modelDef.id;
       if (isSelfHostedTileset(ad)) {
-        await post({ kind: 'tileset', folder: tilesetFolder(ad.modelDef), reset: true });
+        await post({ kind: 'tileset', folder: tilesetFolder(ad.modelDef), area: areaOf(ad.modelDef), reset: true });
       } else if (isServerGLB(ad)) {
-        await post({ kind: 'glb', file: glbFile(ad.modelDef), reset: true });
+        await post({ kind: 'glb', file: glbFile(ad.modelDef), area: areaOf(ad.modelDef), reset: true });
       } else {
         return;
       }

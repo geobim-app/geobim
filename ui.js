@@ -704,11 +704,16 @@ const BimViewerUI = {
       return;
     }
 
+    // A member's model (api/models.php "area"): its folder name in that area;
+    // in the owner's list its id carries the area as a prefix
     const slug = assetData.modelDef.id;
+    const area = assetData.modelDef.area;
+    const folder = area ? assetData.modelDef.entry : slug;
     BimViewer.updateStatus(`Deleting ${assetData.name}...`, 'loading');
 
     try {
-      const resp = await fetch(`api/pointcloud-delete.php?slug=${encodeURIComponent(slug)}`, { method: 'POST' });
+      const query = `slug=${encodeURIComponent(folder)}` + (area ? `&area=${encodeURIComponent(area)}` : '');
+      const resp = await fetch(`api/pointcloud-delete.php?${query}`, { method: 'POST' });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         throw new Error(body.error || `HTTP ${resp.status}`);

@@ -1,5 +1,7 @@
 <?php
-// geoBIM.app — create a share link for a saved scene. Owner only.
+// geoBIM.app — create a share link for a saved scene. Owner, or a member for
+// scenes with models of their own area (_members.php): those are entries
+// "users/<area>/<name>". The owner can also share members' models.
 //
 // POST {sceneId, scene, label?, expiresAt?: ISO date|null}
 //   → {token, path: "/s/<token>", share: <record without snapshot>, warnings: []}
@@ -15,6 +17,7 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_members.php';
 require __DIR__ . '/_dev.php';
 require __DIR__ . '/_shares.php';
 
@@ -25,7 +28,7 @@ function fail($message, $code = 400) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST only', 405);
-$user = geobim_require_owner();
+$user = geobim_require_user();
 
 $raw = file_get_contents('php://input');
 if (strlen($raw) > 262144) fail('Request too large', 413);
@@ -50,20 +53,40 @@ if (!empty($req['expiresAt'])) {
 
 function finite_num($v) { return (is_int($v) || is_float($v)) && is_finite((float)$v); }
 
-// --- Models in this site's model/ (or the dev folder), by lower-case name ---
-$modelDir = geobim_dev_model_dir() ?: str_replace('\\', '/', realpath(__DIR__ . '/../model') ?: '');
-if ($modelDir === '') fail('model/ missing on the server', 500);
+// --- Models the caller may share, by lower-case entry ---
+// Owner: model/ (or the dev folder) by name, members' areas as
+// "users/<area>/<name>". Member: their own area, by entry and by bare name.
+function add_entries(&$entries, $dir, $entryPrefix, $bareKeys) {
+    foreach (is_dir($dir) ? (scandir($dir) ?: []) : [] as $name) {
+        if (!geobim_share_entry_name_valid($name)) continue;
+        $path = $dir . '/' . $name;
+        if (is_dir($path) && is_file($path . '/tileset.json')) $kind = 'tileset';
+        elseif (is_file($path) && preg_match('/\.(glb|gltf)$/i', $name)) $kind = 'glb';
+        else continue;
+        $e = ['name' => $entryPrefix . $name, 'kind' => $kind];
+        $entries[strtolower($e['name'])] = $e;
+        if ($bareKeys && !isset($entries[strtolower($name)])) $entries[strtolower($name)] = $e;
+    }
+}
 $entries = [];
-foreach (scandir($modelDir) ?: [] as $name) {
-    if (!geobim_share_entry_name_valid($name)) continue;
-    $path = $modelDir . '/' . $name;
-    if (is_dir($path) && is_file($path . '/tileset.json')) $entries[strtolower($name)] = ['name' => $name, 'kind' => 'tileset'];
-    elseif (is_file($path) && preg_match('/\.(glb|gltf)$/i', $name)) $entries[strtolower($name)] = ['name' => $name, 'kind' => 'glb'];
+if ($user['role'] === 'owner') {
+    $modelDir = geobim_dev_model_dir() ?: str_replace('\\', '/', realpath(__DIR__ . '/../model') ?: '');
+    if ($modelDir === '') fail('model/ missing on the server', 500);
+    add_entries($entries, $modelDir, '', false);
+    foreach (geobim_members() as $m) {
+        add_entries($entries, geobim_area_dir($m['area']), GEOBIM_USERS_DIR . '/' . $m['area'] . '/', false);
+    }
+} else {
+    add_entries($entries, geobim_area_dir($user['area']), GEOBIM_USERS_DIR . '/' . $user['area'] . '/', true);
 }
 
-// Folder (tileset) or file name (GLB) of a scene's localPath, like scenes.js localKey()
+// Entry of a scene's localPath: "users/<area>/<name>" for a web path into a
+// member's area, else the folder (tileset) or file name (GLB) like scenes.js
+// localKey() — the Desktop stores absolute Windows paths
 function local_key($path) {
-    $parts = array_values(array_filter(explode('/', str_replace('\\', '/', explode('?', (string)$path)[0])), 'strlen'));
+    $p = str_replace('\\', '/', explode('?', (string)$path)[0]);
+    if (preg_match('#(?:^|/)model/(users/[a-z0-9_]{2,32}/[^/]+)#', $p, $m)) return rawurldecode($m[1]);
+    $parts = array_values(array_filter(explode('/', $p), 'strlen'));
     if (!$parts) return '';
     $last = $parts[count($parts) - 1];
     $key = preg_match('/^tileset\.json$/i', $last) ? ($parts[count($parts) - 2] ?? '') : $last;
