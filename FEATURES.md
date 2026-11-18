@@ -103,6 +103,7 @@
 |---|---|---|
 | Polygon Clipping | Draw arbitrary polygons via right-click. Cyan numbered markers, dashed lines. Min 3 points. | `clipping.js` |
 | Rectangle Clipping | 3-point rectangle mode: corner 1, corner 2 (edge), corner 3 (width). Live preview. | `clipping.js` |
+| Clipping from Model or File | A tileset with `asset.extras.clipping` (geobim-tile ≥ 1.9: outline in WGS84) offers its outline after loading ("This model comes with a clipping outline — apply it?"); nothing is applied without OK. The polygon belongs to its asset: removing the asset offers to remove it too. "From file" in the clip panel takes Polygon / MultiPolygon from GeoJSON, KML/KMZ, shapefile or FlatGeobuf (outer rings; points and holes ignored; projected CRS converted like GIS drops), "From GIS layer" takes the polygons of a dropped GIS layer. Result is a normal clipping polygon (list shows name and origin). | `clipping-import.js` |
 | Excavation Pit | Fills each clipping hole with a pit instead of a view through the globe: walls along the polygon edge from the terrain (Google 3D Tiles surface when on) down to a floor at lowest edge height − depth, teal cut edge. "Excavation pit" on/off and "Pit depth" 2–200 m (default 20 m) in the clip options, remembered per browser. Hidden when clipping is off, inverse or in split view. | `clipping-pit.js` |
 | Per-Asset Clipping Planes | Axis-aligned section planes (X, Y, Z) per loaded tileset with flip and distance sliders. One asset at a time. Guarded against a CesiumJS crash when a plane collection is replaced. | `clipping-planes.js`, `clipping-planes-guard.js` |
 | Alignment Section | Section plane perpendicular to an IfcAlignment axis, moved by station (slider, km+m input, ±1/±10 m steps), flip, look-along-axis camera, axis line with IfcReferent markers. Self-hosted IFC tilesets with `alignments.json` from the geobim tiler. | `alignment-section.js` |
@@ -355,7 +356,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | Annotations | `message-square` | Comments, area annotations, BCF export | `ui-comments-section.js` |
 | Inspection | | Inspection workflow (not for guests) | `inspection.js` |
 | Measure | `ruler` | Measurement tools | `ui-drawing-section.js` |
-| Clip | `scissors` | Clipping polygon / rectangle, excavation pit | `ui-clipping-extension.js`, `clipping-pit.js` |
+| Clip | `scissors` | Clipping polygon / rectangle / from file or GIS layer, excavation pit | `ui-clipping-extension.js`, `clipping-pit.js`, `clipping-import.js` |
 | Site Analysis | `mountain` | Terrain analysis and grading | `ui-site-section.js` |
 | Split view | `columns-2` | Split screen, side per asset, left base map | `ui-split-section.js` |
 | Sun & time | `sun` | Lighting, shadows, date & time | `ui-lighting-section.js` |
@@ -557,6 +558,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | `sequencing.js` | Construction sequencing (4D BIM) — stage animation |
 | `ui-helpers-modern.js` | List rendering helpers for comments, hidden features, assets, saved views |
 | `ui-clipping-extension.js` | Clipping section UI controls |
+| `clipping-import.js` | Clipping polygons from the model (`asset.extras.clipping`), from files and from GIS layers |
 | `ui-z-offset-extension.js` | Z-offset UI controls, global keyboard offset |
 | `ui-lighting-standalone.js` | Lighting UI integration |
 | `index.html` | Page skeleton, comment dialog, script loading (order matters), Plausible analytics |

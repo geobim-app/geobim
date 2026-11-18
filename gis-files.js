@@ -753,9 +753,33 @@ window.GEOBIM_GIS_FILES = (function() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
+  // Reads files without adding a layer (clipping-import.js): GeoJSON-based
+  // items come back in lon/lat (same CRS handling and dialog as a drop),
+  // KML/KMZ/GPX as { kind: 'cesium', file }. Cancelled CRS dialogs are left out.
+  async function readForImport(fileList) {
+    var p = plan(Array.prototype.slice.call(fileList || []));
+    var out = [];
+    for (var i = 0; i < p.jobs.length; i++) {
+      var items = await read(p.jobs[i]);
+      for (var j = 0; j < items.length; j++) {
+        var item = items[j];
+        if (item.kind === 'geojson') {
+          var res = await toWgs84(item.geojson, item.name, item.epsg);
+          if (!res) continue;
+          if (!looksGeographic(res.range)) throw new Error('Coordinates are outside lon/lat after conversion — wrong coordinate system?');
+          item.geojson = res.geojson;
+          item.epsg = res.epsg;
+        }
+        out.push(item);
+      }
+    }
+    return { items: out, skipped: p.skipped };
+  }
+
   return {
     render: render,
     addFiles: addFiles,
+    readForImport: readForImport,
     layers: function() { return layers.slice(); },
     remove: remove,
     zoomTo: zoomTo,

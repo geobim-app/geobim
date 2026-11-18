@@ -161,20 +161,44 @@
     }
     
     console.log(`✂️ Finishing clipping polygon with ${this.clipping.currentPoints.length} points`);
-    
-    // Store polygon
+
+    const points = [...this.clipping.currentPoints];
+
+    // Stop drawing mode (clears currentPoints), then store and apply
+    this.stopClippingDraw();
+    const polygon = this.addClippingPolygon(points, { source: 'drawn' });
+
+    this.updateStatus(`Clipping polygon created with ${polygon.points.length} points`, 'success');
+  };
+
+  // Stores a clipping polygon, draws its cyan outline and applies the clipping.
+  // Used by drawing (finishClippingPolygon) and by imports (clipping-import.js).
+  // points: Cartesian3[] with heights (the outline uses perPositionHeight; for
+  // the clipping itself only the position counts).
+  // opts: { source: 'drawn' | 'model' | 'file' | 'layer', assetId, name }
+  BimViewer.addClippingPolygon = function(points, opts = {}) {
+    if (!Array.isArray(points) || points.length < 3) return null;
+
+    // Unique id even for several polygons in the same millisecond (imports)
+    const id = Math.max(Date.now(), (this.clipping._lastId || 0) + 1);
+    this.clipping._lastId = id;
+
     const polygon = {
-      id: Date.now(),
-      points: [...this.clipping.currentPoints],
-      timestamp: new Date()
+      id: id,
+      points: [...points],
+      timestamp: new Date(),
+      source: opts.source || 'drawn',
+      assetId: opts.assetId != null ? String(opts.assetId) : null,
+      name: opts.name || null
     };
-    
+
     this.clipping.polygons.push(polygon);
-    
+
     // Create visual polygon entity — NO classification (causes flicker on streaming 3D tiles)
     // Uses perPositionHeight to render as independent 3D geometry above the surface
     const polygonEntity = this.viewer.entities.add({
       id: `clipping_polygon_${polygon.id}`,
+      show: this.clipping.visualizationVisible,
       polygon: {
         hierarchy: new Cesium.PolygonHierarchy(polygon.points),
         material: Cesium.Color.CYAN.withAlpha(0.3),
@@ -186,18 +210,15 @@
     });
 
     this.clipping.entities.push(polygonEntity);
-    
-    // Apply clipping
-    this.applyClipping();
-    
-    // Stop drawing mode
-    this.stopClippingDraw();
-    
+
+    // Apply clipping (only while enabled; the toggle re-applies later)
+    if (this.clipping.enabled) this.applyClipping();
+
     // Update UI
     this.updateClippingPolygonList();
     this.updateClippingPolygonCount();
-    
-    this.updateStatus(`Clipping polygon created with ${polygon.points.length} points`, 'success');
+
+    return polygon;
   };
   
   BimViewer.stopClippingDraw = function() {
@@ -904,10 +925,15 @@
         minute: '2-digit' 
       });
       
+      const label = polygon.name
+        ? String(polygon.name).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+        : `Polygon ${index + 1}`;
+      const origin = { model: 'from model • ', file: 'from file • ', layer: 'from GIS layer • ' }[polygon.source] || '';
+
       html += `
         <div class="modern-clipping-item">
           <div class="modern-clipping-header">
-            <div class="modern-clipping-name">✂️ Polygon ${index + 1}</div>
+            <div class="modern-clipping-name" title="${label}">✂️ ${label}</div>
             <button class="modern-icon-btn modern-icon-btn-danger" 
                     onclick="BimViewer.removeClippingPolygon(${polygon.id})" 
                     title="Remove polygon">
@@ -915,7 +941,7 @@
             </button>
           </div>
           <div class="modern-clipping-details">
-            ${polygon.points.length} points • ${timeStr}
+            ${origin}${polygon.points.length} points • ${timeStr}
           </div>
         </div>
       `;
