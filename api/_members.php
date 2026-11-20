@@ -87,6 +87,17 @@ function geobim_user_for_email($email, $via, $uid = null) {
     return ['email' => $email, 'role' => 'member', 'via' => $via, 'area' => $m['area'], 'label' => $m['label'], 'member' => $m];
 }
 
+// Caller for a verified ID token's payload, or null. The address counts only
+// once Firebase has verified it (geobim_token_email_verified); a member entry
+// bound to this uid needs no such proof, the uid is the account itself
+// (geobim_user_for_email has already refused any other uid).
+function geobim_user_for_token($payload) {
+    $u = geobim_user_for_email($payload['email'] ?? '', 'token', $payload['sub'] ?? null);
+    if (!$u) return null;
+    $uidBound = $u['role'] === 'member' && $u['member']['uid'] !== null;
+    return ($uidBound || geobim_token_email_verified($payload)) ? $u : null;
+}
+
 function geobim_session_user() {
     $email = geobim_cookie_email();
     return $email !== null ? geobim_user_for_email($email, 'cookie') : null;
@@ -118,7 +129,7 @@ function geobim_require_user($opts = []) {
         echo json_encode(['error' => 'Invalid or expired sign-in']);
         exit;
     }
-    $u = geobim_user_for_email($payload['email'] ?? '', 'token', $payload['sub']);
+    $u = geobim_user_for_token($payload);
     if (!$u) {
         http_response_code(403);
         echo json_encode(['error' => 'No model area for this account']);
