@@ -37,9 +37,10 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 
 **Models & data**
 - Self-hosted 3D Tiles and GLB models, Cesium ion assets (own account via OAuth), Bentley iTwin iModels, ArcGIS I3S scene layers
-- IFC and point cloud upload (up to 3 GB) with server-side tiling; move, rotate and save the position of any model
+- IFC, GLB and point cloud upload (up to 3 GB; IFC and point clouds are tiled on the server); move, rotate and save the position of any model
 - GIS files by drag & drop (GeoJSON, Shapefile, KML/KMZ, GPX, FlatGeobuf) with CRS from the file
 - Gaussian splats as native 3D Tiles (`KHR_gaussian_splatting`)
+- Rhino plugin (repo `geobim-rhino`, Rhino 8): upload the selection as IFC 4 or GLB with a plugin token (Account → Rhino plugin); a re-upload replaces the model under the same link
 
 **Terrain & maps**
 - Terrain: Mapterhorn (open DGM, no ion), ArcGIS World Elevation, Cesium World Terrain; heights via GCG2016 / EGM2008 geoid

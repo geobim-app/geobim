@@ -112,11 +112,12 @@
   // resulting tileset's root.transform (see scripts/convert_pointcloud.py).
   BimViewer.uploadPointCloud = async function(file, opts) {
     opts = opts || {};
-    // opts.kind ('ifc' | 'las' | 'scan') only picks the wording of messages
-    const what = opts.kind === 'ifc' || /\.ifc$/i.test(file.name) ? 'IFC model' : 'point cloud';
+    // opts.kind ('ifc' | 'glb' | 'las' | 'scan') only picks the wording of messages
+    const isGlb = opts.kind === 'glb' || /\.glb$/i.test(file.name);
+    const what = isGlb ? 'GLB model' : opts.kind === 'ifc' || /\.ifc$/i.test(file.name) ? 'IFC model' : 'point cloud';
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply|ifc)$/i, ''));
+    formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply|ifc|glb)$/i, ''));
     if (opts.lon !== undefined && opts.lon !== null && !isNaN(opts.lon)) {
       formData.append('lon', opts.lon);
       formData.append('lat', opts.lat);
@@ -150,8 +151,9 @@
     }
 
     const { jobId, slug } = resp.body;
-    this.updateStatus(`Converting ${what} — this can take a while for large files...`, 'loading');
-    setUploadStatus(`${slug}: queued`, 'busy');
+    // A GLB is stored as is (status already "done"); everything else is converted
+    this.updateStatus(isGlb ? `Loading ${what}...` : `Converting ${what} — this can take a while for large files...`, 'loading');
+    setUploadStatus(isGlb ? `${slug}: stored` : `${slug}: queued`, 'busy');
     this._pollPointCloudJob(jobId, slug, what);
     return jobId;
   };
