@@ -1,6 +1,8 @@
 <?php
-// geoBIM.app — save (or reset) the placement of a self-hosted model. Owner only
-// (Firebase ID token, see _owner_auth.php).
+// geoBIM.app — save (or reset) the placement of a self-hosted model. Owner, or
+// a member for the models in their own area (_members.php). Both kinds below
+// take "area": "<area>" for a model in model/users/<area>/ (the owner may name
+// any member's area, a member only their own).
 //
 //   {kind: "tileset", folder, transform: [16], placement: {lon, lat, height, heading}}
 //     root.transform of model/<folder>/tileset.json := transform (ECEF,
@@ -15,6 +17,7 @@
 //   lists from (GEOBIM_DEV_MODEL_DIR, see _dev.php) — still owner only.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_members.php';
 require __DIR__ . '/_dev.php';
 
 function fail($message, $code = 400) {
@@ -24,13 +27,16 @@ function fail($message, $code = 400) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') fail('POST only', 405);
-$user = geobim_require_owner();
+$user = geobim_require_user();
 
 $req = json_decode(file_get_contents('php://input'), true);
 if (!is_array($req)) fail('JSON body required');
 // Paths compared with "/" (realpath gives "\" on Windows, i.e. under dev/serve.ps1)
 function norm_path($p) { return $p === false ? false : str_replace('\\', '/', $p); }
-$modelDir = geobim_dev_model_dir() ?: norm_path(realpath(__DIR__ . '/../model'));
+$area = isset($req['area']) && is_string($req['area']) && $req['area'] !== '' ? $req['area'] : null;
+$devDir = ($area === null && $user['role'] === 'owner') ? geobim_dev_model_dir() : null;
+$modelDir = $devDir ?: norm_path(realpath(geobim_target_area($user, $area)['dir']));
+if ($modelDir === false) fail('Not found', 404);
 $reset = !empty($req['reset']);
 
 function finite_num($v) { return (is_int($v) || is_float($v)) && is_finite((float)$v); }

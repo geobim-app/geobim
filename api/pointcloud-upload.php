@@ -8,7 +8,9 @@
 //
 // Owner only, checked server-side (2026-09-27): the owner session cookie set
 // by api/owner-session.php after Firebase sign-in, an ID token, or a Rhino
-// plugin token (api/_plugin_tokens.php).
+// plugin token (api/_plugin_tokens.php). Members (api/_members.php) upload
+// into their own area model/users/<area>/ the same way, within its quota; its
+// _staging/ makes the converter put the result there too.
 //
 // Optional "replace=<slug>" (IFC and GLB, used by the Rhino plugin): the new
 // result replaces model/<slug>/ (or model/<slug>.glb) instead of getting a new
@@ -23,7 +25,8 @@
 // Rhino plugin need no special case.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
-$user = geobim_require_owner(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
+require __DIR__ . '/_members.php';
+$user = geobim_require_user(['plugin' => true]);   // session cookie, ID token or Rhino plugin token
 
 // Deliberately modest while usage is low-volume/single-user — flock()-serialized
 // conversion in convert_pointcloud.py already prevents concurrent jobs from
@@ -62,6 +65,13 @@ if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
     fail('File too large — 3 GB limit');
 }
 
+// The caller's model area: model/ (owner) or model/users/<area>/ (member)
+$target = geobim_target_area($user, null, true);
+$modelDir = $target['dir'];
+if (!is_dir($modelDir)) {
+    fail('Could not create the model area', 500);
+}
+
 $origName = $_FILES['file']['name'];
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
 if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc', 'glb'], true)) {
@@ -77,6 +87,16 @@ if ($isGlb) {
     }
 }
 
+if ($user['role'] === 'member') {
+    // IFC and point clouds count double: the tiles come on top of the upload
+    $quota = $user['member']['quota_bytes'];
+    $used = geobim_dir_bytes($modelDir);
+    if ($used + $_FILES['file']['size'] * ($isGlb ? 1 : 2) > $quota) {
+        fail(sprintf('Your model area is full (%.1f of %.1f GB used) — delete models first',
+            $used / 1073741824, $quota / 1073741824), 413);
+    }
+}
+
 $name = trim($_POST['name'] ?? pathinfo($origName, PATHINFO_FILENAME));
 if ($name === '') {
     fail('Missing name');
@@ -88,7 +108,6 @@ if ($baseSlug === '') {
 // GLB: the file name is the model id in api/models.php, so no "_tiled" suffix
 $slug = $isGlb ? $baseSlug : $baseSlug . '_tiled';
 
-$modelDir = __DIR__ . '/../model';
 // A model id is taken by a tileset folder or a GLB file of that name
 function geobim_slug_taken($modelDir, $slug) {
     return is_dir($modelDir . '/' . $slug) || is_file($modelDir . '/' . $slug . '.glb');

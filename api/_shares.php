@@ -9,8 +9,9 @@
 //
 // Record: {v, token, sceneId, sceneName, label, createdAt, createdBy,
 //          expiresAt|null, revokedAt|null, models[], excluded[], snapshot}
-//   models   — top-level entries of model/ the link may load (server-side,
-//              built from the scene's assets that exist here)
+//   models   — entries of model/ the link may load (server-side, built from
+//              the scene's assets that exist here): top-level names, or
+//              "users/<area>/<name>" for a member's models (_members.php)
 //   snapshot — the scene frozen at share time, cleaned (see share-create.php)
 //
 // Opening a link (share-get.php) remembers its token in the HttpOnly cookie
@@ -70,6 +71,16 @@ function geobim_share_entry_name_valid($name) {
         && $name[0] !== '.' && $name[0] !== '_';
 }
 
+// An entry of a link's "models": a name directly in model/ (the owner's
+// models) or "users/<area>/<name>" (a member's, see _members.php)
+function geobim_share_entry_valid($entry) {
+    if (geobim_share_entry_name_valid($entry)) return true;
+    $parts = is_string($entry) ? explode('/', $entry) : [];
+    return count($parts) === 3 && $parts[0] === 'users'
+        && preg_match('/^[a-z0-9_]{2,32}$/', $parts[1]) === 1
+        && geobim_share_entry_name_valid($parts[2]);
+}
+
 function geobim_write_json_atomic($path, $data) {
     $tmp = $path . '.tmp-' . getmypid();
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -109,7 +120,7 @@ function geobim_share_models() {
         $rec = geobim_share_load($t);
         if (!$rec || geobim_share_state($rec) !== 'active') continue;
         foreach ($rec['models'] ?? [] as $name) {
-            if (geobim_share_entry_name_valid($name) && !in_array($name, $models, true)) $models[] = $name;
+            if (geobim_share_entry_valid($name) && !in_array($name, $models, true)) $models[] = $name;
         }
     }
     return $models;
@@ -118,11 +129,13 @@ function geobim_share_models() {
 // Whether model/<$rel> lies in an entry a share link in the cookie allows
 function geobim_share_may_read($rel) {
     if (empty($_COOKIE[GEOBIM_SHARE_COOKIE])) return false;
-    $top = explode('/', $rel, 2)[0];
-    return in_array($top, geobim_share_models(), true);
+    foreach (geobim_share_models() as $entry) {
+        if ($rel === $entry || strncmp($rel, $entry . '/', strlen($entry) + 1) === 0) return true;
+    }
+    return false;
 }
 
-// Record without the snapshot, for the owner's link list
+// Record without the snapshot, for the link list (owner: all, member: own)
 function geobim_share_public_info($rec) {
     return [
         'token' => $rec['token'],

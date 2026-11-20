@@ -5,7 +5,8 @@
 // Admin SDK does, without it: RS256 signature against Google's published
 // securetoken certificates, audience/issuer = our Firebase project, not
 // expired, and the account's email is the owner's. Firebase allows one
-// account per email, so the address identifies the owner.
+// account per email, so the address identifies the owner, once verified
+// (geobim_token_email_verified).
 
 const GEOBIM_FIREBASE_PROJECT = 'publictwin-ad6c7';
 const GEOBIM_OWNER_EMAILS = ['christof2304@gmail.com'];
@@ -58,6 +59,15 @@ function geobim_verify_firebase_token($jwt) {
     return $payload;
 }
 
+// Has Firebase verified the token's address? Anyone can create an account
+// with an address that isn't theirs yet (password sign-up via the public API
+// key) and it stays unverified. The owner role and member areas hang on the
+// address, so an unverified one counts for nothing, except for a member entry
+// bound to the account's uid (_members.php geobim_user_for_token).
+function geobim_token_email_verified($payload) {
+    return ($payload['email_verified'] ?? false) === true;
+}
+
 // ---------------------------------------------------------------------------
 // Owner session cookie. Cesium loads tiles with plain GETs that cannot carry
 // the ID token, so after sign-in api/owner-session.php trades the token for a
@@ -79,8 +89,8 @@ function geobim_session_value($email, $expires) {
     return $data . '|' . hash_hmac('sha256', $data, $secret);
 }
 
-// Owner email from a valid session cookie, or null.
-function geobim_owner_from_cookie() {
+// Email from a valid session cookie (owner or member, see _members.php), or null.
+function geobim_cookie_email() {
     $v = $_COOKIE[GEOBIM_SESSION_COOKIE] ?? '';
     $parts = explode('|', $v);
     if (count($parts) !== 3) return null;
@@ -88,7 +98,13 @@ function geobim_owner_from_cookie() {
     if (!ctype_digit($expires) || (int)$expires < time()) return null;
     $expected = geobim_session_value($email, (int)$expires);
     if (!$expected || !hash_equals($expected, $v)) return null;
-    return in_array($email, GEOBIM_OWNER_EMAILS, true) ? $email : null;
+    return $email;
+}
+
+// Owner email from a valid session cookie, or null.
+function geobim_owner_from_cookie() {
+    $email = geobim_cookie_email();
+    return ($email !== null && in_array($email, GEOBIM_OWNER_EMAILS, true)) ? $email : null;
 }
 
 function geobim_set_session_cookie($email) {
@@ -142,7 +158,7 @@ function geobim_require_owner($opts = []) {
         echo json_encode(['error' => 'Invalid or expired sign-in']);
         exit;
     }
-    if (!in_array(strtolower($payload['email'] ?? ''), GEOBIM_OWNER_EMAILS, true)) {
+    if (!in_array(strtolower($payload['email'] ?? ''), GEOBIM_OWNER_EMAILS, true) || !geobim_token_email_verified($payload)) {
         http_response_code(403);
         echo json_encode(['error' => 'Owner only']);
         exit;

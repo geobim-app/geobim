@@ -120,6 +120,12 @@ installation:
 - **Owner account:** set your email in `GEOBIM_OWNER_EMAILS` (`api/_owner_auth.php`) and in
   `labUsers` (`core.js`); the owner uploads, places, shares and deletes models.
 - **Session secret:** `/etc/geobim/session-secret` (random string) signs the owner session cookie.
+- **Members with a model area of their own (optional):** `/etc/geobim/members.json` on the server, e.g.
+  `{"name@example.com": {"area": "smith", "label": "Smith", "uid": "<Firebase uid>", "quota_gb": 10}}`.
+  A member uploads, places, deletes and shares only the models in `model/users/<area>/`; the owner sees
+  them too, prefixed with the label. With `uid`, only that Firebase account gets the area; without it,
+  any account with that address does, once Firebase has verified the address (the owner needs a verified
+  address too). Format and rules: `api/_members.php`.
 - **Models:** `model/` (not in git) holds self-hosted tilesets and GLBs; it must be writable by PHP
   (uploads, saved positions, share links).
 - **IFC and point cloud conversion:** the upload hands files to a worker (`scripts/convert_pointcloud.py`)
