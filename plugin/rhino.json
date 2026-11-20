@@ -1,0 +1,4 @@
+{
+  "about": "Settings for geoBIM.app for Rhino (github.com/geobim-app/geobim-rhino), read by the plugin at most once an hour. nominatim: the search URL for places outside Switzerland (GeoBIMLocation), or null to switch that search off without a plugin update, as the Nominatim usage policy requires.",
+  "nominatim": "https://nominatim.openstreetmap.org/search"
+}
