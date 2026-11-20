@@ -166,7 +166,49 @@
   };
 
   // ===============================
-  // APPLY TO ALL TILESETS
+  // APPLY TO GLB MODELS (Cesium.Model)
+  // ===============================
+
+  // GLBs with their own PBR materials (e.g. polished steel from the Rhino plugin)
+  // reflect the static KTX2 HDRI at full strength, so a mirror stays a mirror —
+  // Cesium's dynamic environment map only holds sky and ground colour. Their
+  // metallic/roughness decides how much they reflect. GLBs with the concrete
+  // shader follow the tileset settings.
+  BimViewer.applyIBLToModel = function(asset) {
+    var model = asset && asset.model;
+    if (!model || asset.isPointCloud) return;
+    try {
+      var ibl = model.imageBasedLighting;
+      if (!ibl) return;
+      var mirror = !!asset.ownMaterials && !asset.pbrEnabled;
+
+      if (!this.ibl.enabled) {
+        if (model.environmentMapManager) model.environmentMapManager.enabled = true;
+        ibl.sphericalHarmonicCoefficients = undefined;
+        ibl.imageBasedLightingFactor = new Cesium.Cartesian2(1.0, 1.0);
+        return;
+      }
+
+      if (mirror || this.ibl.mode === 'static') {
+        if (model.environmentMapManager) model.environmentMapManager.enabled = false;
+        ibl.specularEnvironmentMaps = STATIC_KTX2_URL;
+        ibl.sphericalHarmonicCoefficients = STATIC_SPHERICAL_HARMONICS;
+      } else {
+        if (model.environmentMapManager) model.environmentMapManager.enabled = true;
+        ibl.sphericalHarmonicCoefficients = IBL_SPHERICAL_HARMONICS;
+      }
+
+      ibl.imageBasedLightingFactor = new Cesium.Cartesian2(
+        mirror ? 1.0 : this.ibl.diffuse, mirror ? 1.0 : this.ibl.specular
+      );
+      if (this.viewer) this.viewer.scene.requestRender();
+    } catch (e) {
+      console.warn('⚠️ IBL: could not apply to GLB model:', e.message);
+    }
+  };
+
+  // ===============================
+  // APPLY TO ALL TILESETS AND GLB MODELS
   // ===============================
 
   BimViewer.applyIBLToAll = function() {
@@ -175,6 +217,8 @@
       this.loadedAssets.forEach(function(asset) {
         if (asset.tileset) {
           BimViewer.applyIBLToTileset(asset.tileset);
+        } else if (asset.isGLB && asset.model) {
+          BimViewer.applyIBLToModel(asset);
         }
       });
     }
