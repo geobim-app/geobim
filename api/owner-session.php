@@ -26,7 +26,7 @@ if (!$payload) {
     echo json_encode(['error' => 'Invalid or expired sign-in']);
     exit;
 }
-$user = geobim_user_for_email($payload['email'] ?? '', 'token', $payload['sub']);
+$user = geobim_user_for_token($payload);
 if (!$user) {
     // signed in, but neither owner nor member: no server models
     geobim_clear_session_cookie();

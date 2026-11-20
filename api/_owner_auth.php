@@ -5,7 +5,8 @@
 // Admin SDK does, without it: RS256 signature against Google's published
 // securetoken certificates, audience/issuer = our Firebase project, not
 // expired, and the account's email is the owner's. Firebase allows one
-// account per email, so the address identifies the owner.
+// account per email, so the address identifies the owner, once verified
+// (geobim_token_email_verified).
 
 const GEOBIM_FIREBASE_PROJECT = 'publictwin-ad6c7';
 const GEOBIM_OWNER_EMAILS = ['christof2304@gmail.com'];
@@ -56,6 +57,15 @@ function geobim_verify_firebase_token($jwt) {
     if (($payload['exp'] ?? 0) < $now || ($payload['iat'] ?? PHP_INT_MAX) > $now + 300) return null;
     if (empty($payload['sub'])) return null;
     return $payload;
+}
+
+// Has Firebase verified the token's address? Anyone can create an account
+// with an address that isn't theirs yet (password sign-up via the public API
+// key) and it stays unverified. The owner role and member areas hang on the
+// address, so an unverified one counts for nothing, except for a member entry
+// bound to the account's uid (_members.php geobim_user_for_token).
+function geobim_token_email_verified($payload) {
+    return ($payload['email_verified'] ?? false) === true;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +158,7 @@ function geobim_require_owner($opts = []) {
         echo json_encode(['error' => 'Invalid or expired sign-in']);
         exit;
     }
-    if (!in_array(strtolower($payload['email'] ?? ''), GEOBIM_OWNER_EMAILS, true)) {
+    if (!in_array(strtolower($payload['email'] ?? ''), GEOBIM_OWNER_EMAILS, true) || !geobim_token_email_verified($payload)) {
         http_response_code(403);
         echo json_encode(['error' => 'Owner only']);
         exit;

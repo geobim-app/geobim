@@ -37,10 +37,10 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 
 **Models & data**
 - Self-hosted 3D Tiles and GLB models, Cesium ion assets (own account via OAuth), Bentley iTwin iModels, ArcGIS I3S scene layers
-- IFC and point cloud upload (up to 3 GB) with server-side tiling; move, rotate and save the position of any model
+- IFC, GLB and point cloud upload (up to 3 GB; IFC and point clouds are tiled on the server); move, rotate and save the position of any model
 - GIS files by drag & drop (GeoJSON, Shapefile, KML/KMZ, GPX, FlatGeobuf) with CRS from the file
 - Gaussian splats as native 3D Tiles (`KHR_gaussian_splatting`)
-- **Rhino Plugin** — Upload Rhino models straight from Rhino 8 (IFC 4 via the geobim-tiler, georeferenced from map coordinates or the EarthAnchorPoint); repo `geobim-rhino`
+- Rhino plugin (repo `geobim-rhino`, Rhino 8): upload the selection as IFC 4 or GLB with a plugin token (Account → Rhino plugin); a re-upload replaces the model under the same link
 
 **Terrain & maps**
 - Terrain: Mapterhorn (open DGM, no ion), ArcGIS World Elevation, Cesium World Terrain; heights via GCG2016 / EGM2008 geoid
@@ -123,7 +123,9 @@ installation:
 - **Members with a model area of their own (optional):** `/etc/geobim/members.json` on the server, e.g.
   `{"name@example.com": {"area": "smith", "label": "Smith", "uid": "<Firebase uid>", "quota_gb": 10}}`.
   A member uploads, places, deletes and shares only the models in `model/users/<area>/`; the owner sees
-  them too, prefixed with the label. Format and rules: `api/_members.php`.
+  them too, prefixed with the label. With `uid`, only that Firebase account gets the area; without it,
+  any account with that address does, once Firebase has verified the address (the owner needs a verified
+  address too). Format and rules: `api/_members.php`.
 - **Models:** `model/` (not in git) holds self-hosted tilesets and GLBs; it must be writable by PHP
   (uploads, saved positions, share links).
 - **IFC and point cloud conversion:** the upload hands files to a worker (`scripts/convert_pointcloud.py`)
