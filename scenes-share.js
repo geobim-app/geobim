@@ -14,7 +14,9 @@
  * also used by the panel UI). The dialog creates links (api/share-create.php:
  * the server freezes and cleans the scene), lists this site's links for the
  * scene with their state, copies / opens / revokes them and shows the
- * customers' comments.
+ * customers' comments. The owner ticks the models a link carries: a scene
+ * holds every model that was loaded when it was saved, hidden ones too, and
+ * the customer could show those again. Visible ones are ticked by default.
  *
  * Comments (share-view.js) live in Firestore under
  * share_comments/<token>/comments. Their rules need the link's state, so this
@@ -153,10 +155,15 @@
         '<h2 id="sceneShareTitle"><i data-lucide="share-2"></i><span></span></h2>' +
         '<button type="button" class="modern-icon-btn" data-share-close aria-label="Close"><i data-lucide="x"></i></button>' +
       '</div>' +
-      '<p class="scene-share-hint">The link shows the scene as it is now: camera, models, visibility, terrain and sun. ' +
+      '<p class="scene-share-hint">The link shows the scene as saved: camera, the models ticked below, terrain and sun. ' +
         'Later changes to the scene do not change existing links. Only models hosted on this server can be shared; ' +
         'the customer needs no account and can measure and comment.</p>' +
       '<form class="scene-share-form" data-share-form>' +
+        '<fieldset class="scene-share-models">' +
+          '<legend>Models in the link</legend>' +
+          '<div class="scene-share-model-list" data-share-models></div>' +
+          '<p class="scene-share-models-note" data-share-models-note hidden></p>' +
+        '</fieldset>' +
         '<label class="scene-share-field"><span>Label (for you)</span>' +
           '<input type="text" class="modern-input" name="label" maxlength="120" placeholder="e.g. Client X, design review"></label>' +
         '<label class="scene-share-field"><span>Valid until (optional)</span>' +
@@ -183,6 +190,7 @@
     if (!dialog) build();
     current = scene;
     dialog.querySelector('#sceneShareTitle span').textContent = 'Share "' + scene.name + '"';
+    fillModels(scene);
     dialog.querySelector('[data-share-form]').reset();
     var result = dialog.querySelector('[data-share-result]');
     result.hidden = true;
@@ -190,6 +198,41 @@
     icons(dialog);
     if (!dialog.open) dialog.showModal();
     loadList();
+  }
+
+  // The scene's self-hosted models as checkboxes (value = index into
+  // scene.assets, what share-create.php takes as "include"). Visible ones are
+  // ticked by default ("checked" attribute, so form.reset() restores it).
+  // Cesium ion and iTwin models never go into a link: only counted.
+  function fillModels(scene) {
+    var assets = Array.isArray(scene.assets) ? scene.assets : [];
+    var rows = [];
+    var other = 0;
+    assets.forEach(function(a, i) {
+      if (!a || typeof a !== 'object') return;
+      if (!a.localPath || a.iTwinIModelId) { other++; return; }
+      var hidden = a.bVisible === false;
+      rows.push('<label class="scene-share-model">' +
+        '<input type="checkbox" name="model" value="' + i + '"' + (hidden ? '' : ' checked') + '>' +
+        '<span class="scene-share-model-name">' + esc(a.name || a.localPath) + '</span>' +
+        (hidden ? '<span class="scene-share-model-tag">hidden</span>' : '') +
+      '</label>');
+    });
+    dialog.querySelector('[data-share-models]').innerHTML = rows.length
+      ? rows.join('')
+      : '<div class="modern-empty-state">No model of this scene is hosted on this server</div>';
+    var note = dialog.querySelector('[data-share-models-note]');
+    note.hidden = !other;
+    note.textContent = other
+      ? (other === 1 ? '1 Cesium ion or iTwin model' : other + ' Cesium ion or iTwin models') + ' of the scene cannot be shared.'
+      : '';
+    dialog.querySelector('[data-share-form] button[type="submit"]').disabled = !rows.length;
+  }
+
+  function chosenModels(form) {
+    return Array.prototype.map.call(form.querySelectorAll('input[name="model"]:checked'), function(box) {
+      return Number(box.value);
+    });
   }
 
   function linkRow(s) {
@@ -264,11 +307,17 @@
       var p = until.split('-').map(Number);
       expiresAt = new Date(p[0], p[1] - 1, p[2], 23, 59, 59).toISOString();   // end of that day, local time
     }
+    var include = chosenModels(form);
+    if (!include.length) {
+      result.hidden = false;
+      result.innerHTML = '<div class="scene-share-error">Tick at least one model.</div>';
+      return;
+    }
     btn.disabled = true;
     try {
       // The scene as saved (not the current view): what the list shows
       var data = await api('api/share-create.php', {
-        sceneId: current.id, scene: current, label: form.label.value.trim(), expiresAt: expiresAt
+        sceneId: current.id, scene: current, include: include, label: form.label.value.trim(), expiresAt: expiresAt
       });
       var mirrorFailed = false;
       try { await mirrorState(data.share); } catch (err) { mirrorFailed = true; console.warn('Share: link state for comments not saved', err); }

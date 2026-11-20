@@ -3,12 +3,16 @@
 // scenes with models of their own area (_members.php): those are entries
 // "users/<area>/<name>". The owner can also share members' models.
 //
-// POST {sceneId, scene, label?, expiresAt?: ISO date|null}
+// POST {sceneId, scene, include?: [index into scene.assets], label?,
+//       expiresAt?: ISO date|null}
 //   → {token, path: "/s/<token>", share: <record without snapshot>, warnings: []}
 //
 // The scene is frozen and cleaned here, on the server:
 //   - only camera, assets and environment fields are kept (no Desktop paths,
 //     nothing a customer must not see)
+//   - only the models ticked in the share dialog ("include"; without it the
+//     visible ones): a scene holds every model that was loaded when it was
+//     saved, also hidden ones, which the customer could show again
 //   - only self-hosted models that exist in this site's model/ are kept;
 //     Cesium ion and iTwin assets and missing models go to "excluded"
 //   - the environment is reduced to what works without Cesium ion: open
@@ -49,6 +53,18 @@ if (!empty($req['expiresAt'])) {
     if ($ts <= time()) fail('expiresAt must be in the future');
     if ($ts > time() + 2 * 365 * 86400) fail('expiresAt at most 2 years ahead');
     $expiresAt = gmdate('Y-m-d\TH:i:s\Z', $ts);
+}
+
+// Models ticked in the share dialog, as indices into scene.assets (null =
+// the visible ones)
+$include = null;
+if (array_key_exists('include', $req)) {
+    if (!is_array($req['include']) || count($req['include']) > 1000) fail('Invalid include');
+    $include = [];
+    foreach ($req['include'] as $i) {
+        if (!is_int($i) || $i < 0) fail('Invalid include');
+        $include[$i] = true;
+    }
 }
 
 function finite_num($v) { return (is_int($v) || is_float($v)) && is_finite((float)$v); }
@@ -97,7 +113,8 @@ $warnings = [];
 $assets = [];
 $models = [];
 $excluded = [];
-foreach (is_array($scene['assets'] ?? null) ? $scene['assets'] : [] as $a) {
+$notSelected = 0;
+foreach (is_array($scene['assets'] ?? null) ? array_values($scene['assets']) : [] as $i => $a) {
     if (!is_array($a)) continue;
     $name = mb_substr(trim((string)($a['name'] ?? '')), 0, 200);
     $local = (string)($a['localPath'] ?? '');
@@ -107,6 +124,12 @@ foreach (is_array($scene['assets'] ?? null) ? $scene['assets'] : [] as $a) {
     }
     if ($local === '') {
         $excluded[] = ['name' => $name ?: ('Asset ' . ($a['ionAssetId'] ?? '?')), 'reason' => 'Cesium ion asset'];
+        continue;
+    }
+    $chosen = $include !== null ? isset($include[$i]) : (($a['bVisible'] ?? true) !== false);
+    if (!$chosen) {
+        $excluded[] = ['name' => $name ?: local_key($local), 'reason' => 'not selected'];
+        $notSelected++;
         continue;
     }
     $key = local_key($local);
@@ -124,8 +147,12 @@ foreach (is_array($scene['assets'] ?? null) ? $scene['assets'] : [] as $a) {
         'localPath' => 'model/' . $entry['name'] . ($entry['kind'] === 'tileset' ? '/tileset.json' : ''),
     ];
 }
-if (!$models) fail('The scene has no model that can be shared from this server (only self-hosted models can be shared)');
-foreach ($excluded as $x) $warnings[] = '"' . $x['name'] . '" left out (' . $x['reason'] . ')';
+if (!$models) fail($notSelected
+    ? 'No model selected that can be shared from this server'
+    : 'The scene has no model that can be shared from this server (only self-hosted models can be shared)');
+foreach ($excluded as $x) {
+    if ($x['reason'] !== 'not selected') $warnings[] = '"' . $x['name'] . '" left out (' . $x['reason'] . ')';
+}
 
 // --- Camera ---
 $cam = $scene['cameraLongitudeLatitudeHeight'] ?? null;

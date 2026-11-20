@@ -154,6 +154,7 @@ Run `bash qa-check.sh` for automated checks, then complete this manual checklist
 
 ### 19. Share Links (Scenes)
 - [ ] Owner: share button on each scene, dialog creates a link, warnings list left-out ion/iTwin assets
+- [ ] Owner: "Models in the link" lists the scene's server models, visible ones ticked, hidden ones unticked ("hidden"); an unticked model is not in the link (customer view and `model/<name>` 404); no tick → "Tick at least one model"
 - [ ] Private window: `/s/<token>` opens without login, banner shows scene name, models and camera as saved
 - [ ] Customer: panel UI also on geobim.app; rail shows only Layers (base maps only), Visibility, Measure, Comments and Sun & time (phone: same + More); H toggles hide mode, a clicked element is hidden; Home returns to the shared view; Loaded list shows per model only fly to, show/hide and Section (axis/line/plan works); no bottom toolbar, no Loaded list, no "Delete All"; G/X do nothing; file drop does nothing
 - [ ] Customer comment appears in the owner's dialog (Comments) and survives > 24 h
