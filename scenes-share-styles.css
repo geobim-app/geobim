@@ -63,6 +63,82 @@
   color: var(--text-secondary);
 }
 
+/* Models in the link: one checkbox per self-hosted model of the scene */
+.scene-share-models {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.scene-share-models legend {
+  margin-bottom: var(--space-xs);
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.scene-share-model-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.scene-share-model {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.scene-share-model + .scene-share-model { border-top: 1px solid var(--border-subtle); }
+
+.scene-share-model input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--brand-teal);
+}
+
+.scene-share-model input:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.scene-share-model-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-share-model-tag {
+  flex: none;
+  padding: 1px var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.scene-share-models-note {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (pointer: coarse) {
+  .scene-share-model { min-height: 44px; }
+}
+
 .scene-share-form .modern-btn,
 .scene-share-item-actions .modern-btn {
   display: inline-flex;
