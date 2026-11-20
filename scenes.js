@@ -394,10 +394,10 @@
   };
 
   async function ensureLocalModels() {
-    // Server models: the owner's, those of an opened share link (share-view.js;
+    // Server models: the owner's or a member's (own area), those of an opened share link (share-view.js;
     // api/models.php lists only the link's models then) or of a demo scene
     // (demo-scenes.js; its models are in guest-models.json)
-    var allowed = window._shareMode || BimViewer.scenes.restoringDemo || (BimViewer.isLabUser && BimViewer.isLabUser());
+    var allowed = window._shareMode || BimViewer.scenes.restoringDemo || (BimViewer.hasModelArea && BimViewer.hasModelArea());
     if (!allowed || typeof BimViewer.fetchGLBModels !== 'function') return [];
     if (!BimViewer.glbModels || !BimViewer.glbModels.length) {
       try { await BimViewer.fetchGLBModels(); } catch (e) {}

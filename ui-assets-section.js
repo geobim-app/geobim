@@ -222,13 +222,13 @@
       selector.selectedIndex = -1;
     });
 
-    // Local models (owner: all, guests: model/guest-models.json, see
+    // Local models (owner: all, member: own area, guests: model/guest-models.json, see
     // api/models.php) — auth may not be resolved at init time
     const glbSection = document.getElementById('glbSection');
     const glbSelector = document.getElementById('glbModelSelector');
     const isGuest = () => typeof BimGuest !== 'undefined' && BimGuest.active();
     const initGLBSection = async () => {
-      if (!(BimViewer.isLabUser() || isGuest()) || !glbSelector) return;
+      if (!(BimViewer.hasModelArea() || isGuest()) || !glbSelector) return;
       if (glbSection) glbSection.hidden = false;
       if (glbSelector.options.length <= 1) {
         if (!BimViewer.glbModels.length && BimViewer.fetchGLBModels) {
@@ -246,6 +246,7 @@
     };
     initGLBSection();
     window.addEventListener('geobim-guest-start', initGLBSection);
+    window.addEventListener('geobim-session', initGLBSection);   // members: known once the session is settled
     setTimeout(initGLBSection, 2000);
     setTimeout(initGLBSection, 5000);
 

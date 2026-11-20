@@ -79,8 +79,8 @@ function geobim_session_value($email, $expires) {
     return $data . '|' . hash_hmac('sha256', $data, $secret);
 }
 
-// Owner email from a valid session cookie, or null.
-function geobim_owner_from_cookie() {
+// Email from a valid session cookie (owner or member, see _members.php), or null.
+function geobim_cookie_email() {
     $v = $_COOKIE[GEOBIM_SESSION_COOKIE] ?? '';
     $parts = explode('|', $v);
     if (count($parts) !== 3) return null;
@@ -88,7 +88,13 @@ function geobim_owner_from_cookie() {
     if (!ctype_digit($expires) || (int)$expires < time()) return null;
     $expected = geobim_session_value($email, (int)$expires);
     if (!$expected || !hash_equals($expected, $v)) return null;
-    return in_array($email, GEOBIM_OWNER_EMAILS, true) ? $email : null;
+    return $email;
+}
+
+// Owner email from a valid session cookie, or null.
+function geobim_owner_from_cookie() {
+    $email = geobim_cookie_email();
+    return ($email !== null && in_array($email, GEOBIM_OWNER_EMAILS, true)) ? $email : null;
 }
 
 function geobim_set_session_cookie($email) {
