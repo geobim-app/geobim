@@ -5,7 +5,8 @@
 //
 // Owner only, checked server-side (see _owner_auth.php). Kept intentionally
 // narrow in scope as well: only folders matching our own naming convention
-// (<slug>_tiled[_N]) that actually contain a tileset.json can be targeted —
+// (<slug>_tiled[_N], photo reconstructions <slug>_recon[_N]_mesh|_pointcloud|_splats)
+// that actually contain a tileset.json can be targeted —
 // this can't be used to delete arbitrary files/GLBs elsewhere in model/.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
@@ -22,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $slug = $_GET['slug'] ?? '';
-if (!preg_match('/^[a-z0-9_]+_tiled(_[0-9]+)?$/', $slug)) {
+if (!preg_match('/^[a-z0-9_]+_tiled(_[0-9]+)?$/', $slug) &&
+    !preg_match('/^[a-z0-9_]+_recon(_[0-9]+)?_(mesh|pointcloud|splats)$/', $slug)) {
     fail('Invalid slug');
 }
 

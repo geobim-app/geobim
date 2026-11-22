@@ -1831,6 +1831,14 @@ const BimViewer = {
     // discovered alongside GLBs so both share one dropdown/one entry point) go
     // through a completely different loader — no glTF to inspect or wrap, it's
     // already a tileset.
+    // Gaussian splat tilesets (api/models.php kind: 'splats', e.g. from a photo
+    // reconstruction) go to splat.js: no lighting/PBR/performance presets there.
+    if (modelDef.type === 'TILESET' && modelDef.kind === 'splats' && typeof this.loadSplat === 'function') {
+      const inst = await this.loadSplat({ id: 'glb_' + modelDef.id, url: modelDef.file, name: modelDef.name });
+      if (inst) this.updateStatus(`Loaded: ${modelDef.name}`, 'success');
+      else this.updateStatus(`Splat load failed: ${this.splat?.lastError || modelDef.name}`, 'error');
+      return inst;
+    }
     if (modelDef.type === 'TILESET') {
       return this.loadTilesetAsset(modelDef, position);
     }

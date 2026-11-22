@@ -1,15 +1,19 @@
 <?php
 // geoBIM.app — Point cloud upload endpoint.
-// Accepts a LAS/LAZ/E57/PLY file (+ optional lon/lat/height/heading), stages it under
+// Accepts a LAS/LAZ/E57/PLY/IFC file (+ optional lon/lat/height/heading), stages it under
 // model/_staging/<jobId>/, and spawns a detached background worker
 // (scripts/convert_pointcloud.py) that runs py3dtiles and — once done — drops
 // the tiled result into model/<slug>/, where it's auto-discovered by
 // models.php exactly like any other GLB/tileset asset.
+// A ZIP of photos becomes a reconstruction job instead: it waits for the GPU
+// worker (api/recon-worker.php, see api/_recon.php) and yields up to three
+// tilesets, model/<slug>_mesh, _pointcloud and _splats.
 //
 // Owner only, checked server-side (2026-09-27): the owner session cookie set
 // by api/owner-session.php after Firebase sign-in, or an ID token.
 header('Content-Type: application/json');
 require __DIR__ . '/_owner_auth.php';
+require __DIR__ . '/_recon.php';
 geobim_require_owner();   // owner session cookie (api/owner-session.php) or ID token
 
 // Deliberately modest while usage is low-volume/single-user — flock()-serialized
@@ -51,9 +55,10 @@ if ($_FILES['file']['size'] > MAX_UPLOAD_BYTES) {
 
 $origName = $_FILES['file']['name'];
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc'], true)) {
-    fail('Only .las/.laz/.e57/.ply/.ifc files are supported');
+if (!in_array($ext, ['las', 'laz', 'e57', 'ply', 'ifc', 'zip'], true)) {
+    fail('Only .las/.laz/.e57/.ply/.ifc files and photos (.zip) are supported');
 }
+$isRecon = $ext === 'zip';
 
 $name = trim($_POST['name'] ?? pathinfo($origName, PATHINFO_FILENAME));
 if ($name === '') {
@@ -63,7 +68,8 @@ $baseSlug = trim(preg_replace('/[^a-z0-9]+/', '_', strtolower($name)), '_');
 if ($baseSlug === '') {
     fail('Name must contain at least one letter or digit');
 }
-$slug = $baseSlug . '_tiled';
+$suffix = $isRecon ? '_recon' : '_tiled';
+$slug = $baseSlug . $suffix;
 
 $modelDir = __DIR__ . '/../model';
 // Avoid clobbering an existing asset folder — same convention as models.php's
@@ -75,13 +81,21 @@ function geobim_slug_pending($modelDir, $slug) {
         $job = json_decode(@file_get_contents($jobFile) ?: '', true);
         if (!is_array($job) || ($job['slug'] ?? null) !== $slug) continue;
         $st = json_decode(@file_get_contents(dirname($jobFile) . '/status.json') ?: '', true);
-        if (in_array($st['status'] ?? 'queued', ['queued', 'converting'], true)) return true;
+        if (in_array($st['status'] ?? 'queued', ['queued', 'claimed', 'converting'], true)) return true;
     }
     return false;
 }
+// A recon slug is taken when any of its three output folders exists
+function geobim_slug_taken($modelDir, $slug, $isRecon) {
+    if (is_dir($modelDir . '/' . $slug)) return true;
+    if ($isRecon) {
+        foreach (geobim_recon_part_dirs($modelDir, $slug) as $dir) if (is_dir($dir)) return true;
+    }
+    return geobim_slug_pending($modelDir, $slug);
+}
 $i = 2;
-while (is_dir($modelDir . '/' . $slug) || geobim_slug_pending($modelDir, $slug)) {
-    $slug = $baseSlug . '_tiled_' . $i;
+while (geobim_slug_taken($modelDir, $slug, $isRecon)) {
+    $slug = $baseSlug . $suffix . '_' . $i;
     $i++;
 }
 
@@ -141,6 +155,18 @@ $job = [
     'slug' => $slug,
     'name' => $name,
 ];
+if ($isRecon) {
+    // Options like Cesium ion's "Photos (for 3D reconstruction)"; the worker
+    // maps them to geobim_recon.py --quality / --no-pointcloud / --splats / --no-gps
+    $quality = $_POST['quality'] ?? 'normal';
+    if (!in_array($quality, ['fast', 'normal', 'high'], true)) fail('Quality must be fast, normal or high');
+    $job['kind'] = 'recon';
+    $job['created'] = time();
+    $job['quality'] = $quality;
+    $job['pointcloud'] = ($_POST['pointcloud'] ?? '1') !== '0';
+    $job['splats'] = ($_POST['splats'] ?? '1') !== '0';
+    $job['gps'] = ($_POST['gps'] ?? '1') !== '0';
+}
 if ($epsg !== '') {
     $job['epsg'] = (int)explode('+', $epsg)[0];
     $job['epsg_full'] = $epsg;
@@ -160,6 +186,13 @@ if ($lon !== null) {
 }
 file_put_contents($jobDir . '/job.json', json_encode($job));
 file_put_contents($jobDir . '/status.json', json_encode(['status' => 'queued', 'updated' => time()]));
+
+if ($isRecon) {
+    // No local worker: the GPU PC picks the job up (api/recon-worker.php)
+    echo json_encode(['jobId' => $jobId, 'slug' => $slug, 'kind' => 'recon',
+                      'worker_online' => geobim_recon_worker_online()]);
+    exit;
+}
 
 $worker = escapeshellarg(__DIR__ . '/../scripts/convert_pointcloud.py');
 $dir = escapeshellarg($jobDir);

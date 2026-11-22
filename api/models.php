@@ -82,6 +82,13 @@ foreach (glob($modelDir . '/*/tileset.json') as $path) {
         'size' => filesize($path),
         'type' => 'TILESET',
     ];
+    // Gaussian splats (geobim_splat_tiles.py writes asset.extras.type) go to
+    // BimViewer.loadSplat instead of the generic tileset loader; the marker
+    // sits in the asset block at the top of the file
+    $head = @file_get_contents($path, false, null, 0, 4096) ?: '';
+    if (preg_match('/"type"\s*:\s*"gaussian_splats"/', $head)) {
+        $models[count($models) - 1]['kind'] = 'splats';
+    }
 }
 
 // Sort alphabetically by name

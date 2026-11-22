@@ -13,6 +13,9 @@
 // conversion (api/pointcloud-upload.php + scripts/convert_pointcloud.py,
 // queued one-at-a-time on the server) -> auto-discovered as a TILESET asset
 // (api/models.php) once done, loadable exactly like any self-hosted tileset.
+// A ZIP of photos (opts.recon) becomes a reconstruction job instead: it waits
+// for the GPU PC (api/recon-worker.php) and ends with up to three tilesets
+// (mesh, point cloud, Gaussian splats), see api/_recon.php.
 // UI wiring lives in ui-assets-section.js (labUsers-gated, same section as
 // the local GLB model list).
 // ===============================
@@ -112,11 +115,19 @@
   // resulting tileset's root.transform (see scripts/convert_pointcloud.py).
   BimViewer.uploadPointCloud = async function(file, opts) {
     opts = opts || {};
-    // opts.kind ('ifc' | 'las' | 'scan') only picks the wording of messages
-    const what = opts.kind === 'ifc' || /\.ifc$/i.test(file.name) ? 'IFC model' : 'point cloud';
+    // opts.kind ('ifc' | 'las' | 'scan' | 'photos') only picks the wording of messages
+    const what = opts.recon ? 'photo reconstruction' :
+      opts.kind === 'ifc' || /\.ifc$/i.test(file.name) ? 'IFC model' : 'point cloud';
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply|ifc)$/i, ''));
+    formData.append('name', opts.name || file.name.replace(/\.(las|laz|e57|ply|ifc|zip)$/i, ''));
+    if (opts.recon) {
+      // Like Cesium ion's "Photos (for 3D reconstruction)": quality, optional outputs, GPS on/off
+      formData.append('quality', opts.recon.quality || 'normal');
+      formData.append('pointcloud', opts.recon.pointcloud === false ? '0' : '1');
+      formData.append('splats', opts.recon.splats === false ? '0' : '1');
+      formData.append('gps', opts.recon.gps === false ? '0' : '1');
+    }
     if (opts.lon !== undefined && opts.lon !== null && !isNaN(opts.lon)) {
       formData.append('lon', opts.lon);
       formData.append('lat', opts.lat);
@@ -150,11 +161,52 @@
     }
 
     const { jobId, slug } = resp.body;
+    if (resp.body.kind === 'recon') {
+      this.updateStatus('Photos uploaded — the reconstruction runs on the geoBIM reconstruction PC', 'success');
+      setUploadStatus(reconWaiting(slug, resp.body.worker_online), 'busy');
+      showReconCancel(jobId, slug);
+      this._pollPointCloudJob(jobId, slug, what, 10000);
+      return jobId;
+    }
     this.updateStatus(`Converting ${what} — this can take a while for large files...`, 'loading');
     setUploadStatus(`${slug}: queued`, 'busy');
     this._pollPointCloudJob(jobId, slug, what);
     return jobId;
   };
+
+  function reconWaiting(slug, online) {
+    return online
+      ? `${slug}: waiting for the reconstruction PC`
+      : `${slug}: queued — the reconstruction PC is offline; the job starts as soon as it is back`;
+  }
+
+  // "Cancel" under the status line while a photo reconstruction is queued or running
+  function showReconCancel(jobId, slug) {
+    hideReconCancel();
+    const statusEl = document.getElementById('pointcloudUploadStatus');
+    if (!statusEl) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'reconCancelBtn';
+    btn.className = 'modern-btn modern-btn-small local-models-cancel';
+    btn.innerHTML = '<i data-lucide="square"></i><span>Cancel reconstruction</span>';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`api/recon-cancel.php?job=${encodeURIComponent(jobId)}`, { method: 'POST' });
+        if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `HTTP ${resp.status}`);
+      } catch (err) {
+        btn.disabled = false;
+        BimViewer.updateStatus(`Cancel failed: ${err.message}`, 'error');
+      }
+    });
+    statusEl.after(btn);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function hideReconCancel() {
+    document.getElementById('reconCancelBtn')?.remove();
+  }
 
   // The "Local Models" dropdown (ui-assets-section.js) is filled once at page
   // load; add any model discovered since then so a fresh conversion is
@@ -172,10 +224,10 @@
     });
   }
 
-  BimViewer._pollPointCloudJob = function(jobId, slug, what) {
+  BimViewer._pollPointCloudJob = function(jobId, slug, what, intervalMs) {
     what = what || 'point cloud';
     if (pollTimers.has(jobId)) clearInterval(pollTimers.get(jobId));
-    const stop = () => { clearInterval(pollTimers.get(jobId)); pollTimers.delete(jobId); };
+    const stop = () => { clearInterval(pollTimers.get(jobId)); pollTimers.delete(jobId); hideReconCancel(); };
 
     pollTimers.set(jobId, setInterval(async () => {
       let status;
@@ -187,8 +239,16 @@
         return; // network hiccup — try again next tick
       }
 
-      if (status.status === 'queued') {
+      if (status.status === 'queued' && status.kind === 'recon') {
+        setUploadStatus(reconWaiting(slug, status.worker_online), 'busy');
+      } else if (status.status === 'queued') {
         setUploadStatus(`${slug}: queued (waiting for another conversion to finish)`, 'busy');
+      } else if (status.status === 'claimed') {
+        setUploadStatus(`${slug}: ${status.progress || 'picked up by the reconstruction PC'}`, 'busy');
+      } else if (status.status === 'cancelled') {
+        stop();
+        setUploadStatus(`${slug}: cancelled`, 'info');
+        BimViewer.updateStatus(`Reconstruction cancelled: ${slug}`, 'info');
       } else if (status.status === 'converting') {
         setUploadStatus(`${slug}: ` + (status.progress ? `converting — ${status.progress}` : 'converting…') + (status.warning ? ` (${status.warning})` : ''), 'busy');
       } else if (status.status === 'done') {
@@ -197,10 +257,13 @@
         BimViewer.updateStatus(`${what[0].toUpperCase() + what.slice(1)} ready: ${slug}`, 'success');
         console.log(`✅ Conversion done: ${slug}`);
         // Refresh the local model catalog so the new tileset shows up, then load it.
+        // A photo reconstruction yields several (mesh, point cloud, splats): all
+        // become selectable, the first one (the mesh) is loaded.
+        const loadId = (status.tilesets && status.tilesets[0] && status.tilesets[0].id) || slug;
         if (typeof BimViewer.fetchGLBModels === 'function') {
           BimViewer.fetchGLBModels().then(() => {
             syncLocalModelSelector();
-            const modelDef = BimViewer.glbModels.find(m => m.id === slug);
+            const modelDef = BimViewer.glbModels.find(m => m.id === loadId);
             if (modelDef && typeof BimViewer.loadGLBAsset === 'function') {
               BimViewer.loadGLBAsset(modelDef);
             }
@@ -213,7 +276,7 @@
         BimViewer.updateStatus(`Conversion failed: ${status.message || 'unknown error'}`, 'error');
         console.error(`❌ Conversion failed (${jobId}):`, status.message);
       }
-    }, 3000));
+    }, intervalMs || 3000));
   };
 
   console.log('✅ Point Cloud Upload module loaded');

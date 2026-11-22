@@ -44,17 +44,18 @@
         </div>
 
         <div class="modern-group local-models-upload" data-own-drop>
-          <input type="file" id="pointcloudFileInput" accept=".ifc,.las,.laz,.e57,.ply" hidden>
+          <input type="file" id="pointcloudFileInput" accept=".ifc,.las,.laz,.e57,.ply,.zip" hidden>
           <button type="button" id="pointcloudDropZone" class="upload-dropzone" aria-describedby="pointcloudDropFormats">
             <span class="upload-dropzone-icon"><i data-lucide="cloud-upload"></i></span>
-            <span class="upload-dropzone-title">Drop IFC or point cloud here</span>
+            <span class="upload-dropzone-title">Drop IFC, point cloud or photos here</span>
             <span class="upload-dropzone-sub">or <span class="upload-dropzone-link">browse files</span> · converted to 3D Tiles</span>
-            <span id="pointcloudDropFormats" class="upload-dropzone-formats" aria-label="Supported formats: IFC, LAS, LAZ, E57, PLY">
+            <span id="pointcloudDropFormats" class="upload-dropzone-formats" aria-label="Supported formats: IFC, LAS, LAZ, E57, PLY, photos as ZIP">
               <span class="upload-chip upload-chip-ifc">IFC</span>
               <span class="upload-chip">LAS</span>
               <span class="upload-chip">LAZ</span>
               <span class="upload-chip">E57</span>
               <span class="upload-chip">PLY</span>
+              <span class="upload-chip upload-chip-photos" title="ZIP of photos: 3D reconstruction (mesh, point cloud, Gaussian splats)">Photos ZIP</span>
             </span>
           </button>
 
@@ -74,6 +75,23 @@
               <span class="upload-field-label">Name</span>
               <input type="text" id="pointcloudNameInput" class="zoffset-input-box" placeholder="Model name">
             </label>
+
+            <div id="pointcloudReconOptions" class="upload-recon-options" hidden>
+              <div class="modern-hint">3D reconstruction from the photos: computed on the geoBIM reconstruction PC, about 15–60 min. The 3D mesh is always made.</div>
+              <label class="upload-field">
+                <span class="upload-field-label">Quality</span>
+                <select id="pointcloudReconQuality" class="modern-select">
+                  <option value="fast">Fast</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+              <label class="upload-check"><input type="checkbox" id="pointcloudReconPointcloud" checked><span>Point cloud</span></label>
+              <label class="upload-check"><input type="checkbox" id="pointcloudReconSplats" checked><span>Gaussian splats</span></label>
+              <label class="upload-check" title="Off for indoor, underwater or poor-GPS captures: the model is then placed at Lon/Lat or the centre of the view">
+                <input type="checkbox" id="pointcloudReconGps" checked><span>Use the photos' GPS to georeference</span>
+              </label>
+            </div>
 
             <details class="local-models-georef">
               <summary><i data-lucide="map-pin"></i><span>Georeferencing</span><span class="upload-optional">optional</span></summary>
@@ -269,20 +287,27 @@
     const dropZone = document.getElementById('pointcloudDropZone');
     const fileInfo = document.getElementById('pointcloudFileInfo');
     const fileIcon = document.getElementById('pointcloudFileIcon');
-    const UPLOAD_EXT = /\.(ifc|las|laz|e57|ply)$/i;
+    const reconOptions = document.getElementById('pointcloudReconOptions');
+    const reconQuality = document.getElementById('pointcloudReconQuality');
+    const reconPointcloud = document.getElementById('pointcloudReconPointcloud');
+    const reconSplats = document.getElementById('pointcloudReconSplats');
+    const reconGps = document.getElementById('pointcloudReconGps');
+    const UPLOAD_EXT = /\.(ifc|las|laz|e57|ply|zip)$/i;
     const KIND_INFO = {
-      ifc:  { icon: 'building-2', label: 'IFC model' },
-      las:  { icon: 'scan-line',  label: 'Point cloud (LAS/LAZ)' },
-      scan: { icon: 'scan-line',  label: 'Point cloud (E57/PLY)' }
+      ifc:    { icon: 'building-2', label: 'IFC model' },
+      las:    { icon: 'scan-line',  label: 'Point cloud (LAS/LAZ)' },
+      scan:   { icon: 'scan-line',  label: 'Point cloud (E57/PLY)' },
+      photos: { icon: 'camera',     label: 'Photos (ZIP) · 3D reconstruction' }
     };
     // The file to upload: picked via the input or dropped (a drop can't be
     // put into fileInput.files on every browser, so it's kept here)
     let selectedFile = null;
 
     // 'ifc' | 'las' (LAS/LAZ, may carry a CRS) | 'scan' (E57/PLY, local scans)
+    // | 'photos' (ZIP of images -> reconstruction on the GPU PC, api/_recon.php)
     const fileKind = name => {
       const ext = (name.split('.').pop() || '').toLowerCase();
-      return ext === 'ifc' ? 'ifc' : (ext === 'las' || ext === 'laz') ? 'las' : 'scan';
+      return ext === 'ifc' ? 'ifc' : (ext === 'las' || ext === 'laz') ? 'las' : ext === 'zip' ? 'photos' : 'scan';
     };
     const formatSize = bytes => {
       const mb = bytes / 1024 ** 2;
@@ -306,6 +331,9 @@
       if (fileInfo) fileInfo.textContent = '';
       [nameInput, lonInput, latInput, epsgInput, refHeightInput].forEach(el => { if (el) el.value = ''; });
       if (heightDatumSelect) heightDatumSelect.value = 'auto';
+      if (reconQuality) reconQuality.value = 'normal';
+      [reconPointcloud, reconSplats, reconGps].forEach(el => { if (el) el.checked = true; });
+      if (reconOptions) reconOptions.hidden = true;
       if (form) form.hidden = true;
       if (dropZone) dropZone.hidden = false;
     };
@@ -313,7 +341,7 @@
     const selectFile = file => {
       if (!file) { resetUploadForm(); return; }
       if (!UPLOAD_EXT.test(file.name)) {
-        showStatus(`${file.name}: not supported — use IFC, LAS, LAZ, E57 or PLY`, 'error');
+        showStatus(`${file.name}: not supported — use IFC, LAS, LAZ, E57, PLY or photos as ZIP`, 'error');
         return;
       }
       selectedFile = file;
@@ -327,8 +355,10 @@
       }
       // Name from the filename; a new file replaces the previous file's name
       if (nameInput) nameInput.value = file.name.replace(UPLOAD_EXT, '');
-      // EPSG applies to IFC and LAS/LAZ, ±0.00 and height datum to IFC only
-      showField(epsgInput, kind !== 'scan');
+      // EPSG applies to IFC and LAS/LAZ, ±0.00 and height datum to IFC only;
+      // photos get the reconstruction options (Lon/Lat only place a model without GPS)
+      if (reconOptions) reconOptions.hidden = kind !== 'photos';
+      showField(epsgInput, kind === 'ifc' || kind === 'las');
       showField(refHeightInput, kind === 'ifc');
       showField(heightDatumSelect, kind === 'ifc');
       if (form) form.hidden = false;
@@ -456,7 +486,13 @@
           positionSource: positionSource,
           epsg: kind !== 'scan' ? (epsgInput?.value || '').trim() || undefined : undefined,
           refHeight: kind === 'ifc' ? (refHeightInput?.value || '').trim().replace(',', '.') || undefined : undefined,
-          heightDatum: kind === 'ifc' && heightDatumSelect?.value === 'ellipsoid' ? 'ellipsoid' : undefined
+          heightDatum: kind === 'ifc' && heightDatumSelect?.value === 'ellipsoid' ? 'ellipsoid' : undefined,
+          recon: kind === 'photos' ? {
+            quality: reconQuality?.value || 'normal',
+            pointcloud: !!reconPointcloud?.checked,
+            splats: !!reconSplats?.checked,
+            gps: !!reconGps?.checked
+          } : undefined
         });
         // The conversion runs on; its progress shows in the status line
         resetUploadForm();
