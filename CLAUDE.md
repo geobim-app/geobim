@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # geobim.app — Projektkontext für Claude Code
 
 ## Projektübersicht
@@ -18,10 +22,35 @@ Ingenieurbüros, Auftraggeber und die Öffentlichkeit.
 
 ---
 
+## Befehle
+
+```powershell
+# Lokaler Dev-Server (PHP 8 built-in server + dev/router.php) → http://localhost:8000/
+powershell -File dev/serve.ps1            # optional: -Port 8001 -ModelDir <3dtiles-Ordner>
+```
+- Braucht `config.js` (Vorlage: `config.example.js`), `logo/` und einen auf localhost
+  beschränkten Ion-Token in `$HOME\.geobim\ion-dev-token.txt`.
+- `dev/router.php` bildet die `.htaccess`-Rewrites nach (`php -S` ignoriert `.htaccess`).
+- IFC-/Punktwolken-Upload und Konverter laufen nur auf dem Server → auf beta testen.
+
+```bash
+bash qa-check.sh   # einziger automatischer Check (kein Test-Framework, kein Linter)
+```
+11 Sektionen: Datei-Integrität (alle `src`/`href` in `index.html`), JS-Syntax,
+Farben (`#6EECD8`), CSS-Referenzen, Shortcuts, A11y, Performance-Patterns,
+Security, Dead Code, Assets, Versionskonsistenz. Exit 0 = ok, 1 = Warnings, 2 = Errors.
+
+---
+
 ## Modulare Architektur
 
 Alle Module erweitern das globale `BimViewer`-Objekt. Ladereihenfolge in
-`index.html` ist kritisch.
+`index.html` ist kritisch. Der Baum unten zeigt nur die Kernmodule —
+maßgeblich ist die `<script>`-Reihenfolge in `index.html` (~100 Skripte).
+
+**Cache-Busting:** Skripte werden als `datei.js?v=YYYYMMDD[-n]` eingebunden.
+Nach Änderungen an einem Modul den `?v=`-Parameter in `index.html` hochzählen,
+sonst liefern Browser/Apache die alte Version.
 
 ```
 index.html
@@ -65,6 +94,30 @@ window.BimViewer = {
 };
 ```
 
+### Zwei parallele UIs
+`panels-ui-loader.js` (im `<head>`) wählt zwischen **classic** (Sidebar, `ui-*-section.js`)
+und **panels** (Icon-Rail + Floating Panels, `panels-*.js` / `panels-ui.css`, setzt
+`html.ui-panels`). Vorrang: `?ui=panels|classic` → localStorage `geobim_ui` →
+Host-Default (`beta.geobim.app` und `localhost` → panels, sonst classic).
+Panels-UI baut auf der classic UI auf. UI-Änderungen in **beiden** UIs prüfen;
+Cache-Bust der Panels-Dateien über `VERSION` in `panels-ui-loader.js`.
+
+### Modi & Zugang
+- **Kurzrouten** (`.htaccess`, lokal `dev/router.php`): `/demo`, `/wea-shadow`,
+  `/bridge-inspector`, `/stage-twin` → `index.html?mode=demo|wea|bridge|stagetwin`.
+  Die getrimmten Demos (wea/bridge/stagetwin) bleiben immer classic UI.
+- **Gäste ohne Ion** (`guest-no-ion.js`, `auth-gate.js`): ohne Login kein einziger
+  Cesium-Ion-Request — Mapterhorn-Terrain, TopPlusOpen/WMS, Server-Modelle aus
+  `model/guest-models.json`, Nominatim-Suche. Ion-Requests werden per Guard abgefangen.
+- **Ion-Token** (`ion-auth.js`): Default-Token vom Server (`api/ion-config.php`) oder
+  OAuth2 PKCE mit eigenem Ion-Account; `config.js` enthält nur die OAuth-`clientId`.
+
+### PHP-Backend (`api/`)
+Kleine PHP-Endpunkte auf demselben Apache: Server-Modelle (`models.php`,
+`model-file.php`), Placement-Speichern, Punktwolken-Upload/-Status, iTwin-Token,
+Owner-Session, Stats. `api/_dev.php` liefert lokale Dev-Overrides
+(Modelle aus `GEOBIM_DEV_MODEL_DIR`).
+
 ---
 
 ## Coding-Konventionen
@@ -102,7 +155,7 @@ window.BimViewer = {
 - **Tone Mapping:** PBR Neutral (`Cesium.Tonemapper.PBR_NEUTRAL`)
 - **AO:** HBAO (Horizon-Based, seit v1.124)
 - **Environment Maps:** `configureDynamicEnvMaps()` wird auf jedes Tileset angewandt
-- **Ion Access Token:** Aus `config.js` lesen, NICHT hardcoden
+- **Ion Access Token:** Über `ion-auth.js` / `api/ion-config.php` beziehen, NICHT hardcoden
 - **Tileset API:** `feature.getPropertyIds()` / `feature.getProperty(name)` — kein IFC-Parsing
 
 ---
@@ -165,7 +218,8 @@ git pull origin main
 ```
 
 ### Secrets
-- `config.js` → `.gitignore` (enthält Ion Token, Firebase Config)
+- `config.js` → `.gitignore` (Ion-OAuth-clientId, Firebase Config, optional ArcGIS-Key); Vorlage `config.example.js`
+- Ion-Default-Token liegt serverseitig (`api/ion-config.php`), lokal in `$HOME\.geobim\ion-dev-token.txt`
 - Firebase Config kann public sein (Firestore Rules schützen)
 
 ---
