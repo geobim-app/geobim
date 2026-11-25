@@ -1,0 +1,201 @@
+/**
+ * geoBIM.app
+ * © 2026 Christof Lorenz
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* "Wind turbine" card: live wind and power output (wea-live-wind.js).
+   Desktop: bottom right, left of the WEA panel; draggable by its header. */
+.wea-live {
+  position: fixed;
+  right: 340px;
+  bottom: var(--space-xl);
+  z-index: var(--z-panels);
+  width: 280px;
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(14, 17, 23, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.wea-live-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: grab;
+  user-select: none;
+}
+
+.wea-live-head > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--brand-teal);
+}
+
+.wea-live-title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.wea-live-state {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.wea-live-state.producing {
+  color: var(--brand-teal);
+}
+
+.wea-live-state.storm {
+  color: #F59E0B;
+}
+
+/* Power in the header only while collapsed */
+.wea-live-mini {
+  display: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wea-live.collapsed .wea-live-mini {
+  display: inline;
+}
+
+.wea-live-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.wea-live-collapse:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.wea-live-collapse:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.wea-live-collapse svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.15s ease;
+}
+
+.wea-live.collapsed .wea-live-collapse svg {
+  transform: rotate(180deg);
+}
+
+.wea-live.collapsed .wea-live-body {
+  display: none;
+}
+
+.wea-live-power {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.wea-live-kw {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.wea-live-unit {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Bar against the rated power; --share (0..1) is set by wea-live-wind.js */
+.wea-live-bar {
+  height: 6px;
+  margin: var(--space-xs) 0 var(--space-sm);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.wea-live-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand-teal);
+  transform-origin: left;
+  transform: scaleX(var(--share, 0));
+  transition: transform 0.5s ease;
+}
+
+.wea-live-rows {
+  margin: 0;
+}
+
+.wea-live-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 2px 0;
+}
+
+.wea-live-row dt {
+  color: var(--text-muted);
+}
+
+.wea-live-row dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.wea-live-source {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* Phones: full width above the tab bar, collapsed by default */
+@media (max-width: 720px) {
+  .wea-live {
+    left: var(--space-sm);
+    right: var(--space-sm);
+    bottom: calc(var(--panels-tabbar-h, 0px) + var(--space-sm));
+    width: auto;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .wea-live-collapse {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wea-live-bar > span,
+  .wea-live-collapse svg {
+    transition: none;
+  }
+}
