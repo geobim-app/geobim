@@ -46,7 +46,16 @@
           "replace": [
             "WindTurbine_Tower",
             "WindTurbine_Rotor"
-          ]
+          ],
+          "live": {
+            "cutIn": 3.0,
+            "rated": 11.0,
+            "cutOut": 25.0,
+            "minRpm": 4.5,
+            "maxRpm": 10.0,
+            "ratedPower": 7200.0,
+            "shear": 0.16
+          }
         }
       }
     },

@@ -260,17 +260,24 @@
     if (!node) return;
 
     var wea       = inst.wea;
-    var startTime = performance.now() / 1000.0;
+    var lastTime  = performance.now() / 1000.0;
     var t  = new Cesium.Cartesian3(wea.bladesTranslation[0], wea.bladesTranslation[1], wea.bladesTranslation[2]);
     var q0 = new Cesium.Quaternion(wea.bladesRotation[0],    wea.bladesRotation[1],    wea.bladesRotation[2],    wea.bladesRotation[3]);
+    if (typeof inst._rotorAngle !== 'number') inst._rotorAngle = 0;
 
     inst._weaAnimListener = function() {
       var node = inst.bladesRuntimeNode;
       if (!node) return;
       var ad        = inst.assetData;
-      var elapsed   = performance.now() / 1000.0 - startTime;
+      // Angle summed frame by frame: the speed can change while turning
+      // (RPM slider, live wind) without the rotor jumping; dt capped for
+      // frames after a hidden tab
+      var now       = performance.now() / 1000.0;
+      var dt        = Math.min(Math.max(now - lastTime, 0), 0.5);
+      lastTime      = now;
       var radPerSec = ad.animSpeed * (wea.nativeRPM || 16.2) * Math.PI / 30.0;
-      var angle     = elapsed * radPerSec;
+      inst._rotorAngle = (inst._rotorAngle + dt * radPerSec) % (2 * Math.PI);
+      var angle     = inst._rotorAngle;
 
       var qSpin  = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Y, angle, new Cesium.Quaternion());
       var qTotal = Cesium.Quaternion.multiply(q0, qSpin, new Cesium.Quaternion());

@@ -13,7 +13,10 @@
  *
  * demo-scenes.json, per scene:
  *   "web": { "wea": { "model": "<id from api/wea-models.php>",
- *                     "replace": ["<model folder>", ...] } }
+ *                     "replace": ["<model folder>", ...],
+ *                     "live": { cutIn, rated, cutOut, ... } } }
+ * With "live", wea-live-wind.js drives the turbine from the live wind and
+ * shows its power output.
  * demo-scenes.js leaves the "replace" models (the static turbine tilesets)
  * out of the scene and calls open(): the WEA turbine loads at its default
  * position (the demo turbine's position), the camera stays where the scene
@@ -104,6 +107,8 @@ window.BimWEAScene = (function() {
       var ad = BimViewer.loadedAssets.get(assetId);
       if (active && active.assetId === assetId && ad && !ad.animPlaying) W.toggleAnim(assetId);
     }
+    // Live wind and power output (wea-live-wind.js): rotor speed and heading follow the wind
+    if (cfg.live && active && active.assetId === assetId && window.BimWEALive) BimWEALive.start(assetId, cfg.live);
     return true;
   }
 
@@ -112,6 +117,7 @@ window.BimWEAScene = (function() {
     var a = active;
     active = null;
     clearInterval(a.timer);
+    if (window.BimWEALive) BimWEALive.stop();
     var W = wea();
     var inst = W && W.instances[a.assetId];
     // Rotor first, also when a scene already unloaded the model:
