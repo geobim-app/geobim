@@ -120,9 +120,10 @@
         '<div class="splash-tab-content" data-tab="shortcuts">' +
           '<div class="splash-shortcut-list">' +
             '<div class="splash-shortcut-group">Navigation</div>' +
-            '<div class="splash-shortcut"><kbd>Left-click + drag</kbd><span>Rotate</span></div>' +
+            '<div class="splash-shortcut"><kbd>Left-click + drag</kbd><span>Pan</span></div>' +
             '<div class="splash-shortcut"><kbd>Right-click + drag</kbd><span>Zoom</span></div>' +
-            '<div class="splash-shortcut"><kbd>Middle-click + drag</kbd><span>Pan</span></div>' +
+            '<div class="splash-shortcut"><kbd>Middle-click + drag</kbd><span>Rotate and tilt</span></div>' +
+            '<div class="splash-shortcut"><kbd>Ctrl + left-click + drag</kbd><span>Rotate and tilt (trackpad)</span></div>' +
             '<div class="splash-shortcut"><kbd>Scroll</kbd><span>Zoom in/out</span></div>' +
 
             '<div class="splash-shortcut-group">Walk Mode</div>' +

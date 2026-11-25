@@ -33,8 +33,8 @@
 
   // Tour navigation button labels per language.
   var LABELS = {
-    en: { back: 'Back', next: 'Next', done: 'Got it!', skip: 'Skip' },
-    ja: { back: '戻る', next: '次へ', done: '完了', skip: 'スキップ' }
+    en: { back: 'Back', next: 'Next', done: 'Got it!', skip: 'Skip', step: 'Step {n} of {total}' },
+    ja: { back: '戻る', next: '次へ', done: '完了', skip: 'スキップ', step: 'ステップ {n} / {total}' }
   };
   var overlay = null;
   var tooltip = null;
@@ -44,7 +44,7 @@
     {
       target: '#cesiumContainer',
       title: 'Welcome to geoBIM.app Viewer',
-      text: 'This is your 3D BIM viewer. Left-click + drag to rotate, scroll to zoom, middle-click to pan.',
+      text: 'Your BIM models in their real location. Left-drag pans, scroll zooms, middle-drag or Ctrl + left-drag rotates and tilts.',
       position: 'center'
     },
     {
@@ -250,59 +250,58 @@
             : defaultSteps;
 
   // ========================================================
-  // OVERLAY + SPOTLIGHT
+  // OVERLAY + SPOTLIGHT (styles: onboarding-styles.css)
   // ========================================================
+
+  var PAD = 8;      // spotlight around the target
+  var GAP = 8;      // between spotlight and tooltip
+  var MARGIN = 10;  // tooltip to viewport edge
 
   function createOverlay() {
     if (overlay) return;
 
+    // Modal: the overlay takes every click; only the tooltip buttons act
     overlay = document.createElement('div');
     overlay.id = 'tourOverlay';
-    overlay.innerHTML = '<svg width="100%" height="100%" style="position:absolute;top:0;left:0;">' +
+    overlay.innerHTML = '<svg class="tour-svg"width="100%" height="100%" aria-hidden="true">' +
       '<defs><mask id="tourMask">' +
       '<rect width="100%" height="100%" fill="white"/>' +
       '<rect id="tourSpotlight" rx="12" ry="12" fill="black"/>' +
       '</mask></defs>' +
-      '<rect width="100%" height="100%" fill="rgba(0,0,0,0.7)" mask="url(#tourMask)"/>' +
+      '<rect class="tour-dim" width="100%" height="100%" mask="url(#tourMask)"/>' +
       '</svg>';
-
-    var style = document.createElement('style');
-    style.textContent =
-      '#tourOverlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:450;pointer-events:auto;}' +
-      '#tourTooltip{position:fixed;z-index:451;max-width:340px;background:rgba(14,17,23,0.95);' +
-        'backdrop-filter:blur(12px);border:1px solid rgba(46,207,176,0.4);border-radius:12px;' +
-        'padding:20px;color:#E2E8F0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-        'box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;}' +
-      '#tourTooltip h3{margin:0 0 8px;color:#2ECFB0;font-size:16px;font-weight:700;}' +
-      '#tourTooltip p{margin:0 0 16px;font-size:13px;line-height:1.5;color:rgba(255,255,255,0.8);}' +
-      '.tour-btns{display:flex;gap:8px;align-items:center;}' +
-      '.tour-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;' +
-        'border:none;transition:all 0.2s ease;}' +
-      '.tour-btn-primary{background:linear-gradient(135deg,#2ECFB0,#25A98F);color:#0E1117;}' +
-      '.tour-btn-primary:hover{box-shadow:0 4px 12px rgba(46,207,176,0.4);}' +
-      '.tour-btn-secondary{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);' +
-        'border:1px solid rgba(255,255,255,0.2);}' +
-      '.tour-btn-secondary:hover{background:rgba(255,255,255,0.15);color:white;}' +
-      '.tour-skip{margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.4);' +
-        'font-size:12px;cursor:pointer;padding:4px 8px;}' +
-      '.tour-skip:hover{color:rgba(255,255,255,0.7);}' +
-      '.tour-dots{display:flex;gap:6px;margin-right:12px;}' +
-      '.tour-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);}' +
-      '.tour-dot.active{background:#2ECFB0;}';
-
-    document.head.appendChild(style);
     document.body.appendChild(overlay);
 
     tooltip = document.createElement('div');
     tooltip.id = 'tourTooltip';
+    tooltip.setAttribute('role', 'dialog');
+    tooltip.setAttribute('aria-modal', 'true');
+    tooltip.setAttribute('aria-labelledby', 'tourTitle');
+    tooltip.setAttribute('aria-describedby', 'tourText');
     document.body.appendChild(tooltip);
 
-    // Click overlay to advance
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay || e.target.tagName === 'svg' || e.target.tagName === 'rect') {
-        nextStep();
-      }
+    tooltip.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-tour]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-tour');
+      if (action === 'next') nextStep();
+      else if (action === 'prev') prevStep();
+      else endTour();
     });
+  }
+
+  function isOpen() {
+    return !!overlay && overlay.style.display === 'block';
+  }
+
+  // Target of a step, or null when it is missing or not rendered
+  // (display:none, panels hidden) — the step then shows centred without spotlight
+  function targetOf(step) {
+    if (!step.target) return null;
+    var el = document.querySelector(step.target);
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 ? el : null;
   }
 
   // ========================================================
@@ -311,96 +310,109 @@
 
   function showStep(index) {
     if (index >= steps.length) { endTour(); return; }
-    if (index < 0) index = 0;
-    currentStep = index;
+    currentStep = Math.max(0, index);
 
-    var step = steps[index];
-    var el = step.target ? document.querySelector(step.target) : null;
+    var step = steps[currentStep];
+    var last = currentStep === steps.length - 1;
+    var L = LABELS[LANG];
+
+    var dots = '';
+    for (var i = 0; i < steps.length; i++) {
+      dots += '<span class="tour-dot' + (i === currentStep ? ' active' : '') + '"></span>';
+    }
+    var counter = L.step.replace('{n}', currentStep + 1).replace('{total}', steps.length);
+
+    tooltip.innerHTML =
+      '<h3 id="tourTitle">' + step.title + '</h3>' +
+      '<p id="tourText">' + step.text + '</p>' +
+      '<div class="tour-btns">' +
+        '<div class="tour-dots" role="img" aria-label="' + counter + '">' + dots + '</div>' +
+        (currentStep > 0 ? '<button type="button" class="tour-btn tour-btn-secondary" data-tour="prev">' + L.back + '</button>' : '') +
+        '<button type="button" class="tour-btn tour-btn-primary" data-tour="next">' + (last ? L.done : L.next) + '</button>' +
+        (last ? '' : '<button type="button" class="tour-skip" data-tour="end">' + L.skip + '</button>') +
+      '</div>';
+
+    layout();
+
+    var primary = tooltip.querySelector('[data-tour="next"]');
+    if (primary) primary.focus({ preventScroll: true });
+  }
+
+  // Spotlight and tooltip for the current step; runs again on resize
+  function layout() {
+    if (!isOpen()) return;
+    var step = steps[currentStep];
+    var el = targetOf(step);
     var spotlight = document.getElementById('tourSpotlight');
+    var spot = null;
 
-    // Position spotlight
-    if (el && spotlight) {
-      var rect = el.getBoundingClientRect();
-      var pad = 8;
-      spotlight.setAttribute('x', rect.left - pad);
-      spotlight.setAttribute('y', rect.top - pad);
-      spotlight.setAttribute('width', rect.width + pad * 2);
-      spotlight.setAttribute('height', rect.height + pad * 2);
-    } else if (spotlight) {
-      // No target — hide spotlight (full overlay)
+    if (el) {
+      var r = el.getBoundingClientRect();
+      spot = { left: r.left - PAD, top: r.top - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 };
+      spot.right = spot.left + spot.width;
+      spot.bottom = spot.top + spot.height;
+      spotlight.setAttribute('x', spot.left);
+      spotlight.setAttribute('y', spot.top);
+      spotlight.setAttribute('width', spot.width);
+      spotlight.setAttribute('height', spot.height);
+    } else {
+      // No target — no cut-out, full overlay
       spotlight.setAttribute('width', 0);
       spotlight.setAttribute('height', 0);
     }
 
-    // Build tooltip content
-    var dots = '';
-    for (var i = 0; i < steps.length; i++) {
-      dots += '<div class="tour-dot' + (i === index ? ' active' : '') + '"></div>';
-    }
-
-    tooltip.innerHTML =
-      '<h3>' + step.title + '</h3>' +
-      '<p>' + step.text + '</p>' +
-      '<div class="tour-btns">' +
-        '<div class="tour-dots">' + dots + '</div>' +
-        (index > 0 ? '<button class="tour-btn tour-btn-secondary" onclick="BimTour.prev()">' + LABELS[LANG].back + '</button>' : '') +
-        '<button class="tour-btn tour-btn-primary" onclick="BimTour.next()">' +
-          (index < steps.length - 1 ? LABELS[LANG].next : LABELS[LANG].done) +
-        '</button>' +
-        (index < steps.length - 1 ? '<button class="tour-skip" onclick="BimTour.end()">' + LABELS[LANG].skip + '</button>' : '') +
-      '</div>';
-
-    // Position tooltip
-    positionTooltip(el, step.position);
+    placeTooltip(spot, spot ? step.position : 'center');
   }
 
-  function positionTooltip(el, pos) {
-    if (!tooltip) return;
+  var OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
 
-    if (!el || pos === 'center') {
-      tooltip.style.left = '50%';
-      tooltip.style.top = '50%';
-      tooltip.style.transform = 'translate(-50%, -50%)';
-      return;
-    }
-
-    var rect = el.getBoundingClientRect();
-    tooltip.style.transform = 'none';
-
+  function besideSpot(spot, pos, w, h) {
     switch (pos) {
-      case 'right':
-        tooltip.style.left = (rect.right + 16) + 'px';
-        tooltip.style.top = (rect.top + rect.height / 2 - 80) + 'px';
-        break;
-      case 'left':
-        tooltip.style.left = (rect.left - 356) + 'px';
-        tooltip.style.top = (rect.top + rect.height / 2 - 80) + 'px';
-        break;
-      case 'top':
-        tooltip.style.left = (rect.left + rect.width / 2 - 170) + 'px';
-        tooltip.style.top = (rect.top - 160) + 'px';
-        break;
-      case 'bottom':
-        tooltip.style.left = (rect.left + rect.width / 2 - 170) + 'px';
-        tooltip.style.top = (rect.bottom + 16) + 'px';
-        break;
-      default:
-        tooltip.style.left = '50%';
-        tooltip.style.top = '50%';
-        tooltip.style.transform = 'translate(-50%, -50%)';
-    }
-
-    // Clamp to viewport
-    var tt = tooltip.getBoundingClientRect();
-    if (tt.right > window.innerWidth - 10) {
-      tooltip.style.left = (window.innerWidth - tt.width - 10) + 'px';
-    }
-    if (tt.left < 10) tooltip.style.left = '10px';
-    if (tt.top < 10) tooltip.style.top = '10px';
-    if (tt.bottom > window.innerHeight - 10) {
-      tooltip.style.top = (window.innerHeight - tt.height - 10) + 'px';
+      case 'right': return { x: spot.right + GAP, y: spot.top + spot.height / 2 - h / 2 };
+      case 'left': return { x: spot.left - GAP - w, y: spot.top + spot.height / 2 - h / 2 };
+      case 'top': return { x: spot.left + spot.width / 2 - w / 2, y: spot.top - GAP - h };
+      default: return { x: spot.left + spot.width / 2 - w / 2, y: spot.bottom + GAP };
     }
   }
+
+  // Only the axis that points away from the target has to fit;
+  // the other one is clamped to the viewport afterwards
+  function fitsBeside(p, pos, w, h) {
+    if (pos === 'left' || pos === 'right') return p.x >= MARGIN && p.x + w <= window.innerWidth - MARGIN;
+    return p.y >= MARGIN && p.y + h <= window.innerHeight - MARGIN;
+  }
+
+  // Measures the rendered tooltip, so long texts never cover their target
+  function placeTooltip(spot, pos) {
+    var w = tooltip.offsetWidth;
+    var h = tooltip.offsetHeight;
+    var p;
+
+    if (!spot || !OPPOSITE[pos]) {
+      p = { x: (window.innerWidth - w) / 2, y: (window.innerHeight - h) / 2 };
+    } else {
+      p = besideSpot(spot, pos, w, h);
+      if (!fitsBeside(p, pos, w, h)) {
+        var flipped = besideSpot(spot, OPPOSITE[pos], w, h);
+        if (fitsBeside(flipped, OPPOSITE[pos], w, h)) p = flipped;
+      }
+    }
+
+    var maxX = Math.max(MARGIN, window.innerWidth - w - MARGIN);
+    var maxY = Math.max(MARGIN, window.innerHeight - h - MARGIN);
+    tooltip.style.left = Math.round(Math.min(Math.max(p.x, MARGIN), maxX)) + 'px';
+    tooltip.style.top = Math.round(Math.min(Math.max(p.y, MARGIN), maxY)) + 'px';
+  }
+
+  // Resize and phone rotation move the targets
+  var layoutFrame = 0;
+  window.addEventListener('resize', function() {
+    if (!isOpen() || layoutFrame) return;
+    layoutFrame = requestAnimationFrame(function() {
+      layoutFrame = 0;
+      layout();
+    });
+  });
 
   // ========================================================
   // NAVIGATION
@@ -409,36 +421,72 @@
   function nextStep() { showStep(currentStep + 1); }
   function prevStep() { showStep(currentStep - 1); }
 
+  // The tour points at the sidebar / rail: bring them back if M hid them
+  // (the WEA demo has no sidebar)
+  function revealUI() {
+    if (IS_WEA) return;
+    var toolbar = document.getElementById('toolbar');
+    var toggle = document.getElementById('sidebarToggle');
+    if (toolbar && toolbar.classList.contains('collapsed')) {
+      toolbar.classList.remove('collapsed');
+      if (toggle) toggle.classList.remove('at-edge');
+    }
+    document.documentElement.classList.remove('panels-collapsed');
+  }
+
   function startTour() {
     createOverlay();
+    revealUI();
     overlay.style.display = 'block';
     tooltip.style.display = 'block';
-
-    // Make sure sidebar is visible for tour (the WEA demo has no sidebar)
-    if (!IS_WEA) {
-      var toolbar = document.getElementById('toolbar');
-      var toggle = document.getElementById('sidebarToggle');
-      if (toolbar && toolbar.classList.contains('collapsed')) {
-        toolbar.classList.remove('collapsed');
-        if (toggle) toggle.classList.remove('at-edge');
-      }
-    }
-
     showStep(0);
   }
 
   function endTour() {
     if (overlay) overlay.style.display = 'none';
-    if (tooltip) tooltip.style.display = 'none';
+    if (tooltip) {
+      // focus back to the page, not to a button: shortcuts ignore focused buttons
+      if (tooltip.contains(document.activeElement)) document.activeElement.blur();
+      tooltip.style.display = 'none';
+    }
     localStorage.setItem(STORAGE_KEY, Date.now().toString());
   }
 
-  // ESC to skip
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && overlay && overlay.style.display === 'block') {
-      endTour();
+  // Keep Tab inside the tooltip
+  function trapFocus(e) {
+    var buttons = tooltip.querySelectorAll('button');
+    if (!buttons.length) return;
+    var first = buttons[0];
+    var last = buttons[buttons.length - 1];
+    var inside = tooltip.contains(document.activeElement);
+    if (e.shiftKey && (!inside || document.activeElement === first)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+      e.preventDefault();
+      first.focus();
     }
-  });
+  }
+
+  // The tour is modal: while it is open no app shortcut (M, G, H …) may act
+  // on the UI under the overlay. Window capture runs before every other
+  // keydown handler; Enter / Space still click the focused tour button.
+  window.addEventListener('keydown', function(e) {
+    if (!isOpen()) return;
+    e.stopImmediatePropagation();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      endTour();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextStep();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      prevStep();
+    } else if (e.key === 'Tab') {
+      trapFocus(e);
+    }
+  }, true);
 
   // ========================================================
   // AUTO-START ON FIRST VISIT
@@ -465,7 +513,8 @@
       }
       if (ready) {
         clearInterval(check);
-        setTimeout(startTour, IS_BRIDGE_INSPECTOR || IS_WEA ? 600 : 1500);
+        // a tour started from the menu meanwhile keeps its place
+        setTimeout(function() { if (!isOpen()) startTour(); }, IS_BRIDGE_INSPECTOR || IS_WEA ? 600 : 1500);
       }
     }, 500);
   }
@@ -480,13 +529,18 @@
   window.BimTour = {
     start: startTour,
     end: endTour,
+    isOpen: isOpen,
     next: nextStep,
     prev: prevStep,
     reset: function() { localStorage.removeItem(STORAGE_KEY); },
     // Another layout (panels-ui.js) replaces the default tour's steps;
-    // the WEA and Bridge Inspector tours stay as they are
+    // the WEA and Bridge Inspector tours stay as they are. Crossing the
+    // phone breakpoint mid-tour swaps the steps in place.
     setDefaultSteps: function(newSteps) {
-      if (!IS_BRIDGE_INSPECTOR && !IS_WEA && Array.isArray(newSteps) && newSteps.length) steps = newSteps;
+      if (IS_BRIDGE_INSPECTOR || IS_WEA || !Array.isArray(newSteps) || !newSteps.length) return;
+      if (steps === newSteps) return;
+      steps = newSteps;
+      if (isOpen()) showStep(Math.min(currentStep, steps.length - 1));
     }
   };
 

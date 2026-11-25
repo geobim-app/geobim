@@ -12,7 +12,7 @@
 | Email/Password Login | Closable sign-in dialog opened from the sidebar ("Guest · Sign in") or the demo banners; account badge with Sign out. | `auth-gate.js`, `account-ui.js` |
 | External Config | Firebase credentials in `config.js` (gitignored). Template provided as `config.example.js`. | `config.js`, `config.example.js` |
 | Splash Screen | Branded landing page with About, Features and Shortcuts tabs and "Enter Viewer" button; version shown here and in the About dialog. | `splash-screen.js` |
-| Onboarding Tour | Spotlight tour on the first visit, guests included (not in `/demo`, share links or StageTwin): 8 steps in the panel UI (welcome, tools, account, search, measure, clip, sun & time), 6 in the classic sidebar; own tours for Bridge Inspector and WEA shadow; restart via About → "Take a guided tour". | `onboarding.js`, `panels-ui.js` |
+| Onboarding Tour | Spotlight tour on the first visit, guests included (not in `/demo`, share links or StageTwin): 9 steps in the panel UI (welcome, tools, account, load a model, element properties, measure, clip, sun & time, About & help), 4 on the phone (welcome, tools, search, ready), 6 in the classic sidebar; own tours for Bridge Inspector and WEA shadow. Modal: arrow keys page, Esc ends, focus stays in the tooltip, app shortcuts pause; follows resize and rotation. Restart via About & help → "Guided Tour" or About → "Take a guided tour". | `onboarding.js`, `onboarding-styles.css`, `panels-ui.js`, `ui-about-section.js` |
 | Guests without Cesium ion | Without a sign-in (guest, `/demo`) nothing comes from Cesium ion: Mapterhorn open terrain, TopPlusOpen and the open base maps, server models from `model/guest-models.json`, the iTwin demo, OpenStreetMap Nominatim search; any remaining ion request fails fast. | `guest-no-ion.js` |
 | Owner Session | `model/` (uploaded tilesets, GLBs, raw IFCs) is owner-only on the server: `api/model-file.php` checks an HttpOnly session cookie that this module sets after sign-in. | `owner-session.js` |
 | About & Feedback | About dialog with About, Features, Shortcuts and Feedback tabs (feedback stored in Firestore). | `about-feedback.js`, `ui-about-section.js` |
@@ -606,7 +606,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 
 | Feature | Description | Files |
 |---|---|---|
-| Guided Tour | Spotlight tour with Next/Back/Skip, localStorage persistence (see section 1). | `onboarding.js`, `panels-ui.js` |
+| Guided Tour | Spotlight tour with Next/Back/Skip, arrow keys and Esc, localStorage persistence (see section 1). | `onboarding.js`, `onboarding-styles.css`, `panels-ui.js` |
 | QA Check Script | Automated pre-release checks, including version consistency and this file: every script in `index.html` must appear here and the footer must carry the CHANGELOG version. | `qa-check.sh` |
 | QA Checklist | Manual browser test checklist, including the release documentation. | `QA-CHECKLIST.md` |
 
