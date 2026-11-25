@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<!--
+  geoBIM.app Viewer, privacy policy (German, Art. 13 GDPR).
+  Keep it in step with the code: a new external service (script, map,
+  API, CDN) needs a row in section 8 in the same commit.
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datenschutzerklärung – geoBIM.app Viewer</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="legal-styles.css?v=20261125">
+</head>
+<body class="legal-page">
+<main class="legal">
+  <p class="legal-back"><a href="/">← zum Viewer</a></p>
+
+  <h1>Datenschutzerklärung</h1>
+  <p>
+    Diese Erklärung beschreibt, welche personenbezogenen Daten bei der Nutzung des
+    geoBIM.app Viewers unter viewer.geobim.app und beta.geobim.app verarbeitet werden
+    (Art. 13 DSGVO). Für die Website geobim.app gilt deren eigene Datenschutzerklärung.
+  </p>
+
+  <h2>1. Verantwortlicher</h2>
+  <p>
+    Christof Lorenz<br>
+    Fischhofer Weg 1<br>
+    91154 Roth<br>
+    Deutschland<br>
+    E-Mail: <a href="mailto:info@geobim.app">info@geobim.app</a>
+  </p>
+
+  <h2>2. Das Wichtigste vorab</h2>
+  <ul>
+    <li>Der Viewer verwendet keine Analyse- oder Trackingwerkzeuge und keine Werbung.</li>
+    <li>Cookies setzt der Viewer nur, wenn Sie sich als Inhaber oder eingeladenes Mitglied
+      anmelden oder einen Freigabelink öffnen; beide sind technisch notwendig (Abschnitt 4).</li>
+    <li>Einstellungen speichert der Viewer in Ihrem Browser; sie verlassen Ihr Gerät nicht.</li>
+    <li>Der Viewer lädt Programmbibliotheken, Karten, Gelände- und 3D-Daten auch von
+      Servern anderer Anbieter. Dabei erhält der jeweilige Anbieter technisch bedingt
+      Ihre IP-Adresse. Welche Anbieter das sind und wann, steht in Abschnitt 8.</li>
+    <li>Ihre Daten werden nicht verkauft.</li>
+  </ul>
+
+  <h2>3. Hosting und Server-Logdateien</h2>
+  <p>
+    Der Viewer wird auf einem Server der Hetzner Online GmbH, Industriestr. 25,
+    91710 Gunzenhausen, in einem Rechenzentrum in Deutschland betrieben. Mit Hetzner besteht
+    ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.
+  </p>
+  <p>Bei jedem Aufruf speichert der Webserver in Logdateien:</p>
+  <ul>
+    <li>IP-Adresse des aufrufenden Geräts,</li>
+    <li>Datum und Uhrzeit des Zugriffs,</li>
+    <li>aufgerufene Seite oder Datei, HTTP-Statuscode und übertragene Datenmenge,</li>
+    <li>die zuvor besuchte Seite (Referrer), soweit vom Browser übermittelt,</li>
+    <li>Browser und Betriebssystem (User-Agent).</li>
+  </ul>
+  <p>
+    Zweck: Betrieb und Sicherheit des Viewers, Abwehr von Angriffen und Fehleranalyse.
+    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse liegt in einem
+    sicheren und stabilen Betrieb. Speicherdauer: Die Logdateien werden täglich rotiert und
+    nach 14 Tagen automatisch gelöscht.
+  </p>
+
+  <h2>4. Speicherung im Browser und Cookies</h2>
+  <p>
+    Der Viewer speichert im Speicher Ihres Browsers (localStorage, IndexedDB) zum Beispiel
+    die gewählte Oberfläche, Panel-Positionen, Darstellungseinstellungen, ob die Einführungstour
+    schon lief, und, wenn Sie angemeldet sind, die Anmeldung bei Firebase (Abschnitt 5).
+    Diese Daten bleiben auf Ihrem Gerät, bis Sie sie in Ihrem Browser löschen.
+  </p>
+  <p>Cookies setzt der Viewer nur in zwei Fällen:</p>
+  <ul>
+    <li><strong>geobim_owner</strong>: nach der Anmeldung als Inhaber oder eingeladenes
+      Mitglied, damit der Server eigene Modelle ausliefern und Uploads annehmen kann.
+      Inhalt: Ihre E-Mail-Adresse mit Signatur. Gültig 12 Stunden.</li>
+    <li><strong>geobim_share</strong>: beim Öffnen eines Freigabelinks, damit die
+      freigegebenen Modelle geladen werden können. Inhalt: die Kennung des Links.
+      Gültig 12 Stunden, bei jedem Öffnen verlängert.</li>
+  </ul>
+  <p>
+    Rechtsgrundlage für das Speichern und Auslesen im Browser ist § 25 Abs. 2 Nr. 2 TDDDG
+    (für den von Ihnen gewünschten Dienst unbedingt erforderlich), für die weitere
+    Verarbeitung Art. 6 Abs. 1 lit. b bzw. f DSGVO.
+  </p>
+
+  <h2>5. Anmeldung</h2>
+  <p>
+    Konten für Inhaber und eingeladene Mitglieder legt der Verantwortliche an. Für die
+    Anmeldung nutzt der Viewer Firebase Authentication der Google Ireland Limited,
+    Gordon House, Barrow Street, Dublin 4, Irland (bzw. Google LLC, USA). Verarbeitet werden
+    E-Mail-Adresse, Passwort (bei Google nur als Hash gespeichert), eine Benutzerkennung,
+    Zeitpunkte der Anmeldung sowie die IP-Adresse. Über Firebase versendet Google auch
+    E-Mails zum Zurücksetzen des Passworts.
+  </p>
+  <p>
+    Auch ohne Anmeldung baut der Viewer beim Start eine Verbindung zu Firebase auf; dabei
+    erhält Google Ihre IP-Adresse. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO für
+    angemeldete Nutzer, sonst Art. 6 Abs. 1 lit. f DSGVO.
+  </p>
+
+  <h2>6. Inhalte, die Sie im Viewer speichern</h2>
+  <p>
+    Was Sie im Viewer anlegen, speichert der Viewer in Cloud Firestore (Firebase, Google):
+  </p>
+  <ul>
+    <li><strong>Kommentare und Messungen</strong>: Inhalt, Position im Modell, Zeitpunkt,
+      Name und E-Mail-Adresse der Person, die sie angelegt hat.</li>
+    <li><strong>Szenen und Modell-Platzierungen</strong>: Ansichten, Einstellungen und
+      Positionen mit Ihrer Benutzerkennung.</li>
+    <li><strong>Kommentare über Freigabelinks</strong>: Inhalt, Position, Zeitpunkt und der
+      Name, den Sie dazu angeben.</li>
+    <li><strong>Feedback</strong> (About &amp; help → Send Feedback): Art, Betreff und Text,
+      freiwillig Ihre E-Mail-Adresse, bei angemeldeten Nutzern deren E-Mail-Adresse, außerdem
+      Browser (User-Agent), Fenstergröße und Version des Viewers.</li>
+  </ul>
+  <p>
+    Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO, soweit die Inhalte zur Nutzung des Viewers
+    in einem Projekt gehören, sonst Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
+    Zusammenarbeit an Modellen und an der Verbesserung des Viewers). Die Inhalte bleiben
+    gespeichert, bis Sie oder der Inhaber sie löschen; Feedback löschen wir, sobald es
+    bearbeitet ist und nicht mehr benötigt wird. Auf Anfrage löschen wir früher.
+  </p>
+
+  <h2>7. Hochgeladene Modelle und Freigabelinks</h2>
+  <p>
+    Inhaber und eingeladene Mitglieder können IFC-, GLB- und Punktwolken-Dateien hochladen.
+    Die Dateien werden auf dem Server in Deutschland (Abschnitt 3) gespeichert und dort in
+    3D Tiles umgewandelt. Freigabelinks speichern, welche Modelle und welche Szene sie
+    zeigen, ihre Laufzeit und wer sie angelegt hat. Modelle und Links bleiben gespeichert,
+    bis Inhaber oder Mitglied sie löschen bzw. widerrufen. Rechtsgrundlage: Art. 6 Abs. 1
+    lit. b DSGVO.
+  </p>
+
+  <h2>8. Dienste anderer Anbieter</h2>
+  <p>
+    Für Karten, Gelände, 3D-Daten und Programmbibliotheken ruft Ihr Browser Inhalte direkt
+    bei den folgenden Anbietern ab. Dabei erhält der Anbieter technisch bedingt Ihre
+    IP-Adresse, Datum und Uhrzeit, die angefragte Adresse und Angaben zu Ihrem Browser;
+    bei Karten und Gelände auch den Kartenausschnitt, den Sie gerade ansehen, bei der
+    Ortssuche Ihren Suchbegriff. Ihre Modelle, Kommentare und Ihr Standort gehen dabei
+    nicht an diese Anbieter.
+    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse liegt darin, die
+    Karten-, Gelände- und 3D-Funktionen bereitzustellen, die Sie aufrufen.
+  </p>
+
+  <h3>8.1 Bei jedem Aufruf des Viewers</h3>
+  <div class="legal-table-wrap">
+  <table class="legal-table">
+    <thead><tr><th>Anbieter</th><th>Wofür</th><th>Server</th></tr></thead>
+    <tbody>
+      <tr><td>Cesium GS, Inc., Philadelphia, USA</td><td>CesiumJS, die 3D-Globus-Bibliothek des Viewers</td><td>cesium.com</td></tr>
+      <tr><td>Google (Firebase)</td><td>Firebase-Bibliotheken, Anmeldung (Abschnitt 5)</td><td>gstatic.com<br>googleapis.com</td></tr>
+      <tr><td>unpkg (Content Delivery Network)</td><td>Symbolbibliothek Lucide, MQTT-Bibliothek</td><td>unpkg.com</td></tr>
+      <tr><td>Cloudflare, Inc., San Francisco, USA (cdnjs)</td><td>Bibliothek JSZip</td><td>cdnjs.cloudflare.com</td></tr>
+      <tr><td>Mapterhorn (offenes Geländemodell)</td><td>Gelände ohne Anmeldung und in den Demo-Szenen</td><td>tiles.mapterhorn.com</td></tr>
+      <tr><td>Bundesamt für Kartographie und Geodäsie, Frankfurt am Main</td><td>Hintergrundkarte TopPlusOpen ohne Anmeldung</td><td>sgx.geodatenzentrum.de</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>8.2 Mit Anmeldung oder verbundenem Cesium-ion-Konto</h3>
+  <div class="legal-table-wrap">
+  <table class="legal-table">
+    <thead><tr><th>Anbieter</th><th>Wofür</th><th>Server</th></tr></thead>
+    <tbody>
+      <tr><td>Cesium GS, Inc., USA (Cesium ion)</td><td>3D-Modelle, Cesium World Terrain, OSM Buildings, Ortssuche; Verbinden eines eigenen ion-Kontos</td><td>api.cesium.com<br>assets.ion.cesium.com<br>ion.cesium.com</td></tr>
+      <tr><td>Microsoft Corporation, Redmond, USA (Bing Maps)</td><td>Luftbilder und Straßenkarte über Cesium ion</td><td>virtualearth.net</td></tr>
+      <tr><td>Google LLC, USA</td><td>Photorealistic 3D Tiles, nur wenn eingeschaltet</td><td>tile.googleapis.com</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>8.3 Nur wenn Sie eine bestimmte Funktion nutzen</h3>
+  <div class="legal-table-wrap">
+  <table class="legal-table">
+    <thead><tr><th>Anbieter</th><th>Wofür</th><th>Server</th></tr></thead>
+    <tbody>
+      <tr><td>OpenStreetMap Foundation, Cambridge, Vereinigtes Königreich</td><td>Ortssuche ohne Anmeldung (Nominatim); Karte OpenStreetMap, wenn gewählt</td><td>nominatim.openstreetmap.org<br>tile.openstreetmap.org</td></tr>
+      <tr><td>Esri, Inc., Redlands, USA</td><td>Luftbilder in den Demo-Szenen; ArcGIS-Höhenmodell und -Szenenlayer, wenn gewählt</td><td>services.arcgisonline.com<br>tiles.arcgis.com<br>elevation3d.arcgis.com</td></tr>
+      <tr><td>Bentley Systems, Inc., Exton, USA</td><td>iTwin-Demo und eigene iModels; Anmeldung bei Bentley</td><td>api.bentley.com<br>ims.bentley.com</td></tr>
+      <tr><td>Bright Sky (Daten des Deutschen Wetterdienstes)</td><td>Live-Wind in der Demo-Szene „Wind Turbine“, alle 15 Minuten, solange die Szene offen ist; übermittelt werden die Koordinaten der Windenergieanlage</td><td>api.brightsky.dev</td></tr>
+      <tr><td>Wasserstraßen- und Schifffahrtsverwaltung des Bundes (Pegelonline)</td><td>Wasserstände, nur wenn die Pegelanzeige eingeschaltet ist</td><td>pegelonline.wsv.de</td></tr>
+      <tr><td>Verantwortlicher (eigener Server)</td><td>Live-Sensordaten des Brücken-Monitorings (STA Live)</td><td>frost.christoflorenz.de</td></tr>
+      <tr><td>Kartendienste öffentlicher Stellen, z. B. Bayerische Vermessungsverwaltung, BKG (basemap.de), Rheinland-Pfalz, PDOK (Niederlande), swisstopo (Schweiz), Kartverket (Norwegen), basemap.at (Österreich), IGN (Frankreich), Stadt Helsinki, GEBCO, NASA, USGS</td><td>zusätzliche Kartenebenen (WMS/WMTS), nur wenn Sie die Ebene hinzufügen</td><td>Server der jeweiligen Stelle</td></tr>
+      <tr><td>jsDelivr (cdn.jsdelivr.net), Cloudflare (cdnjs.cloudflare.com)</td><td>Bibliotheken für GIS-Import, Koordinatensysteme, GeoTIFF, ArcGIS-Höhen und Schnitte; erst beim Aufruf der Funktion</td><td>cdn.jsdelivr.net<br>cdnjs.cloudflare.com</td></tr>
+      <tr><td>GitHub, Inc., San Francisco, USA</td><td>Küstenlinien für die Geoid-Darstellung; Gaussian-Splat-Demo</td><td>raw.githubusercontent.com<br>github.io</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>9. Übermittlung in Drittländer</h2>
+  <p>
+    Bei Anbietern mit Sitz in den USA (Abschnitt 5 und 8) kann eine Übermittlung in die USA
+    stattfinden. Für die USA besteht ein Angemessenheitsbeschluss der EU-Kommission
+    (EU-U.S. Data Privacy Framework, Art. 45 DSGVO); er gilt für Unternehmen, die nach diesem
+    Rahmen zertifiziert sind. Für das Vereinigte Königreich (OpenStreetMap Foundation) und
+    die Schweiz (swisstopo) bestehen ebenfalls Angemessenheitsbeschlüsse.
+  </p>
+
+  <h2>10. Kontakt per E-Mail</h2>
+  <p>
+    Wenn Sie uns per E-Mail schreiben, verarbeiten wir Ihre E-Mail-Adresse, Ihren Namen,
+    soweit angegeben, und den Inhalt Ihrer Nachricht, um Ihre Anfrage zu beantworten. Die
+    E-Mails werden über den Anbieter mailbox.org (Heinlein Hosting GmbH, Schwedter Straße 8/9A,
+    10119 Berlin) empfangen; mit mailbox.org besteht ein Vertrag zur Auftragsverarbeitung nach
+    Art. 28 DSGVO. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO, soweit Ihre Anfrage mit einem
+    Vertrag oder vorvertraglichen Maßnahmen zusammenhängt, sonst Art. 6 Abs. 1 lit. f DSGVO.
+    Wir löschen die Nachrichten, sobald sie nicht mehr benötigt werden und keine gesetzlichen
+    Aufbewahrungspflichten entgegenstehen.
+  </p>
+
+  <h2>11. Ihre Rechte</h2>
+  <p>
+    Sie haben das Recht auf Auskunft über Ihre gespeicherten Daten (Art. 15 DSGVO), auf
+    Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und
+    Datenübertragbarkeit (Art. 20). Soweit eine Verarbeitung auf Art. 6 Abs. 1 lit. f DSGVO
+    beruht, können Sie ihr aus Gründen, die sich aus Ihrer besonderen Situation ergeben,
+    widersprechen (Art. 21). Eine E-Mail an
+    <a href="mailto:info@geobim.app">info@geobim.app</a> genügt.
+  </p>
+  <p>
+    Sie haben außerdem das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren.
+    Zuständig ist:<br>
+    Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)<br>
+    Promenade 18<br>
+    91522 Ansbach<br>
+    <a href="https://www.lda.bayern.de" target="_blank" rel="noopener">www.lda.bayern.de</a>
+  </p>
+
+  <h2>12. Automatisierte Entscheidungen</h2>
+  <p>Es findet keine automatisierte Entscheidungsfindung einschließlich Profiling statt.</p>
+
+  <h2>13. Eigene Installationen</h2>
+  <p>
+    Der Viewer ist Open Source (Mozilla Public License 2.0). Diese Erklärung gilt für
+    viewer.geobim.app und beta.geobim.app. Wer den Viewer selbst betreibt, ist für seine
+    Installation selbst verantwortlich.
+  </p>
+
+  <p class="legal-date">Stand: 25. November 2026</p>
+</main>
+</body>
+</html>
