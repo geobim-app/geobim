@@ -2051,6 +2051,13 @@ body {
   overflow-y: auto;
 }
 
+/* The rule above outranks .floating-panel-body.collapsed: collapse again */
+#weaShadowPanel .floating-panel-body.collapsed {
+  max-height: 0;
+  padding: 0 var(--space-sm);
+  overflow: hidden;
+}
+
 #weaShadowPanel.visible {
   opacity: 1;
   pointer-events: auto;

@@ -338,6 +338,12 @@
   }
 
   async function loadContext() {
+    // Guests have no Cesium ion (guest-no-ion.js): OSM Buildings and both
+    // context assets come from ion, every load would fail
+    if (window.BimGuest && typeof BimGuest.active === 'function' && BimGuest.active()) {
+      BimViewer.updateStatus('Buildings come from Cesium ion: sign in to load them', 'warning');
+      return;
+    }
     var btn = document.getElementById('weaLoadContext');
     if (btn) { btn.textContent = '\u23F3 Loading...'; btn.disabled = true; }
 
@@ -442,7 +448,8 @@
     ad.animSpeed = 8 / (wea.nativeRPM || 16.2);
     BimViewer.updateGLBPosition(assetId);
     weaInstances[assetId] = inst;
-    clampToTerrain(inst, true);
+    // noFlyTo: a demo scene (wea-scene.js) keeps its own camera
+    clampToTerrain(inst, !modelDef.noFlyTo);
 
     var model = ad.model;
     var attachNode = function() {

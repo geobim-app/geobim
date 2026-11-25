@@ -188,8 +188,18 @@
   
   // 🔥 NEW: Reload terrain with vertex normals
   BimViewer.reloadTerrainWithLighting = function() {
+    // Only Cesium World Terrain is reloaded. Another terrain (Mapterhorn,
+    // ArcGIS, an ion terrain asset, a demo scene's choice) stays; guests have
+    // no Cesium ion at all, World Terrain would leave them without a globe.
+    var lm = window.LayerManager;
+    var onWorld = !lm || !lm.activeTerrain || lm.activeTerrain === 'world';
+    var guest = window.BimGuest && typeof BimGuest.active === 'function' && BimGuest.active();
+    if (!onWorld || guest) {
+      console.log('  Terrain kept for lighting: ' + (guest ? 'guest without Cesium ion' : lm.activeTerrain));
+      return;
+    }
     console.log('  🌍 Reloading terrain with vertex normals...');
-    
+
     try {
       // Create new terrain with vertex normals
       const newTerrain = Cesium.Terrain.fromWorldTerrain({
