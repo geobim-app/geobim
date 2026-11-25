@@ -21,6 +21,9 @@
  *   split            {left: [folder], right: [folder]} → Split View, sides per model
  *   schedule         folder → construction schedule (4D) bar opens
  *   alignmentSection folder → section along the IfcAlignment axis
+ *   wea              {model: id, replace: [folder]} → wind turbine shadow
+ *                    study (wea-scene.js): the WEA turbine instead of the
+ *                    "replace" models; if it can't load, those come back
  */
 (function() {
   'use strict';
@@ -65,6 +68,7 @@
 
   function closeExtras() {
     try {
+      if (window.BimWEAScene) BimWEAScene.close();
       if (BimViewer.splitMode && window.GEOBIM_SPLIT_UI) GEOBIM_SPLIT_UI.toggleSplitView();
       if (BimViewer.constructionSchedule && BimViewer.constructionSchedule.state) BimViewer.deactivateConstructionSchedule();
       var as = BimViewer.alignmentSection;
@@ -122,6 +126,20 @@
     });
   }
 
+  async function restoreDemo(sceneObj) {
+    var problems = [];
+    BimViewer.scenes.restoringDemo = true;
+    try {
+      problems = (await BimViewer.restoreSceneObject(sceneObj)) || [];
+    } catch (err) {
+      console.error('Demo scene failed:', err);
+      problems.push(err.message);
+    } finally {
+      BimViewer.scenes.restoringDemo = false;
+    }
+    return problems;
+  }
+
   async function loadDemo(id) {
     var scene = scenes.find(function(s) { return s.id === id; });
     if (!scene || busy || !BimViewer.restoreSceneObject) return;
@@ -134,17 +152,19 @@
     var web = scene.web || {};
     var copy = JSON.parse(JSON.stringify(scene));
     delete copy.web;
-    var problems = [];
-    BimViewer.scenes.restoringDemo = true;
-    try {
-      problems = (await BimViewer.restoreSceneObject(copy)) || [];
-    } catch (err) {
-      console.error('Demo scene failed:', err);
-      problems.push(err.message);
-    } finally {
-      BimViewer.scenes.restoringDemo = false;
-    }
+    // Shadow study: the WEA turbine replaces the scene's static turbine models
+    var wea = web.wea && web.wea.model && window.BimWEAScene ? web.wea : null;
+    var replaced = wea && Array.isArray(wea.replace) ? wea.replace.map(function(f) { return String(f).toLowerCase(); }) : [];
+    var sceneCopy = wea ? Object.assign({}, copy, {
+      assets: (copy.assets || []).filter(function(a) { return replaced.indexOf(folderOf(a.localPath).toLowerCase()) === -1; })
+    }) : copy;
+    var problems = await restoreDemo(sceneCopy);
     applyExtras(web, problems);
+    if (wea && !(await BimWEAScene.open(wea))) {
+      console.warn('Demo scene: WEA turbine not available, loading the scene models instead');
+      problems = await restoreDemo(copy);
+      problems.push('Wind turbine shadow study not available');
+    }
     setCredits(web.credits);
     busy = false;
     render();

@@ -40,7 +40,14 @@
       "web": {
         "credits": [
           "Model: \"Animated Wind Turbine\" by Glowbox 3D (Sketchfab), CC BY 4.0, scaled to 199 m hub height / 172 m rotor. Live wind: Deutscher Wetterdienst via Bright Sky."
-        ]
+        ],
+        "wea": {
+          "model": "vestas_enventus_v172",
+          "replace": [
+            "WindTurbine_Tower",
+            "WindTurbine_Rotor"
+          ]
+        }
       }
     },
     {

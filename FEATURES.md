@@ -202,7 +202,7 @@
 | Feature | Description | Files |
 |---|---|---|
 | Demo Scenes | The 7 demo scenes of geoBIM Desktop (Unreal `Demo/DemoScenes.json`) in the Scenes panel for everyone, guests included: wind turbine, Merendree as built vs as designed, Deichbrücke swing bridge, hollow box girder, medical-dental clinic (5 disciplines), iTwin station, Siegtalbrücke 4D. Read-only (never saved), open terrain and Esri imagery. | `demo-scenes.js`, `demo-scenes.json` |
-| Demo Extras | Merendree opens in Split View (as built left, as designed right), Siegtalbrücke with the construction schedule (4D) bar, the hollow box girder with the alignment section. Switching scenes closes them. | `demo-scenes.js` |
+| Demo Extras | Merendree opens in Split View (as built left, as designed right), Siegtalbrücke with the construction schedule (4D) bar, the hollow box girder with the alignment section, the wind turbine with the WEA shadow study (see 27). Switching scenes closes them. | `demo-scenes.js`, `wea-scene.js` |
 | Demo Credits | Model credits (CC BY 4.0, from the Desktop `CREDITS.txt`) under the list and in "Data attribution". | `demo-scenes.js` |
 | Demo Models | Folders in `model/` with the Desktop demo names, listed in `guest-models.json` (server data, not in git). | `model/` |
 
@@ -222,7 +222,7 @@
 
 | Feature | Description | Files |
 |---|---|---|
-| Dynamic Lighting | Sun-based shadows with globe lighting, dynamic atmosphere, and time-of-day control. | `lighting.js` |
+| Dynamic Lighting | Sun-based shadows with globe lighting, dynamic atmosphere, and time-of-day control. Cesium World Terrain is reloaded with vertex normals only while it is the active terrain; Mapterhorn, ArcGIS, ion terrain assets and guests keep their terrain. | `lighting.js` |
 | Time Presets | Dawn, Morning, Noon, Afternoon, Sunset, Dusk, Night, Midnight. | `lighting.js` |
 | Time Animation | Animate sun position with adjustable speed multiplier. | `lighting.js` |
 | Shadow Quality | Soft shadows, normal offset, configurable max distance (150m–500m) and bias per preset. | `lighting.js`, `core.js` |
@@ -587,6 +587,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | Shadow Flicker Simulation | Parametric wind turbine shadow analysis on real terrain. | `wea-shadow.js` |
 | GLB Turbine Models | Enercon E-138 EP3 default, custom models via `/model/wind/`. | `wea-shadow.js` |
 | Anonymous Demo | Guest session at `/wea-shadow`, no login, no time limit. | `wea-demo.js` |
+| In the Wind Turbine Demo Scene | The demo scene "Wind Turbine" loads the WEA turbine (Vestas EnVentus V172 from `/model/wind/`, the same Glowbox model) instead of its static tower and rotor tilesets, at the same position: rotor turning, shadows on, WEA panel open (on phones collapsed to its title bar), camera as the scene sets it. Another demo scene or a scene that unloads the turbine closes it all and switches the shadows off again. If the turbine can't load, the scene loads its tilesets. Guests: "Buildings" needs Cesium ion and says so instead of loading. Configured in `demo-scenes.json` (`web.wea`). | `wea-scene.js`, `demo-scenes.js`, `demo-scenes.json` |
 
 ---
 
