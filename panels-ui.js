@@ -554,15 +554,13 @@
   // Onboarding tour (onboarding.js): the default tour points at the sidebar
   // and the bottom toolbar; the panel layout brings its own steps
   // ---------------------------------------------------------------------------
-  var TOUR_WELCOME = {
-    target: '#cesiumContainer',
-    title: 'Welcome to geoBIM.app Viewer',
-    text: 'This is your 3D BIM viewer. Left-click + drag to rotate, scroll to zoom, middle-click to pan.',
-    position: 'center'
-  };
-
   var TOUR_DESKTOP = [
-    TOUR_WELCOME,
+    {
+      target: '#cesiumContainer',
+      title: 'Welcome to geoBIM.app Viewer',
+      text: 'Your BIM models in their real location. Left-drag pans, scroll zooms, middle-drag or Ctrl + left-drag rotates and tilts.',
+      position: 'center'
+    },
     {
       target: '.panels-rail',
       title: 'Tools',
@@ -576,10 +574,16 @@
       position: 'right'
     },
     {
-      target: '.panels-search',
-      title: 'Search',
-      text: 'Find an address or place, or type coordinates as "latitude, longitude".',
-      position: 'bottom'
+      target: '.panels-rail-btn[data-section="assets"]',
+      title: 'Load a model',
+      text: 'Select one or more models in Assets and click Import Selected.',
+      position: 'right'
+    },
+    {
+      target: null,
+      title: 'Element properties',
+      text: 'Click an element of a model to see its properties in the info panel. H hides elements by click, Shift + H shows them all again.',
+      position: 'center'
     },
     {
       target: '.panels-rail-btn[data-section="drawing"]',
@@ -600,15 +604,21 @@
       position: 'right'
     },
     {
-      target: null,
+      target: '.panels-rail-btn[data-section="about"]',
       title: 'You\'re ready!',
-      text: 'Press M to hide the panels, G for walk mode, H to hide elements. All shortcuts are under About & help. Enjoy exploring!',
-      position: 'center'
+      text: 'All shortcuts and this tour are under About & help. M hides the panels, G starts walk mode.',
+      position: 'right'
     }
   ];
 
+  // No gesture guide on the phone, only what the app is
   var TOUR_PHONE = [
-    TOUR_WELCOME,
+    {
+      target: '#cesiumContainer',
+      title: 'Welcome to geoBIM.app Viewer',
+      text: 'BIM models, point clouds and reality meshes in their real location.',
+      position: 'center'
+    },
     {
       target: '.panels-tabs',
       title: 'Tools',
@@ -703,6 +713,8 @@
     var tag = e.target && e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || (e.target && e.target.isContentEditable)) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    // The tour is modal; its own window-capture handler may run after this one
+    if (window.BimTour && BimTour.isOpen && BimTour.isOpen()) return;
 
     if (e.key === 'Escape') {
       if (more && !more.hidden) { hideMore(); return; }
