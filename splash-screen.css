@@ -333,6 +333,16 @@
   color: rgba(255, 255, 255, 0.22);
 }
 
+.splash-privacy a {
+  color: rgba(255, 255, 255, 0.45);
+  text-decoration: underline;
+}
+
+.splash-privacy a:hover,
+.splash-privacy a:focus-visible {
+  color: var(--brand-teal);
+}
+
 .splash-license {
   font-size: 0.7rem;
   color: #666;

@@ -158,7 +158,7 @@
           '<div class="splash-cta-section">' +
             '<p class="splash-cta">Want to use your own IFC/Revit models? ' +
               '<a href="mailto:info@geobim.app" class="splash-cta-link" onclick="if(typeof plausible!==\'undefined\')plausible(\'Contact Click\')">Contact me</a></p>' +
-            '<p class="splash-privacy">Privacy-friendly analytics (no cookies)</p>' +
+            '<p class="splash-privacy">No tracking, no analytics &middot; <a href="/datenschutz" target="_blank" rel="noopener">Privacy policy</a></p>' +
           '</div>' +
           '<p class="splash-license">' +
             '&copy; 2026 Christof Lorenz &mdash; Open source under the <a href="https://mozilla.org/MPL/2.0/" target="_blank" rel="noopener">Mozilla Public License 2.0</a>.<br>' +

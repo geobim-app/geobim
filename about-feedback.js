@@ -72,7 +72,7 @@
                 <span class="about-info-value">CesiumJS · Firebase · 3D Tiles</span>
               </div>
             </div>
-            <p class="about-copyright">© 2026 Christof Lorenz</p>
+            <p class="about-copyright">© 2026 Christof Lorenz &middot; <a href="/datenschutz" target="_blank" rel="noopener">Privacy policy</a></p>
             <button class="about-tour-btn" onclick="BimViewer.closeAboutDialog();setTimeout(function(){BimTour.start()},300);">
               Take a guided tour
             </button>
