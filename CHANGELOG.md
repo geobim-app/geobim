@@ -30,9 +30,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Maus-Belegung in Tour, Splash Screen und About** (`onboarding.js`, `panels-ui.js`, `splash-screen.js`, `about-feedback.js`, `index.html` `?v=`): Alle drei nannten Linksziehen „Rotate“ und Mittelziehen „Pan“. Die Kamera nutzt die Cesium-Standardbelegung: Linksziehen verschiebt, Mittelziehen oder Strg + Linksziehen dreht und neigt. Strg + Linksziehen steht als Ersatz für Trackpads neu in den Shortcut-Listen.
-
-### Fixed
-
 - **Beleuchtung tauscht das Gelände nicht mehr** (`lighting.js`, `index.html` `?v=`): `reloadTerrainWithLighting` setzte beim Einschalten der Beleuchtung immer Cesium World Terrain, egal welches Gelände aktiv war. Gäste haben kein Cesium ion: Der Globus verschwand (über Sun & time → Enable Lighting und den Shadows-Button des WEA-Panels). Angemeldete Nutzer verloren das Gelände einer Szene, z. B. Mapterhorn in den Demo-Szenen. Jetzt wird World Terrain nur neu geladen, wenn es das aktive Gelände ist und kein Gast angemeldet ist.
 - **WEA-Panel lässt sich zuklappen** (`style.css`, `index.html` `?v=`): `#weaShadowPanel .floating-panel-body { max-height: none }` war spezifischer als die Regel für `.collapsed`, der Button „−“ wechselte nur sein Zeichen. Neue Regel für den zugeklappten Zustand.
 - **WEA „Buildings“ für Gäste** (`wea-shadow.js`): Ohne Cesium ion scheiterten OSM Buildings und beide Kontext-Assets still, der Button zeigte trotzdem „Buildings loaded“. Gäste bekommen jetzt den Hinweis, dass die Gebäude eine Anmeldung brauchen.
