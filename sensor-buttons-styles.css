@@ -1,0 +1,21 @@
+/**
+ * geoBIM.app
+ * © 2026 Christof Lorenz
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+/* Live-sensor buttons (sensor-buttons.js) */
+
+/* IoT Live (iot.js, Pegel Deggendorf) belongs to no scene: button hidden.
+   On phones it also covered the "More" tab. */
+#iotToggleBtn {
+  display: none !important;
+}
+
+/* STA Live (sensorthings.js) only while the Merendree bridge is loaded */
+body:not(.sta-site-loaded) #staToggleBtn {
+  display: none !important;
+}

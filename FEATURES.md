@@ -432,6 +432,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | Damage Trigger Button | In-panel button to trigger server-side damage simulation event. | `sensorthings.js`, `api/damage-trigger.php` |
 | Red Alert Sparklines | Sparkline colors switch to red during active damage events, restored on dismiss. | `sensorthings.js` |
 | Polling Damage Detection | Damage thresholds checked on polled data (fallback when MQTT unavailable). | `sensorthings.js` |
+| STA Live Button | Shown only while the Merendree bridge is loaded (ion asset 4452138 or a model with "Merendree" in its name, e.g. the demo scene); unloading it switches STA Live off. Hidden for guests and in Bridge Inspector, which has its own IOT button on the asset card. | `sensor-buttons.js`, `sensor-buttons-styles.css` |
 
 ---
 
@@ -443,6 +444,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | Threshold Indicators | Color-coded water level alerts: green (< 200 cm), yellow (200–349 cm), red (≥ 350 cm). | `iot.js` |
 | Multi-Parameter | Water level, water temperature, and air temperature in a single billboard. | `iot.js` |
 | Auto-Refresh | 5-minute polling interval with standalone CesiumJS markers. | `iot.js` |
+| Button hidden | No scene uses the Deggendorf gauge, so the button is hidden (`sensor-buttons-styles.css`); `GEOBIM_IOT.toggle()` still switches it on from the console. | `sensor-buttons-styles.css` |
 
 ---
 
@@ -551,6 +553,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | `sib.js` | SIB parametric bridge generator (GLB from SIB data, key B) |
 | `sensorthings.js` | OGC SensorThings API module — live MQTT monitoring, sparklines, damage detection |
 | `iot.js` | Pegelonline IoT live module — water level, temperature markers |
+| `sensor-buttons.js` | Live-sensor buttons: STA Live only with the Merendree bridge, IoT Live hidden |
 | `geoid.js` | Geoid undulation (GCG2016 in Germany, EGM96 elsewhere) for heights above sea level |
 | `geoid_terrain.js` | EGM2008 geoid as 3D terrain visualisation |
 | `projected-coords.js` | UTM and Gauß-Krüger coordinates |
