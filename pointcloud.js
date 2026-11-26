@@ -456,8 +456,12 @@
       // pointCloudShading.attenuation note in applyPointCloudSettings for why this
       // and attenuation can't both apply at once (Cesium picks whichever style/
       // shading define is present; a style pointSize always wins).
+      // A style pointSize is in render pixels — Cesium scales attenuated points and
+      // the EDL radius by the pixel ratio, but not this — so multiply it here to keep
+      // the on-screen size when render-resolution.js renders above CSS resolution.
       if (settings.sizeMode === 'fixed') {
-        styleJson.pointSize = settings.pointSize;
+        const pixelRatio = typeof this.getRenderPixelRatio === 'function' ? this.getRenderPixelRatio() : 1;
+        styleJson.pointSize = settings.pointSize * pixelRatio;
       }
 
       // Only construct a style at all if there's something to override — an empty

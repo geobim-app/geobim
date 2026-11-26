@@ -38,14 +38,23 @@ const CONFIG = {
     }
   },
   
+  // Preset keys read by applyPerformanceSettings / applySettingsToTileset:
+  // - cacheBytes / maximumCacheOverflowBytes: tile cache per tileset (Cesium3DTileset).
+  //   When a view needs more than both together, Cesium lowers the detail on its own.
+  // - shadowSize: shadow map size per cascade (Cesium clamps it to the GPU limit).
+  // - maxPixelRatio: render pixels per CSS pixel, never above devicePixelRatio;
+  //   supersampling multiplies devicePixelRatio first (render-resolution.js).
+  // - ssao*: ambient occlusion uniforms of the CesiumJS 1.124+ algorithm
+  //   (intensity, bias, lengthCap, directionCount, stepCount).
   performance: {
     presets: {
       PERFORMANCE: {
         name: 'Performance',
         screenSpaceError: 8,
-        memoryUsage: 1024,
-        shadowSize: 1024,
-        lodQuality: 1.0,
+        cacheBytes: 512 * 1024 * 1024,
+        maximumCacheOverflowBytes: 512 * 1024 * 1024,
+        shadowSize: 2048,
+        maxPixelRatio: 1.0,
         enableSSAO: false,
         enableShadows: false,
         enableFXAA: true,
@@ -53,7 +62,7 @@ const CONFIG = {
         enableHDR: false,
         enableAtmosphere: true,
         enableLighting: true,
-        skipLevelOfDetail: true,
+        skipLevelOfDetail: false,
         cullRequestsWhileMoving: true,
         preloadWhenHidden: false,
         preloadFlightDestinations: false,
@@ -65,9 +74,10 @@ const CONFIG = {
       BALANCED: {
         name: 'Balanced',
         screenSpaceError: 3,
-        memoryUsage: 2048,
+        cacheBytes: 1024 * 1024 * 1024,
+        maximumCacheOverflowBytes: 512 * 1024 * 1024,
         shadowSize: 2048,
-        lodQuality: 2.0,
+        maxPixelRatio: 1.5,
         enableSSAO: false,
         enableShadows: true,
         enableFXAA: true,
@@ -75,7 +85,7 @@ const CONFIG = {
         enableHDR: true,
         enableAtmosphere: true,
         enableLighting: true,
-        skipLevelOfDetail: true,
+        skipLevelOfDetail: false,
         cullRequestsWhileMoving: false,
         preloadWhenHidden: true,
         preloadFlightDestinations: false,
@@ -87,9 +97,10 @@ const CONFIG = {
       QUALITY: {
         name: 'Quality',
         screenSpaceError: 1.5,
-        memoryUsage: 4096,
+        cacheBytes: 1536 * 1024 * 1024,
+        maximumCacheOverflowBytes: 1024 * 1024 * 1024,
         shadowSize: 4096,
-        lodQuality: 3.0,
+        maxPixelRatio: 2.0,
         enableSSAO: true,
         enableShadows: true,
         enableFXAA: true,
@@ -105,10 +116,8 @@ const CONFIG = {
         ssaoIntensity: 8.8,
         ssaoBias: 0.26,
         ssaoLengthCap: 0.07,
-        ssaoDirections: 16,
-        ssaoStepSize: 2.0,
-        ssaoFrustumLength: 1000.0,
-        ssaoBlurStepSize: 0.86,
+        ssaoDirectionCount: 8,
+        ssaoStepCount: 32,
         shadowMaxDistance: 2000.0,
         shadowBias: 0.002
       },
@@ -116,9 +125,10 @@ const CONFIG = {
       ULTRA: {
         name: 'Ultra',
         screenSpaceError: 1.0,
-        memoryUsage: 8192,
+        cacheBytes: 2048 * 1024 * 1024,
+        maximumCacheOverflowBytes: 1024 * 1024 * 1024,
         shadowSize: 4096,
-        lodQuality: 4.0,
+        maxPixelRatio: 2.0,
         enableSSAO: true,
         enableShadows: true,
         enableFXAA: false,
@@ -131,25 +141,22 @@ const CONFIG = {
         preloadWhenHidden: true,
         preloadFlightDestinations: true,
         dynamicScreenSpaceError: true,
-        dynamicScreenSpaceErrorDensity: 0.00278,
-        dynamicScreenSpaceErrorFactor: 4.0,
-        dynamicScreenSpaceErrorHeightFalloff: 0.25,
         ssaoIntensity: 8.8,
         ssaoBias: 0.24,
         ssaoLengthCap: 0.07,
-        ssaoDirections: 16,
-        ssaoStepSize: 2.0,
-        ssaoFrustumLength: 1000.0,
-        ssaoBlurStepSize: 0.72,
+        ssaoDirectionCount: 16,
+        ssaoStepCount: 32,
         shadowMaxDistance: 2000.0,
         shadowBias: 0.001
       },
       CINEMATIC: {
         name: 'Cinematic',
         screenSpaceError: 1.0,
-        memoryUsage: 8192,
+        cacheBytes: 2048 * 1024 * 1024,
+        maximumCacheOverflowBytes: 1024 * 1024 * 1024,
         shadowSize: 4096,
-        lodQuality: 4.0,
+        maxPixelRatio: 3.0,
+        supersampling: 1.5,
         enableSSAO: true,
         enableShadows: true,
         enableFXAA: false,
@@ -162,19 +169,13 @@ const CONFIG = {
         preloadWhenHidden: true,
         preloadFlightDestinations: true,
         dynamicScreenSpaceError: true,
-        dynamicScreenSpaceErrorDensity: 0.00278,
-        dynamicScreenSpaceErrorFactor: 4.0,
-        dynamicScreenSpaceErrorHeightFalloff: 0.25,
         ssaoIntensity: 8.8,
         ssaoBias: 0.24,
         ssaoLengthCap: 0.07,
-        ssaoDirections: 16,
-        ssaoStepSize: 2.0,
-        ssaoFrustumLength: 1000.0,
-        ssaoBlurStepSize: 0.72,
+        ssaoDirectionCount: 16,
+        ssaoStepCount: 32,
         shadowMaxDistance: 2000.0,
         shadowBias: 0.001,
-        resolutionScale: 1.5,
         enableCinematicPostFX: true
       }
     }
@@ -632,17 +633,15 @@ const BimViewer = {
       scene.postProcessStages.tonemapper = Cesium.Tonemapper.PBR_NEUTRAL;
 
       // HBAO — Horizon-Based Ambient Occlusion (CesiumJS 1.124+)
-      // Replaces legacy SSAO with physically-based AO that scales with camera distance.
+      // Its only tuning uniforms are intensity, bias, lengthCap, directionCount
+      // and stepCount; the old SSAO names (stepSize, frustumLength, blur*) are gone.
       const ao = scene.postProcessStages.ambientOcclusion;
       if (ao) {
         ao.uniforms.intensity = 3.0;
         ao.uniforms.bias = 0.1;
         ao.uniforms.lengthCap = 0.26;
-        ao.uniforms.stepSize = 1.95;
-        // Legacy SSAO params (kept as fallback, HBAO ignores them)
-        ao.uniforms.directions = 16;
-        ao.uniforms.frustumLength = 1000.0;
-        ao.uniforms.blurStepSize = 0.86;
+        ao.uniforms.directionCount = 8;
+        ao.uniforms.stepCount = 32;
       }
 
       // Reduce sun intensity to prevent overexposed white BIM surfaces
@@ -1100,7 +1099,6 @@ const BimViewer = {
       const resource = await Cesium.IonResource.fromAssetId(assetId);
       const tileset = await Cesium.Cesium3DTileset.fromUrl(resource, {
         maximumScreenSpaceError: 3,
-        maximumMemoryUsage: 2048,
         skipLevelOfDetail: false,
         baseScreenSpaceError: 1024,
         skipScreenSpaceErrorFactor: 16,
@@ -2476,8 +2474,11 @@ const BimViewer = {
     try {
       if (settings.screenSpaceError !== undefined)
         tileset.maximumScreenSpaceError = settings.screenSpaceError;
-      if (settings.memoryUsage !== undefined)
-        tileset.maximumCacheSize = settings.memoryUsage;
+      // Google 3D Tiles keep the cache of their own presets (googleTilesPresets)
+      if (settings.cacheBytes !== undefined && !isGoogle) {
+        tileset.cacheBytes = settings.cacheBytes;
+        tileset.maximumCacheOverflowBytes = settings.maximumCacheOverflowBytes;
+      }
       if (settings.cullRequestsWhileMoving !== undefined)
         tileset.cullRequestsWhileMoving = settings.cullRequestsWhileMoving;
       if (settings.preloadWhenHidden !== undefined)
@@ -2512,6 +2513,11 @@ const BimViewer = {
     if (settings.shadowMaxDistance) {
       scene.shadowMap.maximumDistance = settings.shadowMaxDistance;
     }
+    // Also set while shadows are off: Dynamic Lighting (lighting.js) switches
+    // them on later with this size
+    if (settings.shadowSize) {
+      scene.shadowMap.size = settings.shadowSize;
+    }
     if (settings.enableShadows) {
       scene.shadowMap.normalOffset = true;
       scene.shadowMap.softShadows = true;
@@ -2531,10 +2537,9 @@ const BimViewer = {
         ao.uniforms.intensity = settings.ssaoIntensity;
         ao.uniforms.bias = settings.ssaoBias;
         ao.uniforms.lengthCap = settings.ssaoLengthCap;
-        ao.uniforms.directions = settings.ssaoDirections;
-        ao.uniforms.stepSize = settings.ssaoStepSize;
-        ao.uniforms.frustumLength = settings.ssaoFrustumLength;
-        ao.uniforms.blurStepSize = settings.ssaoBlurStepSize;
+        ao.uniforms.directionCount = settings.ssaoDirectionCount;
+        ao.uniforms.stepCount = settings.ssaoStepCount;
+        this.syncAOSliders(ao.uniforms);
       }
       // Update UI toggle state
       const aoBtn = document.getElementById('toggleAO');
@@ -2576,16 +2581,40 @@ const BimViewer = {
       GEOBIM_POSTFX.deactivateCinematic();
     }
 
-    // Resolution scale: 1.5 for Cinematic, reset to 1.0 for all others
-    this.viewer.resolutionScale = settings.resolutionScale || 1.0;
+    // Render resolution per preset (maxPixelRatio, supersampling) — render-resolution.js;
+    // without it, CSS pixel resolution as before
+    if (typeof this.applyRenderResolution === 'function') {
+      this.applyRenderResolution(settings);
+    } else {
+      this.viewer.resolutionScale = 1.0;
+    }
 
     console.log('✅ Performance settings applied:', {
       screenSpaceError: settings.screenSpaceError,
       skipLevelOfDetail: settings.skipLevelOfDetail,
       dynamicScreenSpaceError: settings.dynamicScreenSpaceError,
-      memoryUsage: settings.memoryUsage,
+      cacheMB: settings.cacheBytes / (1024 * 1024),
+      shadowSize: settings.shadowSize,
       cinematic: !!settings.enableCinematicPostFX,
-      resolutionScale: settings.resolutionScale || 1.0
+      resolutionScale: this.viewer.resolutionScale
+    });
+  },
+
+  // Show preset AO values on the Settings sliders (ui-settings-section.js)
+  syncAOSliders(uniforms) {
+    const fields = [
+      ['aoIntensity', uniforms.intensity, 1],
+      ['aoBias', uniforms.bias, 2],
+      ['aoLengthCap', uniforms.lengthCap, 2],
+      ['aoDirection', uniforms.directionCount, 0],
+      ['aoStep', uniforms.stepCount, 0]
+    ];
+    fields.forEach(([id, value, digits]) => {
+      if (typeof value !== 'number') return;
+      const slider = document.getElementById(id + 'Slider');
+      const label = document.getElementById(id + 'Value');
+      if (slider) slider.value = value;
+      if (label) label.textContent = value.toFixed(digits);
     });
   },
 

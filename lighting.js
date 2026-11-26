@@ -95,11 +95,13 @@
       this.viewer.scene.shadowMap.enabled = true;
       this.viewer.scene.shadowMap.darkness = 0.4;
       this.viewer.scene.shadowMap.softShadows = true;
-      this.viewer.scene.shadowMap.size = 2048;
+      // Shadow map size of the active performance preset (core.js)
+      const shadowSize = (this._currentPerformanceSettings && this._currentPerformanceSettings.shadowSize) || 2048;
+      this.viewer.scene.shadowMap.size = shadowSize;
       this.viewer.scene.shadowMap.normalOffset = true;
       this.viewer.scene.shadowMap.maximumDistance = 1000.0;
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
-      console.log('  ✅ Shadow system enabled (size: 2048, maxDist: 200m, normalOffset: true)');
+      console.log('  ✅ Shadow system enabled (size: ' + shadowSize + ', maxDist: 1000m, normalOffset: true)');
       
       // STEP 3: 🔥 CRITICAL - Reload terrain with vertex normals
       this.reloadTerrainWithLighting();

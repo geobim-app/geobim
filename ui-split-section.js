@@ -166,7 +166,6 @@
         preloadFlightDestinations: true,
         preferLeaves: false,
         backFaceCulling: true,
-        maximumMemoryUsage: 4096,
         dynamicScreenSpaceError: true,
         dynamicScreenSpaceErrorDensity: 0.00028,
         dynamicScreenSpaceErrorFactor: 4.0,
@@ -188,7 +187,8 @@
       if (preset) {
         tileset.maximumScreenSpaceError = preset.maximumScreenSpaceError;
         tileset.skipLevelOfDetail = preset.skipLevelOfDetail;
-        tileset.maximumMemoryUsage = preset.maximumMemoryUsage;
+        tileset.cacheBytes = preset.cacheBytes;
+        tileset.maximumCacheOverflowBytes = preset.maximumCacheOverflowBytes;
         tileset.backFaceCulling = preset.backFaceCulling;
         tileset.preferLeaves = preset.preferLeaves;
         tileset.cullRequestsWhileMovingMultiplier = preset.cullRequestsWhileMovingMultiplier;

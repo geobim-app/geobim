@@ -251,7 +251,7 @@
 | Lens Flare | Cesium built-in lens flare with intensity, distortion, ghostDispersal, haloWidth. | `postfx.js` |
 | Vignette | Custom GLSL vignette with adjustable strength and radius. | `postfx.js` |
 | Color Grading | Custom GLSL post-process: contrast, saturation, warmth, brightness. | `postfx.js` |
-| Cinematic Preset | One-click preset: MSAA 4x + Bloom + Lens Flare + Vignette + SSAO + resolutionScale 1.5. | `postfx.js`, `core.js` |
+| Cinematic Preset | One-click preset: MSAA 4x + Bloom + Lens Flare + Vignette + SSAO + 1.5× device resolution (up to 3). | `postfx.js`, `core.js` |
 | Mobile Compatibility | All effects wrapped in try/catch for WebGL fallback on mobile devices. | `postfx.js` |
 
 ---
@@ -321,8 +321,9 @@ the credit is rendered. Links must remain active and clickable per the license.
 
 | Feature | Description | Files |
 |---|---|---|
-| 4 Performance Presets | Performance, Balanced, Quality, Ultra — control SSAO, shadows, LOD, memory, anti-aliasing. | `core.js` |
-| Tileset-Level Settings | `maximumScreenSpaceError`, `maximumCacheSize`, `skipLevelOfDetail`, `cullRequestsWhileMoving`, `preloadWhenHidden`, `dynamicScreenSpaceError` applied per tileset. | `core.js` |
+| 4 Performance Presets | Performance, Balanced, Quality, Ultra — control SSAO, shadows (map size 2048/4096), LOD, tile cache, anti-aliasing, render resolution. | `core.js` |
+| Render Resolution | Render pixels per CSS pixel follow `devicePixelRatio` up to a cap per preset: Performance 1.0 (CSS pixels, as before), Balanced 1.5, Quality/Ultra 2. Follows a move to another monitor and browser zoom; fixed point-cloud point sizes keep their on-screen size. | `render-resolution.js`, `pointcloud.js` |
+| Tileset-Level Settings | `maximumScreenSpaceError`, `cacheBytes` / `maximumCacheOverflowBytes`, `skipLevelOfDetail`, `cullRequestsWhileMoving`, `preloadWhenHidden`, `dynamicScreenSpaceError` applied per tileset. | `core.js` |
 | Google 3D Tiles Protection | `skipLevelOfDetail` forced false for Google tiles to prevent black crack artifacts. | `core.js` |
 | New Asset Auto-Config | Newly loaded tilesets automatically receive current performance preset settings. | `core.js` |
 | Settings Section | Performance preset, post-processing, silhouette, ambient occlusion, IBL, underground view; VR settings when a headset is available. | `ui-settings-section.js` |
@@ -515,6 +516,7 @@ Panel UI rail (Lucide icon) and classic sidebar show the same sections; the pane
 | `owner-session.js` | Owner session cookie for `model/` |
 | `guest-no-ion.js` | Guests without Cesium ion (open terrain, open base maps, Nominatim search) |
 | `core.js` | Viewer initialization, asset loading, performance presets, Google/OSM, globe controls |
+| `render-resolution.js` | Render resolution per performance preset (`devicePixelRatio`, HiDPI screens) |
 | `features.js` | IFC/Revit filtering, element selection, property display, saved views, silhouette |
 | `hideFeatures.js` | Click-to-hide individual elements with undo |
 | `comments.js` | Point and area annotations with Firestore CRUD |
