@@ -8,8 +8,8 @@
  */
 
 // ===============================
-// CESIUM BIM VIEWER - IBL MODULE v1.4
-// Image-Based Lighting via Spherical Harmonics (diffuse IBL)
+// CESIUM BIM VIEWER - IBL MODULE v1.5
+// Image-Based Lighting (diffuse + specular) from the environment
 // Independent from dynamic lighting (lighting.js)
 // ===============================
 'use strict';
@@ -19,20 +19,16 @@
   const STORAGE_KEY = 'geoBIM_settings_ibl';
 
   // === DYNAMIC MODE ===
-  // Uses Cesium's environmentMapManager for real-time environment reflections.
-  // Spherical harmonics provide diffuse IBL without async texture loading.
+  // Cesium's environmentMapManager renders the sky and atmosphere around the
+  // model and derives both the specular reflections and the diffuse light
+  // (spherical harmonics) from it, so both follow sun position and time of day.
+  // Up to v1.4 a fixed set of dim spherical harmonics replaced that diffuse
+  // light; together with factors 0.35 / 0.25 it left almost no image-based
+  // light — models looked as flat as with IBL off.
 
-  const IBL_SPHERICAL_HARMONICS = [
-    new Cesium.Cartesian3(0.356, 0.350, 0.317),
-    new Cesium.Cartesian3(0.138, 0.182, 0.235),
-    new Cesium.Cartesian3(0.089, 0.089, 0.097),
-    new Cesium.Cartesian3(0.057, 0.060, 0.071),
-    new Cesium.Cartesian3(0.051, 0.048, 0.046),
-    new Cesium.Cartesian3(0.043, 0.044, 0.051),
-    new Cesium.Cartesian3(-0.004, -0.005, -0.006),
-    new Cesium.Cartesian3(0.027, 0.023, 0.014),
-    new Cesium.Cartesian3(-0.013, -0.012, -0.010),
-  ];
+  // Defaults up to v1.4; a saved state with exactly these is not a choice
+  const OLD_DEFAULT_DIFFUSE = 0.35;
+  const OLD_DEFAULT_SPECULAR = 0.25;
 
   // === STATIC KTX2 MODE ===
   // Uses a pre-baked KTX2 cubemap for consistent outdoor lighting.
@@ -57,8 +53,8 @@
   BimViewer.ibl = {
     enabled: true,
     mode: 'dynamic',  // 'dynamic' | 'static'
-    diffuse: 0.35,
-    specular: 0.25
+    diffuse: 1.0,
+    specular: 1.0
   };
 
   // ===============================
@@ -73,8 +69,11 @@
         var parsed = JSON.parse(saved);
         if (typeof parsed.enabled === 'boolean') this.ibl.enabled = parsed.enabled;
         if (parsed.mode === 'dynamic' || parsed.mode === 'static') this.ibl.mode = parsed.mode;
-        if (typeof parsed.diffuse === 'number') this.ibl.diffuse = parsed.diffuse;
-        if (typeof parsed.specular === 'number') this.ibl.specular = parsed.specular;
+        var oldDefaults = parsed.diffuse === OLD_DEFAULT_DIFFUSE && parsed.specular === OLD_DEFAULT_SPECULAR;
+        if (!oldDefaults) {
+          if (typeof parsed.diffuse === 'number') this.ibl.diffuse = parsed.diffuse;
+          if (typeof parsed.specular === 'number') this.ibl.specular = parsed.specular;
+        }
       }
     } catch (e) {
       console.warn('⚠️ IBL: Could not load saved state:', e.message);
@@ -134,12 +133,13 @@
       var isGoogle = isGoogle3DTiles(tileset);
 
       if (!this.ibl.enabled) {
-        // IBL off — let environmentMapManager handle specular, clear SH only
+        // IBL off: no image-based light, sun only. Up to v1.4 "off" meant Cesium's
+        // defaults (factor 1, 1), which looked brighter than "on".
         if (tileset.environmentMapManager) tileset.environmentMapManager.enabled = true;
         ibl.sphericalHarmonicCoefficients = undefined;
         // NOTE: Do NOT set specularEnvironmentMaps = undefined — causes CesiumJS 1.134
         // crash (maximumMipmapLevel read on undefined texture). Leave it for envMapManager.
-        ibl.imageBasedLightingFactor = new Cesium.Cartesian2(1.0, 1.0);
+        ibl.imageBasedLightingFactor = new Cesium.Cartesian2(0.0, 0.0);
         return;
       }
 
@@ -149,12 +149,13 @@
         ibl.specularEnvironmentMaps = STATIC_KTX2_URL;
         ibl.sphericalHarmonicCoefficients = STATIC_SPHERICAL_HARMONICS;
       } else {
-        // Dynamic — use Cesium's real-time environment map + SH diffuse
+        // Dynamic — Cesium's real-time environment map for reflections and, with
+        // no coefficients of our own, for the diffuse light too
         // Also used for Google 3D Tiles regardless of mode setting
         fixEnvMapPosition(tileset);
         // NOTE: Do NOT clear specularEnvironmentMaps — envMapManager provides its own.
         // Setting to undefined crashes CesiumJS 1.134 (maximumMipmapLevel on undefined).
-        ibl.sphericalHarmonicCoefficients = IBL_SPHERICAL_HARMONICS;
+        ibl.sphericalHarmonicCoefficients = undefined;
       }
 
       ibl.imageBasedLightingFactor = new Cesium.Cartesian2(
@@ -183,9 +184,10 @@
       var mirror = !!asset.ownMaterials && !asset.pbrEnabled;
 
       if (!this.ibl.enabled) {
+        // IBL off: sun only, as for tilesets
         if (model.environmentMapManager) model.environmentMapManager.enabled = true;
         ibl.sphericalHarmonicCoefficients = undefined;
-        ibl.imageBasedLightingFactor = new Cesium.Cartesian2(1.0, 1.0);
+        ibl.imageBasedLightingFactor = new Cesium.Cartesian2(0.0, 0.0);
         return;
       }
 
@@ -195,7 +197,7 @@
         ibl.sphericalHarmonicCoefficients = STATIC_SPHERICAL_HARMONICS;
       } else {
         if (model.environmentMapManager) model.environmentMapManager.enabled = true;
-        ibl.sphericalHarmonicCoefficients = IBL_SPHERICAL_HARMONICS;
+        ibl.sphericalHarmonicCoefficients = undefined;
       }
 
       ibl.imageBasedLightingFactor = new Cesium.Cartesian2(
@@ -280,6 +282,6 @@
     this.applyIBLToAll();
   };
 
-  console.log('✅ IBL module loaded v1.4 (Spherical Harmonics)');
+  console.log('IBL module loaded v1.5 (environment map light)');
 
 })(window.BimViewer = window.BimViewer || {});

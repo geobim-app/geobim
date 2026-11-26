@@ -84,8 +84,9 @@ const CONFIG = {
         maxPixelRatio: 1.5,
         enableSSAO: false,
         enableShadows: true,
-        enableFXAA: true,
-        enableMSAA: false,
+        // MSAA from Balanced on: smooth edges on thin BIM geometry without FXAA's blur
+        enableFXAA: false,
+        enableMSAA: true,
         enableHDR: true,
         enableAtmosphere: true,
         enableLighting: true,
@@ -107,8 +108,8 @@ const CONFIG = {
         maxPixelRatio: 2.0,
         enableSSAO: true,
         enableShadows: true,
-        enableFXAA: true,
-        enableMSAA: false,
+        enableFXAA: false,
+        enableMSAA: true,
         enableHDR: true,
         enableAtmosphere: true,
         enableLighting: true,
@@ -511,7 +512,13 @@ const BimViewer = {
       console.log(noIon ? '🌍 Guest: terrain from Mapterhorn (no Cesium ion)' : '🌍 Loading Cesium World Terrain...');
       
       this.viewer = new Cesium.Viewer('cesiumContainer', {
-        terrain: noIon ? undefined : Cesium.Terrain.fromWorldTerrain(),
+        // Vertex normals for relief shading under globe lighting, water mask for
+        // water reflections — lighting.js reloaded World Terrain with both only
+        // when Dynamic Lighting was switched on
+        terrain: noIon ? undefined : Cesium.Terrain.fromWorldTerrain({
+          requestVertexNormals: true,
+          requestWaterMask: true
+        }),
         baseLayer: false,   // LayerManager handles basemap
         baseLayerPicker: false,
         geocoder: true,
@@ -648,11 +655,13 @@ const BimViewer = {
         ao.uniforms.stepCount = 32;
       }
 
-      // Reduce sun intensity to prevent overexposed white BIM surfaces
+      // Sun at Cesium's default intensity: PBR Neutral tone mapping keeps white BIM
+      // surfaces from blowing out (with and without HDR); with HDR the Lighting
+      // panel's exposure slider is the regulator. 0.75 together with the old dim
+      // image-based lighting (ibl.js) made models flat and grey.
       scene.light = new Cesium.SunLight({
-        intensity: 0.75
+        intensity: 1.0
       });
-      console.log('✅ Sun intensity set to 0.75 (reduced from default 1.0)');
 
       // Shadow quality defaults
       scene.shadowMap.normalOffset = true;
@@ -1789,6 +1798,20 @@ const BimViewer = {
       const tileset = await Cesium.Cesium3DTileset.fromUrl(modelDef.file);
       this.viewer.scene.primitives.add(tileset);
 
+      // Same render setup as Ion models (loadSelectedAsset): lighting, environment
+      // map, active performance preset, image-based lighting. Without it, server
+      // models ran with Cesium's defaults (maximumScreenSpaceError 16, no preset).
+      this.enableTilesetLighting(tileset);
+      if (typeof this.configureDynamicEnvMaps === 'function') {
+        this.configureDynamicEnvMaps(tileset);
+      }
+      if (this._currentPerformanceSettings) {
+        this.applySettingsToTileset(tileset, this._currentPerformanceSettings);
+      }
+      if (typeof this.applyIBLToTileset === 'function') {
+        this.applyIBLToTileset(tileset);
+      }
+
       const assetData = {
         id: assetId,
         name: modelDef.name,
@@ -2506,10 +2529,17 @@ const BimViewer = {
     }
   },
 
-  // Key of the preset the viewer starts with: Balanced, Performance on phones and
-  // tablets — touch as primary pointer without hover (also iPadOS, which reports
-  // itself as a Mac; touch laptops have a mouse or touchpad as primary pointer)
+  // Key of the preset the viewer starts with: the one last picked in Settings
+  // (ui-settings-section.js stores it), otherwise Balanced, Performance on phones
+  // and tablets — touch as primary pointer without hover (also iPadOS, which
+  // reports itself as a Mac; touch laptops have a mouse or touchpad as primary pointer)
   startPresetKey() {
+    try {
+      const saved = localStorage.getItem('geoBIM_settings_performance');
+      if (saved && CONFIG.performance.presets[saved]) return saved;
+    } catch (e) {
+      // storage unavailable — fall back to the device default
+    }
     const touchFirst = !!(window.matchMedia &&
       window.matchMedia('(pointer: coarse) and (hover: none)').matches);
     return touchFirst
@@ -2521,6 +2551,12 @@ const BimViewer = {
     const scene = this.viewer.scene;
     scene.postProcessStages.fxaa.enabled = settings.enableFXAA;
     scene.msaaSamples = settings.enableMSAA ? 4 : 1;
+    const fxaaBtn = document.getElementById('toggleFXAA');
+    if (fxaaBtn) {
+      fxaaBtn.classList.toggle('active', !!settings.enableFXAA);
+      const fxaaLabel = fxaaBtn.querySelector('span:last-child');
+      if (fxaaLabel) fxaaLabel.textContent = settings.enableFXAA ? 'FXAA ON' : 'FXAA';
+    }
     scene.highDynamicRange = settings.enableHDR;
     scene.globe.enableLighting = settings.enableLighting;
     scene.skyAtmosphere.show = settings.enableAtmosphere;

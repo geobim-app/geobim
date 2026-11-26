@@ -181,6 +181,12 @@
       if (preset) {
         BimViewer.applyPerformanceSettings(preset);
         BimViewer.updateStatus(`Performance: ${preset.name}`, 'success');
+        // The next visit starts with this preset (BimViewer.startPresetKey)
+        try {
+          localStorage.setItem('geoBIM_settings_performance', e.target.value);
+        } catch (err) {
+          // storage full or unavailable — the device default applies next time
+        }
       }
     });
 

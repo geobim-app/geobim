@@ -46,7 +46,7 @@
 |---|---|---|
 | Basemap Switcher | With Cesium ion (signed in): Bing Aerial with Labels (default), Bing Aerial, Bing Roads, Google Maps Contour, Google Maps Sat Labels; for everyone: TopPlusOpen (default for guests), the open base maps and Esri base maps below, No Basemap. Never two at once. | `layerManager.js` |
 | OGC Service Presets | 59 verified WMS/WMTS/WFS services as a grouped dropdown (international, Rhineland-Palatinate, Bavaria, Netherlands/PDOK, Norway); picking one fills the URL and runs discovery. | `layerManager.js`, `ui-layer-section.js` |
-| Terrain Providers | Cesium World Terrain (default when signed in), Cesium World Bathymetry, custom terrain via Ion Asset ID; Mapterhorn open terrain (no ion, default for guests); ArcGIS World Elevation. | `layerManager.js`, `mapterhorn-terrain.js`, `arcgis.js` |
+| Terrain Providers | Cesium World Terrain (default when signed in; with vertex normals for relief shading and a water mask), Cesium World Bathymetry, custom terrain via Ion Asset ID; Mapterhorn open terrain (no ion, default for guests); ArcGIS World Elevation. | `layerManager.js`, `mapterhorn-terrain.js`, `arcgis.js` |
 | Ion Terrain & Imagery Assets | Ion assets of type TERRAIN / IMAGERY appear in the Layers section instead of the asset list. | `ion-layer-assets.js` |
 | GIS Files | GeoJSON, Shapefile, KML/KMZ, GPX and FlatGeobuf by drag & drop or file picker, read in the browser: draped on the terrain or with the file's heights; CRS from the file (or picked), converted with proj4; attributes in the InfoBox. Nothing is uploaded. | `gis-files.js` |
 | GPX Camera Flight | Play a timed GPX track: a marker runs along the track, the camera follows, looks from above or stays free; the clock (and sun) follows the track's time. | `gis-track-player.js` |
@@ -227,16 +227,16 @@
 | Dynamic Lighting | Sun-based shadows with globe lighting, dynamic atmosphere, and time-of-day control. Cesium World Terrain is reloaded with vertex normals only while it is the active terrain; Mapterhorn, ArcGIS, ion terrain assets and guests keep their terrain. | `lighting.js` |
 | Time Presets | Dawn, Morning, Noon, Afternoon, Sunset, Dusk, Night, Midnight. | `lighting.js` |
 | Time Animation | Animate sun position with adjustable speed multiplier. | `lighting.js` |
-| Shadow Quality | Soft shadows, normal offset, configurable max distance (150m–500m) and bias per preset. | `lighting.js`, `core.js` |
+| Shadow Quality | Soft shadows, normal offset; max distance (500–2000 m), map size (2048/4096) and bias per preset — Dynamic Lighting keeps the preset's values. | `lighting.js`, `core.js` |
 | Shadow Intensity | Adjustable darkness (0–1). Default 0.4. | `lighting.js` |
 | Sun Intensity | Adjustable brightness. 0.75 default, 0.85 with dynamic lighting. Prevents overexposure on white BIM surfaces. | `core.js` |
-| IBL (Dynamic) | Real-time environment reflections via CesiumJS environmentMapManager + spherical harmonics. | `ibl.js` |
+| IBL (Dynamic) | Reflections and diffuse light from the CesiumJS environmentMapManager (sky and atmosphere around the model), both follow sun position and time of day. Sun at intensity 1.0. | `ibl.js`, `core.js` |
 | IBL (Static) | Pre-baked KTX2 cubemap (Kiara 6 Afternoon) for consistent outdoor lighting. | `ibl.js` |
-| IBL Diffuse/Specular | Independent sliders for diffuse (0.35 default) and specular (0.25 default) IBL contribution. | `ibl.js` |
+| IBL Diffuse/Specular | Independent sliders for diffuse and specular IBL contribution (1.0 default each). IBL off = sun light only. | `ibl.js` |
 | SSAO | Screen-space ambient occlusion. Configurable intensity, bias, directions, step size, blur. Optimized for BIM geometry. | `core.js` |
 | PBR Neutral Tone Mapping | Prevents overexposure on bright surfaces. Applied at viewer init. | `core.js` |
-| FXAA | Fast approximate anti-aliasing toggle. | `core.js` |
-| MSAA | Multi-sample anti-aliasing (4x, Ultra preset only). | `core.js` |
+| FXAA | Fast approximate anti-aliasing (Performance preset), toggle in Settings. | `core.js` |
+| MSAA | Multi-sample anti-aliasing (4x, Balanced preset and above). | `core.js` |
 | HDR | High dynamic range rendering toggle. | `core.js` |
 | Atmosphere Presets | Named sky / globe atmosphere presets combined with post-processing (used by the WEA digital twin). | `atmosphere.js` |
 | Lighting Section | Sun, shadows, AO and time controls; date & time in local civil time in the panel UI. | `ui-lighting-section.js` |
@@ -322,11 +322,11 @@ the credit is rendered. Links must remain active and clickable per the license.
 | Feature | Description | Files |
 |---|---|---|
 | 4 Performance Presets | Performance, Balanced, Quality, Ultra — control SSAO, shadows (map size 2048/4096), LOD, tile cache, anti-aliasing, render resolution. | `core.js` |
-| Start Preset | Starts in Balanced; phones and tablets (touch as primary pointer, no hover) start in Performance. The Settings dropdown shows the active preset. | `core.js`, `ui-settings-section.js` |
+| Start Preset | Starts in Balanced; phones and tablets (touch as primary pointer, no hover) start in Performance. A preset picked in Settings is remembered per browser. The Settings dropdown shows the active preset. | `core.js`, `ui-settings-section.js` |
 | Render Resolution | Render pixels per CSS pixel follow `devicePixelRatio` up to a cap per preset: Performance 1.0 (CSS pixels, as before), Balanced 1.5, Quality/Ultra 2. Follows a move to another monitor and browser zoom; fixed point-cloud point sizes keep their on-screen size. | `render-resolution.js`, `pointcloud.js` |
 | Tileset-Level Settings | `maximumScreenSpaceError`, `cacheBytes` / `maximumCacheOverflowBytes`, `skipLevelOfDetail`, `cullRequestsWhileMoving`, `preloadWhenHidden`, `dynamicScreenSpaceError` applied per tileset. | `core.js` |
 | Google 3D Tiles Protection | `skipLevelOfDetail` forced false for Google tiles to prevent black crack artifacts. | `core.js` |
-| New Asset Auto-Config | Newly loaded tilesets automatically receive current performance preset settings. | `core.js` |
+| New Asset Auto-Config | Newly loaded tilesets — Ion assets and server models — receive the current performance preset, environment map and IBL settings. | `core.js` |
 | Settings Section | Performance preset, post-processing, silhouette, ambient occlusion, IBL, underground view; VR settings when a headset is available. | `ui-settings-section.js` |
 
 ---

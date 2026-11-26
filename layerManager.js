@@ -449,7 +449,11 @@
 
       try {
         if (terrainId === 'world') {
-          this.viewer.scene.setTerrain(Cesium.Terrain.fromWorldTerrain());
+          // Normals and water mask as at start (core.js)
+          this.viewer.scene.setTerrain(Cesium.Terrain.fromWorldTerrain({
+            requestVertexNormals: true,
+            requestWaterMask: true
+          }));
           if (BimViewer.terrain) {
             BimViewer.terrain.current = 'worldTerrain';
           }

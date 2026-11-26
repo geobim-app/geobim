@@ -95,25 +95,31 @@
       this.viewer.scene.shadowMap.enabled = true;
       this.viewer.scene.shadowMap.darkness = 0.4;
       this.viewer.scene.shadowMap.softShadows = true;
-      // Shadow map size of the active performance preset (core.js)
-      const shadowSize = (this._currentPerformanceSettings && this._currentPerformanceSettings.shadowSize) || 2048;
+      // Shadow map size and distance of the active performance preset (core.js)
+      const preset = this._currentPerformanceSettings || {};
+      const shadowSize = preset.shadowSize || 2048;
+      const shadowDistance = preset.shadowMaxDistance || 1000.0;
       this.viewer.scene.shadowMap.size = shadowSize;
       this.viewer.scene.shadowMap.normalOffset = true;
-      this.viewer.scene.shadowMap.maximumDistance = 1000.0;
+      this.viewer.scene.shadowMap.maximumDistance = shadowDistance;
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY;
-      console.log('  ✅ Shadow system enabled (size: ' + shadowSize + ', maxDist: 1000m, normalOffset: true)');
-      
-      // STEP 3: 🔥 CRITICAL - Reload terrain with vertex normals
-      this.reloadTerrainWithLighting();
+      console.log('  ✅ Shadow system enabled (size: ' + shadowSize + ', maxDist: ' + shadowDistance + 'm, normalOffset: true)');
+
+      // STEP 3: Reload terrain with vertex normals — not needed when it has them
+      // already (World Terrain loads with normals since core.js asks for them)
+      const terrainProvider = this.viewer.terrainProvider;
+      if (!(terrainProvider && terrainProvider.hasVertexNormals)) {
+        this.reloadTerrainWithLighting();
+      }
       
       // STEP 4: Set initial time if not set
       if (!this.lighting.currentTime) {
         this.setTime('2024-10-15T13:30:00');
       }
 
-      // STEP 5: Increase sun intensity for dynamic lighting
+      // STEP 5: Sun intensity as at start (core.js)
       if (typeof this.setSunIntensity === 'function') {
-        this.setSunIntensity(0.85);
+        this.setSunIntensity(1.0);
       }
 
       // STEP 6: Update all tilesets
@@ -153,9 +159,9 @@
       this.viewer.scene.globe.shadows = Cesium.ShadowMode.DISABLED;
       console.log('  ✅ Shadows disabled');
 
-      // Restore default sun intensity
+      // Restore default sun intensity (core.js)
       if (typeof this.setSunIntensity === 'function') {
-        this.setSunIntensity(0.75);
+        this.setSunIntensity(1.0);
       }
 
       // Reset tilesets to bright mode
