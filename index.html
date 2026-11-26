@@ -294,7 +294,7 @@
   <script src="auth-gate.js"></script>
 
   <!-- 1. Core Modules (Foundation) -->
-  <script src="core.js?v=20261126"></script>
+  <script src="core.js?v=20261126-b"></script>
   <script src="render-resolution.js?v=20261126"></script>
   <script src="clipping-planes-guard.js?v=20261027"></script>
   <script src="features.js?v=20261117"></script>
@@ -311,7 +311,7 @@
   <script src="ui-splat-section.js"></script>
   <script src="ui-about-section.js?v=20261125"></script>
   <script src="ui-lighting-section.js"></script>
-  <script src="ui-settings-section.js"></script>
+  <script src="ui-settings-section.js?v=20261126-b"></script>
   <script src="ui-comments-section.js"></script>
   <script src="ui-visibility-section.js"></script>
   <script src="ui-ifc-section.js"></script>
@@ -493,15 +493,16 @@
           BimViewer.init().then(() => {
             console.log('BimViewer.init() completed');
 
-            // Apply PERFORMANCE preset on startup (no shadows)
+            // Start preset: Balanced, Performance on phones and tablets (core.js startPresetKey)
             if (typeof CONFIG !== 'undefined' && CONFIG.performance && CONFIG.performance.presets) {
-              BimViewer.applyPerformanceSettings(CONFIG.performance.presets.PERFORMANCE);
-              console.log('Started in PERFORMANCE mode (no shadows)');
+              const startPreset = BimViewer.startPresetKey();
+              BimViewer.applyPerformanceSettings(CONFIG.performance.presets[startPreset]);
+              console.log('Started with performance preset ' + startPreset);
 
-              // Update settings dropdown to reflect PERFORMANCE preset
+              // Update settings dropdown to reflect the start preset
               const performanceSelect = document.getElementById('performancePreset');
               if (performanceSelect) {
-                performanceSelect.value = 'PERFORMANCE';
+                performanceSelect.value = startPreset;
               }
             }
 

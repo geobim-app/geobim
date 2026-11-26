@@ -22,7 +22,7 @@
       <div class="modern-group">
         <div class="modern-label">Performance Preset</div>
         <select id="performancePreset" class="modern-select">
-          <option value="PERFORMANCE" selected>⚡ Performance</option>
+          <option value="PERFORMANCE">⚡ Performance</option>
           <option value="BALANCED">⚖️ Balanced</option>
           <option value="QUALITY">💎 Quality</option>
           <option value="ULTRA">🌟 Ultra</option>
@@ -163,8 +163,20 @@
     `;
   }
 
+  // Preset shown in the dropdown: the active one, before viewer init the start preset
+  function currentPresetKey() {
+    const presets = CONFIG.performance.presets;
+    const active = Object.keys(presets).find(key => presets[key] === BimViewer._currentPerformanceSettings);
+    return active || BimViewer.startPresetKey();
+  }
+
   function initHandlers() {
-    document.getElementById('performancePreset')?.addEventListener('change', (e) => {
+    const presetSelect = document.getElementById('performancePreset');
+    if (presetSelect && typeof BimViewer.startPresetKey === 'function') {
+      presetSelect.value = currentPresetKey();
+    }
+
+    presetSelect?.addEventListener('change', (e) => {
       const preset = CONFIG.performance.presets[e.target.value];
       if (preset) {
         BimViewer.applyPerformanceSettings(preset);
