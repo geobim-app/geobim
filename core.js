@@ -47,6 +47,10 @@ const CONFIG = {
   // - ssao*: ambient occlusion uniforms of the CesiumJS 1.124+ algorithm
   //   (intensity, bias, lengthCap, directionCount, stepCount).
   performance: {
+    // Preset at start (index.html): Balanced, Performance on phones and tablets
+    // (BimViewer.startPresetKey)
+    startPreset: 'BALANCED',
+    startPresetMobile: 'PERFORMANCE',
     presets: {
       PERFORMANCE: {
         name: 'Performance',
@@ -706,8 +710,8 @@ const BimViewer = {
         }
       };
 
-      // Set initial performance settings reference (PERFORMANCE preset is default)
-      this._currentPerformanceSettings = CONFIG.performance.presets.PERFORMANCE;
+      // Initial performance settings reference until index.html applies the start preset
+      this._currentPerformanceSettings = CONFIG.performance.presets[this.startPresetKey()];
 
       console.log('✅ BIM Viewer initialized successfully');
       this.updateStatus('BIM Viewer ready', 'success');
@@ -2500,6 +2504,17 @@ const BimViewer = {
     } catch (e) {
       // Read-only tileset — skip silently
     }
+  },
+
+  // Key of the preset the viewer starts with: Balanced, Performance on phones and
+  // tablets — touch as primary pointer without hover (also iPadOS, which reports
+  // itself as a Mac; touch laptops have a mouse or touchpad as primary pointer)
+  startPresetKey() {
+    const touchFirst = !!(window.matchMedia &&
+      window.matchMedia('(pointer: coarse) and (hover: none)').matches);
+    return touchFirst
+      ? CONFIG.performance.startPresetMobile
+      : CONFIG.performance.startPreset;
   },
 
   applyPerformanceSettings(settings) {

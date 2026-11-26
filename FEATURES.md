@@ -320,6 +320,7 @@ the credit is rendered. Links must remain active and clickable per the license.
 | Feature | Description | Files |
 |---|---|---|
 | 4 Performance Presets | Performance, Balanced, Quality, Ultra — control SSAO, shadows (map size 2048/4096), LOD, tile cache, anti-aliasing, render resolution. | `core.js` |
+| Start Preset | Starts in Balanced; phones and tablets (touch as primary pointer, no hover) start in Performance. The Settings dropdown shows the active preset. | `core.js`, `ui-settings-section.js` |
 | Render Resolution | Render pixels per CSS pixel follow `devicePixelRatio` up to a cap per preset: Performance 1.0 (CSS pixels, as before), Balanced 1.5, Quality/Ultra 2. Follows a move to another monitor and browser zoom; fixed point-cloud point sizes keep their on-screen size. | `render-resolution.js`, `pointcloud.js` |
 | Tileset-Level Settings | `maximumScreenSpaceError`, `cacheBytes` / `maximumCacheOverflowBytes`, `skipLevelOfDetail`, `cullRequestsWhileMoving`, `preloadWhenHidden`, `dynamicScreenSpaceError` applied per tileset. | `core.js` |
 | Google 3D Tiles Protection | `skipLevelOfDetail` forced false for Google tiles to prevent black crack artifacts. | `core.js` |
