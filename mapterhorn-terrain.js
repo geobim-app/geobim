@@ -370,6 +370,8 @@ window.GEOBIM_MAPTERHORN = (function() {
     sampleOrtho: sampleOrtho,
     dataZoomAt: dataZoomAt,
     geoidHeight: function(lat, lon) { return GCG.data && EGM.data ? geoidHeight(lat, lon) : null; },
+    // EGM2008 alone (the lift outside Germany), null before loadGeoid() finished
+    egm2008: function(lat, lon) { return EGM.data ? egm2008(lat, lon) : null; },
     // GCG2016 undulation in Germany, null outside or before loadGCG() finished
     gcg2016: function(lat, lon) { return GCG.data ? gcg2016(lat, lon) : null; },
     loadGCG: loadGCG,
