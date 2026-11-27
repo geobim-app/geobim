@@ -44,7 +44,7 @@ Part of a small family: the **geoBIM.app** web viewer (this repo), [ifc.geoBIM.a
 
 **Terrain & maps**
 - Terrain: Mapterhorn (open DGM, no ion), ArcGIS World Elevation, Cesium World Terrain; heights via GCG2016 / EGM2008 geoid
-- Base maps: TopPlusOpen, basemap.de, Bavarian DOP20/DTK, Esri, Bing / Google (ion); Google Photorealistic 3D Tiles, OSM Buildings, NRW LoD2
+- Base maps: TopPlusOpen, basemap.de, Bavarian DOP20/DTK, Esri, Bing / Google (ion); Google Photorealistic 3D Tiles, OSM Buildings, swissBUILDINGS3D (swisstopo)
 - 59 verified WMS/WMTS/WFS presets, ArcGIS MapServer layers
 
 **Inspect & analyse**
@@ -161,7 +161,7 @@ conventions for contributors are in [CLAUDE.md](CLAUDE.md).
   terrain DGM1 © Bayerische Vermessungsverwaltung (CC BY 4.0); further IFC 4.3 models by geoBIM.
   Full credits appear in the viewer under *Data attribution*.
 - **Terrain and maps:** Mapterhorn and its sources, BKG (TopPlusOpen, basemap.de, GCG2016), Bayerische
-  Vermessungsverwaltung, Esri, Cesium ion.
+  Vermessungsverwaltung, swisstopo (swissBUILDINGS3D), Esri, Cesium ion.
 - **Bridge monitoring demo** (`sensorthings.js`): a structural health monitoring scenario on
   [FROST-Server](https://github.com/FraunhoferIOSB/FROST-Server) (OGC SensorThings API 1.1), sensor
   typologies after U. Retze, *Beispielhafte Untersuchung zum Einsatz von Monitoringmethoden an einer
